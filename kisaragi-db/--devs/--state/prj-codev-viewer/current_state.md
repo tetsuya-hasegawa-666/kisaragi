@@ -37,3 +37,7 @@
 
 - latest evidence: `Codex retest`
 - visual and operator validation remain user-side checks
+
+## 2026-03-24 作業所有権
+
+- Codex が `bdd-release-compass.md` と `tdd-test-matrix.md` の新規整備を担当する

@@ -31,6 +31,11 @@
 
 - add vision の lock / guided UX / multi-session を次の計画へ昇格させるか判断する
 - launcher の live desktop 配置を必要なら追加確認する
+
+## 2026-03-24 作業所有権
+
+- Codex が `AGENTS.md` への計画文書基準追記と、3 project の BDD / TDD plan 整合化を担当する
+
 ## 2026-03-22 sandbox 移行状況
 - `prj-synceller` 側の script 正本 path は `codev-db/--process/--products/prj-synceller/scripts/` とする。
 - test evidence path は `codev-db/--process/--testlogs/prj-remote-pwsh/` とする。

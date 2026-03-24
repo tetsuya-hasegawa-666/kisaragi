@@ -13,13 +13,26 @@ user は `Next Action` を 1 件だけ受け取り、`Thin Status` で処理状�
 - `Next Action` の一意性を崩さずに、異常理由だけを `Thin Status` へ薄く出す
 - `iSensorium` 由来資産は `prj-reviework` 配下へコピーしたうえで専用調整する
 
-## ストーリーサマリー
+## コアストーリー
 
-- 体験: user は現場収録データを review workspace に投入し、space / trajectory / attention point を同一 timeline で確認したい
-- 接点: intake、diagnose、run、verify、interpret、viewer
-- 価値: 次に何をすべきかが一意に分かり、failure reason と review 対象区間が短く読める
-- 機能要素: `SessionPackage` 生成、diagnose gate、pipeline orchestration、quality summary、attention point synthesis、`ReviewArtifact` 生成
-- 技術要素: parser / validator、`COLMAP` gate、`3DGS` gate、trajectory relink、assembly、read-only viewer
+1. user は session folder を投入して、review 対象として受理できる
+2. user は diagnose phase で不足入力と品質低下の理由を読める
+3. user は実行可能になったときだけ `処理を開始` を提示される
+4. user は run phase で `完了を待つ` と現在ステップだけを見ればよい
+5. user は `COLMAP` failure 時に `入力条件を見直す` へ迷わず戻れる
+6. user は verify phase で空間品質と軌跡品質の弱点を把握できる
+7. user は interpret phase で review すべき区間だけを絞り込める
+8. user は uncertainty を伴う relink を理由付きで把握できる
+9. user は `ReviewArtifact` を read-only viewer で timeline 同期確認できる
+10. operator は `iSensorium` 由来 parser 資産を互換維持したまま `reviework` 内で独立運用できる
+11. operator は shared 参照を残さず、`prj-reviework` 単独で build / test / docs を更新できる
+12. operator は test output と trial data を正しい category に分離できる
+
+## 対応ルール
+
+- gate closeout 記録は `mrl-record.md` を追加した時点でそこへ集約する
+- TDD 計画は `tdd-test-matrix.md` に記録する
+- ongoing の確認事項は `--devs/--state/prj-reviework/current_state.md` に追記する
 
 ## シーケンス
 
@@ -41,21 +54,6 @@ flowchart TD
     N --> O["Interpret shows attention points"]
     O --> P["Viewer reads ReviewArtifact on timeline"]
 ```
-
-## コアストーリー
-
-1. user は session folder を投入して、review 対象として受理できる
-2. user は diagnose phase で不足入力と品質低下の理由を読める
-3. user は実行可能になったときだけ `処理を開始` を提示される
-4. user は run phase で `完了を待つ` と現在ステップだけを見ればよい
-5. user は `COLMAP` failure 時に `入力条件を見直す` へ迷わず戻れる
-6. user は verify phase で空間品質と軌跡品質の弱点を把握できる
-7. user は interpret phase で review すべき区間だけを絞り込める
-8. user は uncertainty を伴う relink を理由付きで把握できる
-9. user は `ReviewArtifact` を read-only viewer で timeline 同期確認できる
-10. operator は `iSensorium` 由来 parser 資産を互換維持したまま `reviework` 内で独立運用できる
-11. operator は shared 参照を残さず、`prj-reviework` 単独で build / test / docs を更新できる
-12. operator は test output と trial data を正しい category に分離できる
 
 ## terminal behaviors
 

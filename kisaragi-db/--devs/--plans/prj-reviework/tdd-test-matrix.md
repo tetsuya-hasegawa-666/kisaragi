@@ -31,6 +31,7 @@
 
 - `T1` は Python unittest で pass
 - `T5` は Kotlin unit test で pass
+- `T3` は `Thin Status` の表示責務までは見えているが、diagnose 計算本体は継続実装が必要である
 - `T8` は attention point の demo 表示までは通っているが、実データ由来の synthesis は未実装
 - `T11` は copy plan と products 構造上は pass だが、継続的な boundary scan は今後も必要
 - `T12` は PowerShell script と test 出力先で pass

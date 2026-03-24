@@ -1,23 +1,23 @@
 # agents.md
 
-## --project-truth の階層の情報
+## kisaragi-db の役割
 
-- この階層はproject truth に準ずる 文書を保持する。
+- この階層は、project で発生する文書、状態、実装、証跡、試験生成物の正本管理層とする。
 
-
-## --project-truth に含まれるファイルとその内容
-
-
-- 直下に `prj-<project名>/` として、プロジェクト毎のディレクトリを持つ
-
-## `kisaragi-db/`の配下のディレクトリ構造
+## 直下の構造
 
 ```text
 kisaragi-db/
   --devs/
-  --docs/
-  --skills/
   --exsams/
   agents.md
-
 ```
+
+## 直下の各要素
+
+- `--devs/` は、計画、状態、証跡、test code、product 実装物、要約された test log を保持する。
+- `--exsams/` は、開発中に生成される raw な試験生成物を project 単位で保持する。
+
+## 補足
+
+- skills の唯一の正本は `kisaragi-skills/` とし、`kisaragi-db/` 配下に skills 層は持たない。

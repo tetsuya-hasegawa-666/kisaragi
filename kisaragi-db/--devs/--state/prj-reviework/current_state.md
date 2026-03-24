@@ -26,3 +26,7 @@
 2. `COLMAP` failure から diagnose へ戻る return path を定義する
 3. verify / interpret の quality summary と attention point synthesis を実装へ落とす
 4. `run_android_unit_tests.ps1` と `run_python_tests.ps1` の運用を基準にし、生成物が `--products` に戻らないことを維持する
+
+## 2026-03-24 作業所有権
+
+- Codex が `bdd-release-compass.md` と `tdd-test-matrix.md` の記載基準整合を担当する
