@@ -1,0 +1,26 @@
+[
+  {
+    "id": "dataset-1",
+    "name": "文書同期カバレッジ",
+    "category": "document",
+    "recordCount": 12,
+    "status": "ready",
+    "updatedAt": "2026-03-14T08:30:00Z"
+  },
+  {
+    "id": "dataset-2",
+    "name": "補正結果サマリー",
+    "category": "result",
+    "recordCount": 5,
+    "status": "draft",
+    "updatedAt": "2026-03-14T09:30:00Z"
+  },
+  {
+    "id": "dataset-3",
+    "name": "調査バックログ",
+    "category": "process",
+    "recordCount": 7,
+    "status": "ready",
+    "updatedAt": "2026-03-13T20:30:00Z"
+  }
+]

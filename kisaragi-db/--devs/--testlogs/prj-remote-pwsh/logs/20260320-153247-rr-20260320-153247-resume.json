@@ -1,0 +1,42 @@
+﻿{
+    "sessionId":  "rr-20260320-153247",
+    "phase":  "resume",
+    "executedAt":  "2026-03-20T15:32:47.4384875+09:00",
+    "whatIf":  true,
+    "steps":  [
+                  {
+                      "target":  "Slack",
+                      "action":  "preview-resume",
+                      "status":  "pending-implementation",
+                      "detail":  "Concrete resume command will be wired in MRL-3."
+                  },
+                  {
+                      "target":  "Docker",
+                      "action":  "preview-resume",
+                      "status":  "pending-implementation",
+                      "detail":  "Concrete resume command will be wired in MRL-3."
+                  },
+                  {
+                      "target":  "PostgreSQL",
+                      "action":  "preview-resume",
+                      "status":  "pending-implementation",
+                      "detail":  "Concrete resume command will be wired in MRL-3."
+                  },
+                  {
+                      "target":  "Synceller",
+                      "action":  "preview-resume",
+                      "status":  "pending-implementation",
+                      "detail":  "Concrete resume command will be wired in MRL-3."
+                  },
+                  {
+                      "target":  "app-server",
+                      "action":  "preview-resume",
+                      "status":  "pending-implementation",
+                      "detail":  "Concrete resume command will be wired in MRL-3."
+                  }
+              ],
+    "failedTargets":  [
+
+                      ],
+    "evidencePath":  "C:\\Users\\tetsuya\\playground\\codex-linker\\test_field\\remote-pwsh-test\\logs\\20260320-153247-rr-20260320-153247-resume.json"
+}

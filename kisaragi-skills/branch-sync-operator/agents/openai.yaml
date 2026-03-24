@@ -1,0 +1,4 @@
+interface:
+  display_name: "Branch Sync Operator"
+  short_description: "Synchronize main dev stg safely"
+  default_prompt: "Sync main, dev, stg with safe checks and explicit reporting."

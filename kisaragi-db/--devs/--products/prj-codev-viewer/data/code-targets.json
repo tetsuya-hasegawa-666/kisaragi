@@ -1,0 +1,20 @@
+[
+  {
+    "id": "document-controller",
+    "title": "ドキュメント制御",
+    "path": "src/document-workspace/controller/DocumentWorkspaceController.ts",
+    "description": "文書の検索、編集開始、保存フローを確認するための参照ターゲットです。"
+  },
+  {
+    "id": "data-controller",
+    "title": "データ制御",
+    "path": "src/data-workspace/controller/DataWorkspaceController.ts",
+    "description": "データセット集計、仮更新、更新結果の表示を確認するための参照ターゲットです。"
+  },
+  {
+    "id": "dashboard-controller",
+    "title": "ダッシュボード共通制御",
+    "path": "src/shared-core/controller/DashboardController.ts",
+    "description": "workspace 切替と共通描画契約を確認するための参照ターゲットです。"
+  }
+]

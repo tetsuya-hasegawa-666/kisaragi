@@ -1,0 +1,4 @@
+interface:
+  display_name: "Documentation Watchkeeper"
+  short_description: "Track policy changes and update docs"
+  default_prompt: "Monitor decisions and update all affected documentation without omissions."

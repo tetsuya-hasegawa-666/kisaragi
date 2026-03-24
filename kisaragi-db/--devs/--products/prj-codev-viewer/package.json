@@ -1,0 +1,23 @@
+{
+  "name": "prj-codev-viewer",
+  "version": "1.0.0",
+  "description": "Codex Dashboard 系の companion project。",
+  "scripts": {
+    "dashboard": "vite --host 127.0.0.1 --port 4173 --strictPort",
+    "dev": "vite --host 127.0.0.1 --port 4173 --strictPort",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
+    "test": "vitest run"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "@types/jsdom": "^28.0.0",
+    "jsdom": "^28.1.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.0",
+    "vitest": "^4.1.0"
+  }
+}

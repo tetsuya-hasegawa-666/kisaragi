@@ -1,0 +1,18 @@
+﻿{
+    "sessionId":  "rr-20260320-153304",
+    "phase":  "summary",
+    "executedAt":  "2026-03-20T15:33:04.2575383+09:00",
+    "overallStatus":  "needs_manual_intervention",
+    "manualInterventionRequired":  true,
+    "nextAction":  "Review evidence and wire concrete runtime commands before live recovery.",
+    "shouldRevalidateSlack":  true,
+    "evidence":  {
+                     "doctor":  "C:\\Users\\tetsuya\\playground\\codex-linker\\test_field\\remote-pwsh-test\\logs\\20260320-153304-rr-20260320-153304-doctor.json",
+                     "resume":  "C:\\Users\\tetsuya\\playground\\codex-linker\\test_field\\remote-pwsh-test\\logs\\20260320-153304-rr-20260320-153304-resume.json",
+                     "recheck":  "C:\\Users\\tetsuya\\playground\\codex-linker\\test_field\\remote-pwsh-test\\logs\\20260320-153304-rr-20260320-153304-recheck.json"
+                 },
+    "notes":  [
+                  "This is a contract-level placeholder summary.",
+                  "Replace placeholder checks with Synceller runtime commands in MRL-3."
+              ]
+}

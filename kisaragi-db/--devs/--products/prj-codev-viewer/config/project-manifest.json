@@ -1,0 +1,41 @@
+{
+  "projectId": "prj-codev-viewer",
+  "sourceProfiles": [
+    {
+      "profileId": "codev-db",
+      "label": "codev-db basis",
+      "projectRoot": "C:/Users/tetsuya/sandbox/codev-db",
+      "documentRoots": [
+        "--docs",
+        "--process"
+      ],
+      "compareRoots": [
+        "--docs/--artifact",
+        "--docs/--operations",
+        "--process/--plans",
+        "--process/--evidence",
+        "--process/--state"
+      ]
+    },
+    {
+      "profileId": "codev-view",
+      "label": "codev-view basis",
+      "projectRoot": "C:/Users/tetsuya/sandbox/codev-view",
+      "documentRoots": [
+        "."
+      ],
+      "compareRoots": [
+        "."
+      ]
+    }
+  ],
+  "ignoreGlobs": [
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/docs/history/**",
+    "**/--trial-data/**"
+  ],
+  "readOnly": true
+}

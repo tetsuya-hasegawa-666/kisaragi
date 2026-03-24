@@ -1,0 +1,7 @@
+interface:
+  display_name: "Document Topology Keeper"
+  short_description: "Review document overlap, choose the smallest valid file layout, and keep generated outputs out of the project body when possible."
+  default_prompt: "Use $document-topology-keeper before editing docs to decide what should be authoritative, what should stay as a pointer, what should be removed, and whether outputs belong under test_field."
+
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,50 @@
+{
+    "sessionId":  "rr-20260320-153627",
+    "phase":  "recheck",
+    "executedAt":  "2026-03-20T15:36:31.9843959+09:00",
+    "overallStatus":  "ready",
+    "manualInterventionRequired":  false,
+    "degradedComponents":  [
+
+                           ],
+    "components":  [
+                       {
+                           "name":  "Slack",
+                           "status":  "healthy",
+                           "detail":  "availability=AVAILABLE slack=CONNECTED app_server=CONNECTED reason=none",
+                           "checkedAt":  "2026-03-20T15:36:31.9843959+09:00",
+                           "manualIntervention":  false
+                       },
+                       {
+                           "name":  "Docker",
+                           "status":  "healthy",
+                           "detail":  "ready",
+                           "checkedAt":  "2026-03-20T15:36:31.9843959+09:00",
+                           "manualIntervention":  false
+                       },
+                       {
+                           "name":  "PostgreSQL",
+                           "status":  "healthy",
+                           "detail":  "ready",
+                           "checkedAt":  "2026-03-20T15:36:31.9843959+09:00",
+                           "manualIntervention":  false
+                       },
+                       {
+                           "name":  "Synceller",
+                           "status":  "healthy",
+                           "detail":  "running pid=29084 runtime_count=1",
+                           "checkedAt":  "2026-03-20T15:36:31.9843959+09:00",
+                           "manualIntervention":  false
+                       },
+                       {
+                           "name":  "app-server",
+                           "status":  "healthy",
+                           "detail":  "availability=AVAILABLE slack=CONNECTED app_server=CONNECTED reason=none",
+                           "checkedAt":  "2026-03-20T15:36:31.9843959+09:00",
+                           "manualIntervention":  false
+                       }
+                   ],
+    "source":  "synceller-doctor",
+    "sourceScript":  "C:\\Users\\tetsuya\\playground\\codex-linker\\synceller\\infra\\scripts\\doctor.ps1",
+    "evidencePath":  "C:\\Users\\tetsuya\\playground\\codex-linker\\test_field\\remote-pwsh-test\\logs\\20260320-153627-rr-20260320-153627-recheck.json"
+}

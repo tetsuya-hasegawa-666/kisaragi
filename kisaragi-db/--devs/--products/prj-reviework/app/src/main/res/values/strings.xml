@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">reviework</string>
+    <string name="next_action_label">Next Action</string>
+    <string name="thin_status_label">Thin Status</string>
+    <string name="attention_label">Attention</string>
+    <string name="prev_step">前へ</string>
+    <string name="next_step">次へ</string>
+    <string name="step_counter">%1$d / %2$d</string>
+</resources>

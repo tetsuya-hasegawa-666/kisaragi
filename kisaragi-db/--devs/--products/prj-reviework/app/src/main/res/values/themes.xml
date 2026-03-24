@@ -1,0 +1,7 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.Reviework" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:statusBarColor" tools:targetApi="l">@color/reviework_surface</item>
+        <item name="colorPrimary">@color/reviework_accent</item>
+        <item name="colorSurface">@color/reviework_surface</item>
+    </style>
+</resources>

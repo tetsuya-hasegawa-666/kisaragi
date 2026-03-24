@@ -1,0 +1,4 @@
+interface:
+  display_name: "Document Governance"
+  short_description: "Maintain doc versions and references"
+  default_prompt: "Update document versions, references, and old_files placement."

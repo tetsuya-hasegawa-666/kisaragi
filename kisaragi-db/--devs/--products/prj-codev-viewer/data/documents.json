@@ -1,0 +1,23 @@
+[
+  {
+    "id": "north-star",
+    "title": "North Star",
+    "path": "docs/artifact/north_star.md",
+    "body": "codev-viewer の目的、対象範囲、譲れない条件をまとめた seed document です。",
+    "tags": ["artifact", "must-scope"]
+  },
+  {
+    "id": "system-blueprint",
+    "title": "System Blueprint",
+    "path": "docs/artifact/system_blueprint.md",
+    "body": "MVC 境界、workspace 構成、viewer shell の責務をまとめた seed document です。",
+    "tags": ["artifact", "architecture"]
+  },
+  {
+    "id": "research-operation",
+    "title": "Research Operation",
+    "path": "docs/process/research_operation.md",
+    "body": "BDD、TDD、検証の進め方をまとめた seed document です。",
+    "tags": ["process", "bdd", "tdd"]
+  }
+]

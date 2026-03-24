@@ -1,0 +1,7 @@
+interface:
+  display_name: "Docker Stability Operator"
+  short_description: "Diagnose Docker first, recover failures, and return the stack to a reusable healthy steady state."
+  default_prompt: "Use $docker-stability-operator before Docker-dependent work to diagnose Docker, recover failures, and return the project stack to a healthy steady state."
+
+policy:
+  allow_implicit_invocation: true

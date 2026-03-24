@@ -1,0 +1,4 @@
+interface:
+  display_name: "BDD Story Builder"
+  short_description: "Build BDD stories from use cases"
+  default_prompt: "Convert use cases into BDD stories and acceptance flows."

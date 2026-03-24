@@ -1,0 +1,7 @@
+interface:
+  display_name: "Encoding Integrity Keeper"
+  short_description: "Preflight runtime UTF-8 safety, check document readability, normalize recoverable files, and avoid reasoning over mojibake."
+  default_prompt: "Use $encoding-integrity-keeper to verify UTF-8-safe runtime behavior first, then detect and normalize garbled documents before analysis."
+
+policy:
+  allow_implicit_invocation: true

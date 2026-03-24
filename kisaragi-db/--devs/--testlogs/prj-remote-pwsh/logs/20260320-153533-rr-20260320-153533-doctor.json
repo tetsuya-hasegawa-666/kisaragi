@@ -1,0 +1,54 @@
+﻿{
+    "sessionId":  "rr-20260320-153533",
+    "phase":  "doctor",
+    "executedAt":  "2026-03-20T15:35:38.2552501+09:00",
+    "overallStatus":  "needs_resume",
+    "manualInterventionRequired":  false,
+    "degradedComponents":  [
+                               "Slack",
+                               "Docker",
+                               "PostgreSQL",
+                               "Synceller",
+                               "app-server"
+                           ],
+    "components":  [
+                       {
+                           "name":  "Slack",
+                           "status":  "unknown",
+                           "detail":  "Placeholder target. Real diagnostic command is pending.",
+                           "checkedAt":  "2026-03-20T15:35:36.0811824+09:00",
+                           "manualIntervention":  false
+                       },
+                       {
+                           "name":  "Docker",
+                           "status":  "unknown",
+                           "detail":  "Runtime command is not wired yet. Service-specific mapping will be added in MRL-3.",
+                           "checkedAt":  "2026-03-20T15:35:36.0811824+09:00",
+                           "manualIntervention":  false
+                       },
+                       {
+                           "name":  "PostgreSQL",
+                           "status":  "unknown",
+                           "detail":  "Runtime command is not wired yet. Service-specific mapping will be added in MRL-3.",
+                           "checkedAt":  "2026-03-20T15:35:36.0811824+09:00",
+                           "manualIntervention":  false
+                       },
+                       {
+                           "name":  "Synceller",
+                           "status":  "unknown",
+                           "detail":  "Placeholder target. Real diagnostic command is pending.",
+                           "checkedAt":  "2026-03-20T15:35:36.0811824+09:00",
+                           "manualIntervention":  false
+                       },
+                       {
+                           "name":  "app-server",
+                           "status":  "unknown",
+                           "detail":  "Placeholder target. Real diagnostic command is pending.",
+                           "checkedAt":  "2026-03-20T15:35:36.0811824+09:00",
+                           "manualIntervention":  false
+                       }
+                   ],
+    "source":  "synceller-doctor",
+    "sourceScript":  "C:\\Users\\tetsuya\\playground\\codex-linker\\synceller\\infra\\scripts\\doctor.ps1",
+    "evidencePath":  "C:\\Users\\tetsuya\\playground\\codex-linker\\test_field\\remote-pwsh-test\\logs\\20260320-153533-rr-20260320-153533-doctor.json"
+}

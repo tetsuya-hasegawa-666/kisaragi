@@ -1,0 +1,4 @@
+interface:
+  display_name: "Release Gatekeeper"
+  short_description: "Evaluate RL gates and readiness"
+  default_prompt: "Assess RL1-RL4 gate readiness and list blockers."

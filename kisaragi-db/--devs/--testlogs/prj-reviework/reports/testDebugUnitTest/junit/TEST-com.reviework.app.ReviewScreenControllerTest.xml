@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.reviework.app.ReviewScreenControllerTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-03-23T19:52:35" hostname="TEZY-GT37" time="0.044">
+  <properties/>
+  <testcase name="reviewStateEmitsAttentionPoints" classname="com.reviework.app.ReviewScreenControllerTest" time="0.036"/>
+  <testcase name="initialStateStartsFromIntake" classname="com.reviework.app.ReviewScreenControllerTest" time="0.0"/>
+  <testcase name="runningStateUsesWaitActionAndCurrentStep" classname="com.reviework.app.ReviewScreenControllerTest" time="0.007"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
