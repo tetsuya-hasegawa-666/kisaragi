@@ -1,9 +1,102 @@
+param(
+  [string]$LaunchAnchorPath,
+  [string]$DisplayRoot
+)
+
+$OutputEncoding = [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 $ErrorActionPreference = "Stop"
 
-$projectRoot = "C:\Users\tetsuya\sandbox\codev-db\--process\--products\prj-codev-viewer"
+$projectRoot = "C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-codev-viewer"
 $dashboardUrl = "http://127.0.0.1:4173/"
+$manifestOutputDir = "C:\Users\tetsuya\kisaragi\kisaragi-db\--exsams\prj-codev-viewer\launch"
+
+function Resolve-DisplayRoot {
+  param(
+    [string]$LaunchAnchorPath,
+    [string]$DisplayRoot
+  )
+
+  if ($DisplayRoot) {
+    return (Resolve-Path -LiteralPath $DisplayRoot).Path
+  }
+
+  $anchor = if ($LaunchAnchorPath) { $LaunchAnchorPath } else { (Get-Location).Path }
+  $resolvedAnchor = (Resolve-Path -LiteralPath $anchor).Path
+  $parent = Split-Path -Parent $resolvedAnchor
+
+  if (-not $parent) {
+    throw "Display root parent could not be resolved from launch anchor."
+  }
+
+  return $parent
+}
+
+function New-LaunchManifest {
+  param(
+    [string]$ManifestPath,
+    [string]$ResolvedDisplayRoot
+  )
+
+  $workspaceParent = Split-Path -Parent $ResolvedDisplayRoot
+  if (-not $workspaceParent) {
+    throw "Display root parent was not found."
+  }
+  $displayRootName = Split-Path -Leaf $ResolvedDisplayRoot
+  $dbRoot = Join-Path $ResolvedDisplayRoot "kisaragi-db"
+  $treeRoot = Join-Path $ResolvedDisplayRoot "kisaragi-tree"
+  $sourceProfiles = @()
+
+  if (Test-Path -LiteralPath $dbRoot) {
+    $sourceProfiles += @{
+      profileId = "db-view"
+      label = "db-view"
+      projectRoot = $workspaceParent
+      documentRoots = @($displayRootName)
+      compareRoots = @($displayRootName)
+    }
+  }
+
+  if (Test-Path -LiteralPath $treeRoot) {
+    $sourceProfiles += @{
+      profileId = "prj-view"
+      label = "prj-view"
+      projectRoot = $workspaceParent
+      documentRoots = @($displayRootName)
+      compareRoots = @($displayRootName)
+    }
+  }
+
+  if ($sourceProfiles.Count -eq 0) {
+    throw "Neither 'kisaragi-db' nor 'kisaragi-tree' was found under display root."
+  }
+
+  $manifest = @{
+    projectId = "prj-codev-viewer"
+    sourceProfiles = $sourceProfiles
+    ignoreGlobs = @(
+      "**/node_modules/**",
+      "**/.git/**",
+      "**/dist/**",
+      "**/build/**",
+      "**/--trial-data/**"
+    )
+    readOnly = $true
+  }
+
+  $json = $manifest | ConvertTo-Json -Depth 6
+  [System.IO.File]::WriteAllText(
+    $ManifestPath,
+    $json,
+    [System.Text.UTF8Encoding]::new($false)
+  )
+}
 
 try {
+  $resolvedDisplayRoot = Resolve-DisplayRoot -LaunchAnchorPath $LaunchAnchorPath -DisplayRoot $DisplayRoot
+  New-Item -ItemType Directory -Force -Path $manifestOutputDir | Out-Null
+  $manifestPath = Join-Path $manifestOutputDir "active-project-manifest.json"
+  New-LaunchManifest -ManifestPath $manifestPath -ResolvedDisplayRoot $resolvedDisplayRoot
+
   Set-Location $projectRoot
 
   if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
@@ -18,12 +111,15 @@ try {
     }
   }
 
+  $env:CODEV_VIEWER_MANIFEST_PATH = $manifestPath
+
   Start-Job -ScriptBlock {
     Start-Sleep -Seconds 4
-    Start-Process "http://127.0.0.1:4173/"
+    Start-Process $using:dashboardUrl
   } | Out-Null
 
   Write-Host "Starting codev-viewer..." -ForegroundColor Cyan
+  Write-Host "Display root: $resolvedDisplayRoot" -ForegroundColor DarkGray
   Write-Host "Press Ctrl+C in this window to stop the server." -ForegroundColor DarkGray
 
   npm run dashboard

@@ -10,6 +10,7 @@ import {
   loadLiveProjectSnapshot,
   resolveRevealTarget
 } from "../../../../--products/prj-codev-viewer/tools/liveProjectSnapshot";
+import { resolveManifestPath } from "../../../../--products/prj-codev-viewer/tools/resolveManifestPath";
 
 const tempRoots: string[] = [];
 
@@ -56,6 +57,27 @@ describe("liveProjectSnapshot", () => {
     expect(snapshot.profiles[0]?.documents.find((entry) => entry.path.endsWith("north_star.md"))?.title).toBe("North Star");
   });
 
+  it("reads documents from launcher-generated db-view and prj-view profiles", () => {
+    const { manifestPath } = createWorkspaceRootFixture();
+
+    const snapshot = loadLiveProjectSnapshot(manifestPath);
+
+    expect(snapshot.profiles.map((profile) => profile.profileId)).toEqual(["db-view", "prj-view"]);
+    expect(snapshot.profiles[0]?.projectRoot.endsWith(rootName(manifestPath))).toBe(false);
+    expect(snapshot.profiles[0]?.documents.map((document) => document.path)).toContain("kisaragi");
+    expect(snapshot.profiles[0]?.documents.map((document) => document.path)).toContain("kisaragi/kisaragi-db");
+    expect(snapshot.profiles[0]?.documents.map((document) => document.path)).toContain("kisaragi/kisaragi-db/--devs/--plans");
+    expect(snapshot.profiles[0]?.documents.map((document) => document.path)).toContain("kisaragi/kisaragi-tree");
+    expect(snapshot.profiles[0]?.documents.map((document) => document.path)).toContain("kisaragi/kisaragi-ruling");
+    expect(snapshot.profiles[0]?.documents.map((document) => document.path)).toContain("kisaragi/AGENTS.md");
+    expect(snapshot.profiles[0]?.documents.map((document) => document.path)).toContain("kisaragi/.gitignore");
+    expect(snapshot.profiles[1]?.documents.map((document) => document.path)).toContain("kisaragi");
+    expect(snapshot.profiles[1]?.documents.map((document) => document.path)).toContain("kisaragi/kisaragi-tree");
+    expect(snapshot.profiles[1]?.documents.map((document) => document.path)).toContain("kisaragi/kisaragi-tree/prj-codev-viewer");
+    expect(snapshot.profiles[1]?.documents.map((document) => document.path)).toContain("kisaragi/kisaragi-skills");
+    expect(snapshot.profiles[1]?.documents.map((document) => document.path)).toContain("kisaragi/AGENTS.md");
+  });
+
   it("resolves reveal target inside configured roots", () => {
     const { manifestPath } = createProjectFixture();
 
@@ -75,6 +97,20 @@ describe("liveProjectSnapshot", () => {
     expect(() =>
       resolveRevealTarget(manifestPath, "codev-view", "outside/secret.md")
     ).toThrow("outside configured roots");
+  });
+
+  it("prefers environment manifest path when provided", () => {
+    const resolved = resolveManifestPath("C:/workspace/prj-codev-viewer", {
+      CODEV_VIEWER_MANIFEST_PATH: "C:/runtime/active-project-manifest.json"
+    });
+
+    expect(resolved).toBe(join("C:/runtime", "active-project-manifest.json"));
+  });
+
+  it("falls back to the project config manifest path", () => {
+    const resolved = resolveManifestPath("C:/workspace/prj-codev-viewer", {});
+
+    expect(resolved).toBe(join("C:/workspace/prj-codev-viewer", "config", "project-manifest.json"));
   });
 });
 
@@ -140,4 +176,62 @@ function createProjectFixture(): { manifestPath: string } {
   );
 
   return { manifestPath };
+}
+
+function createWorkspaceRootFixture(): { manifestPath: string } {
+  const root = mkdtempSync(join(tmpdir(), "codev-viewer-workspace-root-"));
+  tempRoots.push(root);
+
+  const workspaceRoot = join(root, "kisaragi");
+  mkdirSync(join(workspaceRoot, "kisaragi-db", "--devs", "--plans"), { recursive: true });
+  mkdirSync(join(workspaceRoot, "kisaragi-ruling"), { recursive: true });
+  mkdirSync(join(workspaceRoot, "kisaragi-skills"), { recursive: true });
+  mkdirSync(join(workspaceRoot, "kisaragi-tree"), { recursive: true });
+  mkdirSync(join(workspaceRoot, "kisaragi-tree", "prj-codev-viewer"), { recursive: true });
+
+  writeFileSync(join(workspaceRoot, "AGENTS.md"), "# Root\n", "utf8");
+  writeFileSync(join(workspaceRoot, ".gitignore"), "node_modules/\n", "utf8");
+  writeFileSync(join(workspaceRoot, "kisaragi-db", "agents.md"), "# DB\n", "utf8");
+  writeFileSync(join(workspaceRoot, "kisaragi-db", "--devs", "--plans", "plan.md"), "# Plan\n", "utf8");
+  writeFileSync(join(workspaceRoot, "kisaragi-ruling", "agents.md"), "# Ruling\n", "utf8");
+  writeFileSync(join(workspaceRoot, "kisaragi-skills", "agents.md"), "# Skills\n", "utf8");
+  writeFileSync(join(workspaceRoot, "kisaragi-tree", "agents.md"), "# Tree Agents\n", "utf8");
+  writeFileSync(join(workspaceRoot, "kisaragi-tree", "tree-sync.ps1"), "Write-Host sync\n", "utf8");
+
+  const manifestPath = join(root, "active-project-manifest.json");
+  writeFileSync(
+    manifestPath,
+    JSON.stringify(
+      {
+        projectId: "prj-codev-viewer",
+        sourceProfiles: [
+          {
+            profileId: "db-view",
+            label: "db-view",
+            projectRoot: root,
+            documentRoots: ["kisaragi"],
+            compareRoots: ["kisaragi"]
+          },
+          {
+            profileId: "prj-view",
+            label: "prj-view",
+            projectRoot: root,
+            documentRoots: ["kisaragi"],
+            compareRoots: ["kisaragi"]
+          }
+        ],
+        ignoreGlobs: ["**/node_modules/**", "**/.git/**", "**/dist/**", "**/build/**"],
+        readOnly: true
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+
+  return { manifestPath };
+}
+
+function rootName(value: string): string {
+  return value.split(/[\\/]/).filter(Boolean).at(-1) ?? value;
 }

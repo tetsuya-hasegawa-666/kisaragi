@@ -43,7 +43,7 @@ export class DocumentWorkspaceController {
     expandedPaths: string[] = [],
     selectedPath?: string,
     searchQuery = "",
-    expandDepth = 3
+    expandDepth = 1
   ): DocumentWorkspaceState {
     const documents = this.repository.listDocuments().sort((left, right) =>
       left.path.localeCompare(right.path, "ja")
@@ -60,14 +60,17 @@ export class DocumentWorkspaceController {
     const matchedPaths = normalizedQuery.length
       ? this.collectMatchedPaths(tree, normalizedQuery)
       : [];
+    const selectedTrail = selectedPath ? this.findTrail(tree, selectedPath) : [];
+    const trailExpandedPaths = selectedTrail
+      .filter((node) => node.kind === "directory" && node.path !== selectedPath)
+      .map((node) => node.path);
     const effectiveExpandedPaths = normalizedQuery.length
       ? this.collectSearchExpandedPaths(tree, normalizedQuery)
-      : expandedPaths;
+      : [...new Set([...expandedPaths, ...trailExpandedPaths])];
 
     const selectedDocumentRecord = profileDocuments.find(
       (document) => document.nodeKind === "file" && document.path === selectedPath
     );
-    const selectedTrail = selectedPath ? this.findTrail(tree, selectedPath) : [];
     const isStoryReleaseMapMode = selectedPath?.toLocaleLowerCase("ja").endsWith("story_release_map.md") ?? false;
 
     return {
@@ -144,6 +147,20 @@ export class DocumentWorkspaceController {
     return [...profiles.entries()]
       .map(([profileId, profileLabel]) => ({ profileId, profileLabel }))
       .sort((left, right) => {
+        const profileOrder = ["prj-view", "db-view", "codev-view", "codev-db"];
+        const leftIndex = profileOrder.indexOf(left.profileId);
+        const rightIndex = profileOrder.indexOf(right.profileId);
+        if (leftIndex !== -1 || rightIndex !== -1) {
+          if (leftIndex === -1) {
+            return 1;
+          }
+          if (rightIndex === -1) {
+            return -1;
+          }
+          if (leftIndex !== rightIndex) {
+            return leftIndex - rightIndex;
+          }
+        }
         if (left.profileId === "codev-view" && right.profileId !== "codev-view") {
           return -1;
         }

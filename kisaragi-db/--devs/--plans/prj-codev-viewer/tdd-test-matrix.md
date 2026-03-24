@@ -8,6 +8,7 @@
 | --- | --- | --- | --- | --- | --- |
 | `T1` | `B1` | liveProjectSnapshot multi-profile scan | 複数 source profile の文書を収集できる | pass | `--devs/--testcode/prj-codev-viewer/tests/shared-core/liveProjectSnapshot.test.ts` |
 | `T2` | `B1` | profile metadata attachment | 収集結果に profile metadata が付与される | pass | `--devs/--testcode/prj-codev-viewer/tests/shared-core/liveProjectSnapshot.test.ts` |
+| `T2a` | `B1` | launcher db/prj manifest scan | launcher mode の `db-view` と `prj-view` から文書を収集できる | pass | `--devs/--testcode/prj-codev-viewer/tests/shared-core/liveProjectSnapshot.test.ts` |
 | `T3` | `B7` | reveal target inside roots | configured roots 内 path を reveal target として解決できる | pass | `--devs/--testcode/prj-codev-viewer/tests/shared-core/liveProjectSnapshot.test.ts` |
 | `T4` | `B7` | reveal target outside roots rejection | configured roots 外 path を reveal target として拒否する | pass | `--devs/--testcode/prj-codev-viewer/tests/shared-core/liveProjectSnapshot.test.ts` |
 | `T5` | `B2` | dual-pane independent state | 2 pane が独立表示され、left pane profile switch が成立する | pass | `--devs/--testcode/prj-codev-viewer/tests/shared-core/dashboardController.test.ts` |
@@ -20,11 +21,13 @@
 | `T12` | `B8` | read-only code target contract | read-only target と policy note を返せる | pass | `--devs/--testcode/prj-codev-viewer/tests/code-workspace/codeWorkspaceController.test.ts` |
 | `T13` | `B8` | phase-gated consultation response | code consultation が phase gate の内側に保たれる | pass | `--devs/--testcode/prj-codev-viewer/tests/code-workspace/codeWorkspaceController.test.ts` |
 | `T14` | `B9` | launch and build baseline | `npm test` と `npm run build` が継続して通る | pass | `--devs/--testlogs/prj-codev-viewer/reports/verification-summary.md` |
+| `T15` | `B9` | manifest path env override | launcher が指定した manifest path を優先できる | pass | `--devs/--testcode/prj-codev-viewer/tests/shared-core/liveProjectSnapshot.test.ts` |
 
 ## 実行方針
 
 - 1 task 1 責務で進める
 - `MRL-25` は `T1` から `T7` で source profile と dual-pane 基線を固める
+- launcher の `db-view` / `prj-view` mode は `T2a` と `T15` で固定する
 - `MRL-26` は `T8` から `T11` で比較閲覧 UX を固める
 - `MRL-27` は `T3`、`T4`、`T12`、`T13` で handoff と read-only 境界を固定する
 - `MRL-28` は `T14` で launch と build の継続性を確認する

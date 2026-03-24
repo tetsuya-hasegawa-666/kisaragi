@@ -1,9 +1,5 @@
-
-FullName                                                                                           
---------                                                                                           
-C:\Users\tetsuya\sandbox\codev-db\--process\--products\prj-iview\dist\assets                   
-C:\Users\tetsuya\sandbox\codev-db\--process\--products\prj-iview\dist\index.html               
-C:\Users\tetsuya\sandbox\codev-db\--process\--products\prj-iview\dist\assets\index-BNdBA4GS.js 
-C:\Users\tetsuya\sandbox\codev-db\--process\--products\prj-iview\dist\assets\index-BnRhu2Xf.css
+dist\index.html
+dist\assets\index-DMgMHke7.css
+dist\assets\index-DmvyGP20.js
 
 

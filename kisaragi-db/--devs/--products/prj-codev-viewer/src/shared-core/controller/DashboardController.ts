@@ -21,11 +21,12 @@ interface PaneControllerState {
 }
 
 export class DashboardController {
+  private static readonly STORAGE_KEY_PREFIX = "codev-viewer.v2.pane.";
   private readonly documentController: DocumentWorkspaceController;
-  private static readonly DEFAULT_EXPAND_DEPTH = 2;
+  private static readonly DEFAULT_EXPAND_DEPTH = 1;
   private readonly panes: Record<PaneId, PaneControllerState> = {
-    left: this.createPaneState(),
-    right: this.createPaneState()
+    left: this.createPaneState("left"),
+    right: this.createPaneState("right")
   };
 
   public constructor(
@@ -43,7 +44,11 @@ export class DashboardController {
     this.rootElement.addEventListener("compositionend", (event) => this.handleCompositionEnd(event));
   }
 
-  private createPaneState(): PaneControllerState {
+  private createPaneState(paneId: PaneId): PaneControllerState {
+    const hydrated = this.loadPaneStateFromStorage(paneId);
+    if (hydrated) {
+      return hydrated;
+    }
     return {
       expandedPaths: new Set<string>(),
       hasHydratedExpansion: false,
@@ -71,18 +76,21 @@ export class DashboardController {
     const expandAllButton = target.closest<HTMLElement>("[data-role='expand-all']");
     if (expandAllButton) {
       this.expandAll(paneId);
+      this.persistPaneState(paneId);
       this.render();
       return;
     }
     const collapseAllButton = target.closest<HTMLElement>("[data-role='collapse-all']");
     if (collapseAllButton) {
-      pane.expandedPaths.clear();
+      this.collapseAll(paneId);
+      this.persistPaneState(paneId);
       this.render();
       return;
     }
     const backToSearchButton = target.closest<HTMLElement>("[data-role='back-to-search']");
     if (backToSearchButton) {
       pane.selectedPath = undefined;
+      this.persistPaneState(paneId);
       this.render();
       return;
     }
@@ -92,6 +100,7 @@ export class DashboardController {
       pane.expandedPaths.clear();
       pane.hasHydratedExpansion = false;
       pane.selectedPath = undefined;
+      this.persistPaneState(paneId);
       this.render();
       return;
     }
@@ -99,6 +108,7 @@ export class DashboardController {
     const file = target.closest<HTMLElement>("[data-role='tree-file']");
     if (file?.dataset.path) {
       pane.selectedPath = file.dataset.path;
+      this.persistPaneState(paneId);
       this.render();
       return;
     }
@@ -113,6 +123,7 @@ export class DashboardController {
     } else {
       pane.expandedPaths.add(toggle.dataset.path);
     }
+    this.persistPaneState(paneId);
     this.render();
   }
 
@@ -130,6 +141,21 @@ export class DashboardController {
     if (target.dataset.role === "expand-depth-input") {
       const parsed = Number.parseInt(target.value, 10);
       pane.expandDepth = Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+      pane.expandedPaths = new Set(
+        this.collectDirectoryPaths(
+          this.documentController.createSelectionState(
+            pane.activeProfileId,
+            [],
+            pane.selectedPath,
+            pane.searchQuery,
+            pane.expandDepth
+          ).tree,
+          pane.expandDepth - 1
+        )
+      );
+      pane.hasHydratedExpansion = true;
+      this.persistPaneState(paneId);
+      this.render();
       return;
     }
     if (target.dataset.role !== "search-input") {
@@ -141,6 +167,7 @@ export class DashboardController {
     if (pane.isComposingSearch) {
       return;
     }
+    this.persistPaneState(paneId);
     this.render();
   }
 
@@ -170,6 +197,7 @@ export class DashboardController {
     pane.searchQuery = target.value;
     pane.searchSelectionStart = target.selectionStart ?? pane.searchQuery.length;
     pane.searchSelectionEnd = target.selectionEnd ?? pane.searchQuery.length;
+    this.persistPaneState(paneId);
     this.render();
   }
 
@@ -199,12 +227,13 @@ export class DashboardController {
     );
     pane.activeProfileId = state.activeProfileId;
     if (!pane.hasHydratedExpansion) {
-      this.collectDirectoryPaths(state.tree, pane.expandDepth).forEach((path) =>
+      this.collectDirectoryPaths(state.tree, pane.expandDepth - 1).forEach((path) =>
         pane.expandedPaths.add(path)
       );
       state.expandedPaths = [...pane.expandedPaths];
       pane.hasHydratedExpansion = true;
     }
+    this.persistPaneState(paneId);
     return state;
   }
 
@@ -218,16 +247,30 @@ export class DashboardController {
       pane.expandDepth
     );
     pane.activeProfileId = state.activeProfileId;
-    pane.expandedPaths = new Set(this.collectDirectoryPaths(state.tree, pane.expandDepth));
+    pane.expandedPaths = new Set(this.collectDirectoryPaths(state.tree, pane.expandDepth - 1));
+    pane.hasHydratedExpansion = true;
+  }
+
+  private collapseAll(paneId: PaneId): void {
+    const pane = this.panes[paneId];
+    const state = this.documentController.createSelectionState(
+      pane.activeProfileId,
+      [],
+      pane.selectedPath,
+      pane.searchQuery,
+      1
+    );
+    pane.activeProfileId = state.activeProfileId;
+    pane.expandedPaths = new Set(this.collectDirectoryPaths(state.tree, 0));
     pane.hasHydratedExpansion = true;
   }
 
   private collectDirectoryPaths(
     tree: DocumentTreeNode[],
     maxDepth: number,
-    currentDepth = 1
+    currentDepth = 0
   ): string[] {
-    if (currentDepth > maxDepth) {
+    if (currentDepth >= maxDepth) {
       return [];
     }
     const paths: string[] = [];
@@ -267,5 +310,58 @@ export class DashboardController {
       return null;
     }
     return paneElement.dataset.pane === "right" ? "right" : "left";
+  }
+
+  private loadPaneStateFromStorage(paneId: PaneId): PaneControllerState | null {
+    if (typeof window === "undefined") {
+      return null;
+    }
+    const raw = window.sessionStorage.getItem(`${DashboardController.STORAGE_KEY_PREFIX}${paneId}`);
+    if (!raw) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(raw) as Partial<{
+        activeProfileId: string;
+        expandedPaths: string[];
+        hasHydratedExpansion: boolean;
+        selectedPath: string;
+        searchQuery: string;
+        expandDepth: number;
+      }>;
+      return {
+        activeProfileId: parsed.activeProfileId,
+        expandedPaths: new Set(parsed.expandedPaths ?? []),
+        hasHydratedExpansion: parsed.hasHydratedExpansion ?? false,
+        selectedPath: parsed.selectedPath,
+        searchQuery: parsed.searchQuery ?? "",
+        isComposingSearch: false,
+        expandDepth:
+          typeof parsed.expandDepth === "number" && Number.isFinite(parsed.expandDepth) && parsed.expandDepth > 0
+            ? parsed.expandDepth
+            : DashboardController.DEFAULT_EXPAND_DEPTH
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private persistPaneState(paneId: PaneId): void {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const pane = this.panes[paneId];
+    const payload = {
+      activeProfileId: pane.activeProfileId,
+      expandedPaths: [...pane.expandedPaths],
+      hasHydratedExpansion: pane.hasHydratedExpansion,
+      selectedPath: pane.selectedPath,
+      searchQuery: pane.searchQuery,
+      expandDepth: pane.expandDepth
+    };
+    window.sessionStorage.setItem(
+      `${DashboardController.STORAGE_KEY_PREFIX}${paneId}`,
+      JSON.stringify(payload)
+    );
   }
 }

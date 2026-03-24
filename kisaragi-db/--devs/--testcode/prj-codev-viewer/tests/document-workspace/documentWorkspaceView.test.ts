@@ -12,7 +12,7 @@ const state: DocumentWorkspaceState = {
     { profileId: "codev-view", profileLabel: "codev-view basis" }
   ],
   searchQuery: "",
-  expandDepth: 3,
+  expandDepth: 1,
   matchedPaths: [],
   selectedTrail: [],
   isStoryReleaseMapMode: false,
@@ -63,30 +63,30 @@ describe("DocumentWorkspaceView", () => {
     expect(container.querySelectorAll("[data-role='tree-toggle']")).toHaveLength(4);
     expect(container.querySelectorAll("[data-role='selection-pane']")).toHaveLength(2);
     expect(container.querySelectorAll("[data-role='selection-trail-shell']")).toHaveLength(2);
+    expect(container.querySelector("[data-pane='left'] [data-role='selection-trail-shell']")?.textContent?.trim()).toBe("");
   });
 
-  it("keeps prj-codev-viewer visible in the sticky trail when present in the tree", () => {
+  it("renders the selected directory path in the sticky trail", () => {
     const container = document.createElement("section");
     const view = new DocumentWorkspaceView(container);
 
     view.render({
       left: {
         ...state,
-        tree: [
+        selectedTrail: [
           {
             id: "dir:prj-codev-viewer",
             label: "prj-codev-viewer",
             path: "prj-codev-viewer",
             kind: "directory",
-            children: [
-              {
-                id: "file:prj-codev-viewer/README.md",
-                label: "README.md",
-                path: "prj-codev-viewer/README.md",
-                kind: "file",
-                children: []
-              }
-            ]
+            children: []
+          },
+          {
+            id: "dir:prj-codev-viewer/--plans",
+            label: "--plans",
+            path: "prj-codev-viewer/--plans",
+            kind: "directory",
+            children: []
           }
         ]
       },
@@ -95,6 +95,9 @@ describe("DocumentWorkspaceView", () => {
 
     expect(container.querySelector("[data-pane='left'] [data-role='selection-trail-shell']")?.textContent).toContain(
       "prj-codev-viewer"
+    );
+    expect(container.querySelector("[data-pane='left'] [data-role='selection-trail-shell']")?.textContent).toContain(
+      "--plans"
     );
   });
 

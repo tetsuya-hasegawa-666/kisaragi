@@ -47,6 +47,20 @@ describe("DocumentWorkspaceController", () => {
     expect(state.activeProfileId).toBe("codev-view");
   });
 
+  it("prefers prj-view then db-view when launcher profiles are present", () => {
+    const controller = new DocumentWorkspaceController(
+      new StubDocumentRepository([
+        createDocument("db-a", "db-view", "db-view", "--devs/--plans/plan.md"),
+        createDocument("tree-a", "prj-view", "prj-view", "prj-codev-viewer/--plans/plan.md")
+      ])
+    );
+
+    const state = controller.createSelectionState();
+
+    expect(state.availableProfiles.map((profile) => profile.profileId)).toEqual(["prj-view", "db-view"]);
+    expect(state.activeProfileId).toBe("prj-view");
+  });
+
   it("builds a nested tree for the active profile only", () => {
     const controller = new DocumentWorkspaceController(
       new StubDocumentRepository([
@@ -61,6 +75,41 @@ describe("DocumentWorkspaceController", () => {
     expect(state.tree[0]?.label).toBe("--docs");
     expect(state.tree[0]?.children[0]?.label).toBe("--artifact");
     expect(state.tree[0]?.children[0]?.children[0]?.label).toBe("prj-codev-viewer");
+  });
+
+  it("expands ancestor directories for the selected path", () => {
+    const controller = new DocumentWorkspaceController(
+      new StubDocumentRepository([
+        createDocument("tree-a", "prj-view", "prj-view", "kisaragi/kisaragi-tree/prj-codev-viewer/--plans/plan.md")
+      ])
+    );
+
+    const state = controller.createSelectionState(
+      "prj-view",
+      [],
+      "kisaragi/kisaragi-tree/prj-codev-viewer/--plans/plan.md"
+    );
+
+    expect(state.expandedPaths).toEqual([
+      "kisaragi",
+      "kisaragi/kisaragi-tree",
+      "kisaragi/kisaragi-tree/prj-codev-viewer",
+      "kisaragi/kisaragi-tree/prj-codev-viewer/--plans"
+    ]);
+  });
+
+  it("does not force-expand the selected directory itself", () => {
+    const controller = new DocumentWorkspaceController(
+      new StubDocumentRepository([
+        createDirectory("tree-root", "prj-view", "prj-view", "kisaragi"),
+        createDirectory("tree-child", "prj-view", "prj-view", "kisaragi/kisaragi-tree"),
+        createDirectory("tree-leaf", "prj-view", "prj-view", "kisaragi/kisaragi-tree/prj-codev-viewer")
+      ])
+    );
+
+    const state = controller.createSelectionState("prj-view", [], "kisaragi/kisaragi-tree");
+
+    expect(state.expandedPaths).toEqual(["kisaragi"]);
   });
 });
 
@@ -79,5 +128,23 @@ function createDocument(
     path,
     body: path,
     tags: ["md"]
+  };
+}
+
+function createDirectory(
+  id: string,
+  profileId: string,
+  profileLabel: string,
+  path: string
+): DocumentRecord {
+  return {
+    id,
+    profileId,
+    profileLabel,
+    nodeKind: "directory",
+    title: path.split("/").pop() ?? path,
+    path,
+    body: "",
+    tags: ["directory"]
   };
 }

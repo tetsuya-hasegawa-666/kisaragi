@@ -6,9 +6,10 @@ import { spawnSync } from "node:child_process";
 import { defineConfig } from "vitest/config";
 
 import { loadLiveProjectSnapshot, resolveRevealTarget } from "./tools/liveProjectSnapshot";
+import { resolveManifestPath } from "./tools/resolveManifestPath";
 
 const projectDir = resolve(fileURLToPath(new URL(".", import.meta.url)));
-const manifestPath = resolve(projectDir, "config", "project-manifest.json");
+const manifestPath = resolveManifestPath(projectDir, process.env);
 
 export default defineConfig({
   server: {

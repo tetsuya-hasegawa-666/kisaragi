@@ -73,7 +73,7 @@ export class DocumentWorkspaceView {
 
   private renderSelectionPane(paneId: PaneId, state: DocumentWorkspaceState): string {
     const searchQuery = state.searchQuery ?? "";
-    const stickyTrail = this.resolveStickyTrail(state);
+    const stickyTrail = state.selectedTrail;
     const stickyTrailMarkup =
       stickyTrail.length > 0
         ? stickyTrail
@@ -85,14 +85,7 @@ export class DocumentWorkspaceView {
               `
             )
             .join('<span class="selection-trail-separator" aria-hidden="true">/</span>')
-        : `
-          <span class="selection-trail-placeholder" data-role="selection-trail-placeholder">
-            ${this.escapeHtml(
-              state.availableProfiles.find((profile) => profile.profileId === state.activeProfileId)?.profileLabel ??
-                state.activeProfileId
-            )}
-          </span>
-        `;
+        : `<span class="selection-trail-placeholder" data-role="selection-trail-placeholder"></span>`;
     return `
       <section class="selection-pane" data-role="selection-pane" data-pane="${paneId}">
         <div class="selection-header" data-role="selection-header">
@@ -160,32 +153,6 @@ export class DocumentWorkspaceView {
         </div>
       </section>
     `;
-  }
-
-  private resolveStickyTrail(state: DocumentWorkspaceState): DocumentTreeNode[] {
-    if (state.selectedTrail.some((node) => node.label === "prj-codev-viewer")) {
-      return state.selectedTrail;
-    }
-
-    const projectTrail = this.findTrailByLabel(state.tree, "prj-codev-viewer");
-    if (projectTrail.length > 0) {
-      return projectTrail;
-    }
-
-    return state.selectedTrail;
-  }
-
-  private findTrailByLabel(nodes: DocumentTreeNode[], label: string): DocumentTreeNode[] {
-    for (const node of nodes) {
-      if (node.label === label) {
-        return [node];
-      }
-      const childTrail = this.findTrailByLabel(node.children, label);
-      if (childTrail.length > 0) {
-        return [node, ...childTrail];
-      }
-    }
-    return [];
   }
 
   private renderNode(

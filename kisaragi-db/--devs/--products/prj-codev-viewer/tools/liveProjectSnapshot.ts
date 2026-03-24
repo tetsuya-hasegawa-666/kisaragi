@@ -133,6 +133,7 @@ function collectEntries(
   ignoreGlobs: string[]
 ): Array<{ absolutePath: string; kind: "file" | "directory" }> {
   const result: Array<{ absolutePath: string; kind: "file" | "directory" }> = [];
+  const seenDirectories = new Set<string>();
 
   for (const root of roots) {
     const absoluteRoot = resolve(projectRoot, root);
@@ -145,25 +146,51 @@ function collectEntries(
     if (!statSync(absoluteRoot).isDirectory()) {
       continue;
     }
-    walkDirectory(projectRoot, absoluteRoot, ignoreGlobs, result);
+    addAncestorDirectories(projectRoot, absoluteRoot, result, seenDirectories);
+    walkDirectory(projectRoot, absoluteRoot, ignoreGlobs, result, seenDirectories);
   }
 
   return result;
+}
+
+function addAncestorDirectories(
+  projectRoot: string,
+  absoluteRoot: string,
+  result: Array<{ absolutePath: string; kind: "file" | "directory" }>,
+  seenDirectories: Set<string>
+): void {
+  const relativeSegments = toProjectRelativePath(projectRoot, absoluteRoot).split("/").filter(Boolean);
+  if (relativeSegments.length <= 1) {
+    return;
+  }
+
+  let currentPath = projectRoot;
+  for (const segment of relativeSegments.slice(0, -1)) {
+    currentPath = join(currentPath, segment);
+    const relativePath = toProjectRelativePath(projectRoot, currentPath);
+    if (!relativePath || seenDirectories.has(relativePath)) {
+      continue;
+    }
+    result.push({ absolutePath: currentPath, kind: "directory" });
+    seenDirectories.add(relativePath);
+  }
 }
 
 function walkDirectory(
   projectRoot: string,
   currentPath: string,
   ignoreGlobs: string[],
-  result: Array<{ absolutePath: string; kind: "file" | "directory" }>
+  result: Array<{ absolutePath: string; kind: "file" | "directory" }>,
+  seenDirectories: Set<string>
 ): void {
   const relativePath = toProjectRelativePath(projectRoot, currentPath);
   if (relativePath && shouldIgnore(ignoreGlobs, relativePath)) {
     return;
   }
 
-  if (relativePath) {
+  if (relativePath && !seenDirectories.has(relativePath)) {
     result.push({ absolutePath: currentPath, kind: "directory" });
+    seenDirectories.add(relativePath);
   }
 
   for (const entry of readdirSync(currentPath, { withFileTypes: true })) {
@@ -175,7 +202,7 @@ function walkDirectory(
     const isDirectoryLike =
       entry.isDirectory() || (entry.isSymbolicLink() && existsSync(absolutePath) && statSync(absolutePath).isDirectory());
     if (isDirectoryLike) {
-      walkDirectory(projectRoot, absolutePath, ignoreGlobs, result);
+      walkDirectory(projectRoot, absolutePath, ignoreGlobs, result, seenDirectories);
       continue;
     }
     if (entry.isFile()) {
