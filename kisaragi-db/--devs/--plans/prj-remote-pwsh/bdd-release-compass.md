@@ -89,7 +89,7 @@ operator が smartphone から Windows PC を遠隔監視操作し、`synceller`
 
 #### mRL-3.3 証跡出力
 
-- `--process/--testlogs/prj-remote-pwsh/` に結果を残す
+- summary は `kisaragi-db/--devs/--testlogs/prj-remote-pwsh/` に、raw 生成物は `kisaragi-db/--exsams/prj-remote-pwsh/` に残す
 - gate: `pass`
 
 ### MRL-4 副系統 GUI fallback

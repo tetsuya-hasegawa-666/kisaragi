@@ -4,17 +4,15 @@
     {
       "profileId": "codev-db",
       "label": "codev-db basis",
-      "projectRoot": "C:/Users/tetsuya/sandbox/codev-db",
+      "projectRoot": "C:/Users/tetsuya/kisaragi",
       "documentRoots": [
-        "--docs",
-        "--process"
+        "kisaragi-db/--devs"
       ],
       "compareRoots": [
-        "--docs/--artifact",
-        "--docs/--operations",
-        "--process/--plans",
-        "--process/--evidence",
-        "--process/--state"
+        "kisaragi-db/--devs/--project-truth",
+        "kisaragi-db/--devs/--plans",
+        "kisaragi-db/--devs/--evidence",
+        "kisaragi-db/--devs/--state"
       ]
     },
     {
@@ -34,7 +32,6 @@
     "**/.git/**",
     "**/dist/**",
     "**/build/**",
-    "**/docs/history/**",
     "**/--trial-data/**"
   ],
   "readOnly": true

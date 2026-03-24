@@ -4,6 +4,7 @@
 
 - この文書は project 横断の shared current state 正本とする。
 - 2026-03-25: Codex が `AGENTS.md` の Guard、branch 補足、Windows 運用マニュアル追記を担当する。
+- 2026-03-25: Codex が今回に限る許可に基づき、`AGENTS.md` の `<order>` を含む全体圧縮を担当する。
 
 ## 人間確認待ち
 

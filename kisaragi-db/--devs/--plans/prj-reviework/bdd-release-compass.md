@@ -68,7 +68,7 @@ flowchart TD
 - `B9`: `Assembly` は唯一の `ReviewArtifact` 生成者であり、`Viewer` は read-only 消費だけを行う
 - `B10`: parser は `bt.jsonl` / `poses.jsonl` と `ble_scan.jsonl` / `arcore_pose.jsonl` の両方を受理する
 - `B11`: `reviework` の products は `prj-reviework` 配下だけで完結し、`iSensorium` の package / file を shared 参照しない
-- `B12`: test logs と trial data は `--process/--testlogs/prj-reviework/` と `--trial-data/prj-reviework/` に分離される
+- `B12`: test summary は `kisaragi-db/--devs/--testlogs/prj-reviework/` に、raw 生成物は `kisaragi-db/--exsams/prj-reviework/` に分離される
 
 ## 受け入れ基準
 

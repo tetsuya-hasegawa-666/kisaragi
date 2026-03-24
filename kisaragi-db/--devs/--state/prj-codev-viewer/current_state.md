@@ -20,8 +20,8 @@
 
 ## 現行 UI 仕様
 
-- source-of-truth artifact: `--docs/--artifact/prj-codev-viewer/project-core.md`
-- source-of-truth UI spec: `--docs/--artifact/prj-codev-viewer/ui_spec.md`
+- source-of-truth artifact: `kisaragi-db/--devs/--project-truth/prj-codev-viewer/project-core.md`
+- source-of-truth UI spec: `kisaragi-db/--devs/--plans/prj-codev-viewer/bdd-release-compass.md`
 - default basis is `codev-view`
 - both panes stay side by side even in responsive mode
 - both panes have the same controls: `全閉`, `全開`, expand depth input, basis tabs, automatic search

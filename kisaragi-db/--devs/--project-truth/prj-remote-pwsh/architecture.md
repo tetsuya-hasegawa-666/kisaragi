@@ -2,39 +2,39 @@
 
 ## 構成
 
-remote-pwsh は次の 4 層で構成する。
+remote-pwsh は次の 4 要素で構成する。
 
-1. Mobile Client 層
-2. Secure Transport 層
-3. Windows Control 層
-4. Recovery Workflow 層
+1. Mobile Client
+2. Secure Transport
+3. Windows Control
+4. Recovery Workflow
 
-## Mobile Client 層
+## Mobile Client
 
 - iPhone / Android ともに SSH client は `Termius` で統一する
 - GUI fallback では iPhone / Android ともに `RustDesk` を使う
 
-## Secure Transport 層
+## Secure Transport
 
 - 主系統は `Tailscale` 上の SSH 到達を使う
 - 副系統は `Tailscale` 上の `RustDesk` 到達を使う
 - 公開ポート開放を前提にしない
 
-## Windows Control 層
+## Windows Control
 
 - Windows では `OpenSSH Server` を常駐させる
 - 遠隔 shell の既定は `PowerShell` とする
 - 復旧 command は `scripts/` に集約する
 - GUI fallback では launcher icon または shortcut から同じ復旧 command を起動できる
 
-## Recovery Workflow 層
+## Recovery Workflow
 
 - `doctor` を先に実行する
 - `resume` を必要時のみ実行する
 - `recheck` と `summary` を必ず返す
-- 結果を `--process/--testlogs/prj-remote-pwsh/` に記録する
+- 要約は `kisaragi-db/--devs/--testlogs/prj-remote-pwsh/` に、raw 生成物は `kisaragi-db/--exsams/prj-remote-pwsh/` に記録する
 - `Synceller` の運用判断につながる summary を返す
-- contract は `artifact/recovery_contract.md` を正本とする
+- contract は `kisaragi-db/--devs/--project-truth/prj-remote-pwsh/recovery_contract.md` を正本とする
 
 ## 主系統と副系統
 

@@ -16,9 +16,9 @@
 - Windows 側の既存 remote software 競合は `Moshi` 試験利用のみで、撤去可能と確認済み
 - `remote-pwsh` から project 外の data を変更する場合は、先に user 確認を取る
 - smartphone の `Termius` から Windows `PowerShell` へ接続できる
-- `Invoke-RemoteResume.ps1` は `--process/--products/prj-synceller/scripts/resume.ps1` を呼び出して live 実行できる
+- `Invoke-RemoteResume.ps1` は `C:/Users/tetsuya/sandbox/codev-db/--process/--products/prj-synceller/scripts/resume.ps1` を呼び出して live 実行できる
 - 復旧後に smartphone の `Slack` から `/codex status` を確認できる
-- 拡張 UX 提案は `docs/artifact/remote-pwsh_add-vision.md` で管理する
+- 拡張 UX 提案は `kisaragi-db/--devs/--project-truth/prj-remote-pwsh/remote-pwsh_add-vision.md` で管理する
 - GUI fallback では launcher icon から recovery script を起動する拡張を許容する
 - smartphone の `RustDesk` から Windows GUI に接続し、GUI 上の `PowerShell` で同じ recovery script を live 実行できる
 - 拡張実装では `resume` lock、guided recovery、capture 保存導線を先に追加する
@@ -37,8 +37,8 @@
 - Codex が `AGENTS.md` への計画文書基準追記と、3 project の BDD / TDD plan 整合化を担当する
 
 ## 2026-03-22 sandbox 移行状況
-- `prj-synceller` 側の script 正本 path は `codev-db/--process/--products/prj-synceller/scripts/` とする。
-- test evidence path は `codev-db/--process/--testlogs/prj-remote-pwsh/` とする。
+- `prj-synceller` 側の script 正本 path は `C:/Users/tetsuya/sandbox/codev-db/--process/--products/prj-synceller/scripts/` とする。
+- test evidence の要約 path は `kisaragi-db/--devs/--testlogs/prj-remote-pwsh/`、raw path は `kisaragi-db/--exsams/prj-remote-pwsh/` とする。
 - 移行後に次の確認が通っている。
   - `Invoke-RemoteDoctor.ps1 -Format Table`
   - `Invoke-RemoteRecover.ps1 -WhatIf`

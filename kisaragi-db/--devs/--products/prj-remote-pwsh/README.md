@@ -27,7 +27,7 @@
 - `doctor` は `synceller` 側の `doctor.ps1` を呼ぶ wrapper として使うものとする。
 - `resume` / `recover` は remote recovery contract 用の wrapper として使うものとする。
 - `Invoke-GuidedRecover.ps1` は次の調査手順を案内する guided flow として使うものとする。
-- `Save-SlackCapture.ps1` は `--process/--testlogs/prj-remote-pwsh/` へ残す capture の補助として使うものとする。
+- `Save-SlackCapture.ps1` は `kisaragi-db/--exsams/prj-remote-pwsh/captures/` へ残す capture の補助として使うものとする。
 - `apps/` は GUI fallback と desktop launcher の入口として扱うものとする。
 
 ## 使用例
@@ -43,12 +43,12 @@ pwsh -File .\scripts\Test-OpenSshPowerShellEntry.ps1
 ## 以下をpwshで実行すると起動用アイコンがデスクトップに配置される
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File C:\Users\tetsuya\sandbox\codev-db\--process\--products\prj-remote-pwsh\apps\Deploy-DesktopShortcuts.ps1
+powershell -ExecutionPolicy Bypass -File C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-remote-pwsh\apps\Deploy-DesktopShortcuts.ps1
 ```
 
 ## スマホから Windows PC に入って使う場合の前提
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File C:\Users\tetsuya\sandbox\codev-db\--process\--products\prj-remote-pwsh\scripts\Set-OpenSshPowerShellDefault.ps1
-powershell -ExecutionPolicy Bypass -File C:\Users\tetsuya\sandbox\codev-db\--process\--products\prj-remote-pwsh\scripts\Test-OpenSshPowerShellEntry.ps1
+powershell -ExecutionPolicy Bypass -File C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-remote-pwsh\scripts\Set-OpenSshPowerShellDefault.ps1
+powershell -ExecutionPolicy Bypass -File C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-remote-pwsh\scripts\Test-OpenSshPowerShellEntry.ps1
 ```

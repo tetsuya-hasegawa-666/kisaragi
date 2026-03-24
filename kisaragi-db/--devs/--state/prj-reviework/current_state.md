@@ -12,7 +12,7 @@
 - `iSensorium` から parser / validator と UI skeleton pattern を独立コピーする
 - `COLMAP`、`3DGS`、`Trajectory`、`Assembly` を新規責務として切り出す
 - build output、test report、Python cache の出力先を `--trial-data` / `--testlogs` に固定する
-- `project-core.md` を基準に BDD / TDD plan を `--process/--plans/prj-reviework/` へ追加した
+- `project-truth.md` を基準に BDD / TDD plan を `kisaragi-db/--devs/--plans/prj-reviework/` へ追加した
 
 ## blocker 境界
 

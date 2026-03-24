@@ -434,7 +434,7 @@ function Invoke-ResumeContract {
         $detail = if ($WhatIf) {
             "Preview only. Remote wrapper did not execute Synceller resume."
         } elseif ($syncellerResume -and $syncellerResume.exitCode -eq 0) {
-            "Executed through --process/--products/prj-synceller/scripts/resume.ps1."
+            "Executed through C:/Users/tetsuya/sandbox/codev-db/--process/--products/prj-synceller/scripts/resume.ps1."
         } elseif ($syncellerResume) {
             "Synceller resume exited with code $($syncellerResume.exitCode)."
         } else {

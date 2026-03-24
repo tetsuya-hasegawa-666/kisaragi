@@ -17,7 +17,7 @@
   issue: remote recovery project の文書基線が未作成だった
   cause: `remote-pwsh` project 自体が新規だった
   resolution: project skeleton、BDD、TDD、MRL/mRL を作成した
-  recurrence prevention: 以後は `docs/` と `develop/` を source-of-truth として追加更新する
+  recurrence prevention: 以後は `kisaragi-db/--devs/` と `AGENTS.md` を source-of-truth として追加更新する
   remaining work: 実装と live validation は未着手
   evidence path: `../test_field/remote-pwsh-test/`
 - record date: 2026-03-20
@@ -26,7 +26,7 @@
   gate change: `pass`
   issue: mobile / Windows の事前準備一覧と採用 app が未確定だった
   cause: iPhone / Android の client と既存 remote software 競合条件が未確定だった
-  resolution: `Termius` 統一、`Moshi` 競合なし、個人 PC 前提を `docs/` と `additional_info.md` に反映した
+  resolution: `Termius` 統一、`Moshi` 競合なし、個人 PC 前提を `ux_check_manual.md` に反映した
   recurrence prevention: app 選定と host 制約は `additional_info.md` に集約してから次の mRL に進む
   remaining work: live install と host config 適用
   evidence path: `../additional_info.md`
@@ -36,10 +36,10 @@
   gate change: `pass`
   issue: 主系統と副系統で共有する recovery contract が未定義だった
   cause: `doctor`、`resume`、evidence 仕様が文書で固定されていなかった
-  resolution: `docs/artifact/recovery_contract.md` を新設し、command surface と evidence layout を固定した
-  recurrence prevention: contract 変更は `artifact/recovery_contract.md` を先に更新する
+  resolution: `kisaragi-db/--devs/--project-truth/prj-remote-pwsh/recovery_contract.md` を新設し、command surface と evidence layout を固定した
+  recurrence prevention: contract 変更は `recovery_contract.md` を先に更新する
   remaining work: `Synceller` 実 runtime command の接続
-  evidence path: `../../docs/artifact/recovery_contract.md`
+  evidence path: `kisaragi-db/--devs/--project-truth/prj-remote-pwsh/recovery_contract.md`
 - record date: 2026-03-20
   target MRL: `MRL-1`
   target mRL: `mRL-1.3`
@@ -49,7 +49,7 @@
   resolution: BDD、TDD、change protocol、current state、docs index を更新した
   recurrence prevention: project truth 変更時は `documentation-watchkeeper` 手順で関連文書を同時更新する
   remaining work: shell 到達の live validation
-  evidence path: `../../docs/current_state.md`
+  evidence path: `kisaragi-db/--devs/--state/prj-remote-pwsh/current_state.md`
 - record date: 2026-03-20
   target MRL: `MRL-1`
   target mRL: none
@@ -66,10 +66,10 @@
   gate change: `pass`
   issue: mobile から Windows への private path 設計が runbook 化されていなかった
   cause: `Termius` 前提の host profile と Tailscale reachability 手順が未記載だった
-  resolution: `docs/process/ssh_shell_runbook.md` に接続 profile と reachability を記載した
+  resolution: `ux_check_manual.md` に接続 profile と reachability を記載した
   recurrence prevention: 主系統の到達条件は runbook を正本にする
   remaining work: host への config 適用と実接続確認
-  evidence path: `../../docs/process/ssh_shell_runbook.md`
+  evidence path: `kisaragi-db/--devs/--evidence/prj-remote-pwsh/ux_check_manual.md`
 - record date: 2026-03-20
   target MRL: `MRL-2`
   target mRL: `mRL-2.3`
@@ -79,7 +79,7 @@
   resolution: `Termius` 統一前提の profile を runbook に固定した
   recurrence prevention: mobile client の採用決定は `additional_info.md` と runbook の両方で管理する
   remaining work: `Termius` 実 profile での live validation
-  evidence path: `../../docs/process/ssh_shell_runbook.md`
+  evidence path: `kisaragi-db/--devs/--evidence/prj-remote-pwsh/ux_check_manual.md`
 - record date: 2026-03-20
   target MRL: `MRL-3`
   target mRL: `mRL-3.1`
@@ -106,10 +106,10 @@
   gate change: rule added
   issue: `remote-pwsh` から project 外の data を変更する境界が明文化されていなかった
   cause: wrapper 実装を進める中で、外部 project 参照と変更の境界が文書に固定されていなかった
-  resolution: project 外の変更は user 確認がある場合のみ許可するルールを `AGENTS.md` と `docs/process/change_protocol.md` に追加した
+  resolution: project 外の変更は user 確認がある場合のみ許可するルールを `AGENTS.md` に追加した
   recurrence prevention: `remote-pwsh` 外を変更する前に user 確認の有無を確認し、未確認なら停止する
   remaining work: 既存 wrapper で外部参照のみ行う範囲を維持する
-  evidence path: `../../docs/process/change_protocol.md`
+  evidence path: `AGENTS.md`
 - record date: 2026-03-20
   target MRL: `MRL-2`
   target mRL: `mRL-2.2`
@@ -119,7 +119,7 @@
   resolution: `Termius` から Windows に接続し、remote shell 上で `Invoke-RemoteDoctor.ps1` を実行できることを確認した
   recurrence prevention: SSH 導線の初回確認では network / auth / shell を分けて切り分ける
   remaining work: GUI fallback の接続検証
-  evidence path: `../../docs/process/ssh_shell_runbook.md`
+  evidence path: `kisaragi-db/--devs/--evidence/prj-remote-pwsh/ux_check_manual.md`
 - record date: 2026-03-20
   target MRL: `MRL-2`
   target mRL: none
@@ -166,30 +166,30 @@
   gate change: `pass`
   issue: 主系統優先と手動介入条件の判断基準が会話内に散っていた
   cause: operator がどの時点で GUI fallback や手動介入に切り替えるかを 1 枚で参照できなかった
-  resolution: `docs/process/decision_matrix.md` を追加して分岐条件を固定した
+  resolution: `ux_check_manual.md` に主系統継続と GUI fallback の分岐条件を追加した
   recurrence prevention: 新しい障害分岐が出たら decision matrix を先に更新する
   remaining work: long-idle recovery の live 確認
-  evidence path: `../../docs/process/decision_matrix.md`
+  evidence path: `kisaragi-db/--devs/--evidence/prj-remote-pwsh/ux_check_manual.md`
 - record date: 2026-03-20
   target MRL: none
   target mRL: none
   gate change: manual improved
   issue: `Termius` 初回設定で `Hostname`、password、`Use Telnet` の意味が不明確だった
   cause: runbook が概念説明寄りで、端末別の一意手順と FAQ が不足していた
-  resolution: `docs/process/ssh_shell_runbook.md` と `additional_info.md` に実設定マニュアルを追記した
+  resolution: `ux_check_manual.md` に実設定マニュアルを追記した
   recurrence prevention: mobile app 設定で聞き返しが発生した場合は runbook に FAQ を即時追加する
   remaining work: GUI fallback 側でも同じ粒度の初回設定マニュアルを整える
-  evidence path: `../../docs/process/ssh_shell_runbook.md`
+  evidence path: `kisaragi-db/--devs/--evidence/prj-remote-pwsh/ux_check_manual.md`
 - record date: 2026-03-21
   target MRL: none
   target mRL: none
   gate change: vision added
   issue: remote-pwsh の将来 UX と multi-session 活用像が既存 BDD の外にあり、文書化されていなかった
   cause: recovery 専用の設計に集中しており、平常時の継続利用や fail-safe / fool-proof 拡張が別文書化されていなかった
-  resolution: `docs/artifact/remote-pwsh_add-vision.md` を追加し、story ベースで拡張 UX、かたい設計、guided UX を提案した
+  resolution: `kisaragi-db/--devs/--project-truth/prj-remote-pwsh/remote-pwsh_add-vision.md` を追加し、story ベースで拡張 UX、かたい設計、guided UX を提案した
   recurrence prevention: 新しい応用活用や UX 提案は artifact の追加 vision 文書で先に受ける
   remaining work: 提案のうち lock 設計と multi-session ルールを正本へ昇格させる判断
-  evidence path: `../../docs/artifact/remote-pwsh_add-vision.md`
+  evidence path: `kisaragi-db/--devs/--project-truth/prj-remote-pwsh/remote-pwsh_add-vision.md`
 - record date: 2026-03-21
   target MRL: `MRL-6`
   target mRL: `mRL-6.1`
@@ -199,7 +199,7 @@
   resolution: `gui_launcher_runbook.md` を追加し、launcher spec を正本化した
   recurrence prevention: GUI 操作を前提にする UX は launcher 化の可否を先に判断する
   remaining work: live desktop 配置の実地確認
-  evidence path: `../../docs/process/gui_launcher_runbook.md`
+  evidence path: `kisaragi-db/--devs/--evidence/prj-remote-pwsh/ux_check_manual.md`
 - record date: 2026-03-21
   target MRL: `MRL-4`
   target mRL: `mRL-4.1`
@@ -249,7 +249,7 @@
   resolution: `mRL-5.2` を pass とし、`MRL-5` を pass に更新した
   recurrence prevention: operations 系 gate は decision matrix と live capture の両方がそろってから閉じる
   remaining work: add vision の拡張提案を別計画へ昇格させるか判断する
-  evidence path: `../../docs/process/decision_matrix.md`
+  evidence path: `kisaragi-db/--devs/--evidence/prj-remote-pwsh/ux_check_manual.md`
 - record date: 2026-03-21
   target MRL: `MRL-7`
   target mRL: `mRL-7.1`

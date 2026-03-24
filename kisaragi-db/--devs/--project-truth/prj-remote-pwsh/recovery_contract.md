@@ -8,14 +8,14 @@
 
 - 主系統: `Tailscale + OpenSSH Server + PowerShell + Termius`
 - 副系統: `Tailscale + RustDesk`
-- 実行場所: Windows 上の `--process/--products/prj-remote-pwsh/scripts/`
+- 実行場所: Windows 上の `kisaragi-db/--devs/--products/prj-remote-pwsh/scripts/`
 
 ## 固定方針
 
 - operator 向け command 名は `doctor`、`resume`、`recheck`、`summary` とする
 - `recover` は経路全体を指す概念名としてのみ使う
 - 主系統と副系統は同じ PowerShell script 群を呼ぶ
-- すべての実行は `--process/--testlogs/prj-remote-pwsh/` に evidence を残す
+- すべての実行は、要約を `kisaragi-db/--devs/--testlogs/prj-remote-pwsh/` に、raw 生成物を `kisaragi-db/--exsams/prj-remote-pwsh/` に残す
 - wrapper は `Slack`、`Docker`、`PostgreSQL`、`Synceller`、`app-server` を最低監視対象とする
 
 ## 実行順序
@@ -105,13 +105,13 @@ overall status は次の 3 値に正規化する。
 
 ## Evidence Layout
 
-`--process/--testlogs/prj-remote-pwsh/` 配下に次を残す。
+`kisaragi-db/--devs/--testlogs/prj-remote-pwsh/` と `kisaragi-db/--exsams/prj-remote-pwsh/` 配下に次を残す。
 
-- `logs/<timestamp>-<session-id>-doctor.json`
-- `logs/<timestamp>-<session-id>-resume.json`
-- `logs/<timestamp>-<session-id>-recheck.json`
-- `artifacts/<timestamp>-<session-id>-summary.json`
-- `reports/<timestamp>-<session-id>-summary.md`
+- `kisaragi-db/--exsams/prj-remote-pwsh/logs/<timestamp>-<session-id>-doctor.json`
+- `kisaragi-db/--exsams/prj-remote-pwsh/logs/<timestamp>-<session-id>-resume.json`
+- `kisaragi-db/--exsams/prj-remote-pwsh/logs/<timestamp>-<session-id>-recheck.json`
+- `kisaragi-db/--exsams/prj-remote-pwsh/artifacts/<timestamp>-<session-id>-summary.json`
+- `kisaragi-db/--devs/--testlogs/prj-remote-pwsh/reports/<timestamp>-<session-id>-summary.md`
 
 `timestamp` は `yyyyMMdd-HHmmss` とする。
 
@@ -125,6 +125,6 @@ overall status は次の 3 値に正規化する。
 ## 初期実装の範囲
 
 - status 収集は PowerShell function に抽象化する
-- `doctor` は `--process/--products/prj-synceller/scripts/doctor.ps1` を呼ぶ adapter を持ってよい
+- `doctor` は `C:/Users/tetsuya/sandbox/codev-db/--process/--products/prj-synceller/scripts/doctor.ps1` を呼ぶ adapter を持ってよい
 - 実 service command が未確定の component は placeholder 実装でよい
 - evidence 出力と summary 形式を先に固定し、その後に本物の診断 command を差し替える

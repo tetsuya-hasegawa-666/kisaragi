@@ -6,9 +6,9 @@
 
 - `app/`、`python/`、`gradle/`、`build.gradle.kts` などの実装 source はここに置く
 - `app/build/`、`.gradle/`、`.kotlin/`、`__pycache__/` のような生成物はここに置かない
-- Android build output と Gradle cache は `--trial-data/prj-reviework/` に出す
-- unit test の XML / HTML / binary result は `--process/--testlogs/prj-reviework/` に出す
-- Python bytecode cache は `--trial-data/prj-reviework/python-pycache/` に出す
+- Android build output、Gradle cache、unit test の raw result は `kisaragi-db/--exsams/prj-reviework/` に出す
+- unit test の summary は `kisaragi-db/--devs/--testlogs/prj-reviework/` に出す
+- Python bytecode cache は `kisaragi-db/--exsams/prj-reviework/python-pycache/` に出す
 
 ## 実行入口
 

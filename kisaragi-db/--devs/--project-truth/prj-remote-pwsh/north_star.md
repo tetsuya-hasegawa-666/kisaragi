@@ -17,7 +17,7 @@ remote-pwsh の目的は、smartphone から Windows PC へ別系統で到達し
 - 副系統は GUI fallback とし、主系統の代替ではなく補助とする。
 - `remote-pwsh` 自体は `Slack` や `Synceller` の可用性に依存しない。
 - iPhone と Android の両方で使える構成にする。
-- 復旧操作は `--process/--testlogs/prj-remote-pwsh/` に evidence を残せる形にする。
+- 復旧操作は、要約を `kisaragi-db/--devs/--testlogs/prj-remote-pwsh/` に、raw 生成物を `kisaragi-db/--exsams/prj-remote-pwsh/` に残せる形にする。
 
 ## 成功条件
 
