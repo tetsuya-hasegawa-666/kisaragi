@@ -91,6 +91,51 @@ class SessionParserAliasCompatibilityTest(unittest.TestCase):
             self.assertFalse(package_interface.optional_inputs["poses"])
             self.assertFalse(package_interface.optional_inputs["gnss"])
 
+    def test_legacy_csv_aliases_are_accepted(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            session_dir = Path(temp_dir) / "session-20260325-legacy"
+            session_dir.mkdir(parents=True)
+
+            manifest = {
+                "sessionId": "session-20260325-legacy",
+                "status": "ready",
+                "deviceModel": "Xperia 5 III",
+                "recordingMode": "review",
+                "timebase": {
+                    "sessionStartWallTimeMs": 1000,
+                    "sessionStartElapsedRealtimeNanos": 2000,
+                },
+            }
+            (session_dir / "session_manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            (session_dir / "video_frame_timestamps.csv").write_text(
+                "camera_sensor_timestamp_ns,elapsed_realtime_ns,wall_time_ms,rotation_degrees,session_elapsed_ns\n1,2001,1001,0,1\n",
+                encoding="utf-8",
+            )
+            (session_dir / "imu.csv").write_text(
+                "sensor_type,event_timestamp_ns,elapsed_realtime_ns,wall_time_ms,x,y,z,accuracy\naccel,2002,2002,1002,0,0,0,3\n",
+                encoding="utf-8",
+            )
+            (session_dir / "bt_events.csv").write_text(
+                "timestamp_ns,deviceAddress\n2004,AA:BB:CC:DD\n",
+                encoding="utf-8",
+            )
+            (session_dir / "arcore_pose.csv").write_text(
+                "timestamp_ns,tx,ty,tz\n2005,0,0,0\n",
+                encoding="utf-8",
+            )
+
+            parser = SessionParser(session_dir)
+            summary = parser.load_summary()
+            join_report = parser.build_join_report()
+            package_interface = parser.build_session_package_interface()
+
+            self.assertEqual("review", summary.session_mode)
+            self.assertEqual(1, summary.stream_counts["bt"])
+            self.assertEqual(1, summary.stream_counts["poses"])
+            self.assertEqual(3, join_report["btNearestDeltaNs"])
+            self.assertEqual(4, join_report["poseNearestDeltaNs"])
+            self.assertTrue(package_interface.ready_for_diagnose)
+
 
 if __name__ == "__main__":
     unittest.main()

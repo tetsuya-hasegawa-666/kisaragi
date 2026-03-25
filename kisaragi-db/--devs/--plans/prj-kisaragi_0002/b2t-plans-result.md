@@ -17,7 +17,7 @@
 - 4 分担作業のための段階間インターフェースと追加出力を正本文書へ明示した
 - Kotlin controller と Python parser により、受理、gate、空間品質、人物経路、同時刻ハイライト、成果物境界の契約を固定した
 - `GNSS` は任意入力とし、既定は `GNSS` なしでも成立する設計を維持する
-- 次段では `iSensorium` session folder 抽出を app へ統合し、raw + 追加出力を `trajectreview` から生成可能にする
+- `MRL-5` として `iSensorium` session folder 抽出を app へ統合し、raw + 追加出力を `trajectreview` から生成可能にした
 
 ### 阻害要因の境界
 
@@ -28,9 +28,9 @@
 
 ### 次の確認
 
-1. `iSensorium` session folder 抽出を app に接続する
-2. parser と controller の契約評価を実データ読込へ接続する
-3. `3DGS` と viewer の実成果物を `ReviewArtifact` 契約へ接続する
+1. 抽出した bundle を後段の実空間再構成へ接続する
+2. `3DGS` と viewer の実成果物を `ReviewArtifact` 契約へ接続する
+3. 同時刻ハイライトを実データから自動生成する
 
 ### 作業所有権
 
@@ -136,10 +136,10 @@
 | `MRL-4` | `mRL-4.1` | `ReviewArtifact` と viewer 境界 | `s11` | `b10` | `pass` |
 | `MRL-4` | `mRL-4.2` | 独立 project 境界 | `s12` | `b12`,`b14` | `pass` |
 | `MRL-4` | `mRL-4.3` | 生成物 routing hygiene | `s12` | `b12`,`b13` | `pass` |
-| `MRL-5` | `-` | `iSensorium` 抽出統合を成立させる | `s13`,`s14`,`s15` | `b15`,`b16`,`b17`,`b18` | `active` |
-| `MRL-5` | `mRL-5.1` | legacy alias を含む session source 読込 | `s13` | `b15` | `active` |
-| `MRL-5` | `mRL-5.2` | raw / derived 分離 export | `s13`,`s15` | `b16` | `planned` |
-| `MRL-5` | `mRL-5.3` | quality 数値表示付き app UI | `s13`,`s14` | `b17`,`b18` | `planned` |
+| `MRL-5` | `-` | `iSensorium` 抽出統合を成立させる | `s13`,`s14`,`s15` | `b15`,`b16`,`b17`,`b18` | `pass` |
+| `MRL-5` | `mRL-5.1` | legacy alias を含む session source 読込 | `s13` | `b15` | `pass` |
+| `MRL-5` | `mRL-5.2` | raw / derived 分離 export | `s13`,`s15` | `b16` | `pass` |
+| `MRL-5` | `mRL-5.3` | quality 数値表示付き app UI | `s13`,`s14` | `b17`,`b18` | `pass` |
 
 ## TDD
 
@@ -167,10 +167,10 @@
 | `T14` | `b12` | output routing hygiene | Android build cache と raw test report が `--exsams`、summary が `--testlogs` に分離される | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/scripts/run_android_unit_tests.ps1` |
 | `T15` | `b13` | `InputPackaging` interface manifest | `iSensorium` 生出力に加え、受理判定、品質、frame-pose 対応、主体対応表が JSON と CSV の契約で出力される | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_session_parser.py` |
 | `T16` | `b14` | stage handoff contract | 4 分担の各段階で入力、出力、受け渡し条件が文書と実装の両方で読める | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_project_contracts.py` |
-| `T17` | `b15` | session source alias intake | `bt.jsonl` / `ble_scan.jsonl` / `bt_events.csv` と `poses.jsonl` / `arcore_pose.jsonl` / `arcore_pose.csv` を 1 抽出器で読める | active | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_session_parser.py` |
-| `T18` | `b16` | raw / derived export bundle | app 抽出が `isensorium/` と `trajectreview/` を分離した bundle を出力する | planned | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ISensoriumExtractionServiceTest.kt` |
-| `T19` | `b17` | quality 指標 export | `sensor_quality.json` に時刻整列 delta、completeness score、pose coverage ratio が入る | planned | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ISensoriumExtractionServiceTest.kt` |
-| `T20` | `b18` | extraction UI summary | Android UI が抽出元、抽出先、`ready_for_diagnose`、欠落入力、quality 数値を表示できる | planned | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt` |
+| `T17` | `b15` | session source alias intake | `bt.jsonl` / `ble_scan.jsonl` / `bt_events.csv` と `poses.jsonl` / `arcore_pose.jsonl` / `arcore_pose.csv` を 1 抽出器で読める | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_session_parser.py` |
+| `T18` | `b16` | raw / derived export bundle | app 抽出が `isensorium/` と `trajectreview/` を分離した bundle を出力する | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ISensoriumExtractionServiceTest.kt` |
+| `T19` | `b17` | quality 指標 export | `sensor_quality.json` に時刻整列 delta、completeness score、pose coverage ratio が入る | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ISensoriumExtractionServiceTest.kt` |
+| `T20` | `b18` | extraction UI summary | Android UI が抽出元、抽出先、`ready_for_diagnose`、欠落入力、quality 数値を表示できる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/MainActivity.kt` |
 
 ### 実行方針
 
@@ -185,4 +185,4 @@
 
 - `T1` から `T16` は、契約実装、project 境界 scan、output routing 実行で `pass` になった
 - Python unittest、Android unit test、PowerShell script 実行により、入口契約から成果物 routing までの計画範囲を固定した
-- `MRL-5` を追加し、`trajectreview` 自身から `iSensorium` raw + 追加出力を生成できる状態へ拡張する
+- `T17` から `T20` も `pass` になり、`trajectreview` 自身から `iSensorium` raw + 追加出力を生成できる状態へ拡張した

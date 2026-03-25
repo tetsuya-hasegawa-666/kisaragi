@@ -46,8 +46,8 @@ class SessionParser:
         frame_rows = self.load_csv("video_frame_timestamps.csv")
         imu_rows = self.load_csv("imu.csv")
         gnss_rows = self.load_csv("gnss.csv")
-        bt_rows = self.load_jsonl_aliases("bt.jsonl", "ble_scan.jsonl")
-        pose_rows = self.load_jsonl_aliases("poses.jsonl", "arcore_pose.jsonl")
+        bt_rows = self.load_bt_rows()
+        pose_rows = self.load_pose_rows()
 
         return SessionSummary(
             session_id=self.manifest["sessionId"],
@@ -66,8 +66,8 @@ class SessionParser:
             frame_time_range_ns=self._range_from_rows(frame_rows, "elapsed_realtime_ns"),
             imu_time_range_ns=self._range_from_rows(imu_rows, "elapsed_realtime_ns"),
             gnss_time_range_ns=self._range_from_rows(gnss_rows, "elapsed_realtime_ns"),
-            bt_time_range_ns=self._range_from_rows(bt_rows, "elapsedRealtimeNanos"),
-            pose_time_range_ns=self._range_from_rows(pose_rows, "elapsedRealtimeNanos"),
+            bt_time_range_ns=self._range_from_row_aliases(bt_rows, "elapsedRealtimeNanos", "timestamp_ns"),
+            pose_time_range_ns=self._range_from_row_aliases(pose_rows, "elapsedRealtimeNanos", "timestamp_ns"),
         )
 
     def load_csv(self, filename: str) -> list[dict[str, Any]]:
@@ -96,21 +96,40 @@ class SessionParser:
                 return rows
         return []
 
+    def load_csv_aliases(self, *filenames: str) -> list[dict[str, Any]]:
+        for filename in filenames:
+            rows = self.load_csv(filename)
+            if rows:
+                return rows
+        return []
+
+    def load_bt_rows(self) -> list[dict[str, Any]]:
+        rows = self.load_jsonl_aliases("bt.jsonl", "ble_scan.jsonl")
+        if rows:
+            return rows
+        return self.load_csv_aliases("bt_events.csv")
+
+    def load_pose_rows(self) -> list[dict[str, Any]]:
+        rows = self.load_jsonl_aliases("poses.jsonl", "arcore_pose.jsonl")
+        if rows:
+            return rows
+        return self.load_csv_aliases("arcore_pose.csv")
+
     def build_join_report(self) -> dict[str, Any]:
         frame_rows = self.load_csv("video_frame_timestamps.csv")
         imu_rows = self.load_csv("imu.csv")
         gnss_rows = self.load_csv("gnss.csv")
-        bt_rows = self.load_jsonl_aliases("bt.jsonl", "ble_scan.jsonl")
-        pose_rows = self.load_jsonl_aliases("poses.jsonl", "arcore_pose.jsonl")
+        bt_rows = self.load_bt_rows()
+        pose_rows = self.load_pose_rows()
 
         return {
             "sessionId": self.manifest["sessionId"],
             "timebase": self.timebase,
             "frameCount": len(frame_rows),
-            "imuNearestDeltaNs": self._nearest_delta_ns(frame_rows, imu_rows, "elapsed_realtime_ns"),
-            "gnssNearestDeltaNs": self._nearest_delta_ns(frame_rows, gnss_rows, "elapsed_realtime_ns"),
-            "btNearestDeltaNs": self._nearest_delta_ns(frame_rows, bt_rows, "elapsedRealtimeNanos"),
-            "poseNearestDeltaNs": self._nearest_delta_ns(frame_rows, pose_rows, "elapsedRealtimeNanos"),
+            "imuNearestDeltaNs": self._nearest_delta_ns(frame_rows, imu_rows, ("elapsed_realtime_ns",)),
+            "gnssNearestDeltaNs": self._nearest_delta_ns(frame_rows, gnss_rows, ("elapsed_realtime_ns",)),
+            "btNearestDeltaNs": self._nearest_delta_ns(frame_rows, bt_rows, ("elapsedRealtimeNanos", "timestamp_ns")),
+            "poseNearestDeltaNs": self._nearest_delta_ns(frame_rows, pose_rows, ("elapsedRealtimeNanos", "timestamp_ns")),
             "metadataSufficiency": {
                 "hasMonotonicSessionBase": "sessionStartElapsedRealtimeNanos" in self.timebase,
                 "hasWallClockBase": "sessionStartWallTimeMs" in self.timebase,
@@ -127,8 +146,8 @@ class SessionParser:
         frame_rows = self.load_csv("video_frame_timestamps.csv")
         imu_rows = self.load_csv("imu.csv")
         gnss_rows = self.load_csv("gnss.csv")
-        bt_rows = self.load_jsonl_aliases("bt.jsonl", "ble_scan.jsonl")
-        pose_rows = self.load_jsonl_aliases("poses.jsonl", "arcore_pose.jsonl")
+        bt_rows = self.load_bt_rows()
+        pose_rows = self.load_pose_rows()
 
         required_inputs = {
             "session_manifest": self.manifest_path.exists(),
@@ -163,18 +182,32 @@ class SessionParser:
             return None
         return min(values), max(values)
 
+    def _range_from_row_aliases(self, rows: list[dict[str, Any]], *keys: str) -> tuple[int, int] | None:
+        if not rows:
+            return None
+        values = [
+            int(float(row[key]))
+            for row in rows
+            for key in keys
+            if row.get(key) not in (None, "")
+        ]
+        if not values:
+            return None
+        return min(values), max(values)
+
     def _nearest_delta_ns(
         self,
         frame_rows: list[dict[str, Any]],
         sensor_rows: list[dict[str, Any]],
-        sensor_key: str,
+        sensor_keys: tuple[str, ...],
     ) -> int | None:
         if not frame_rows or not sensor_rows:
             return None
         sensor_values = sorted(
-            int(float(row[sensor_key]))
+            int(float(row[key]))
             for row in sensor_rows
-            if row.get(sensor_key) not in (None, "")
+            for key in sensor_keys
+            if row.get(key) not in (None, "")
         )
         if not sensor_values:
             return None

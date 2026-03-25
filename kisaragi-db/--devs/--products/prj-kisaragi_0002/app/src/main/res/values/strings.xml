@@ -3,6 +3,12 @@
     <string name="next_action_label">Next Action</string>
     <string name="thin_status_label">Thin Status</string>
     <string name="attention_label">Attention</string>
+    <string name="extract_label">抽出</string>
+    <string name="select_session">セッションを選択</string>
+    <string name="run_extract">抽出を実行</string>
+    <string name="extract_idle">source: 未選択</string>
+    <string name="extract_idle_detail">iSensorium session folder を選択すると、raw と trajectreview 追加出力を抽出できます。</string>
+    <string name="extract_running">抽出中です。完了まで待ってください。</string>
     <string name="prev_step">前へ</string>
     <string name="next_step">次へ</string>
     <string name="step_counter">%1$d / %2$d</string>

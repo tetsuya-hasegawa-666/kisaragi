@@ -27,4 +27,4 @@
 - `AGENTS.md` の branch 規則と state / decision path 規則の整合を維持する
 - `AGENTS.md` の Guard から未存在 `issue-note.md` 依存を外す
 - tree sync 実行物の起動方法と再生成手順を Windows 運用マニュアルへ追記する
-- `prj-kisaragi_0002` の `MRL-5` として `iSensorium` 抽出統合、bundle 分離、quality 数値表示を closeout する
+- `prj-kisaragi_0002` の抽出 bundle を `SpaceReconstruction` 実装へ接続する

@@ -83,3 +83,13 @@
   recurrence prevention: handoff contract と routing は code と script 実行結果の両方を evidence にする
   remaining work: 実 viewer への contract 接続拡張
   evidence path: `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_project_contracts.py`
+- record date: `2026-03-25`
+  target MRL: `MRL-5`
+  target mRL: `mRL-5.1` から `mRL-5.3`
+  gate change: `pass`
+  issue: `trajectreview` が UI mock のままで、`iSensorium` session folder から raw と追加出力を app 自身では取り出せなかった
+  cause: `InputPackaging` は Python parser 契約までは固定済みだったが、Android app 側に source 選択、export、quality summary の導線がなかった
+  resolution: Kotlin extractor を追加し、legacy alias intake、`isensorium/` と `trajectreview/` の分離 export、quality 数値表示付き UI、Python / Android test を実装した
+  recurrence prevention: `InputPackaging` の route 変更は、parser 互換 test、Android export test、UX manual を同じ task で更新する
+  remaining work: 抽出 bundle を後段の実空間再構成と viewer 実装へ接続する
+  evidence path: `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ISensoriumExtractionServiceTest.kt`

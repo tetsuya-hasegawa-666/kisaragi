@@ -347,8 +347,8 @@ class ReviewScreenController {
             }
         return listOf(
             ReviewScreenState(
-                nextActionTitle = "データフォルダを選択",
-                nextActionReason = "主カメラ動画と人物入力を取り込みます。",
+                nextActionTitle = "iSensorium セッションを選択",
+                nextActionReason = "iSensorium 生出力と trajectreview 追加出力を抽出します。",
                 thinStatus =
                     ReviewThinStatus(
                         phase = ReviewPhase.INTAKE,

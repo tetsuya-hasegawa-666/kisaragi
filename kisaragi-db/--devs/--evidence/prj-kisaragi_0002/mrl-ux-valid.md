@@ -47,3 +47,31 @@
   - Python: `--exsams/prj-kisaragi_0002/python-pycache/.../test_project_contracts.cpython-314.pyc` と `test_session_parser.cpython-314.pyc` が `2026-03-25 19:12:07` に更新された
   - Android: `--exsams/prj-kisaragi_0002/gradle-user-home/daemon/8.10.2/registry.bin.lock` などの Gradle raw artifact が `2026-03-25 19:12:08` に更新された
 - 判定: `prj-kisaragi_0002` は、最も最近実施した test の raw data を `--exsams` 側へ出力できる
+
+## 2026-03-25 `MRL-5` closeout
+
+- 対象 gate:
+  - `MRL-5`
+  - `mRL-5.1` から `mRL-5.3`
+- UX 観点:
+  - app 起動直後に `iSensorium セッションを選択` が `Next Action` として見える
+  - `Extraction` card で抽出元、抽出先、`ready_for_diagnose`、欠落入力、quality 数値を 1 画面で読める
+  - `ux_check_manual.md` を、抽出 UI を含む最小操作手順へ更新した
+- 実装 / test 観点:
+  - Python unittest: `test_session_parser.py`
+  - Android unit test: `ReviewScreenControllerTest.kt`、`ISensoriumExtractionServiceTest.kt`
+  - script 実行:
+    - `run_python_tests.ps1`
+    - `run_android_unit_tests.ps1`
+  - device install:
+    - `gradlew.bat installDebug`
+- 抽出 bundle 観点:
+  - raw file は `session_id/isensorium/`
+  - 派生 file は `session_id/trajectreview/`
+  - `sensor_quality.json` に時刻整列 delta、completeness score、pose coverage ratio が入る
+- 主要 evidence:
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/ISensoriumExtractionService.kt`
+  - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ISensoriumExtractionServiceTest.kt`
+  - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_session_parser.py`
+  - `kisaragi-db/--devs/--testlogs/prj-kisaragi_0002/reports/python-unittest-summary.md`
+  - `kisaragi-db/--devs/--testlogs/prj-kisaragi_0002/reports/android-test-summary.md`
