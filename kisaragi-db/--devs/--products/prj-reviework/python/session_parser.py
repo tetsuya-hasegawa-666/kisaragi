@@ -23,6 +23,15 @@ class SessionSummary:
     pose_time_range_ns: tuple[int, int] | None
 
 
+@dataclass(frozen=True)
+class SessionPackageInterface:
+    required_inputs: dict[str, bool]
+    optional_inputs: dict[str, bool]
+    derived_outputs: dict[str, str]
+    missing_required_inputs: list[str]
+    ready_for_diagnose: bool
+
+
 class SessionParser:
     def __init__(self, session_dir: str | Path) -> None:
         self.session_dir = Path(session_dir)
@@ -113,6 +122,38 @@ class SessionParser:
                 "hasCollectorStatus": bool(self.manifest.get("collectorStatus")),
             },
         }
+
+    def build_session_package_interface(self) -> SessionPackageInterface:
+        frame_rows = self.load_csv("video_frame_timestamps.csv")
+        imu_rows = self.load_csv("imu.csv")
+        gnss_rows = self.load_csv("gnss.csv")
+        bt_rows = self.load_jsonl_aliases("bt.jsonl", "ble_scan.jsonl")
+        pose_rows = self.load_jsonl_aliases("poses.jsonl", "arcore_pose.jsonl")
+
+        required_inputs = {
+            "session_manifest": self.manifest_path.exists(),
+            "frames": len(frame_rows) > 0,
+            "imu": len(imu_rows) > 0,
+            "bt": len(bt_rows) > 0,
+        }
+        optional_inputs = {
+            "poses": len(pose_rows) > 0,
+            "gnss": len(gnss_rows) > 0,
+        }
+        missing_required_inputs = [name for name, present in required_inputs.items() if not present]
+
+        return SessionPackageInterface(
+            required_inputs=required_inputs,
+            optional_inputs=optional_inputs,
+            derived_outputs={
+                "input_readiness.json": "必須入力、任意入力、診断進行可否の判定",
+                "sensor_quality.json": "stream ごとの品質低下と警告理由",
+                "frame_pose_index.csv": "frame と pose の対応表",
+                "member_identity_map.json": "端末、主体、BT 識別子の対応表",
+            },
+            missing_required_inputs=missing_required_inputs,
+            ready_for_diagnose=not missing_required_inputs,
+        )
 
     def _range_from_rows(self, rows: list[dict[str, Any]], key: str) -> tuple[int, int] | None:
         if not rows:

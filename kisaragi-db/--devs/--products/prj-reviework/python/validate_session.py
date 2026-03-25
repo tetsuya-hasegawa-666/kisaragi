@@ -16,6 +16,7 @@ def main() -> int:
     parser = SessionParser(session_dir)
     summary = parser.load_summary()
     join_report = parser.build_join_report()
+    session_package_interface = parser.build_session_package_interface()
 
     output = {
         "summary": {
@@ -32,6 +33,13 @@ def main() -> int:
             "poseTimeRangeNs": summary.pose_time_range_ns,
         },
         "joinReport": join_report,
+        "sessionPackageInterface": {
+            "requiredInputs": session_package_interface.required_inputs,
+            "optionalInputs": session_package_interface.optional_inputs,
+            "derivedOutputs": session_package_interface.derived_outputs,
+            "missingRequiredInputs": session_package_interface.missing_required_inputs,
+            "readyForDiagnose": session_package_interface.ready_for_diagnose,
+        },
     }
     print(json.dumps(output, indent=2))
     return 0

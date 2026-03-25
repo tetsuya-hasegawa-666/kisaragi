@@ -157,21 +157,28 @@ kisaragi-tree/
 - terminal behavior は BDD を起点に確認する。
 - 到達段階は `MRL`、実行単位は `mRL` で管理する。
 - release 計画は `kisaragi-db/--devs/--plans/prj-<project>/` に置く。
+- 実装に着手する project は、原則として先に `bdd-release-compass.md` と `tdd-test-matrix.md` を計画書として作成または更新する。
 - `MRL` または `mRL` が `pass` になったら `kisaragi-db/--devs/--evidence/prj-<project>/mrl-ux-valid.md` に記録する。
 - UX 検証成果は同 `mrl-ux-valid.md` に集約する。
 
 ### plan 文書の標準 3 点セット
 
 - 参照型は `prj-remote-pwsh` の `bdd-release-compass.md`、`tdd-test-matrix.md`、`mrl-record.md` とする。
-- `bdd-release-compass.md` は、目的文、ノーススター、提供方針、コアストーリー、terminal behaviors、受け入れ基準、MRL 対応表を持つ。
-- `terminal behaviors` は `B1` 形式の識別子で、観測可能な振る舞いとして記述する。
-- `受け入れ基準` は各 behavior に対する観点と判定可能な基準を表で持つ。
+- `bdd-release-compass.md` は、目的文、ノーススター、提供方針、Purpose Story、System Behaviors、受け入れ基準、MRL 対応表を持つ。
+- `bdd-release-compass.md` は、実装前に target behavior、受け入れ基準、検証方針、到達したい小さい milestone を明示する正本計画書とする。
+- `Purpose Story` は `s1` 形式の識別子で、project の目的に直結する利用価値の流れとして記述する。
+- `System Behaviors` は `b1` 形式の識別子で、観測可能な振る舞いとして記述する。
+- `受け入れ基準` は `s-id`、`b-id`、観点、受け入れ基準の表で持つ。
+- `MRL` 対応表は `MRL`、`mRL`、目的、関連 `s-id`、関連 `b-id`、現在 gate の表で持つ。
+- `bdd-release-compass.md` の記法見本は `kisaragi-db/--devs/--plans/prj-reviework/bdd-release-compass.md` とする。
 - `tdd-test-matrix.md` は、目的文、TDD タスク表、実行方針、現在の見立てを持つ。
+- `tdd-test-matrix.md` は、どの test で何を固定するか、どう検証するか、どの milestone をどう close するかを管理する正本計画書とする。
 - タスク表の列は `task_id`、`behavior_id`、`test_target`、`criterion`、`status`、`evidence` とし、1 task 1 責務を守る。
 - `behavior_id` は対応する BDD behavior を参照し、`criterion` は自動検証または明確な確認条件で書く。
 - `mrl-record.md` は gate closeout 記録文書とし、目的文、記録ルール、Entries を持つ。
 - 各 entry は `record date`、`target MRL`、`target mRL`、`gate change`、`issue`、`cause`、`resolution`、`recurrence prevention`、`remaining work`、`evidence path` を持つ。
-- 既存 project が `market_release_lines.md` や `micro_release_lines.md` を持つ場合でも、BDD/TDD の正本は上記 2 文書で管理し、closeout が必要になった時点で `mrl-record.md` を追加または移行する。
+- 既存 project が `market_release_lines.md` や `micro_release_lines.md` を持つ場合でも、それらは `bdd-release-compass.md` と `tdd-test-matrix.md` を補助する参考情報として扱い、BDD/TDD の正本は上記 2 文書で管理する。
+- `MRL` と `mRL` の内容は、原則として `bdd-release-compass.md` と `tdd-test-matrix.md` に吸収し、closeout が必要になった時点で `mrl-record.md` を追加または移行する。
 
 ## ブランチ規則
 
@@ -355,3 +362,33 @@ kisaragi-tree/
 - 再生成時の正本は `kisaragi-tree/tree-sync.ps1` と `kisaragi-tree/tree-sync-build.sed` とする。
 - Windows 標準の IExpress で `tree-sync-build.sed` を読み込み、`kisaragi-tree-sync.exe` を再生成する。
 - 再生成後は `tree-sync.ps1` を直接実行して同期結果を確認し、その後に `kisaragi-tree-sync.exe` でも起動確認する。
+
+# 更新情報
+
+## 2026-03-25 AGENTS.md 計画正本と MRL 参考位置付けの明確化
+
+- 日時: `2026-03-25`
+- 文書名: `AGENTS.md`
+- 標題: plan 正本と参考情報の役割整理
+- 背景: `prj-direview` の rename と UI 修正を先行実装した後、`bdd-release-compass.md` と `tdd-test-matrix.md` が本来は実装前計画として必須であり、`MRL` と `mRL` は参考情報として扱う運用を全 project 共通で固定したい要求が出た。
+- 目的: BDD/TDD 計画書をどの project でも先に作ること、何を残すか、`MRL` と `mRL` をどう位置付けるかを shared control file に明文化する。
+- 対処方法: 開発計画節へ必須作成 rule、BDD/TDD の正本 role、`market_release_lines.md` と `micro_release_lines.md` の参考 role を追記した。
+- 対応内容: 実装前の plan 作成義務、検証方法と小 milestone の明示、`MRL` と `mRL` の参考情報化、closeout は `mrl-record.md` へ寄せる rule を追加した。
+- 更新結果: 今後は project ごとに `bdd-release-compass.md` と `tdd-test-matrix.md` を正本計画として残し、`MRL` / `mRL` は補助的な release-line 参照として扱う運用を共通化した。
+- 新旧比較:
+  - 旧: `MRL` / `mRL` と BDD/TDD の役割分担が明文化されていなかった。
+  - 新: BDD/TDD が正本、`MRL` / `mRL` は参考、closeout は `mrl-record.md` へ集約する方針を明示した。
+
+## 2026-03-25 AGENTS.md BDD 記法の識別子統一
+
+- 日時: `2026-03-25`
+- 文書名: `AGENTS.md`
+- 標題: `Purpose Story` と `System Behaviors` の識別子統一
+- 背景: `bdd-release-compass.md` 内で `コアストーリー` と `user stories`、`terminal behaviors` の呼び方が混在し、参照粒度が揺れていた。
+- 目的: BDD 計画の読み方を全 project で統一し、`MRL`、受け入れ基準、TDD から同じ識別子で追えるようにする。
+- 対処方法: `bdd-release-compass.md` の必須構成を `Purpose Story`、`System Behaviors` に改め、`s-id` と `b-id` を受け入れ基準と `MRL` 対応表へ必須化した。
+- 対応内容: `Purpose Story` を `s1` 形式、`System Behaviors` を `b1` 形式とし、`prj-reviework` を記法見本に指定した。
+- 更新結果: 今後の BDD 計画は、story、behavior、受け入れ基準、`MRL` を同じ識別子体系で横断参照できる。
+- 新旧比較:
+  - 旧: `コアストーリー`、`user stories`、`terminal behaviors` の呼称と識別子が project ごとに揺れ得た。
+  - 新: `Purpose Story` は `s1`、`System Behaviors` は `b1`、受け入れ基準と `MRL` 対応表は `s-id` と `b-id` 必須で統一した。

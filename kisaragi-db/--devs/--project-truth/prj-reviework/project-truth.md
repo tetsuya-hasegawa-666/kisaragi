@@ -1,153 +1,264 @@
 # project-truth
 
-この文書は `prj-reviework` の artifact 正本を統合した `project-truth.md` とする。
+この文書は `prj-reviework` の恒久的な真実を保持する正本とする。
 
 ## 目的
 
-`reviework` は、現場で収録された画像・センサ群から reconstruction pipeline を起動し、空間再構成と行動軌跡を同一 timeline 上で束ねた review workspace を提供する project とする。
+`reviework` は、1 台のスマホカメラとその `IMU` による連続動画、および動画へ頻繁に映り込む人物が持つ `IMU` 付き機器の記録を単一セッションとして受理し、主空間の再構成、主カメラ経路と人物経路の再構成、閲覧成果物の組立までを一貫して扱い、レビュー判断を迷わず進められる作業空間を提供する。
 
-## north star
+## ノーススター
 
-- user は「今なにをすべきか」で迷わない
-- user は pipeline の状態と異常理由を薄く常時把握できる
-- user は review 結果から次の判断へ進める
-- `Next Action` は常に 1 件だけ提示する
-- `Thin Status` は 3 から 6 項目で状態、品質、issue を最小表示する
+- 利用者は常に次に取るべき行動を 1 件だけ受け取れる
+- 利用者は `Thin Status` で処理段階、品質低下、阻害理由を薄く常時把握できる
+- 利用者は主空間、主カメラ経路、人物経路を同じ `Timeline` で見比べ、同時刻ハイライトと `attention point` からレビュー判断へ進める
+- 運用者は外部 project や一時文書に依存せず、`prj-reviework` 配下だけで計画、実装、検証を継続できる
 
-## user value
+## 対象シナリオ
 
-- 作業空間を 3DGS ベースで理解できる
-- 人や物の行動軌跡を timeline で追える
-- quality 低下や reconstruction failure の理由が短く分かる
-- review すべき attention point が自動で絞られる
+- 主空間収録主体は `ARCore` 連携スマホカメラを持ち、連続動画と `IMU` を記録して主空間の基準となる
+- 人物主体は動画なしの携行スマートフォンを持ち、`IMU` と必要に応じて `BT` を中心に時系列追跡される
+- 人物は主カメラ動画へ頻繁に映り込み、人物経路の再拘束に使える
+- `GNSS` は任意入力とし、ない場合でも成立する設計を既定とする
+- `GNSS` がない場合は主 `ARCore` 空間を唯一の基準座標とする
+
+## 提供価値
+
+- 現場らしく見える `3DGS` 空間をレビュー起点として読める
+- 主カメラ経路と人物経路を同時刻で比較できる
+- 同じ時刻の位置関係をハイライトできる
+- 品質低下や再構成失敗の理由を短く把握できる
+- 不確実区間を隠さず、誤読しにくい形でレビューできる
 
 ## UX 原則
 
-- `Next Action` は一意提示とし、処理中でも action 名と state message を分けて表示する
-- `Thin Status` は常時表示とし、正常時は薄く、異常時のみ強調する
-- user に探索を強要せず、review に必要な attention point を先回りして提示する
-- `Timeline` を全データ統合キーとし、space、trajectory、attention point を同一 artifact に束ねる
+- `Next Action` は常に 1 件だけ提示する
+- `Thin Status` は `phase`、`pipeline`、`data_health`、`quality`、`issues` の 5 項目を基本とする
+- 利用者に探索を強要せず、レビューすべき `attention point` と同時刻ハイライトを時間範囲と理由付きで提示する
+- 正常時は薄く、異常時だけ強調する
+- `Timeline` を統合キーとして、space、trajectory、同時刻ハイライト、`attention point`、summary を束ねる
 
 ## UX フェーズ
 
 ### Intake
 
-- 目的: data folder を受け取り、session として受理する
+- 目的: 主カメラ動画と `IMU`、人物側 `IMU` を受け取り、単一セッションとして受理する
 - 主表示: データフォルダを選択
-- 状態表示: frame 数、必須入力の欠落有無
+- 状態表示: frame 数、必須入力の充足、欠落有無
 
 ### Diagnose
 
-- 目的: 処理可否と入力品質を判定する
-- 主表示: 実行する / 修正する
-- 状態表示: data health、主要 issue、修正理由
+- 目的: 実行可否と入力品質を判定する
+- 主表示: `処理を開始` または修正 action
+- 状態表示: data health、人物映り込みの十分性、主要 issue、修正理由
 
 ### Run
 
-- 目的: pipeline を実行する
-- 主表示: 完了を待つ
-- 状態表示: 現在ステップ、進行率、blocking issue
+- 目的: 一括処理 pipeline を進行させる
+- 主表示: `完了を待つ`
+- 状態表示: 現在段階、進行状況、blocking issue
 
 ### Verify
 
-- 目的: reconstruction と trajectory の成立品質を確認する
+- 目的: 空間品質と経路品質の成立を確認する
 - 主表示: 結果を確認
-- 状態表示: 空間品質、軌跡品質、弱点
+- 状態表示: 空間品質、経路品質、同時刻比較の弱点
 
 ### Interpret
 
-- 目的: review と改善判断を行う
+- 目的: レビューと改善判断を行う
 - 主表示: この区間を見る
-- 状態表示: 重要イベント、不確実区間、attention point
+- 状態表示: `attention point`、同時刻ハイライト、不確実区間、危険候補
 
-## project contract
+## 4 段階処理構造
 
-### required inputs
+### 第 1 段階: `InputPackaging`
 
-- session directory または同等の input package
-- `frames`
-- `imu`
-- `bt`
-- optional `poses`
-- optional `gnss`
-- session-level `timebase`
-- quality / metadata fields
+- 責務: 主カメラ動画、主カメラ `IMU`、人物側 `IMU` を単一セッション入力へ正規化する
+- 主な処理: frame 抽出、`ARCore` pose 整理、`IMU` 整理、`BT` 整理、時刻整列、品質フラグ付与
+- 出力: `SessionPackage`
 
-### required outputs
+### 第 2 段階: `SpaceReconstruction`
 
-- `SessionPackage`
-- `SpacePackage`
-- `TrajectoryPackage`
-- `Timeline`
-- `ReviewArtifact`
-- pipeline progress と issues を含む `Thin Status`
-- user に 1 つだけ提示する `Next Action`
+- 責務: 主空間の基準座標と再構成成果物を作る
+- 主な処理: frame 選別、`COLMAP` 入力生成、主カメラ path 確定、`3DGS` 入力生成、空間品質集約
+- 出力: `SpacePackage`
 
-### bootstrap phase の非目標
+### 第 3 段階: `TrajectoryReconstruction`
 
-- `COLMAP` / `3DGS` 実行 engine 本体の内製実装
-- final 3D viewer の高忠実度描画
-- Android app 内での heavy reconstruction 実行
-- `iSensorium` 側の package 名や file を shared 参照のまま残す運用
+- 責務: 主カメラ経路と人物経路を主空間へ登録する
+- 主な処理: 主カメラ経路生成、人物 path 推定、`BT` による主体維持、視覚再拘束、見失い区間橋渡し、不確実性付与
+- 出力: `TrajectoryPackage`
 
-## system blueprint
+### 第 4 段階: `AssemblyAndViewer`
 
-### pipeline shape
+- 責務: 閲覧可能な成果物を組み立て、viewer で読む
+- 主な処理: timeline 生成、主体表示定義、同時刻ハイライト定義、`attention point` 統合、閲覧 manifest 生成
+- 出力: `ReviewArtifact`
 
-```text
-Input
--> Preprocess
--> COLMAP
--> 3DGS
--> Trajectory
--> Assembly
--> Viewer
-```
+## 分担インターフェース
 
-### module responsibility
+### 分担 1: `InputPackaging`
 
-- `InputPackaging`: sensor 統合、timebase 正規化、`SessionPackage` 生成
-- `Preprocess`: frame thinning、blur / duplicate / dark frame 除外、diagnose summary 生成
-- `COLMAP`: valid frame set 確定、camera pose 推定、sparse reconstruction 成立判定
-- `3DGS`: scene representation 生成、viewer 向け表現 package 出力
-- `Trajectory`: entity path 推定、relink、uncertainty 付与
+- 担当: `iSensorium` 由来入力の受理、整形、時刻整列、入力診断
+- 次段へ渡すもの:
+  - `SessionPackage`
+  - `input_readiness.json`
+  - `sensor_quality.json`
+  - `frame_pose_index.csv`
+  - `member_identity_map.json`
+- 受け渡し条件:
+  - 主カメラ動画、主カメラ `IMU`、人物側 `IMU` の充足が判定済みである
+  - 主体、端末、時刻基準の対応が追える
+  - `iSensorium` 生出力と `reviework` 派生出力が分離されている
+
+### 分担 2: `SpaceReconstruction`
+
+- 担当: 主空間再構成、空間基準固定、`COLMAP` / `3DGS` 連携
+- 前段から受け取るもの:
+  - `SessionPackage`
+  - `input_readiness.json`
+  - `sensor_quality.json`
+  - `frame_pose_index.csv`
+- 次段へ渡すもの:
+  - `SpacePackage`
+  - `space_quality.json`
+  - `coverage_report.json`
+  - `main_camera_path.csv`
+- 受け渡し条件:
+  - 主空間基準が一意に決まっている
+  - `COLMAP` から `3DGS` へ進める可否が判定済みである
+
+### 分担 3: `TrajectoryReconstruction`
+
+- 担当: 人物経路再構成、再拘束、不確実性付与
+- 前段から受け取るもの:
+  - `SessionPackage`
+  - `SpacePackage`
+  - `member_identity_map.json`
+  - `main_camera_path.csv`
+  - `space_quality.json`
+- 次段へ渡すもの:
+  - `TrajectoryPackage`
+  - `trajectory_quality.json`
+  - `relink_events.json`
+  - `attention_seed.json`
+- 受け渡し条件:
+  - 主カメラ path と人物 path が主空間座標系に載っている
+  - 不確実区間と再拘束点が識別できる
+
+### 分担 4: `AssemblyAndViewer`
+
+- 担当: 閲覧成果物組立、timeline 統合、viewer 表示
+- 前段から受け取るもの:
+  - `SpacePackage`
+  - `TrajectoryPackage`
+  - `space_quality.json`
+  - `trajectory_quality.json`
+  - `attention_seed.json`
+- 最終出力:
+  - `ReviewArtifact`
+  - `viewer_manifest.json`
+  - `timeline.json`
+  - `attention_points.json`
+  - `same_time_highlights.json`
+- 受け渡し条件:
+  - 閲覧時に必要な quality、`attention point`、同時刻ハイライトが欠落なく束ねられている
+  - `Viewer` は read-only で扱える
+
+## パッケージ契約
+
+### `SessionPackage`
+
+- 目的: 後段が迷わず扱える単一入力単位
+- 必須要素: `session_id`、`timebase`、`frames`、`arcore_pose`、`imu`、`bt`、`quality`
+- 任意要素: `gnss`
+- 契約:
+  - 全 record が共通単調時刻軸で比較できる
+  - `frame_id` と `image_path` が一意である
+  - 主体と端末の対応が追える
+  - `iSensorium` の生出力だけでなく、`reviework` 派生の受理判定、品質、対応表を同梱または併設参照できる
+
+### `SpacePackage`
+
+- 目的: 主空間の唯一基準と再構成成果物を渡す
+- 必須要素: `coordinate_system`、`valid_frames`、`rejected_frames`、`camera_path`、`colmap`、`gs_model`、`quality`
+- 契約:
+  - `GNSS` がない場合は `ARCore` local 空間を唯一基準とする
+  - `camera_path` は `timestamp_ns` を持つ
+  - 主カメラ path と空間品質の報告を含む
+
+### `TrajectoryPackage`
+
+- 目的: 主空間座標系上に登録された主カメラ経路と人物経路を渡す
+- 必須要素: `machine_trajectory`、`worker_trajectories`、`uncertainty`、`anchors`、`relinks`、`timeline`
+- 契約:
+  - すべての path は `SpacePackage.coordinate_system` に従う
+  - 各人物 path は `member_id` と一意対応する
+  - 見失い区間は不確実性 mode で識別できる
+
+### `ReviewArtifact`
+
+- 目的: 開けばレビューを開始できる完成成果物
+- 必須要素: `viewer_manifest`、`timeline`、`ui_config`、`space_assets`、`trajectory_assets`、`entrypoint`
+- 契約:
+  - `Assembly` だけが生成する
+  - `Viewer` は閲覧専用で消費する
+  - 時刻スライダは `TrajectoryPackage.timeline` と一致する
+  - 同時刻ハイライト情報を含む
+
+## `iSensorium` 由来出力と追加出力
+
+### `iSensorium` 由来の入力正本
+
+- `session_manifest.json`
+- `video_frame_timestamps.csv`
+- `imu.csv`
+- `gnss.csv`
+- `bt.jsonl` または `ble_scan.jsonl`
+- `poses.jsonl` または `arcore_pose.jsonl`
+
+### `reviework` で追加生成する出力
+
+- `input_readiness.json`: 必須入力、任意入力、次 action 判定
+- `sensor_quality.json`: stream ごとの品質低下と診断理由
+- `frame_pose_index.csv`: frame と pose の対応表
+- `member_identity_map.json`: 端末、主体、`BT` の対応表
+- `space_quality.json`: 主空間品質と coverage の要約
+- `trajectory_quality.json`: 経路品質と不確実区間の要約
+- `attention_seed.json`: `attention point` 候補の種
+- `same_time_highlights.json`: 同じ時刻の位置関係を強調表示するための候補
+
+## `GNSS` なし前提の成立条件
+
+- 主 `ARCore` 空間が唯一基準として安定している
+- `ARCore` tracking quality を入力時点から厳格に記録する
+- 人物の主体維持を `BT` で支える
+- 人物が再び見えた時に視覚再拘束できる
+- 見失い区間は橋渡ししても、不確実性を必ず残す
+- `GNSS` がない場合は絶対位置合わせを捨て、主空間への再拘束を正しさの基準にする
+
+## 責務境界
+
+- `InputPackaging`: sensor 統合、時刻整列、品質フラグ、`SessionPackage` 生成
+- `Preprocess`: frame 選別、再構成可否の前処理、診断用 summary
+- `COLMAP`: valid frame set 確定、camera pose 推定、densification readiness 判定
+- `3DGS`: scene representation 生成
+- `Trajectory`: 人物 path 推定、再拘束、主体対応、不確実性付与
 - `Assembly`: `SpacePackage`、`TrajectoryPackage`、`Timeline` を統合し `ReviewArtifact` を生成
-- `Viewer`: 生成済み artifact を読む read-only review 面
+- `Viewer`: 生成済み成果物を読む閲覧面
 
-### data structures
+## 非目標
 
-- `SessionPackage`: `frames`、`imu`、`bt`、optional `poses` / `gnss`、`quality`、`timebase`
-- `SpacePackage`: `coordinate_system`、`camera_path`、`sparse_points`、`gs_model`
-- `TrajectoryPackage`: `entities`、`anchors`、`relinks`、`uncertainty`、`space_ref`
-- `Timeline`: `timestamps`、`mapping`
-- `ReviewArtifact`: `space`、`trajectory`、`timeline`、`attention_points`、`summary`、`entrypoint`
-
-## reuse boundary
-
-### `iSensorium` から流用するもの
-
-- session manifest / CSV / JSONL を読む parser 形状
-- monotonic timebase を中心にした timeline 統合
-- issue severity と suggested action の軽量提示
-- Android の単画面 control panel 骨格
-
-### `reviework` 固有責務
-
-- `COLMAP`、`3DGS`、`Trajectory`、`Assembly` の pipeline 契約
-- review 用の `Next Action + Thin Status` UX
-- `ReviewArtifact` の生成と `Viewer` への受け渡し
-
-## 設計補正
-
-- `gnss` は fixed field ではなく optional input とする
-- `Thin Status` の UI 表示カテゴリは `phase`、`pipeline`、`data_health`、`quality`、`issues` の 5 項目に固定する
-- `3DGS` は `COLMAP.status == READY_FOR_DENSIFICATION` のときのみ開始可能とする
-- `relink` は visual match confidence、time gap、anchor proximity の 3 条件で判定する
-- `Assembly` を唯一の `ReviewArtifact` 生成者とし、`Viewer` は read-only 消費者とする
+- Android app 内で重い再構成を完結させること
+- `COLMAP` や `3DGS` engine 本体をこの project 内で内製すること
+- `GNSS` 前提の地図表示や地理参照を既定 UX にすること
+- 外部一時文書を正本のまま残し続けること
 
 ## 成功条件
 
-- 迷わない
-- 状態が分かる
-- 理由が分かる
-- 次の判断ができる
+- 利用者が迷わない
+- 状態と理由が分かる
+- 主カメラ経路と人物経路を同時刻で比較できる
+- 不確実性を含めてレビューできる
+- `attention point` と同時刻ハイライトから次の判断へ進める
+- 外部参照が消えても `prj-reviework` の正本文書だけで再開できる

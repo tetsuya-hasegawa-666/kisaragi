@@ -5,6 +5,8 @@
 - この文書は project 横断の shared current state 正本とする。
 - 2026-03-25: Codex が `AGENTS.md` の Guard、branch 補足、Windows 運用マニュアル追記を担当する。
 - 2026-03-25: Codex が今回に限る許可に基づき、`AGENTS.md` の `<order>` を含む全体圧縮を担当する。
+- 2026-03-25: 人間承認により、全 project で `bdd-release-compass.md` と `tdd-test-matrix.md` を実装前の正本計画書とし、`MRL` / `mRL` は参考情報として扱う運用を採用する。
+- 2026-03-25: 人間承認により、全 project の `bdd-release-compass.md` は `Purpose Story` を `s1` 形式、`System Behaviors` を `b1` 形式で記述し、`prj-reviework` を記法見本とする運用を採用する。
 
 ## 人間確認待ち
 

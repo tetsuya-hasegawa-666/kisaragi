@@ -1,170 +1,92 @@
-# BDD リリースコンパス
+# BDD-Release-Compass
 
-この文書は、`prj-reviework` の user value、core story、terminal behavior、release line の対応をまとめる。
+## 文書の役割
 
-## ノーススター
+この文書は `prj-reviework` の提供価値、`Purpose Story`、`System Behaviors`、`MRL` / `mRL` の対応を定義する正本計画書とする。
 
-user は `Next Action` を 1 件だけ受け取り、`Thin Status` で処理状態と理由を薄く常時把握しながら、reconstruction pipeline の intake から review 判断まで迷わず進められる。
+## 目指す姿
+
+- reviework は、1台のスマホカメラ（IMUも取得）による連続動画と、IMU付き機器（主にスマホ）を持つ人が、その動画に頻繁に映り込むという状況下で、最も効果を発揮するシステムである。
+
+- 連続動画＋IMUのデータと、IMU付きスマホを携帯する（動画無し）人のデータを入力するだけで、撮影した現場の3DGSの構成と、そこの中での画像を取得しているものの経路と、そこに移りこむ人の経路が、3DGS地図上で表示され、表示された3DGSを操作できるシステムである。
+
+- また、経路は時系列情報を持ち、経路上の同じ時刻の場所をハイライトできる。
 
 ## 提供方針
 
+- `GNSS` の有無に関わらず成立する計画を既定とする
 - `Timeline` を統合キーとして先に固定する
-- heavy pipeline より前に、diagnose と execute gate を先に成立させる
-- `Next Action` の一意性を崩さずに、異常理由だけを `Thin Status` へ薄く出す
-- `iSensorium` 由来資産は `prj-reviework` 配下へコピーしたうえで専用調整する
+- 実行前に `Diagnose` と実行可否 gate を成立させる
+- 主空間、経路、閲覧成果物を 4 段階契約で分離する
+- 外部文書に残っていた構想は `prj-reviework` の正本文書へ吸収し、以後はここを参照する
 
-## コアストーリー
+## Purpose Story
 
-1. user は session folder を投入して、review 対象として受理できる
-2. user は diagnose phase で不足入力と品質低下の理由を読める
-3. user は実行可能になったときだけ `処理を開始` を提示される
-4. user は run phase で `完了を待つ` と現在ステップだけを見ればよい
-5. user は `COLMAP` failure 時に `入力条件を見直す` へ迷わず戻れる
-6. user は verify phase で空間品質と軌跡品質の弱点を把握できる
-7. user は interpret phase で review すべき区間だけを絞り込める
-8. user は uncertainty を伴う relink を理由付きで把握できる
-9. user は `ReviewArtifact` を read-only viewer で timeline 同期確認できる
-10. operator は `iSensorium` 由来 parser 資産を互換維持したまま `reviework` 内で独立運用できる
-11. operator は shared 参照を残さず、`prj-reviework` 単独で build / test / docs を更新できる
-12. operator は test output と trial data を正しい category に分離できる
+- `s1`: 利用者は session folder を投入し、必須入力と任意入力の充足を把握できる
+- `s2`: 利用者は `Diagnose` で不足入力、品質低下、修正理由を読める
+- `s3`: 利用者は実行可否 gate を満たした時だけ `処理を開始` を受け取れる
+- `s4`: 利用者は実行中に `完了を待つ` と現在段階だけを見ればよい
+- `s5`: 利用者は `COLMAP` が densification 不可なら `3DGS` 開始前に修正へ戻れる
+- `s6`: 利用者は `GNSS` がなくても、主 `ARCore` 空間を基準に空間再構成の成立を確認できる
+- `s7`: 利用者は作業機と作業員の経路を同じ `Timeline` で比較できる
+- `s8`: 利用者は見失い区間と再拘束の不確実性を理由付きで把握できる
+- `s9`: 利用者は `Verify` で空間品質と軌跡品質の弱点を同時に読める
+- `s10`: 利用者は `Interpret` で `attention point` を時間範囲と理由付きで絞り込める
+- `s11`: 利用者は `ReviewArtifact` を閲覧専用 viewer で開き、時刻同期レビューを開始できる
+- `s12`: 運用者は `reviework` を外部 project や一時文書に依存せず独立運用できる
 
-## 対応ルール
+## System Behaviors
 
-- gate closeout 記録は `mrl-record.md` を追加した時点でそこへ集約する
-- TDD 計画は `tdd-test-matrix.md` に記録する
-- ongoing の確認事項は `--devs/--state/prj-reviework/current_state.md` に追記する
-
-## シーケンス
-
-```mermaid
-flowchart TD
-    A["user selects session folder"] --> B["InputPackaging builds SessionPackage"]
-    B --> C["Diagnose computes data health and issues"]
-    C --> D{"execute gate ready?"}
-    D -- "no" --> E["Next Action = 修正する"]
-    D -- "yes" --> F["Next Action = 処理を開始"]
-    F --> G["Preprocess runs"]
-    G --> H["COLMAP runs"]
-    H --> I{"ready for densification?"}
-    I -- "no" --> J["Next Action = 入力条件を見直す"]
-    I -- "yes" --> K["3DGS runs"]
-    K --> L["Trajectory runs"]
-    L --> M["Assembly builds ReviewArtifact"]
-    M --> N["Verify shows quality summary"]
-    N --> O["Interpret shows attention points"]
-    O --> P["Viewer reads ReviewArtifact on timeline"]
-```
-
-## terminal behaviors
-
-- `B1`: session folder が受理されると、`SessionPackage` に required / optional input の充足状況が反映される
-- `B2`: diagnose phase は、欠落入力、低品質、修正理由を `Thin Status` で返す
-- `B3`: execute gate は、`preprocess`、`COLMAP`、`3DGS`、`trajectory` の readiness を満たしたときだけ `処理を開始` を返す
-- `B4`: run phase は、`Next Action` を常に `完了を待つ` 1 件に保ち、現在ステップを別 line で返す
-- `B5`: `COLMAP` が densification 不可なら、`3DGS` を開始せず `入力条件を見直す` へ戻す
-- `B6`: verify phase は `space` と `trajectory` の quality を同時に返し、弱点を issue 化する
-- `B7`: interpret phase は attention point を時間範囲と理由付きで返す
-- `B8`: relink は visual match confidence、time gap、anchor proximity の 3 条件で判定し、不成立時は uncertainty を上げる
-- `B9`: `Assembly` は唯一の `ReviewArtifact` 生成者であり、`Viewer` は read-only 消費だけを行う
-- `B10`: parser は `bt.jsonl` / `poses.jsonl` と `ble_scan.jsonl` / `arcore_pose.jsonl` の両方を受理する
-- `B11`: `reviework` の products は `prj-reviework` 配下だけで完結し、`iSensorium` の package / file を shared 参照しない
-- `B12`: test summary は `kisaragi-db/--devs/--testlogs/prj-reviework/` に、raw 生成物は `kisaragi-db/--exsams/prj-reviework/` に分離される
+- `b1`: session folder が受理されると、`SessionPackage` に必須入力、任意入力、時刻基準、品質フラグの要約が反映される
+- `b2`: `Diagnose` は、欠落入力、品質低下、修正理由を `Thin Status` で返す
+- `b3`: 実行可否 gate は、`InputPackaging`、`SpaceReconstruction` 前提、`TrajectoryReconstruction` 前提の readiness を満たした時だけ `処理を開始` を返す
+- `b4`: 実行 phase は、`Next Action` を常に `完了を待つ` 1 件に保ち、現在段階を別 line で返す
+- `b5`: `COLMAP.status != READY_FOR_DENSIFICATION` のとき、`3DGS` を開始せず `入力条件を見直す` を返す
+- `b6`: `SpacePackage` は主空間の唯一基準を返し、`GNSS` がない場合は主 `ARCore` local 空間を採用する
+- `b7`: `TrajectoryPackage` は作業機 path、作業員 path、不確実性、再拘束点を同じ `Timeline` 上で返す
+- `b8`: relink は visual match confidence、time gap、anchor proximity、`BT` 主体維持を使って判定し、不成立時は不確実性を上げる
+- `b9`: `Verify` は空間品質と軌跡品質を同時に返し、`Interpret` は `attention point` を時間範囲と理由付きで返す
+- `b10`: `Assembly` は唯一の `ReviewArtifact` 生成者であり、`Viewer` は閲覧専用の消費だけを行う
+- `b11`: parser は `bt.jsonl` / `poses.jsonl` と `ble_scan.jsonl` / `arcore_pose.jsonl` の両方を受理する
+- `b12`: `reviework` の docs、build、test、生成物経路は `prj-reviework` 配下で完結し、要約と生の生成物を分離する
+- `b13`: `InputPackaging` は `iSensorium` 生出力に加えて、`input_readiness.json`、`sensor_quality.json`、`frame_pose_index.csv`、`member_identity_map.json` を分担インターフェースとして出力する
+- `b14`: 4 分担の各段階は、前段の出力契約だけを読めば次段へ着手できる
 
 ## 受け入れ基準
 
-| behavior_id | 観点 | 受け入れ基準 |
-| --- | --- | --- |
-| `B1` | input packaging | `frames`、`imu`、`bt`、optional `poses` / `gnss` の充足状況が読める |
-| `B2` | diagnose UX | 欠落入力と品質低下理由が `Thin Status` の 5 カテゴリで読める |
-| `B3` | execute gate | readiness 未達時は `処理を開始` を返さない |
-| `B4` | run UX | `Next Action` は 1 件だけで、現在ステップは補足 line に分離される |
-| `B5` | pipeline safety | `COLMAP` failure 時に `3DGS` を開始しない |
-| `B6` | verify UX | `space` と `trajectory` の quality が同時に示される |
-| `B7` | interpret UX | attention point に時間範囲と理由が入る |
-| `B8` | trajectory uncertainty | relink 判定が 3 条件に基づき uncertainty を更新する |
-| `B9` | artifact boundary | `ReviewArtifact` の生成責務が `Assembly` に限定される |
-| `B10` | reuse compatibility | legacy alias と reviework alias の両方を parser が読める |
-| `B11` | copy boundary | `prj-reviework` 単独で docs / test / build が継続できる |
-| `B12` | output hygiene | build cache と test output が source-of-truth products に残らない |
+| s-id | b-id | 観点 | 受け入れ基準 |
+| --- | --- | --- | --- |
+| `s1` | `b1`,`b11`,`b13` | 受理契約 | `frames`、`imu`、`bt`、任意 `poses` / `gnss`、追加出力の有無が 1 つの要約として読める |
+| `s2` | `b2` | diagnose UX | `phase`、`pipeline`、`data_health`、`quality`、`issues` の 5 項目で理由が読める |
+| `s3` | `b3` | 実行可否 gate | readiness 未達時は `処理を開始` を返さず、修正 action を返す |
+| `s4` | `b4` | 実行 UX | `Next Action` は常に 1 件で、現在段階は補足 line に分離される |
+| `s5` | `b5` | パイプライン安全性 | `COLMAP` failure 時に `3DGS` を開始しない |
+| `s6` | `b6` | 空間基準 | `GNSS` がない時でも基準座標と空間品質の説明がある |
+| `s7` | `b7` | 経路契約 | 作業機と作業員の path が同じ時刻軸で比較できる |
+| `s8` | `b8` | relink 不確実性 | 再拘束失敗時に不確実性 mode と理由が更新される |
+| `s9` | `b9` | verify UX | 空間品質と軌跡品質の弱点が同時に読める |
+| `s10` | `b9` | interpret UX | `attention point` に時間範囲と理由が入る |
+| `s11` | `b10` | 成果物境界 | `ReviewArtifact` 生成責務が `Assembly` に限定される |
+| `s12` | `b12`,`b14` | 独立運用 | docs / build / test が project 内で完結し、段階間契約だけで分担着手できる |
 
-## MRL 対応表
+## `MRL` 対応表
 
-### MRL-1 intake and diagnose foundation
-
-- user stories: `1`, `2`, `3`
-- current gate: `active`
-
-#### mRL-1.1 SessionPackage intake contract
-
-- `B1`、`B10` を成立させる
-- gate: `pass`
-
-#### mRL-1.2 Thin Status diagnose baseline
-
-- `B2` を成立させる
-- gate: `pass`
-
-#### mRL-1.3 execute readiness gate
-
-- `B3` を成立させる
-- gate: `planned`
-
-### MRL-2 pipeline run orchestration
-
-- user stories: `4`, `5`
-- current gate: `planned`
-
-#### mRL-2.1 single-action run UX
-
-- `B4` を成立させる
-- gate: `pass`
-
-#### mRL-2.2 COLMAP to 3DGS gate
-
-- `B5` を成立させる
-- gate: `planned`
-
-#### mRL-2.3 blocking issue return path
-
-- `B2`、`B5` の往復を成立させる
-- gate: `planned`
-
-### MRL-3 verify and interpret artifact line
-
-- user stories: `6`, `7`, `8`, `9`
-- current gate: `planned`
-
-#### mRL-3.1 quality summary contract
-
-- `B6` を成立させる
-- gate: `planned`
-
-#### mRL-3.2 attention point synthesis
-
-- `B7`、`B8` を成立させる
-- gate: `planned`
-
-#### mRL-3.3 ReviewArtifact and viewer boundary
-
-- `B9` を成立させる
-- gate: `planned`
-
-### MRL-4 reuse and operations hardening
-
-- user stories: `10`, `11`, `12`
-- current gate: `pass`
-
-#### mRL-4.1 parser compatibility copy
-
-- `B10` を成立させる
-- gate: `pass`
-
-#### mRL-4.2 independent project boundary
-
-- `B11` を成立させる
-- gate: `pass`
-
-#### mRL-4.3 output routing hygiene
-
-- `B12` を成立させる
-- gate: `pass`
+| MRL | mRL | 目的 | 関連 s-id | 関連 b-id | 現在 gate |
+| --- | --- | --- | --- | --- | --- |
+| `MRL-1` | `-` | 受理と診断の基礎線を成立させる | `s1`,`s2`,`s3` | `b1`,`b2`,`b3`,`b11`,`b13`,`b14` | `active` |
+| `MRL-1` | `mRL-1.1` | `SessionPackage` 受理契約 | `s1` | `b1`,`b11`,`b13` | `active` |
+| `MRL-1` | `mRL-1.2` | `Thin Status` 診断基線 | `s2` | `b2` | `planned` |
+| `MRL-1` | `mRL-1.3` | 実行可否 gate | `s3` | `b3` | `planned` |
+| `MRL-1` | `mRL-1.4` | 分担インターフェース固定 | `s1`,`s12` | `b13`,`b14` | `active` |
+| `MRL-2` | `-` | 主空間再構成の基礎線を成立させる | `s4`,`s5`,`s6` | `b4`,`b5`,`b6` | `planned` |
+| `MRL-2` | `mRL-2.1` | 主空間基準固定 | `s4`,`s6` | `b4`,`b6` | `planned` |
+| `MRL-2` | `mRL-2.2` | `COLMAP` から `3DGS` への安全 gate | `s5` | `b5` | `planned` |
+| `MRL-2` | `mRL-2.3` | 空間品質要約 | `s6`,`s9` | `b6`,`b9` | `planned` |
+| `MRL-3` | `-` | 経路再構成と解釈の基礎線を成立させる | `s7`,`s8`,`s9`,`s10` | `b7`,`b8`,`b9` | `planned` |
+| `MRL-3` | `mRL-3.1` | `TrajectoryPackage` 契約 | `s7` | `b7` | `planned` |
+| `MRL-3` | `mRL-3.2` | relink と不確実性 | `s8` | `b8` | `planned` |
+| `MRL-3` | `mRL-3.3` | `Verify` / `Interpret` | `s9`,`s10` | `b9` | `planned` |
+| `MRL-4` | `-` | 成果物組立と運用硬化を成立させる | `s11`,`s12` | `b10`,`b12`,`b14` | `active` |
+| `MRL-4` | `mRL-4.1` | `ReviewArtifact` と viewer 境界 | `s11` | `b10` | `planned` |
+| `MRL-4` | `mRL-4.2` | 独立 project 境界 | `s12` | `b12`,`b14` | `active` |
+| `MRL-4` | `mRL-4.3` | 生成物 routing hygiene | `s12` | `b12` | `pass` |
