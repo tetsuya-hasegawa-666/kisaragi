@@ -66,3 +66,8 @@
   - decision: `trajectreview` は 1 repository 内で `trajectreview-correcting`、`trajectreview-modeling`、`trajectreview-reviewing`、統合 app の 4 app 構成を採る
   - rationale: 開発主体は admin と Codex の 2 名でも、作業境界を app 単位へ切ることで手戻り時の原因分析、担当範囲の明確化、再作業時間の短縮を狙えるため
   - consequence: 以後の Android 実装は共通 source を保ちながら app role ごとの UX と build 導線を分ける
+- 2026-03-26
+  - project: `prj-kisaragi_0002`
+  - decision: 4 app は mock 固定ではなく、共通 bundle 契約を読み直して実データ UX を確認できる構成にし、`modeling` は `Colab` account 未取得の間 `local sample before colab` を正本 route とする
+  - rationale: 分割 app の価値は担当境界の明確化だけでなく、実 bundle に基づく切り分けと handoff の短時間化にあるため、mock のままでは目的を満たさない。また `Colab` account が後続取得でも、logic 検証は先に PC / local で進める必要があるため
+  - consequence: `correcting` は抽出済み bundle、`modeling` は local sample model と `colab_job_request.json`、`reviewing` は modeling 出力を読んで状態を組み立てる

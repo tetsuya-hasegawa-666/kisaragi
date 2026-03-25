@@ -20,6 +20,7 @@
 - `MRL-5` として `iSensorium` session folder 抽出を app へ統合し、raw + 追加出力を `trajectreview` から生成可能にした
 - `MRL-6` として `session_package.json`、`space_handoff_manifest.json`、`video.mp4` を含む後段 handoff 加工を追加し、`SpaceReconstruction` 着手単位を `pass` にした
 - 次段では、1 project / 4 app 構成として `trajectreview-correcting`、`trajectreview-modeling`、`trajectreview-reviewing`、統合 app を並立させ、作業境界と手戻り分析を明確化する
+- `MRL-8` では、mock ではなく抽出 bundle と modeling 結果を各 app が実際に読み、`modeling` は `Colab` 本処理前の軽量 local sample と handoff request を生成する
 
 ### 阻害要因の境界
 
@@ -28,11 +29,12 @@
 - `ReviewArtifact` の最終 viewer 実装先は Android 固定ではない
 - `iSensorium` app data の配置差分は実機ごとの差を吸収する必要がある
 - multi-app 化では共通 source を維持しつつ app role を分ける必要がある
+- `Colab` account 情報は未取得であり、remote 実行は後続 task とする
 
 ### 次の確認
 
-1. `trajectreview-correcting`、`trajectreview-modeling`、`trajectreview-reviewing`、統合 app の 4 app 構成を成立させる
-2. `space_handoff_manifest.json` を実 `SpaceReconstruction` engine の入口へ接続する
+1. 4 app それぞれが実 bundle を読み、担当段階の UX を mock ではなく実データで確認できるようにする
+2. `trajectreview-modeling` が local sample model と `Colab` handoff request を同時に生成できるようにする
 3. `3DGS` と viewer の実成果物を `ReviewArtifact` 契約へ接続する
 
 ### 作業所有権
@@ -79,6 +81,8 @@
 - `s16`: 運用者は、抽出直後の bundle だけで `SpaceReconstruction` 着手可否と blocker を判断できる
 - `s17`: 運用者は、入力補正、モデル生成、レビュー操作を app 単位で分けて実行できる
 - `s18`: 運用者は、統合 app からも同じ workflow を通しで扱え、手戻り時にどの app 範囲で問題が起きたかを即座に切り分けられる
+- `s19`: 運用者は、4 app の各画面で mock ではなく直近の実 bundle を読み、同じ project truth で UX 確認できる
+- `s20`: 運用者は、`trajectreview-modeling` から `Colab` 送信前の軽量 local sample model と handoff request を生成し、PC 上で logic を先に検証できる
 
 ### System Behaviors
 
@@ -108,6 +112,9 @@
 - `b24`: `trajectreview-correcting` は intake / diagnose / correction に必要な画面と文言だけを主表示にする
 - `b25`: `trajectreview-modeling` は `SpaceReconstruction` と `TrajectoryReconstruction` に必要な gate、handoff、進行表示を主表示にする
 - `b26`: `trajectreview-reviewing` は verify / review / same-time highlight を主表示にし、統合 app は全 workflow を束ねる
+- `b27`: correcting、modeling、reviewing、統合 app は、選択した実 bundle から `ReviewContractSnapshot` を再構成し、mock 固定状態に依存しない
+- `b28`: `trajectreview-modeling` は `session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json` を読み、`local_model_summary.json`、`colab_job_request.json`、`review_artifact_stub.json` を生成する
+- `b29`: `trajectreview-reviewing` と統合 app は `local_model_summary.json` と `review_artifact_stub.json` を読んで verify / review 状態を組み立てる
 
 ### 受け入れ基準
 
@@ -131,6 +138,8 @@
 | `s16` | `b19`,`b20`,`b21`,`b22` | 後段 handoff | `video.mp4` を含む raw bundle と `session_package.json` / `space_handoff_manifest.json` だけで `SpaceReconstruction` 着手可否と blocker を判断できる |
 | `s17` | `b23`,`b24`,`b25`,`b26` | 作業分割 | 補正、モデル生成、レビュー操作を app 単位で分け、各 app が担当段階を明示できる |
 | `s18` | `b23`,`b26` | 統合運用 | 統合 app からも同じ workflow を通しで扱え、問題発生時に app 単位で切り分けられる |
+| `s19` | `b27`,`b29` | 実データ UX | 各 app が抽出済みまたは modeling 済み bundle を読み、直近実データに基づく状態を表示できる |
+| `s20` | `b28`,`b29` | local sample modeling | `Colab` account 未取得でも local sample model と handoff request を生成し、reviewing へ渡せる |
 
 ### `MRL` 対応表
 
@@ -162,9 +171,13 @@
 | `MRL-6` | `mRL-6.2` | `session_package.json` 正規化 | `s16` | `b20` | `pass` |
 | `MRL-6` | `mRL-6.3` | `space_handoff_manifest.json` と UI gate | `s16` | `b21`,`b22` | `pass` |
 | `MRL-7` | `-` | 4 app 分割と統合運用を成立させる | `s17`,`s18` | `b23`,`b24`,`b25`,`b26` | `active` |
-| `MRL-7` | `mRL-7.1` | multi-app module 構成 | `s17`,`s18` | `b23` | `planned` |
-| `MRL-7` | `mRL-7.2` | correcting / modeling / reviewing UX 分離 | `s17` | `b24`,`b25`,`b26` | `planned` |
-| `MRL-7` | `mRL-7.3` | 統合 app と app 単位切り分け summary | `s18` | `b26` | `planned` |
+| `MRL-7` | `mRL-7.1` | multi-app module 構成 | `s17`,`s18` | `b23` | `active` |
+| `MRL-7` | `mRL-7.2` | correcting / modeling / reviewing UX 分離 | `s17` | `b24`,`b25`,`b26` | `active` |
+| `MRL-7` | `mRL-7.3` | 統合 app と app 単位切り分け summary | `s18` | `b26` | `active` |
+| `MRL-8` | `-` | 実 bundle UX と local sample modeling を成立させる | `s19`,`s20` | `b27`,`b28`,`b29` | `active` |
+| `MRL-8` | `mRL-8.1` | 実 bundle 読込 state 再構成 | `s19` | `b27` | `planned` |
+| `MRL-8` | `mRL-8.2` | local sample modeling と Colab handoff request | `s20` | `b28` | `planned` |
+| `MRL-8` | `mRL-8.3` | reviewing app の実 bundle verify / review | `s19`,`s20` | `b29` | `planned` |
 
 ## TDD
 
@@ -202,6 +215,9 @@
 | `T24` | `b23` | multi-app module build | `correcting`、`modeling`、`reviewing`、統合 app の 4 module が同じ repository で build できる | planned | `kisaragi-db/--devs/--products/prj-kisaragi_0002/settings.gradle.kts` |
 | `T25` | `b24`,`b25`,`b26` | role-specific workflow filter | 各 app が自分の役割に対応する workflow 範囲と文言だけを主表示にする | planned | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt` |
 | `T26` | `b26` | integrated app overview | 統合 app が 3 app の担当境界を俯瞰表示し、切り分け理由を示せる | planned | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/MainActivity.kt` |
+| `T27` | `b27` | extracted bundle snapshot loader | app が `session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json`、`member_identity_map.json` を読んで実データ state を再構成できる | planned | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/WorkflowBundleServiceTest.kt` |
+| `T28` | `b28` | local sample modeling output | `modeling` app が `local_model_summary.json`、`colab_job_request.json`、`review_artifact_stub.json` を生成できる | planned | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/LocalModelingServiceTest.kt` |
+| `T29` | `b29` | reviewing actual bundle state | `reviewing` app と統合 app が modeling 結果を読み、verify / review 状態へ反映できる | planned | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/MainActivity.kt` |
 
 ### 実行方針
 
@@ -213,6 +229,7 @@
 - `MRL-5` では `T17` から `T20` で `iSensorium` 抽出統合、legacy alias intake、bundle 分離、quality 数値表示を固める
 - `MRL-6` では `T21` から `T23` で raw video 維持、`SessionPackage` 正規化、`SpaceReconstruction` handoff gate を固める
 - `MRL-7` では `T24` から `T26` で 4 app 構成、role-specific UX、統合 app overview を固める
+- `MRL-8` では `T27` から `T29` で実 bundle 読込、local sample modeling、reviewing 実データ UX を固める
 
 ### 現在の見立て
 
@@ -220,4 +237,4 @@
 - Python unittest、Android unit test、PowerShell script 実行により、入口契約から成果物 routing までの計画範囲を固定した
 - `T17` から `T20` も `pass` になり、`trajectreview` 自身から `iSensorium` raw + 追加出力を生成できる状態へ拡張した
 - `T21` から `T23` も `pass` になり、`video.mp4` を含む raw bundle と `session_package.json` / `space_handoff_manifest.json` を後段 handoff 単位として生成できる状態へ拡張した
-- 次段は `T24` から `T26` で 4 app 構成と role-specific UX を実装し、app 単位の切り分けと統合運用を同時に成立させる
+- `MRL-7` から `MRL-8` では 4 app 構成を成立させたうえで、実 bundle 読込と `Colab` 前提 local sample modeling を実装し、mock 依存を外す

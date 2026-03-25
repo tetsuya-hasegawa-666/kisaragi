@@ -104,21 +104,25 @@
 
 - 対象段階: `InputPackaging`
 - 主責務: 取得、抽出、入力補正、診断、後段 handoff 判定
+- 実データ基準: 選択した `iSensorium` session folder から `trajectreview_export/<session_id>/` を生成し、その bundle を再読込して状態を表示する
 
 ### `trajectreview-modeling`
 
 - 対象段階: `SpaceReconstruction`、`TrajectoryReconstruction`
 - 主責務: model 入力確認、実行 gate、進行把握、再構成 blocker 確認
+- 実データ基準: `session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json` を入力として、`Colab` 送信前の `local sample before colab` を実行し、`colab_job_request.json` と review 用 stub を生成する
 
 ### `trajectreview-reviewing`
 
 - 対象段階: `AssemblyAndViewer`
 - 主責務: verify、review、same-time highlight、`attention point` 確認
+- 実データ基準: `local_model_summary.json` と `review_artifact_stub.json` を読み、verify / review 状態を mock ではなく実 bundle で表示する
 
 ### 統合 app
 
 - 対象段階: 全段階
 - 主責務: correcting、modeling、reviewing の全 workflow を 1 つの視点で束ねる
+- 実データ基準: 抽出直後の bundle を保持し、同じ app 内で `local sample before colab` を続行できる
 
 ## 分担インターフェース
 
@@ -154,9 +158,13 @@
   - `space_quality.json`
   - `coverage_report.json`
   - `main_camera_path.csv`
+  - `trajectreview/modeling/local_model_summary.json`
+  - `trajectreview/modeling/colab_job_request.json`
+  - `trajectreview/modeling/review_artifact_stub.json`
 - 受け渡し条件:
   - 主空間基準が一意に決まっている
   - `COLMAP` から `3DGS` へ進める可否が判定済みである
+  - `Colab` account 未取得時も local sample 実行で logic 検証済みである
 
 ### 分担 3: `TrajectoryReconstruction`
 
