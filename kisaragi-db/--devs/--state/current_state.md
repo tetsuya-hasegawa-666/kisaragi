@@ -16,6 +16,7 @@
 - 2026-03-25: Codex が `iSensorium` verified mirror を `prj-kisaragi_0002` の `--products` / `--testcode` へ保持し、`project-truth` から参照できる状態へ整える。
 - 2026-03-25: Codex が `iSensorium` verified mirror を比較用 app `kisaragi-iSensorium` として `Xperia 5 III` へ install し、本来の `iSensorium` と並行比較できる状態へ整える。
 - 2026-03-25: Codex が `prj-kisaragi_0002` の `MRL-6` として、`session_package.json`、`space_handoff_manifest.json`、主カメラ動画を含む後段 handoff 加工を完了まで進める。
+- 2026-03-26: Codex が `prj-kisaragi_0002` の `MRL-7` として、`correcting`、`modeling`、`reviewing`、統合 app の 4 app 構成を完了まで進める。
 
 ## 人間確認待ち
 
@@ -35,3 +36,4 @@
 - `prj-kisaragi_0002` の `iSensorium` source intake 仕様を `Xperia 5 III` 実機操作手順へ結び付ける
 - `prj-kisaragi_0002` の `iSensorium` collector 起動順と state transition を verified mirror から追加抽出する
 - `prj-kisaragi_0002` の `space_handoff_manifest.json` を実 `SpaceReconstruction` engine へ接続する
+- `prj-kisaragi_0002` の 4 app 構成を build、install、UX 表示まで閉じる

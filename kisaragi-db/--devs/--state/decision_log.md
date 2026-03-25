@@ -61,3 +61,8 @@
   - decision: `MRL-6` では `InputPackaging` の抽象 `SessionPackage` を concrete artifact の `session_package.json` と `space_handoff_manifest.json` へ落とし、`video.mp4` を raw bundle に保持する
   - rationale: 抽出後の bundle を後段へ渡すには、主カメラ動画と stage-2 gate を同じ export 単位へ含める必要があるため
   - consequence: `SpaceReconstruction` は `trajectreview/` 配下の handoff artifact だけで着手可否を判定できる
+- 2026-03-26
+  - project: `prj-kisaragi_0002`
+  - decision: `trajectreview` は 1 repository 内で `trajectreview-correcting`、`trajectreview-modeling`、`trajectreview-reviewing`、統合 app の 4 app 構成を採る
+  - rationale: 開発主体は admin と Codex の 2 名でも、作業境界を app 単位へ切ることで手戻り時の原因分析、担当範囲の明確化、再作業時間の短縮を狙えるため
+  - consequence: 以後の Android 実装は共通 source を保ちながら app role ごとの UX と build 導線を分ける

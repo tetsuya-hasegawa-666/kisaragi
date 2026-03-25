@@ -71,6 +71,9 @@
 
 ## 4 段階処理構造
 
+- app 構成は、`trajectreview-correcting`、`trajectreview-modeling`、`trajectreview-reviewing`、統合 app の 4 実行入口を許容する
+- 上記 4 app は、複数人分担や手戻り時の原因分析速度を上げるための作業境界であり、実際の開発主体が admin と Codex の 2 名であることと矛盾しない
+
 ### 第 1 段階: `InputPackaging`
 
 - 責務: `iSensorium` app data から主カメラ動画、主カメラ `IMU`、人物側 `IMU` を抽出し、単一セッション入力へ正規化する
@@ -94,6 +97,28 @@
 - 責務: 閲覧可能な成果物を組み立て、viewer で読む
 - 主な処理: timeline 生成、主体表示定義、同時刻ハイライト定義、`attention point` 統合、閲覧 manifest 生成
 - 出力: `ReviewArtifact`
+
+## app 構成
+
+### `trajectreview-correcting`
+
+- 対象段階: `InputPackaging`
+- 主責務: 取得、抽出、入力補正、診断、後段 handoff 判定
+
+### `trajectreview-modeling`
+
+- 対象段階: `SpaceReconstruction`、`TrajectoryReconstruction`
+- 主責務: model 入力確認、実行 gate、進行把握、再構成 blocker 確認
+
+### `trajectreview-reviewing`
+
+- 対象段階: `AssemblyAndViewer`
+- 主責務: verify、review、same-time highlight、`attention point` 確認
+
+### 統合 app
+
+- 対象段階: 全段階
+- 主責務: correcting、modeling、reviewing の全 workflow を 1 つの視点で束ねる
 
 ## 分担インターフェース
 
