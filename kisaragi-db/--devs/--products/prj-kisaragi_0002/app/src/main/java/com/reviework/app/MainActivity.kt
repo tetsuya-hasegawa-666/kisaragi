@@ -107,7 +107,9 @@ class MainActivity : AppCompatActivity() {
                             buildString {
                                 appendLine("抽出先: ${File(exportBaseDir, result.exportRelativeRoot).absolutePath}")
                                 appendLine("診断進行可: ${result.readyForDiagnose}")
+                                appendLine("空間再構成進行可: ${result.readyForSpaceReconstruction}")
                                 appendLine("欠落入力: ${result.missingRequiredInputs.joinToString(", ").ifBlank { "なし" }}")
+                                appendLine("空間再構成 blocker: ${result.spaceReconstructionBlockers.joinToString(", ").ifBlank { "なし" }}")
                                 appendLine("充足率: ${"%.2f".format(result.completenessScore)}")
                                 appendLine("pose 対応率: ${"%.2f".format(result.poseCoverageRatio)}")
                                 append("pose 最近傍差分(ns): ${result.nearestPoseDeltaNs ?: "該当なし"}")
@@ -153,6 +155,11 @@ class MainActivity : AppCompatActivity() {
             return resolver.openInputStream(file.uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
         }
 
+        override fun readBytes(filename: String): ByteArray? {
+            val file = root.findFile(filename) ?: findFileRecursive(root, filename) ?: return null
+            return resolver.openInputStream(file.uri)?.use { it.readBytes() }
+        }
+
         override fun listChildDirectories(): List<SessionInputReader> =
             root.listFiles()
                 .filter { it.isDirectory }
@@ -184,6 +191,11 @@ class MainActivity : AppCompatActivity() {
             val file = root.findFile(filename) ?: return null
             return resolver.openInputStream(file.uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
         }
+
+        override fun readBytes(filename: String): ByteArray? {
+            val file = root.findFile(filename) ?: return null
+            return resolver.openInputStream(file.uri)?.use { it.readBytes() }
+        }
     }
 
     private class FileSessionOutput(
@@ -193,6 +205,12 @@ class MainActivity : AppCompatActivity() {
             val file = File(baseDir, relativePath)
             file.parentFile?.mkdirs()
             file.writeText(content, Charsets.UTF_8)
+        }
+
+        override fun writeBytes(relativePath: String, content: ByteArray) {
+            val file = File(baseDir, relativePath)
+            file.parentFile?.mkdirs()
+            file.writeBytes(content)
         }
     }
 }

@@ -75,3 +75,26 @@
   - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_session_parser.py`
   - `kisaragi-db/--devs/--testlogs/prj-kisaragi_0002/reports/python-unittest-summary.md`
   - `kisaragi-db/--devs/--testlogs/prj-kisaragi_0002/reports/android-test-summary.md`
+
+## 2026-03-25 `MRL-6` closeout
+
+- 対象 gate:
+  - `MRL-6`
+  - `mRL-6.1` から `mRL-6.3`
+- UX 観点:
+  - 抽出結果画面で `ready_for_space_reconstruction` と blocker を確認できる
+  - raw bundle に主カメラ動画を保持したまま、後段着手判断を 1 画面で行える
+- 実装 / test 観点:
+  - Python unittest: `test_session_parser.py`、`test_project_contracts.py`
+  - Android unit test: `ISensoriumExtractionServiceTest.kt`
+  - device install:
+    - `gradlew.bat installDebug`
+- handoff artifact 観点:
+  - `session_package.json` が timebase、source file、stream count、quality 指標、required / optional input を保持する
+  - `space_handoff_manifest.json` が `ready_for_space_reconstruction`、blocker、consumed artifact、next action を保持する
+  - `video.mp4` と `video_events.jsonl` を raw bundle に保持する
+- 主要 evidence:
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/ISensoriumExtractionService.kt`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/python/session_parser.py`
+  - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ISensoriumExtractionServiceTest.kt`
+  - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_session_parser.py`

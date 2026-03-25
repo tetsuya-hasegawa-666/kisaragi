@@ -33,6 +33,8 @@ def build_stage_handoff_contracts() -> list[StageHandoffContract]:
                 "sensor_quality.json",
                 "frame_pose_index.csv",
                 "member_identity_map.json",
+                "session_package.json",
+                "space_handoff_manifest.json",
             ],
             handoff_conditions=[
                 "主カメラ動画、主カメラ IMU、人物側 IMU の充足が判定済みである",
@@ -46,6 +48,8 @@ def build_stage_handoff_contracts() -> list[StageHandoffContract]:
             owned_by="主空間再構成",
             input_contracts=[
                 "SessionPackage",
+                "session_package.json",
+                "space_handoff_manifest.json",
                 "input_readiness.json",
                 "sensor_quality.json",
                 "frame_pose_index.csv",

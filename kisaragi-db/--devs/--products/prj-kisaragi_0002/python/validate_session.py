@@ -17,6 +17,8 @@ def main() -> int:
     summary = parser.load_summary()
     join_report = parser.build_join_report()
     session_package_interface = parser.build_session_package_interface()
+    session_package = parser.build_session_package_payload()
+    space_handoff_manifest = parser.build_space_handoff_manifest()
 
     output = {
         "summary": {
@@ -40,6 +42,8 @@ def main() -> int:
             "missingRequiredInputs": session_package_interface.missing_required_inputs,
             "readyForDiagnose": session_package_interface.ready_for_diagnose,
         },
+        "sessionPackage": session_package,
+        "spaceHandoffManifest": space_handoff_manifest,
     }
     print(json.dumps(output, indent=2))
     return 0

@@ -14,7 +14,8 @@
 
 - Android app:
   - `trajectreview` は `iSensorium` session folder を選択し、`session_id/isensorium/` と `session_id/trajectreview/` を app の external files 配下へ抽出する
-  - `Extraction` card に、抽出元、抽出先、`ready_for_diagnose`、欠落入力、quality 数値を表示する
+  - `Extraction` card に、抽出元、抽出先、`ready_for_diagnose`、`ready_for_space_reconstruction`、欠落入力、quality 数値を表示する
+  - 抽出後は `session_package.json` と `space_handoff_manifest.json` を生成し、後段の `SpaceReconstruction` 着手単位へつなぐ
 
 - Android unit test:
 

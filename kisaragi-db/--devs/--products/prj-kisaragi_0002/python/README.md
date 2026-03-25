@@ -19,6 +19,8 @@
 - `sensor_quality.json` には `imuNearestDeltaNs`、`btNearestDeltaNs`、`poseNearestDeltaNs`、`completenessScore`、`poseCoverageRatio` を含める
 - `frame_pose_index.csv` 相当: frame と pose の対応表
 - `member_identity_map.json` 相当: 端末、主体、`BT` 識別子の対応表
+- `session_package.json` 相当: 後段へ渡すための正規化済み `SessionPackage` 実体
+- `space_handoff_manifest.json` 相当: `SpaceReconstruction` 着手可否、blocker、利用 artifact の要約
 
 ## 実行例
 

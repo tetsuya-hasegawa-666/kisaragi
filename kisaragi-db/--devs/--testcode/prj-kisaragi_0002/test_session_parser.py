@@ -37,6 +37,7 @@ class SessionParserAliasCompatibilityTest(unittest.TestCase):
                 "collectorStatus": {"intake": "complete"},
             }
             (session_dir / "session_manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            (session_dir / "video.mp4").write_bytes(b"video")
             (session_dir / "video_frame_timestamps.csv").write_text(
                 "camera_sensor_timestamp_ns,elapsed_realtime_ns,wall_time_ms,rotation_degrees,session_elapsed_ns\n1,2001,1001,0,1\n",
                 encoding="utf-8",
@@ -52,6 +53,8 @@ class SessionParserAliasCompatibilityTest(unittest.TestCase):
             summary = parser.load_summary()
             join_report = parser.build_join_report()
             package_interface = parser.build_session_package_interface()
+            session_package = parser.build_session_package_payload()
+            space_handoff_manifest = parser.build_space_handoff_manifest()
 
             self.assertEqual("review", summary.session_mode)
             self.assertEqual(1, summary.stream_counts["bt"])
@@ -61,6 +64,8 @@ class SessionParserAliasCompatibilityTest(unittest.TestCase):
             self.assertTrue(package_interface.ready_for_diagnose)
             self.assertEqual([], package_interface.missing_required_inputs)
             self.assertIn("input_readiness.json", package_interface.derived_outputs)
+            self.assertEqual("video.mp4", session_package["sourceFiles"]["video"])
+            self.assertTrue(space_handoff_manifest["readyForSpaceReconstruction"])
 
     def test_session_package_interface_marks_missing_required_inputs(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -85,11 +90,14 @@ class SessionParserAliasCompatibilityTest(unittest.TestCase):
 
             parser = SessionParser(session_dir)
             package_interface = parser.build_session_package_interface()
+            space_handoff_manifest = parser.build_space_handoff_manifest()
 
             self.assertFalse(package_interface.ready_for_diagnose)
-            self.assertEqual(["imu", "bt"], package_interface.missing_required_inputs)
+            self.assertEqual(["video", "imu", "bt"], package_interface.missing_required_inputs)
             self.assertFalse(package_interface.optional_inputs["poses"])
             self.assertFalse(package_interface.optional_inputs["gnss"])
+            self.assertFalse(space_handoff_manifest["readyForSpaceReconstruction"])
+            self.assertIn("video.mp4 が不足している", space_handoff_manifest["blockers"])
 
     def test_legacy_csv_aliases_are_accepted(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -107,6 +115,7 @@ class SessionParserAliasCompatibilityTest(unittest.TestCase):
                 },
             }
             (session_dir / "session_manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            (session_dir / "video.mp4").write_bytes(b"video")
             (session_dir / "video_frame_timestamps.csv").write_text(
                 "camera_sensor_timestamp_ns,elapsed_realtime_ns,wall_time_ms,rotation_degrees,session_elapsed_ns\n1,2001,1001,0,1\n",
                 encoding="utf-8",
@@ -128,6 +137,7 @@ class SessionParserAliasCompatibilityTest(unittest.TestCase):
             summary = parser.load_summary()
             join_report = parser.build_join_report()
             package_interface = parser.build_session_package_interface()
+            session_package = parser.build_session_package_payload()
 
             self.assertEqual("review", summary.session_mode)
             self.assertEqual(1, summary.stream_counts["bt"])
@@ -135,6 +145,7 @@ class SessionParserAliasCompatibilityTest(unittest.TestCase):
             self.assertEqual(3, join_report["btNearestDeltaNs"])
             self.assertEqual(4, join_report["poseNearestDeltaNs"])
             self.assertTrue(package_interface.ready_for_diagnose)
+            self.assertEqual("bt_events.csv", session_package["sourceFiles"]["bt"])
 
     def test_manifest_frames_and_bt_csv_aliases_are_accepted(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -152,6 +163,7 @@ class SessionParserAliasCompatibilityTest(unittest.TestCase):
                 },
             }
             (session_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            (session_dir / "video.mp4").write_bytes(b"video")
             (session_dir / "frames.csv").write_text(
                 "frame_id,timestamp_ns\n0,2001\n",
                 encoding="utf-8",
@@ -172,11 +184,13 @@ class SessionParserAliasCompatibilityTest(unittest.TestCase):
             parser = SessionParser(session_dir)
             summary = parser.load_summary()
             package_interface = parser.build_session_package_interface()
+            space_handoff_manifest = parser.build_space_handoff_manifest()
 
             self.assertEqual("session-20260325-legacy-2", summary.session_id)
             self.assertEqual(1, summary.stream_counts["frames"])
             self.assertEqual(1, summary.stream_counts["bt"])
             self.assertTrue(package_interface.ready_for_diagnose)
+            self.assertTrue(space_handoff_manifest["readyForSpaceReconstruction"])
 
 
 if __name__ == "__main__":

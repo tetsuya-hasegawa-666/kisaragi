@@ -110,6 +110,10 @@ class SessionParser:
                 return path
         return None
 
+    def _first_existing_name(self, *filenames: str) -> str | None:
+        path = self._find_first_existing(*filenames)
+        return path.name if path is not None else None
+
     def load_frame_rows(self) -> list[dict[str, Any]]:
         return self.load_csv_aliases("video_frame_timestamps.csv", "frames.csv")
 
@@ -158,9 +162,12 @@ class SessionParser:
         gnss_rows = self.load_csv("gnss.csv")
         bt_rows = self.load_bt_rows()
         pose_rows = self.load_pose_rows()
+        video_present = (self.session_dir / "video.mp4").exists()
+        video_events_present = (self.session_dir / "video_events.jsonl").exists()
 
         required_inputs = {
             "session_manifest": self.manifest_path is not None and self.manifest_path.exists(),
+            "video": video_present,
             "frames": len(frame_rows) > 0,
             "imu": len(imu_rows) > 0,
             "bt": len(bt_rows) > 0,
@@ -168,6 +175,7 @@ class SessionParser:
         optional_inputs = {
             "poses": len(pose_rows) > 0,
             "gnss": len(gnss_rows) > 0,
+            "video_events": video_events_present,
         }
         missing_required_inputs = [name for name, present in required_inputs.items() if not present]
 
@@ -179,10 +187,79 @@ class SessionParser:
                 "sensor_quality.json": "stream ごとの品質低下と警告理由",
                 "frame_pose_index.csv": "frame と pose の対応表",
                 "member_identity_map.json": "端末、主体、BT 識別子の対応表",
+                "session_package.json": "後段へ渡すための正規化済み SessionPackage 実体",
+                "space_handoff_manifest.json": "SpaceReconstruction 着手可否と blocker の要約",
             },
             missing_required_inputs=missing_required_inputs,
             ready_for_diagnose=not missing_required_inputs,
         )
+
+    def build_session_package_payload(self) -> dict[str, Any]:
+        summary = self.load_summary()
+        join_report = self.build_join_report()
+        package_interface = self.build_session_package_interface()
+
+        return {
+            "sessionId": summary.session_id,
+            "status": summary.status,
+            "deviceModel": summary.device_model,
+            "sessionMode": summary.session_mode,
+            "sessionDir": str(self.session_dir),
+            "timebase": self.timebase,
+            "requiredInputs": package_interface.required_inputs,
+            "optionalInputs": package_interface.optional_inputs,
+            "streamCounts": summary.stream_counts,
+            "collectorStatus": summary.collector_status,
+            "scores": {
+                "completenessScore": self._completeness_score(package_interface.required_inputs),
+                "poseCoverageRatio": self._pose_coverage_ratio(summary.stream_counts),
+            },
+            "nearestDeltaNs": {
+                "imuNearestDeltaNs": join_report["imuNearestDeltaNs"],
+                "gnssNearestDeltaNs": join_report["gnssNearestDeltaNs"],
+                "btNearestDeltaNs": join_report["btNearestDeltaNs"],
+                "poseNearestDeltaNs": join_report["poseNearestDeltaNs"],
+            },
+            "sourceFiles": {
+                "manifest": self.manifest_path.name if self.manifest_path is not None else None,
+                "video": "video.mp4" if (self.session_dir / "video.mp4").exists() else None,
+                "frames": self._first_existing_name("video_frame_timestamps.csv", "frames.csv"),
+                "imu": "imu.csv" if (self.session_dir / "imu.csv").exists() else None,
+                "gnss": "gnss.csv" if (self.session_dir / "gnss.csv").exists() else None,
+                "bt": self._first_existing_name("bt.jsonl", "ble_scan.jsonl", "bt_events.csv", "bt.csv"),
+                "poses": self._first_existing_name("poses.jsonl", "arcore_pose.jsonl", "arcore_pose.csv"),
+                "videoEvents": "video_events.jsonl" if (self.session_dir / "video_events.jsonl").exists() else None,
+            },
+        }
+
+    def build_space_handoff_manifest(self) -> dict[str, Any]:
+        package = self.build_session_package_payload()
+        metadata = self.build_join_report()["metadataSufficiency"]
+        blockers: list[str] = []
+
+        if not package["requiredInputs"]["video"]:
+            blockers.append("video.mp4 が不足している")
+        if not package["requiredInputs"]["frames"]:
+            blockers.append("frame timeline が不足している")
+        if not package["requiredInputs"]["imu"]:
+            blockers.append("imu.csv が不足している")
+        if not metadata["hasMonotonicSessionBase"]:
+            blockers.append("sessionStartElapsedRealtimeNanos が不足している")
+
+        return {
+            "sessionId": package["sessionId"],
+            "targetStage": "SpaceReconstruction",
+            "readyForSpaceReconstruction": not blockers,
+            "blockers": blockers,
+            "consumedArtifacts": [
+                "session_package.json",
+                "input_readiness.json",
+                "sensor_quality.json",
+                "frame_pose_index.csv",
+            ],
+            "availableSourceFiles": package["sourceFiles"],
+            "recommendedNextAction": "空間再構成を開始" if not blockers else "入力条件を見直す",
+        }
 
     def _range_from_rows(self, rows: list[dict[str, Any]], key: str) -> tuple[int, int] | None:
         if not rows:
@@ -231,3 +308,13 @@ class SessionParser:
             candidate = min(abs(frame_value - sensor_value) for sensor_value in sensor_values)
             nearest = candidate if nearest is None else min(nearest, candidate)
         return nearest
+
+    def _completeness_score(self, required_inputs: dict[str, bool]) -> float:
+        return sum(1 for present in required_inputs.values() if present) / len(required_inputs) if required_inputs else 0.0
+
+    def _pose_coverage_ratio(self, stream_counts: dict[str, int]) -> float:
+        frame_count = stream_counts.get("frames", 0)
+        pose_count = stream_counts.get("poses", 0)
+        if frame_count <= 0:
+            return 0.0
+        return min(1.0, pose_count / frame_count)

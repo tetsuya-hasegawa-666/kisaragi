@@ -93,3 +93,13 @@
   recurrence prevention: `InputPackaging` の route 変更は、parser 互換 test、Android export test、UX manual を同じ task で更新する
   remaining work: 抽出 bundle を後段の実空間再構成と viewer 実装へ接続する
   evidence path: `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ISensoriumExtractionServiceTest.kt`
+- record date: `2026-03-25`
+  target MRL: `MRL-6`
+  target mRL: `mRL-6.1` から `mRL-6.3`
+  gate change: `pass`
+  issue: 抽出 bundle は生成できても、`SpaceReconstruction` がそのまま消費できる concrete handoff artifact と主カメラ動画保持が不足していた
+  cause: `MRL-5` までは intake と quality summary を優先し、`SessionPackage` 実体と stage-2 gate を抽象契約のまま残していた
+  resolution: `video.mp4` と `video_events.jsonl` を raw bundle に含め、`session_package.json`、`space_handoff_manifest.json`、space gate 表示を Python / Android の両方へ実装した
+  recurrence prevention: 後段 stage の abstract contract を追加した時は、同じ session で concrete artifact 名、UI summary、Python validator をそろえる
+  remaining work: `space_handoff_manifest.json` を実 `SpaceReconstruction` engine の入口へ接続する
+  evidence path: `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ISensoriumExtractionServiceTest.kt`

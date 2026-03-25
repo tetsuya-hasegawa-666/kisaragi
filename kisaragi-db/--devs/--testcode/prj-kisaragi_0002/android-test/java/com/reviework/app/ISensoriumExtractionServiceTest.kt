@@ -27,12 +27,14 @@ class ISensoriumExtractionServiceTest {
                           }
                         }
                         """.trimIndent(),
+                    "video.mp4" to "video-binary",
                     "video_frame_timestamps.csv" to
                         "frame_id,elapsed_realtime_ns,camera_sensor_timestamp_ns\n0,2001,1\n1,2009,2\n",
                     "imu.csv" to
                         "sensor_type,event_timestamp_ns,elapsed_realtime_ns,wall_time_ms,x,y,z,accuracy\naccel,2002,2002,1002,0,0,0,3\n",
                     "ble_scan.jsonl" to """{"elapsedRealtimeNanos":2004,"deviceAddress":"AA:BB:CC:DD","memberId":"worker-01"}""",
                     "arcore_pose.jsonl" to """{"elapsedRealtimeNanos":2005}""",
+                    "video_events.jsonl" to """{"elapsedRealtimeNanos":2006,"type":"recording_finalize"}""",
                 ),
             )
         val output = InMemorySessionOutput()
@@ -41,15 +43,23 @@ class ISensoriumExtractionServiceTest {
 
         assertEquals("session-001", result.sessionId)
         assertTrue(output.files.containsKey("session-001/isensorium/session_manifest.json"))
+        assertTrue(output.binaryFiles.containsKey("session-001/isensorium/video.mp4"))
         assertTrue(output.files.containsKey("session-001/isensorium/ble_scan.jsonl"))
         assertTrue(output.files.containsKey("session-001/trajectreview/input_readiness.json"))
         assertTrue(output.files.containsKey("session-001/trajectreview/sensor_quality.json"))
+        assertTrue(output.files.containsKey("session-001/trajectreview/session_package.json"))
+        assertTrue(output.files.containsKey("session-001/trajectreview/space_handoff_manifest.json"))
 
         val readiness = JSONObject(output.files.getValue("session-001/trajectreview/input_readiness.json"))
         assertTrue(readiness.getBoolean("readyForDiagnose"))
 
         val quality = JSONObject(output.files.getValue("session-001/trajectreview/sensor_quality.json"))
         assertTrue(quality.getJSONObject("nearestDeltaNs").getLong("poseNearestDeltaNs") >= 0L)
+        val sessionPackage = JSONObject(output.files.getValue("session-001/trajectreview/session_package.json"))
+        val handoff = JSONObject(output.files.getValue("session-001/trajectreview/space_handoff_manifest.json"))
+        assertEquals("video.mp4", sessionPackage.getJSONObject("sourceFiles").getString("video"))
+        assertTrue(handoff.getBoolean("readyForSpaceReconstruction"))
+        assertTrue(result.readyForSpaceReconstruction)
     }
 
     @Test
@@ -70,6 +80,7 @@ class ISensoriumExtractionServiceTest {
                           }
                         }
                         """.trimIndent(),
+                    "video.mp4" to "video-binary",
                     "video_frame_timestamps.csv" to
                         "frame_id,elapsed_realtime_ns,camera_sensor_timestamp_ns\n0,2001,1\n",
                     "imu.csv" to
@@ -110,6 +121,7 @@ class ISensoriumExtractionServiceTest {
                           }
                         }
                         """.trimIndent(),
+                    "video.mp4" to "video-binary",
                     "frames.csv" to "frame_id,timestamp_ns\n0,2001\n",
                     "imu.csv" to
                         "sensor_type,event_timestamp_ns,elapsed_realtime_ns,wall_time_ms,x,y,z,accuracy\naccel,2002,2002,1002,0,0,0,3\n",
@@ -144,6 +156,7 @@ class ISensoriumExtractionServiceTest {
                           }
                         }
                         """.trimIndent(),
+                    "video.mp4" to "video-binary",
                     "frames.csv" to "frame_id,timestamp_ns\n0,2001\n",
                     "imu.csv" to
                         "sensor_type,event_timestamp_ns,elapsed_realtime_ns,wall_time_ms,x,y,z,accuracy\naccel,2002,2002,1002,0,0,0,3\n",
@@ -172,14 +185,26 @@ class ISensoriumExtractionServiceTest {
 
         override fun readText(filename: String): String? = files[filename]
 
+        override fun readBytes(filename: String): ByteArray? = files[filename]?.toByteArray(Charsets.UTF_8)
+
         override fun listChildDirectories(): List<SessionInputReader> = children
     }
 
     private class InMemorySessionOutput : SessionOutputWriter {
         val files = linkedMapOf<String, String>()
+        val binaryFiles = linkedMapOf<String, ByteArray>()
 
         override fun writeText(relativePath: String, content: String) {
             files[relativePath] = content
+        }
+
+        override fun writeBytes(relativePath: String, content: ByteArray) {
+            val text = content.toString(Charsets.UTF_8)
+            if (relativePath.endsWith(".mp4")) {
+                binaryFiles[relativePath] = content
+            } else {
+                files[relativePath] = text
+            }
         }
     }
 }
