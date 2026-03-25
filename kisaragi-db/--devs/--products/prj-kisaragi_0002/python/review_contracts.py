@@ -37,7 +37,7 @@ def build_stage_handoff_contracts() -> list[StageHandoffContract]:
             handoff_conditions=[
                 "主カメラ動画、主カメラ IMU、人物側 IMU の充足が判定済みである",
                 "主体、端末、時刻基準の対応が追える",
-                "iSensorium 生出力と reviework 派生出力が分離されている",
+                "iSensorium 生出力と trajectreview 派生出力が分離されている",
             ],
         ),
         StageHandoffContract(

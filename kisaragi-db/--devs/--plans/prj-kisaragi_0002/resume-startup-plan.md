@@ -2,7 +2,7 @@
 
 ## 目標
 
-- `reviework` の再開計画を `prj-kisaragi_0002` 配下の正本文書だけで読める状態にする
+- `trajectreview` の再開計画を `prj-kisaragi_0002` 配下の正本文書だけで読める状態にする
 - 外部一時文書に残っていた処理構造と UX 構想を `project-truth.md` と `b2t-plans-result.md` へ吸収する
 - `MRL-1` の実装着手に直結する task を明確にする
 

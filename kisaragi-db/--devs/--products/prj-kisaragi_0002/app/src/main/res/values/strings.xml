@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">reviework</string>
+    <string name="app_name">trajectreview</string>
     <string name="next_action_label">Next Action</string>
     <string name="thin_status_label">Thin Status</string>
     <string name="attention_label">Attention</string>

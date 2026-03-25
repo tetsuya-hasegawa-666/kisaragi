@@ -16,5 +16,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "reviework"
+rootProject.name = "trajectreview"
 include(":app")

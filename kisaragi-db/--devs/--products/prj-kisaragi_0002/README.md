@@ -1,6 +1,6 @@
-# reviework 実装物 README
+# trajectreview 実装物 README
 
-この directory は `reviework` の source-of-truth 実装物だけを置く。
+この directory は `trajectreview` の source-of-truth 実装物だけを置く。
 
 ## 配置規則
 

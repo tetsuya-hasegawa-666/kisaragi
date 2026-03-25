@@ -16,7 +16,7 @@
   target MRL: `none`
   target mRL: `none`
   gate change: `initialized`
-  issue: `reviework` の再開前提が外部一時文書に残っており、削除後に計画根拠を失う状態だった
+  issue: `trajectreview` の再開前提が外部一時文書に残っており、削除後に計画根拠を失う状態だった
   cause: 処理 4 段階、`GNSS` なし前提、UX 概念、package 契約が `prj-kisaragi_0002` の正本文書へ十分に吸収されていなかった
   resolution: `project-truth.md` と計画正本を更新し、再開基線を `prj-kisaragi_0002` 配下へ集約した
   recurrence prevention: 外部補助文書で採用した構想は、次の実装着手前に `project-truth` と BDD / TDD 正本へ同時反映する

@@ -42,7 +42,7 @@
 
 ### 目指す姿
 
-- `reviework` は、1 台のスマホカメラとその `IMU` による連続動画、および `IMU` 付き機器を持つ人がその動画へ頻繁に映り込む状況で、最も効果を発揮する
+- `trajectreview` は、1 台のスマホカメラとその `IMU` による連続動画、および `IMU` 付き機器を持つ人がその動画へ頻繁に映り込む状況で、最も効果を発揮する
 - 連続動画と `IMU` のデータ、および動画なしの `IMU` 付きスマホを携帯する人のデータを入力するだけで、現場の `3DGS`、撮影主体の経路、映り込む人の経路を同じ `3DGS` 空間上へ表示できる
 - 経路は時系列情報を持ち、同じ時刻の位置関係をハイライトできる
 
@@ -82,7 +82,7 @@
 - `b9`: `Verify` は空間品質と経路品質を同時に返し、`Interpret` は同時刻ハイライト候補と `attention point` を返す
 - `b10`: `Assembly` は `3DGS` 操作用情報、経路、同時刻ハイライト情報を束ねた `ReviewArtifact` を唯一生成する
 - `b11`: parser は `bt.jsonl` / `poses.jsonl` と `ble_scan.jsonl` / `arcore_pose.jsonl` の両方を受理する
-- `b12`: `reviework` の docs、build、test、生成物経路は `prj-kisaragi_0002` 配下で完結し、要約と生の生成物を分離する
+- `b12`: `trajectreview` の docs、build、test、生成物経路は `prj-kisaragi_0002` 配下で完結し、要約と生の生成物を分離する
 - `b13`: `InputPackaging` は `iSensorium` 生出力に加えて、`input_readiness.json`、`sensor_quality.json`、`frame_pose_index.csv`、`member_identity_map.json` を分担インターフェースとして出力する
 - `b14`: 4 分担の各段階は、前段の出力契約だけを読めば次段へ着手できる
 

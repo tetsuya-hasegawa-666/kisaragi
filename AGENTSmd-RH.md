@@ -12,6 +12,20 @@
 
 ## 更新履歴
 
+### 2026-03-25 AGENTS.md project-name 対応表の No.2 更新
+
+- 日時: `2026-03-25`
+- 文書名: `AGENTS.md`
+- 標題: `prj-kisaragi_0002` の project-name を `prj-trajectreview` へ更新
+- 背景: `project-code` は維持したまま、No.2 の project-name を現在の機能表現へ合わせて更新する指示が出た。
+- 目的: immutable な `project-code` と可変な `project-name` の対応表を最新化し、関連文書と表示名の整合を保つ。
+- 対処方法: `AGENTS.md` の対応表を更新し、`prj-kisaragi_0002` 配下の正本文書、README、表示名、Gradle project 名を `trajectreview` 基準へ同期した。
+- 対応内容: `project-truth.md`、`b2t-plans-result.md`、`resume-startup-plan.md`、`mrl-record.md`、`README.md`、`strings.xml`、`settings.gradle.kts` などの人向け名称を更新した。
+- 更新結果: `prj-kisaragi_0002` は directory 名を維持したまま、project-name と表示名を `prj-trajectreview` / `trajectreview` として扱う。
+- 新旧比較:
+  - 旧: No.2 は `prj-kisaragi_0002 : prj-reviework` だった。
+  - 新: No.2 は `prj-kisaragi_0002 : prj-trajectreview` となり、関連表示も同期した。
+
 ### 2026-03-25 AGENTS.md 更新履歴を `AGENTSmd-RH.md` へ分離
 
 - 日時: `2026-03-25`

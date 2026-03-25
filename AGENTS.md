@@ -90,7 +90,7 @@ kisaragi-db/
 ```text
 <凡例> project-code : project-name
 No.1 | prj-kisaragi_0001 : prj-direview
-No.2 | prj-kisaragi_0002 : prj-reviework
+No.2 | prj-kisaragi_0002 : prj-trajectreview
 
 
 ```
