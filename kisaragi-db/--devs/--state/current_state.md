@@ -12,6 +12,9 @@
 - 2026-03-25: 人間確認により、`planned` は未着手、`active` は着手中、`pass` は `active` 後に完了した gate として扱う。
 - 2026-03-25: 人間承認により、project 個別の `current_state` は `b2t-plans-result.md` の `current_state` 章へ統合して管理する。
 - 2026-03-25: 人間承認により、`prj-kisaragi_0002` は UI mock に `iSensorium` 抽出機能を統合し、`MRL-5` として完了まで継続する。
+- 2026-03-25: Codex が `C:\Users\tetsuya\sandbox\codev-db` を解析し、`prj-kisaragi_0002` の `iSensorium` source intake 仕様を `project-truth` へ吸収する。
+- 2026-03-25: Codex が `iSensorium` verified mirror を `prj-kisaragi_0002` の `--products` / `--testcode` へ保持し、`project-truth` から参照できる状態へ整える。
+- 2026-03-25: Codex が `iSensorium` verified mirror を比較用 app `kisaragi-iSensorium` として `Xperia 5 III` へ install し、本来の `iSensorium` と並行比較できる状態へ整える。
 
 ## 人間確認待ち
 
@@ -28,3 +31,5 @@
 - `AGENTS.md` の Guard から未存在 `issue-note.md` 依存を外す
 - tree sync 実行物の起動方法と再生成手順を Windows 運用マニュアルへ追記する
 - `prj-kisaragi_0002` の抽出 bundle を `SpaceReconstruction` 実装へ接続する
+- `prj-kisaragi_0002` の `iSensorium` source intake 仕様を `Xperia 5 III` 実機操作手順へ結び付ける
+- `prj-kisaragi_0002` の `iSensorium` collector 起動順と state transition を verified mirror から追加抽出する

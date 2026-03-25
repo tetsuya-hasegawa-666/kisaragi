@@ -41,3 +41,18 @@
   - decision: `trajectreview` は UI mock のまま止めず、`iSensorium` session folder 抽出を app 内へ統合して `MRL-5` として closeout する
   - rationale: `InputPackaging` は既存 parser 契約だけでは実利用に届かず、現場では app から raw と派生出力を取得できることが再開優先事項になったため
   - consequence: `MRL-5` では legacy alias intake、`isensorium/` と `trajectreview/` の bundle 分離、quality 数値表示付き UI を実装対象に追加する
+- 2026-03-25
+  - project: `prj-kisaragi_0002`
+  - decision: `iSensorium` の `Xperia 5 III` 収録仕様は `sandbox` 参照のままにせず、`project-truth/isensorium_xperia5iii_intake_spec.md` に吸収する
+  - rationale: `trajectreview` の intake 条件が外部 workspace 依存のままだと、再開時に必要権限、recording mode、時刻整列、sample count の基準が失われるため
+  - consequence: 以後の `InputPackaging` 判断は `prj-kisaragi_0002` 配下の正本だけで追跡でき、`Xperia 5 III` の準備条件も `sandbox` を開かずに確認できる
+- 2026-03-25
+  - project: `prj-kisaragi_0002`
+  - decision: `iSensorium` 本体一式の参照実体は `project-truth` へ直置きせず、verified mirror として `--products` / `--testcode` に保持し、`project-truth` から pointer する
+  - rationale: `project-truth` は恒久 truth と参照規則の正本であり、source code 一式を直置きすると役割が混濁する一方、実装追跡には code mirror 自体が必要だったため
+  - consequence: 以後 `iSensorium` 参照本体は mirror path を使い、truth 側では役割、参照先、確認結果だけを正本として維持する
+- 2026-03-25
+  - project: `prj-kisaragi_0002`
+  - decision: `kisaragi` 側 mirror は比較用 app として `applicationId = com.kisaragi.isensorium`、表示名 `kisaragi-iSensorium` で install する
+  - rationale: 本来の `iSensorium` を端末から消さずに、同じ `Xperia 5 III` 上で挙動比較したい要求があるため
+  - consequence: 以後の比較検証は source app と `kisaragi-iSensorium` を同居させて実施できる

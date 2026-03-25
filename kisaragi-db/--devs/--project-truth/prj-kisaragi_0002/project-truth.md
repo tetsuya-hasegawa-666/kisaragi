@@ -209,6 +209,9 @@
 
 ## `iSensorium` 由来出力と追加出力
 
+- `Xperia 5 III` の設定条件、recording mode、raw output、時刻整列、sample count の詳細は `isensorium_xperia5iii_intake_spec.md` を正本とする
+- `iSensorium` source code、Python parser、script、gradle wrapper の verified 参照実体は `--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/` に置き、確認結果は `--evidence/prj-kisaragi_0002/isensorium_verified_reference_snapshot.md` を正本とする
+
 ### `iSensorium` 由来の入力正本
 
 - `session_manifest.json` または `manifest.json`

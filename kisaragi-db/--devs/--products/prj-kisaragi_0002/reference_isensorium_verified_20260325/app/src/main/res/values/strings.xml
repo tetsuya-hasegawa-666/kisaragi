@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">kisaragi-iSensorium</string>
+    <string name="start_recording">セッション開始</string>
+    <string name="stop_recording">セッション停止</string>
+    <string name="refresh_session">再読み込み</string>
+    <string name="guarded_route_switch">guarded replacement route を使う</string>
+    <string name="ble_switch">BLE 記録を有効化</string>
+    <string name="arcore_switch">ARCore 記録を有効化</string>
+    <string name="sampling_header">サンプリング間隔 (ms)</string>
+    <string name="video_interval_label">動画 timestamp 記録</string>
+    <string name="imu_interval_label">IMU 記録</string>
+    <string name="gnss_interval_label">GNSS 記録</string>
+    <string name="ble_interval_label">BLE 記録</string>
+    <string name="arcore_interval_label">ARCore 記録</string>
+    <string name="recording_overlay_default">記録中です</string>
+    <string name="recording_mode_header">記録モード</string>
+    <string name="recording_mode_standard">通常計測: 画面を見ながら操作する</string>
+    <string name="recording_mode_pocket">ポケット収納計測: 収納状態で記録する</string>
+</resources>

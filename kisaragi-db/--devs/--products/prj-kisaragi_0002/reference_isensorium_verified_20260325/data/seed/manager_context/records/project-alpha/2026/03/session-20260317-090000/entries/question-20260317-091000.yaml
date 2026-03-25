@@ -1,0 +1,16 @@
+schemaVersion: "1.0.0"
+entryId: "question-20260317-091000"
+entryType: "question"
+projectId: "project-alpha"
+sessionId: "session-20260317-090000"
+capturedAt: "2026-03-17T09:10:00+09:00"
+deviceId: "windows-host-primary"
+inputMode: "text"
+body: "朝の段取り待ち時間は、誰の判断待ちで発生していましたか。"
+projectContext:
+  phase: "pilot"
+  relatedEntryId: "entry-20260317-090512"
+sync:
+  peerId: "SYNCTHING-HOST-001"
+  state: "ready_for_edge"
+  lastSyncedAt: "2026-03-17T09:10:01+09:00"

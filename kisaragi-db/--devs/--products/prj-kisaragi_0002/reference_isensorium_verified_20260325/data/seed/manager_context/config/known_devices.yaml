@@ -1,0 +1,13 @@
+schemaVersion: "1.0.0"
+hostId: "windows-host-primary"
+updatedAt: "2026-03-17T09:00:00+09:00"
+devices:
+  - deviceId: "android-edge-xperia-001"
+    displayName: "Xperia Manager Edge"
+    macAddresses:
+      wifi: "AA:BB:CC:DD:EE:10"
+      bluetooth: "AA:BB:CC:DD:EE:11"
+    peerId: "SYNCTHING-EDGE-001"
+    allowedProjects:
+      - "project-alpha"
+    status: "active"

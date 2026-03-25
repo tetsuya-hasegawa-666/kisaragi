@@ -1,0 +1,42 @@
+schemaVersion: "1.0.0"
+entryId: "entry-20260317-090512"
+entryType: "memo"
+projectId: "project-alpha"
+sessionId: "session-20260317-090000"
+capturedAt: "2026-03-17T09:05:12+09:00"
+deviceId: "android-edge-xperia-001"
+hostId: "windows-host-primary"
+inputMode: "mixed"
+body: "現場リーダーは引き継ぎ時間よりも、朝の段取り待ち時間を強く問題視していた。"
+tags:
+  - "onsite_delay"
+  - "handover"
+projectContext:
+  customer: "Customer A"
+  phase: "pilot"
+  location: "Tokyo"
+  meeting: "onsite-round"
+attachments:
+  - attachmentId: "photo-20260317-090533"
+    path: "attachments/photo-20260317-090533.jpg"
+    mimeType: "image/jpeg"
+    sha256: "sample-photo-sha256"
+    capturedAt: "2026-03-17T09:05:33+09:00"
+  - attachmentId: "audio-20260317-090540"
+    path: "attachments/audio-20260317-090540.m4a"
+    mimeType: "audio/mp4"
+    sha256: "sample-audio-sha256"
+    capturedAt: "2026-03-17T09:05:40+09:00"
+sync:
+  peerId: "SYNCTHING-EDGE-001"
+  state: "synced"
+  lastSyncedAt: "2026-03-17T09:06:02+09:00"
+ai:
+  summary: "引き継ぎそのものより、朝の段取り待ちがボトルネック候補として強い。"
+  signals:
+    - "waiting_time"
+    - "schedule_uncertainty"
+  nextQuestionIds:
+    - "question-20260317-091000"
+  kpiCandidateIds:
+    - "kpi-candidate-20260317-091500"
