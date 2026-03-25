@@ -267,6 +267,10 @@
 - `member_identity_map.json`: 端末、主体、`BT` の対応表
 - `session_package.json`: 後段へ渡すための正規化済み `SessionPackage` 実体
 - `space_handoff_manifest.json`: `SpaceReconstruction` 着手可否、blocker、利用 artifact の要約
+- `modeling/local_model_summary.json`: `Colab` 前の軽量 local sample model 結果
+- `modeling/colab_job_request.json`: `Colab` remote 実行へ渡す request
+- `modeling/review_artifact_stub.json`: reviewing app と統合 app が読む review 用 stub
+- `modeling/modeling_handoff_manifest.json`: reviewing 着手可否と blocker の要約
 - `space_quality.json`: 主空間品質と coverage の要約
 - `trajectory_quality.json`: 経路品質と不確実区間の要約
 - `attention_seed.json`: `attention point` 候補の種

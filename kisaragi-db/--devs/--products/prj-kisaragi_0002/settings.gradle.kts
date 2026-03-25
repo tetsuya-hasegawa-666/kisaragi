@@ -18,3 +18,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "trajectreview"
 include(":app")
+include(":correcting")
+include(":modeling")
+include(":reviewing")

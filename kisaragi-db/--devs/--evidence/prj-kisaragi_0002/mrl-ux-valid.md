@@ -98,3 +98,63 @@
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/python/session_parser.py`
   - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ISensoriumExtractionServiceTest.kt`
   - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_session_parser.py`
+- 
+## 2026-03-26 `MRL-7` closeout
+
+- 対象 gate:
+  - `MRL-7`
+  - `mRL-7.1` から `mRL-7.3`
+- UX 観点:
+  - `trajectreview-correcting`、`trajectreview-modeling`、`trajectreview-reviewing`、統合 app がそれぞれ自分の役割だけを主表示にする
+  - 統合 app は `correcting / modeling / reviewing` を 1 画面で俯瞰できる
+- 実装 / test 観点:
+  - Android unit test: `ReviewScreenControllerTest.kt`
+  - build:
+    - `:app:testDebugUnitTest`
+    - `:correcting:assembleDebug`
+    - `:modeling:assembleDebug`
+    - `:reviewing:assembleDebug`
+  - device install:
+    - `:app:installDebug`
+    - `:correcting:installDebug`
+    - `:modeling:installDebug`
+    - `:reviewing:installDebug`
+- 主要 evidence:
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/settings.gradle.kts`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/AppWorkflowProfile.kt`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/MainActivity.kt`
+  - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt`
+
+## 2026-03-26 `MRL-8` closeout
+
+- 対象 gate:
+  - `MRL-8`
+  - `mRL-8.1` から `mRL-8.3`
+- UX 観点:
+  - `correcting` と統合 app は抽出した実 bundle を再読込して実データ状態を表示する
+  - `modeling` は `Colab` account 未取得でも local sample model と `colab_job_request.json` を生成する
+  - `reviewing` と統合 app は `local_model_summary.json` と `review_artifact_stub.json` を読んで verify / review 状態を組み立てる
+- 実装 / test 観点:
+  - Android unit test:
+    - `WorkflowBundleServiceTest.kt`
+    - `LocalModelingServiceTest.kt`
+    - `ReviewScreenControllerTest.kt`
+  - build / install:
+    - `:app:testDebugUnitTest`
+    - `:correcting:assembleDebug`
+    - `:modeling:assembleDebug`
+    - `:reviewing:assembleDebug`
+    - `:app:installDebug`
+    - `:correcting:installDebug`
+    - `:modeling:installDebug`
+    - `:reviewing:installDebug`
+- 生成 artifact 観点:
+  - `local_model_summary.json`
+  - `colab_job_request.json`
+  - `review_artifact_stub.json`
+  - `modeling_handoff_manifest.json`
+- 主要 evidence:
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/WorkflowBundleService.kt`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/LocalModelingService.kt`
+  - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/WorkflowBundleServiceTest.kt`
+  - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/LocalModelingServiceTest.kt`

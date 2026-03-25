@@ -103,3 +103,23 @@
   recurrence prevention: 後段 stage の abstract contract を追加した時は、同じ session で concrete artifact 名、UI summary、Python validator をそろえる
   remaining work: `space_handoff_manifest.json` を実 `SpaceReconstruction` engine の入口へ接続する
   evidence path: `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ISensoriumExtractionServiceTest.kt`
+- record date: `2026-03-26`
+  target MRL: `MRL-7`
+  target mRL: `mRL-7.1` から `mRL-7.3`
+  gate change: `pass`
+  issue: 4 app 分割の骨格は入ったが、build、install、role-specific UX の成立を closeout できていなかった
+  cause: module 追加と共通 source 再利用までは進んでいた一方、統合 app との関係と app 単位切り分け表示の evidence が不足していた
+  resolution: `correcting`、`modeling`、`reviewing`、統合 app の 4 module を build / install し、role-specific workflow 表示と担当境界 summary を controller / activity へ実装した
+  recurrence prevention: multi-app 導入時は module build、unit test、device install、役割表示を同じ gate で closeout する
+  remaining work: 実 bundle 読込と local modeling による mock 依存の解消
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/settings.gradle.kts`
+- record date: `2026-03-26`
+  target MRL: `MRL-8`
+  target mRL: `mRL-8.1` から `mRL-8.3`
+  gate change: `pass`
+  issue: 4 app が mock snapshot 固定だと、実データでの UX 確認と `Colab` 前提 modeling handoff を進められなかった
+  cause: extracting 後の bundle を再読込する service と、`Colab` account 未取得期間の local sample modeling route が未実装だった
+  resolution: `WorkflowBundleService` で実 bundle から state を再構成し、`LocalModelingService` で `local_model_summary.json`、`colab_job_request.json`、`review_artifact_stub.json` を生成し、4 app すべてで実データ UX を使えるようにした
+  recurrence prevention: 実データ UX が必要な段階は mock snapshot だけで closeout せず、bundle reader、生成 artifact、reviewing 側読込の 3 点を必須とする
+  remaining work: `colab_job_request.json` を実 `Colab` 実行へ接続し、sample output を本物の `3DGS` 成果物へ置き換える
+  evidence path: `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/WorkflowBundleServiceTest.kt`

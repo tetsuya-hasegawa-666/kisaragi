@@ -62,6 +62,17 @@ class ReviewScreenControllerTest {
     }
 
     @Test
+    fun correctingModelingAndReviewingModesExposeDifferentWorkflowRanges() {
+        val correcting = controller.statesForMode(AppWorkflowMode.CORRECTING)
+        val modeling = controller.statesForMode(AppWorkflowMode.MODELING)
+        val reviewing = controller.statesForMode(AppWorkflowMode.REVIEWING)
+
+        assertEquals(listOf(ReviewPhase.INTAKE, ReviewPhase.DIAGNOSE, ReviewPhase.DIAGNOSE), correcting.map { it.thinStatus.phase })
+        assertEquals(listOf(ReviewPhase.DIAGNOSE, ReviewPhase.RUN, ReviewPhase.VERIFY), modeling.map { it.thinStatus.phase })
+        assertEquals(listOf(ReviewPhase.VERIFY, ReviewPhase.REVIEW), reviewing.map { it.thinStatus.phase })
+    }
+
+    @Test
     fun diagnoseStateReportsWorkerVisibilityShortage() {
         val state = controller.diagnoseState(snapshot(workerVisibility = WorkerVisibility.INSUFFICIENT))
 

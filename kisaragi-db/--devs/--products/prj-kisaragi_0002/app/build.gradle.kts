@@ -15,6 +15,9 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+        buildConfigField("String", "APP_MODE", "\"integrated\"")
+        buildConfigField("String", "APP_ROLE_LABEL", "\"統合 workflow\"")
+        buildConfigField("String", "APP_SCOPE_SUMMARY", "\"correcting・modeling・reviewing を 1 つの流れで扱います。\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -39,6 +42,7 @@ android {
     }
 
     buildFeatures {
+        buildConfig = true
         viewBinding = true
     }
 

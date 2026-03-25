@@ -53,13 +53,39 @@ class ReviewScreenController {
                 ),
         )
 
-    private val demoStates = buildJourney(demoSnapshot)
+    fun defaultSnapshot(): ReviewContractSnapshot = demoSnapshot
 
-    fun initialState(): ReviewScreenState = demoStates.first()
+    fun initialState(
+        mode: AppWorkflowMode = AppWorkflowMode.INTEGRATED,
+        snapshot: ReviewContractSnapshot = demoSnapshot,
+    ): ReviewScreenState = statesForMode(mode, snapshot).first()
 
-    fun stateAt(index: Int): ReviewScreenState = demoStates[index.coerceIn(0, demoStates.lastIndex)]
+    fun stateAt(
+        index: Int,
+        mode: AppWorkflowMode = AppWorkflowMode.INTEGRATED,
+        snapshot: ReviewContractSnapshot = demoSnapshot,
+    ): ReviewScreenState {
+        val states = statesForMode(mode, snapshot)
+        return states[index.coerceIn(0, states.lastIndex)]
+    }
 
-    fun lastIndex(): Int = demoStates.lastIndex
+    fun lastIndex(
+        mode: AppWorkflowMode = AppWorkflowMode.INTEGRATED,
+        snapshot: ReviewContractSnapshot = demoSnapshot,
+    ): Int = statesForMode(mode, snapshot).lastIndex
+
+    fun statesForMode(
+        mode: AppWorkflowMode,
+        snapshot: ReviewContractSnapshot = demoSnapshot,
+    ): List<ReviewScreenState> {
+        val integratedStates = buildJourney(snapshot)
+        return when (mode) {
+            AppWorkflowMode.CORRECTING -> integratedStates.take(3)
+            AppWorkflowMode.MODELING -> listOf(integratedStates[2], integratedStates[3], integratedStates[4])
+            AppWorkflowMode.REVIEWING -> integratedStates.takeLast(2)
+            AppWorkflowMode.INTEGRATED -> integratedStates
+        }
+    }
 
     fun diagnoseState(snapshot: ReviewContractSnapshot): ReviewScreenState {
         val missingInputs = mutableListOf<String>()

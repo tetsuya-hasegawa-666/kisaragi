@@ -6,33 +6,39 @@
 
 ## 対象
 
+- Android app `trajectreview-correcting`
+- Android app `trajectreview-modeling`
+- Android app `trajectreview-reviewing`
 - Android app `trajectreview`
 
 ## 操作手順
 
-1. Android 端末で app `trajectreview` を起動する。
-2. 画面に `Next Action`、`抽出`、`Thin Status`、`Attention` が見えることを確認する。
-3. 最初の `Next Action` が `iSensorium セッションを選択` になっていることを確認する。
-4. `セッションを選択` を押し、`iSensorium` の session folder を 1 つ選ぶ。
-5. `抽出` 欄の先頭が `選択元:` で始まり、選んだ folder 名が見えることを確認する。
-6. `抽出を実行` を押す。
-7. `抽出` 欄に `抽出先:`、`診断進行可:`、`欠落入力:`、`充足率:`、`pose 対応率:` が見えることを確認する。
-8. `前へ` と `次へ` の button が押せることを確認する。
-9. 画面が固まらず、文字が途中で切れず、読めることを確認する。
+1. Android 端末で app `trajectreview-correcting` を起動する。
+2. `入力 tree を選択` を押し、`iSensorium` の session folder を選ぶ。
+3. `抽出を実行` を押し、`trajectreview_export/<session_id>`、`診断進行可`、`空間再構成進行可`、`充足率`、`pose 対応率` が見えることを確認する。
+4. Android 端末で app `trajectreview-modeling` を起動する。
+5. `bundle を選択` を押し、手順 3 で作られた `trajectreview_export/<session_id>` folder を選ぶ。
+6. `軽量 model を実行` を押し、`spaceQuality`、`trajectoryQuality`、`colab_job_request.json` を含む出力一覧が見えることを確認する。
+7. Android 端末で app `trajectreview-reviewing` を起動する。
+8. `結果 folder を選択` を押し、同じ `trajectreview_export/<session_id>` folder を選ぶ。
+9. `結果を読込` を押し、`verify` または `review` の状態、`Attention`、`same_time` が見えることを確認する。
+10. Android 端末で統合 app `trajectreview` を起動する。
+11. `入力 tree を選択` を押して同じ session folder を選び、`抽出を実行` の後に `軽量 model を実行` を押す。
+12. `Thin Status` と `Attention` が実データ由来に更新され、`前へ` と `次へ` で段階を追えることを確認する。
 
 ## pass の判断
 
 - pass:
-  - app が起動する。
-  - `Next Action`、`抽出`、`Thin Status`、`Attention` が見える。
-  - 最初の `Next Action` が `iSensorium セッションを選択` である。
-  - `抽出を実行` の後に `抽出先:` と quality 数値が表示される。
-  - `前へ` と `次へ` を押しても落ちない。
+  - 4 app が起動する。
+  - `correcting` で `trajectreview_export/<session_id>` と quality 数値が出る。
+  - `modeling` で `colab_job_request.json` を含む modeling 結果が出る。
+  - `reviewing` で `verify` または `review` 状態と `Attention` が出る。
+  - 統合 app で `抽出` と `軽量 model` の両方が動き、`前へ` と `次へ` でも落ちない。
 - fail:
-  - app が起動しない。
-  - 上の文字が見えない。
-  - 最初の `Next Action` が空、または別の文字になっている。
-  - `抽出を実行` しても `抽出先:` と quality 数値が出ない。
+  - いずれかの app が起動しない。
+  - `correcting` で bundle 名や quality 数値が出ない。
+  - `modeling` で `colab_job_request.json` を含む結果が出ない。
+  - `reviewing` で状態要約や `Attention` が出ない。
   - button を押すと落ちる、固まる、表示が大きく崩れる。
 
 ## 記録方法

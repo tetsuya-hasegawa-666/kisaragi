@@ -20,7 +20,7 @@
 - `MRL-5` として `iSensorium` session folder 抽出を app へ統合し、raw + 追加出力を `trajectreview` から生成可能にした
 - `MRL-6` として `session_package.json`、`space_handoff_manifest.json`、`video.mp4` を含む後段 handoff 加工を追加し、`SpaceReconstruction` 着手単位を `pass` にした
 - 次段では、1 project / 4 app 構成として `trajectreview-correcting`、`trajectreview-modeling`、`trajectreview-reviewing`、統合 app を並立させ、作業境界と手戻り分析を明確化する
-- `MRL-8` では、mock ではなく抽出 bundle と modeling 結果を各 app が実際に読み、`modeling` は `Colab` 本処理前の軽量 local sample と handoff request を生成する
+- `MRL-8` では、mock ではなく抽出 bundle と modeling 結果を各 app が実際に読み、`modeling` は `Colab` 本処理前の軽量 local sample と handoff request を生成する実装まで `pass` にした
 
 ### 阻害要因の境界
 
@@ -33,9 +33,9 @@
 
 ### 次の確認
 
-1. 4 app それぞれが実 bundle を読み、担当段階の UX を mock ではなく実データで確認できるようにする
-2. `trajectreview-modeling` が local sample model と `Colab` handoff request を同時に生成できるようにする
-3. `3DGS` と viewer の実成果物を `ReviewArtifact` 契約へ接続する
+1. `Colab` account 取得後に `colab_job_request.json` を remote 実行へ接続する
+2. local sample model の出力を実 `3DGS` / `Trajectory` 実成果物へ置き換える
+3. `ReviewArtifact` を Android 以外の viewer も含めて接続する
 
 ### 作業所有権
 
@@ -170,14 +170,14 @@
 | `MRL-6` | `mRL-6.1` | 主カメラ動画を含む raw bundle 維持 | `s16` | `b19` | `pass` |
 | `MRL-6` | `mRL-6.2` | `session_package.json` 正規化 | `s16` | `b20` | `pass` |
 | `MRL-6` | `mRL-6.3` | `space_handoff_manifest.json` と UI gate | `s16` | `b21`,`b22` | `pass` |
-| `MRL-7` | `-` | 4 app 分割と統合運用を成立させる | `s17`,`s18` | `b23`,`b24`,`b25`,`b26` | `active` |
-| `MRL-7` | `mRL-7.1` | multi-app module 構成 | `s17`,`s18` | `b23` | `active` |
-| `MRL-7` | `mRL-7.2` | correcting / modeling / reviewing UX 分離 | `s17` | `b24`,`b25`,`b26` | `active` |
-| `MRL-7` | `mRL-7.3` | 統合 app と app 単位切り分け summary | `s18` | `b26` | `active` |
-| `MRL-8` | `-` | 実 bundle UX と local sample modeling を成立させる | `s19`,`s20` | `b27`,`b28`,`b29` | `active` |
-| `MRL-8` | `mRL-8.1` | 実 bundle 読込 state 再構成 | `s19` | `b27` | `planned` |
-| `MRL-8` | `mRL-8.2` | local sample modeling と Colab handoff request | `s20` | `b28` | `planned` |
-| `MRL-8` | `mRL-8.3` | reviewing app の実 bundle verify / review | `s19`,`s20` | `b29` | `planned` |
+| `MRL-7` | `-` | 4 app 分割と統合運用を成立させる | `s17`,`s18` | `b23`,`b24`,`b25`,`b26` | `pass` |
+| `MRL-7` | `mRL-7.1` | multi-app module 構成 | `s17`,`s18` | `b23` | `pass` |
+| `MRL-7` | `mRL-7.2` | correcting / modeling / reviewing UX 分離 | `s17` | `b24`,`b25`,`b26` | `pass` |
+| `MRL-7` | `mRL-7.3` | 統合 app と app 単位切り分け summary | `s18` | `b26` | `pass` |
+| `MRL-8` | `-` | 実 bundle UX と local sample modeling を成立させる | `s19`,`s20` | `b27`,`b28`,`b29` | `pass` |
+| `MRL-8` | `mRL-8.1` | 実 bundle 読込 state 再構成 | `s19` | `b27` | `pass` |
+| `MRL-8` | `mRL-8.2` | local sample modeling と Colab handoff request | `s20` | `b28` | `pass` |
+| `MRL-8` | `mRL-8.3` | reviewing app の実 bundle verify / review | `s19`,`s20` | `b29` | `pass` |
 
 ## TDD
 
@@ -212,12 +212,12 @@
 | `T21` | `b19` | video raw bundle export | app 抽出が `video.mp4` と `video_events.jsonl` を raw bundle に保持する | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ISensoriumExtractionServiceTest.kt` |
 | `T22` | `b20`,`b21` | normalized handoff payload | Python parser と Android extractor が `session_package.json` と `space_handoff_manifest.json` を同じ契約で生成する | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_session_parser.py` |
 | `T23` | `b22` | space reconstruction gate summary UI | Android UI が `ready_for_space_reconstruction` と blocker を結果画面で返す | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/MainActivity.kt` |
-| `T24` | `b23` | multi-app module build | `correcting`、`modeling`、`reviewing`、統合 app の 4 module が同じ repository で build できる | planned | `kisaragi-db/--devs/--products/prj-kisaragi_0002/settings.gradle.kts` |
-| `T25` | `b24`,`b25`,`b26` | role-specific workflow filter | 各 app が自分の役割に対応する workflow 範囲と文言だけを主表示にする | planned | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt` |
-| `T26` | `b26` | integrated app overview | 統合 app が 3 app の担当境界を俯瞰表示し、切り分け理由を示せる | planned | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/MainActivity.kt` |
-| `T27` | `b27` | extracted bundle snapshot loader | app が `session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json`、`member_identity_map.json` を読んで実データ state を再構成できる | planned | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/WorkflowBundleServiceTest.kt` |
-| `T28` | `b28` | local sample modeling output | `modeling` app が `local_model_summary.json`、`colab_job_request.json`、`review_artifact_stub.json` を生成できる | planned | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/LocalModelingServiceTest.kt` |
-| `T29` | `b29` | reviewing actual bundle state | `reviewing` app と統合 app が modeling 結果を読み、verify / review 状態へ反映できる | planned | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/MainActivity.kt` |
+| `T24` | `b23` | multi-app module build | `correcting`、`modeling`、`reviewing`、統合 app の 4 module が同じ repository で build できる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/settings.gradle.kts` |
+| `T25` | `b24`,`b25`,`b26` | role-specific workflow filter | 各 app が自分の役割に対応する workflow 範囲と文言だけを主表示にする | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt` |
+| `T26` | `b26` | integrated app overview | 統合 app が 3 app の担当境界を俯瞰表示し、切り分け理由を示せる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/MainActivity.kt` |
+| `T27` | `b27` | extracted bundle snapshot loader | app が `session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json`、`member_identity_map.json` を読んで実データ state を再構成できる | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/WorkflowBundleServiceTest.kt` |
+| `T28` | `b28` | local sample modeling output | `modeling` app が `local_model_summary.json`、`colab_job_request.json`、`review_artifact_stub.json` を生成できる | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/LocalModelingServiceTest.kt` |
+| `T29` | `b29` | reviewing actual bundle state | `reviewing` app と統合 app が modeling 結果を読み、verify / review 状態へ反映できる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/MainActivity.kt` |
 
 ### 実行方針
 
@@ -237,4 +237,5 @@
 - Python unittest、Android unit test、PowerShell script 実行により、入口契約から成果物 routing までの計画範囲を固定した
 - `T17` から `T20` も `pass` になり、`trajectreview` 自身から `iSensorium` raw + 追加出力を生成できる状態へ拡張した
 - `T21` から `T23` も `pass` になり、`video.mp4` を含む raw bundle と `session_package.json` / `space_handoff_manifest.json` を後段 handoff 単位として生成できる状態へ拡張した
-- `MRL-7` から `MRL-8` では 4 app 構成を成立させたうえで、実 bundle 読込と `Colab` 前提 local sample modeling を実装し、mock 依存を外す
+- `T24` から `T29` は 4 app build、role-specific UX、実 bundle 読込、local sample modeling、reviewing 読込まで `pass` になった
+- 次段は `colab_job_request.json` を remote 実行へ接続し、local sample 出力を実 `3DGS` / viewer 成果物へ置き換える
