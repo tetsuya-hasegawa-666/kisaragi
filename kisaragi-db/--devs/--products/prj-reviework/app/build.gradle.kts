@@ -62,10 +62,11 @@ dependencies {
 
 tasks.withType<Test>().configureEach {
     val testLogsDir = rootProject.file("../../--testlogs/prj-reviework")
+    val rawArtifactsDir = rootProject.file("../../../--exsams/prj-reviework/android-test")
     val taskDir = name
     reports.junitXml.required.set(true)
     reports.junitXml.outputLocation.set(testLogsDir.resolve("reports/$taskDir/junit"))
     reports.html.required.set(true)
     reports.html.outputLocation.set(testLogsDir.resolve("reports/$taskDir/html"))
-    binaryResultsDirectory.set(testLogsDir.resolve("artifacts/$taskDir/binary"))
+    binaryResultsDirectory.set(rawArtifactsDir.resolve("$taskDir/binary"))
 }

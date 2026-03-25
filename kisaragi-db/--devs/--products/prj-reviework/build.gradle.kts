@@ -3,10 +3,10 @@ plugins {
     id("org.jetbrains.kotlin.android") version "2.0.21" apply false
 }
 
-val revieworkTrialDataDir = file("../../../--trial-data/prj-reviework")
+val revieworkExsamsDir = file("../../../--exsams/prj-reviework")
 
-layout.buildDirectory.set(revieworkTrialDataDir.resolve("root-build"))
+layout.buildDirectory.set(revieworkExsamsDir.resolve("root-build"))
 
 subprojects {
-    layout.buildDirectory.set(revieworkTrialDataDir.resolve("${project.name}-build"))
+    layout.buildDirectory.set(revieworkExsamsDir.resolve("${project.name}-build"))
 }

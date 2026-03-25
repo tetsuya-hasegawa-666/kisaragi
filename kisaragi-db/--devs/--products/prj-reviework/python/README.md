@@ -2,7 +2,8 @@
 
 - `session_parser.py`: `reviework` session directory を読み込み、`SessionPackage` に必要な manifest / CSV / JSONL を統一的に扱う
 - `validate_session.py`: 1 session を検証し、intake / diagnose 向け summary、join report、分担用 `SessionPackage` インターフェース出力を JSON 出力する
-- Python 実行時の bytecode cache は `--trial-data/prj-reviework/python-pycache/` を使うものとする
+- `review_contracts.py`: 4 段階の handoff contract を code として保持し、文書と実装の整合確認に使う
+- Python 実行時の bytecode cache は `--exsams/prj-reviework/python-pycache/` を使うものとする
 
 ## 互換境界
 
@@ -20,6 +21,6 @@
 ## 実行例
 
 ```powershell
-$env:PYTHONPYCACHEPREFIX='C:\Users\tetsuya\sandbox\codev-db\--trial-data\prj-reviework\python-pycache'
+$env:PYTHONPYCACHEPREFIX='C:\Users\tetsuya\kisaragi\kisaragi-db\--exsams\prj-reviework\python-pycache'
 python python/validate_session.py tmp/session-20260323-001
 ```

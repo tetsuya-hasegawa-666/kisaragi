@@ -3,13 +3,18 @@ $OutputEncoding = [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $testlogsRoot = Join-Path $projectRoot "..\..\--testlogs\prj-reviework"
-$trialDataRoot = Join-Path $projectRoot "..\..\..\--trial-data\prj-reviework"
+$exsamsRoot = Join-Path $projectRoot "..\..\..\--exsams\prj-reviework"
 $logsDir = Join-Path $testlogsRoot "logs"
 $reportsDir = Join-Path $testlogsRoot "reports"
-$artifactsDir = Join-Path $testlogsRoot "artifacts"
-$gradleUserHome = Join-Path $trialDataRoot "gradle-user-home"
-$projectCacheDir = Join-Path $trialDataRoot "project-cache"
-$appBuildDir = Join-Path $trialDataRoot "app-build"
+$legacyArtifactsDir = Join-Path $testlogsRoot "artifacts"
+$artifactsDir = Join-Path $exsamsRoot "android-test"
+$gradleUserHome = Join-Path $exsamsRoot "gradle-user-home"
+$projectCacheDir = Join-Path $exsamsRoot "project-cache"
+$appBuildDir = Join-Path $exsamsRoot "app-build"
+
+if (Test-Path $legacyArtifactsDir) {
+    Remove-Item -Recurse -Force $legacyArtifactsDir
+}
 
 New-Item -ItemType Directory -Force -Path $logsDir, $reportsDir, $artifactsDir, $gradleUserHome, $projectCacheDir | Out-Null
 
@@ -39,6 +44,19 @@ try {
     if (Test-Path $xmlSource) {
         New-Item -ItemType Directory -Force -Path $xmlTarget | Out-Null
         Copy-Item -Path (Join-Path $xmlSource '*') -Destination $xmlTarget -Recurse -Force
+    }
+
+    $summaryPath = Join-Path $reportsDir "android-test-summary.md"
+    @(
+        "# android-test-summary",
+        "",
+        ("- command: gradlew.bat --project-cache-dir=" + $projectCacheDir + " :app:testDebugUnitTest"),
+        ("- raw artifacts: " + $artifactsDir),
+        ("- reports: " + $reportsDir)
+    ) | Set-Content -Path $summaryPath -Encoding UTF8
+
+    if (Test-Path $legacyArtifactsDir) {
+        Remove-Item -Recurse -Force $legacyArtifactsDir
     }
 }
 finally {

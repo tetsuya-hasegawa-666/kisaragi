@@ -7,7 +7,7 @@
 
 ## 現在の重点
 
-- `MRL-1` のうち入力契約と分担インターフェースは `pass` だが、diagnose、実行可否 gate、主空間、人物経路、viewer、routing は `active` または `planned` である
+- 現行計画の `MRL` / `mRL` と `T1` から `T16` は、contract 実装、test、routing 実行で `pass` になった
 - 4 分担作業のための段階間インターフェースと追加出力を正本文書へ明示した
 - Kotlin controller と Python parser により、受理、gate、空間品質、人物経路、同時刻ハイライト、成果物境界の契約を固定した
 - `GNSS` は任意入力とし、既定は `GNSS` なしでも成立する設計を維持する
