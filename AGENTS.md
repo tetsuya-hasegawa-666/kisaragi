@@ -167,6 +167,8 @@ kisaragi-tree/
 - 参照型は `prj-reviework` の `b2t-plans-result.md` と `mrl-record.md` とする。
 - `b2t-plans-result.md` は、`current_state` 章、BDD 章、TDD 章を持つ。
 - `b2t-plans-result.md` は、局所 current state、target behavior、受け入れ基準、検証方針、到達したい小さい milestone をまとめて管理する正本計画書とする。
+- `resume-startup-plan.md` は任意の補助計画書とし、開発がいつ中断しても次回再開時に現在地と立ち上げ順を短く把握できるように保つ。
+- `resume-startup-plan.md` は、長期の正本を置き換えず、再開時の導線と初動確認項目を補助する目的で使う。
 - `Purpose Story` は `s1` 形式の識別子で、project の目的に直結する利用価値の流れとして記述する。
 - `System Behaviors` は `b1` 形式の識別子で、観測可能な振る舞いとして記述する。
 - `受け入れ基準` は `s-id`、`b-id`、観点、受け入れ基準の表で持つ。
@@ -408,6 +410,20 @@ kisaragi-tree/
 - 新旧比較:
   - 旧: `bdd-release-compass.md`、`tdd-test-matrix.md`、`prj-<project>/current_state.md` を別々に管理していた。
   - 新: `b2t-plans-result.md` 1 file に `current_state`、BDD、TDD を統合して管理する。
+
+## 2026-03-25 AGENTS.md resume-startup-plan の役割明確化
+
+- 日時: `2026-03-25`
+- 文書名: `AGENTS.md`
+- 標題: `resume-startup-plan.md` の用途固定
+- 背景: `reviework` の補助計画書を残す理由が file 名だけでは伝わらず、通常計画書との違いが分かりにくかった。
+- 目的: 中断後の再開時に現在地と立ち上げ順を短く掴むための補助文書であることを shared rule として明確にする。
+- 対処方法: 開発計画節へ `resume-startup-plan.md` の役割を追記した。
+- 対応内容: 正本を置き換えず、再開導線と初動確認項目を補助する文書として位置付けた。
+- 更新結果: 今後は、補助計画を残す理由と使いどころを file 名と shared rule の両方から理解できる。
+- 新旧比較:
+  - 旧: 補助計画書を残す理由が文書構造上は明確でなかった。
+  - 新: `resume-startup-plan.md` は再開時の現在地把握と立ち上げ順確認のための補助文書だと明示した。
 
 ## 2026-03-25 AGENTS.md MRL 状態語の意味固定
 
