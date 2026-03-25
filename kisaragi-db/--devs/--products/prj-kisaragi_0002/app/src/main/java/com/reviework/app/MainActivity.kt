@@ -149,6 +149,38 @@ class MainActivity : AppCompatActivity() {
         override fun exists(filename: String): Boolean = root.findFile(filename)?.exists() == true
 
         override fun readText(filename: String): String? {
+            val file = root.findFile(filename) ?: findFileRecursive(root, filename) ?: return null
+            return resolver.openInputStream(file.uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
+        }
+
+        override fun listChildDirectories(): List<SessionInputReader> =
+            root.listFiles()
+                .filter { it.isDirectory }
+                .map { child -> ChildDocumentTreeSessionInput(resolver, child) }
+
+        private fun findFileRecursive(directory: DocumentFile, filename: String): DocumentFile? {
+            directory.listFiles().forEach { child ->
+                if (child.name == filename) {
+                    return child
+                }
+                if (child.isDirectory) {
+                    val found = findFileRecursive(child, filename)
+                    if (found != null) {
+                        return found
+                    }
+                }
+            }
+            return null
+        }
+    }
+
+    private class ChildDocumentTreeSessionInput(
+        private val resolver: android.content.ContentResolver,
+        private val root: DocumentFile,
+    ) : SessionInputReader {
+        override fun exists(filename: String): Boolean = root.findFile(filename)?.exists() == true
+
+        override fun readText(filename: String): String? {
             val file = root.findFile(filename) ?: return null
             return resolver.openInputStream(file.uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
         }

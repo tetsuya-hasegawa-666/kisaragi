@@ -211,11 +211,11 @@
 
 ### `iSensorium` 由来の入力正本
 
-- `session_manifest.json`
-- `video_frame_timestamps.csv`
+- `session_manifest.json` または `manifest.json`
+- `video_frame_timestamps.csv` または `frames.csv`
 - `imu.csv`
 - `gnss.csv`
-- `bt.jsonl` または `ble_scan.jsonl`
+- `bt.jsonl` または `ble_scan.jsonl` または `bt_events.csv` または `bt.csv`
 - `poses.jsonl` または `arcore_pose.jsonl`
 - legacy alias として `bt_events.csv`、`arcore_pose.csv` も受理対象に含める
 
@@ -236,6 +236,7 @@
 - `isensorium/` には source 側の raw file を保持する
 - `trajectreview/` には readiness、quality、frame-pose 対応、identity map を保持する
 - app UI は抽出元、抽出先、`ready_for_diagnose`、欠落入力、主要数値を表示できる
+- app は session folder 直下だけでなく、manifest を持つ 1 段下の child directory も抽出対象として受理する
 
 ## `GNSS` なし前提の成立条件
 

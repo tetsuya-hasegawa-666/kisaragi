@@ -9,6 +9,8 @@ interface SessionInputReader {
     fun exists(filename: String): Boolean
 
     fun readText(filename: String): String?
+
+    fun listChildDirectories(): List<SessionInputReader> = emptyList()
 }
 
 interface SessionOutputWriter {
@@ -34,7 +36,7 @@ class ISensoriumExtractionService {
         val exportRoot = sanitizeSegment(parsed.sessionId)
 
         parsed.rawFiles.forEach { filename ->
-            val content = source.readText(filename) ?: return@forEach
+            val content = parsed.sessionSource.readText(filename) ?: return@forEach
             output.writeText("$exportRoot/isensorium/$filename", content)
         }
 
@@ -63,17 +65,27 @@ class ISensoriumExtractionService {
     }
 
     private fun parse(source: SessionInputReader): ParsedSession {
-        val manifestText = source.readText("session_manifest.json")
-            ?: throw IllegalArgumentException("session_manifest.json が見つかりません。")
+        val resolvedSource = resolveSessionRoot(source)
+        val manifestSelection =
+            loadFirstText(
+                resolvedSource,
+                listOf("session_manifest.json", "manifest.json"),
+            ) ?: throw IllegalArgumentException("manifest file が見つかりません。")
+        val manifestText = manifestSelection.second
         val manifest = JSONObject(manifestText)
         val sessionId = manifest.optString("sessionId").ifBlank { "unknown-session" }
         val timebase = manifest.optJSONObject("timebase") ?: JSONObject()
 
-        val frameRows = parseCsv(source.readText("video_frame_timestamps.csv"))
-        val imuRows = parseCsv(source.readText("imu.csv"))
-        val gnssRows = parseCsv(source.readText("gnss.csv"))
-        val btSelection = loadFirstAvailable(source, listOf("bt.jsonl", "ble_scan.jsonl", "bt_events.csv"))
-        val poseSelection = loadFirstAvailable(source, listOf("poses.jsonl", "arcore_pose.jsonl", "arcore_pose.csv"))
+        val frameSelection = loadFirstAvailable(resolvedSource, listOf("video_frame_timestamps.csv", "frames.csv"))
+        val imuSelection = loadFirstAvailable(resolvedSource, listOf("imu.csv"))
+        val gnssSelection = loadFirstAvailable(resolvedSource, listOf("gnss.csv"))
+        val btSelection = loadFirstAvailable(resolvedSource, listOf("bt.jsonl", "ble_scan.jsonl", "bt_events.csv", "bt.csv"))
+        val poseSelection = loadFirstAvailable(resolvedSource, listOf("poses.jsonl", "arcore_pose.jsonl", "arcore_pose.csv"))
+        val trackingSelection = loadFirstAvailable(resolvedSource, listOf("arcore_tracking.csv"))
+        val qualitySelection = loadFirstAvailable(resolvedSource, listOf("quality_flags.csv", "frame_quality.csv"))
+        val frameRows = frameSelection?.rows ?: emptyList()
+        val imuRows = imuSelection?.rows ?: emptyList()
+        val gnssRows = gnssSelection?.rows ?: emptyList()
         val btRows = btSelection?.rows ?: emptyList()
         val poseRows = poseSelection?.rows ?: emptyList()
 
@@ -93,12 +105,14 @@ class ISensoriumExtractionService {
 
         val rawFiles =
             buildList {
-                add("session_manifest.json")
-                if (frameRows.isNotEmpty()) add("video_frame_timestamps.csv")
-                if (imuRows.isNotEmpty()) add("imu.csv")
-                if (gnssRows.isNotEmpty()) add("gnss.csv")
+                add(manifestSelection.first)
+                frameSelection?.filename?.let { add(it) }
+                imuSelection?.filename?.let { add(it) }
+                gnssSelection?.filename?.let { add(it) }
                 btSelection?.filename?.let { add(it) }
                 poseSelection?.filename?.let { add(it) }
+                trackingSelection?.filename?.let { add(it) }
+                qualitySelection?.filename?.let { add(it) }
             }
 
         val streamCounts =
@@ -111,8 +125,8 @@ class ISensoriumExtractionService {
             )
         val nearestDeltas =
             linkedMapOf(
-                "imuNearestDeltaNs" to nearestDelta(frameRows, imuRows, "elapsed_realtime_ns"),
-                "gnssNearestDeltaNs" to nearestDelta(frameRows, gnssRows, "elapsed_realtime_ns"),
+                "imuNearestDeltaNs" to nearestDelta(frameRows, imuRows, candidateKeys = listOf("elapsed_realtime_ns", "timestamp_ns")),
+                "gnssNearestDeltaNs" to nearestDelta(frameRows, gnssRows, candidateKeys = listOf("elapsed_realtime_ns", "timestamp_ns")),
                 "btNearestDeltaNs" to nearestDelta(frameRows, btRows, candidateKeys = listOf("elapsedRealtimeNanos", "timestamp_ns")),
                 "poseNearestDeltaNs" to nearestDelta(frameRows, poseRows, candidateKeys = listOf("elapsedRealtimeNanos", "timestamp_ns")),
             )
@@ -132,6 +146,7 @@ class ISensoriumExtractionService {
             )
 
         return ParsedSession(
+            sessionSource = resolvedSource,
             sessionId = sessionId,
             manifest = manifest,
             timebase = timebase,
@@ -190,7 +205,10 @@ class ISensoriumExtractionService {
             val delta = if (poseTime == null) "" else abs(frameTime - poseTime).toString()
             rows +=
                 listOf(
-                    row["frame_id"]?.ifBlank { null } ?: row["camera_sensor_timestamp_ns"]?.ifBlank { null } ?: index.toString(),
+                    row["frame_id"]?.ifBlank { null }
+                        ?: row["camera_sensor_timestamp_ns"]?.ifBlank { null }
+                        ?: row["timestamp_ns"]?.ifBlank { null }
+                        ?: index.toString(),
                     frameTime.toString(),
                     poseTime?.toString() ?: "",
                     delta,
@@ -292,6 +310,25 @@ class ISensoriumExtractionService {
         return null
     }
 
+    private fun loadFirstText(source: SessionInputReader, candidates: List<String>): Pair<String, String>? {
+        candidates.forEach { filename ->
+            val text = source.readText(filename) ?: return@forEach
+            if (text.isNotBlank()) {
+                return filename to text
+            }
+        }
+        return null
+    }
+
+    private fun resolveSessionRoot(source: SessionInputReader): SessionInputReader {
+        if (source.exists("session_manifest.json") || source.exists("manifest.json")) {
+            return source
+        }
+        return source.listChildDirectories().firstOrNull { child ->
+            child.exists("session_manifest.json") || child.exists("manifest.json")
+        } ?: source
+    }
+
     private fun parseCsv(text: String?): List<Map<String, String>> {
         if (text.isNullOrBlank()) {
             return emptyList()
@@ -333,7 +370,7 @@ class ISensoriumExtractionService {
 
         var nearest: Long? = null
         frameRows.take(60).forEach { row ->
-            val frameValue = longValue(row, listOf("elapsed_realtime_ns")) ?: return@forEach
+            val frameValue = longValue(row, listOf("elapsed_realtime_ns", "timestamp_ns")) ?: return@forEach
             val candidate = sensorValues.minOf { value -> abs(frameValue - value) }
             nearest = if (nearest == null) candidate else min(nearest ?: candidate, candidate)
         }
@@ -372,6 +409,7 @@ class ISensoriumExtractionService {
     )
 
     private data class ParsedSession(
+        val sessionSource: SessionInputReader,
         val sessionId: String,
         val manifest: JSONObject,
         val timebase: JSONObject,

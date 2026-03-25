@@ -35,15 +35,15 @@ class SessionPackageInterface:
 class SessionParser:
     def __init__(self, session_dir: str | Path) -> None:
         self.session_dir = Path(session_dir)
-        self.manifest_path = self.session_dir / "session_manifest.json"
-        if not self.manifest_path.exists():
-            raise FileNotFoundError(f"Manifest not found: {self.manifest_path}")
+        self.manifest_path = self._find_first_existing("session_manifest.json", "manifest.json")
+        if self.manifest_path is None:
+            raise FileNotFoundError(f"Manifest not found under: {self.session_dir}")
 
         self.manifest = json.loads(self.manifest_path.read_text(encoding="utf-8"))
         self.timebase = self.manifest["timebase"]
 
     def load_summary(self) -> SessionSummary:
-        frame_rows = self.load_csv("video_frame_timestamps.csv")
+        frame_rows = self.load_frame_rows()
         imu_rows = self.load_csv("imu.csv")
         gnss_rows = self.load_csv("gnss.csv")
         bt_rows = self.load_bt_rows()
@@ -63,7 +63,7 @@ class SessionParser:
                 "poses": len(pose_rows),
             },
             collector_status=self.manifest.get("collectorStatus", {}),
-            frame_time_range_ns=self._range_from_rows(frame_rows, "elapsed_realtime_ns"),
+            frame_time_range_ns=self._range_from_row_aliases(frame_rows, "elapsed_realtime_ns", "timestamp_ns"),
             imu_time_range_ns=self._range_from_rows(imu_rows, "elapsed_realtime_ns"),
             gnss_time_range_ns=self._range_from_rows(gnss_rows, "elapsed_realtime_ns"),
             bt_time_range_ns=self._range_from_row_aliases(bt_rows, "elapsedRealtimeNanos", "timestamp_ns"),
@@ -103,11 +103,21 @@ class SessionParser:
                 return rows
         return []
 
+    def _find_first_existing(self, *filenames: str) -> Path | None:
+        for filename in filenames:
+            path = self.session_dir / filename
+            if path.exists():
+                return path
+        return None
+
+    def load_frame_rows(self) -> list[dict[str, Any]]:
+        return self.load_csv_aliases("video_frame_timestamps.csv", "frames.csv")
+
     def load_bt_rows(self) -> list[dict[str, Any]]:
         rows = self.load_jsonl_aliases("bt.jsonl", "ble_scan.jsonl")
         if rows:
             return rows
-        return self.load_csv_aliases("bt_events.csv")
+        return self.load_csv_aliases("bt_events.csv", "bt.csv")
 
     def load_pose_rows(self) -> list[dict[str, Any]]:
         rows = self.load_jsonl_aliases("poses.jsonl", "arcore_pose.jsonl")
@@ -116,7 +126,7 @@ class SessionParser:
         return self.load_csv_aliases("arcore_pose.csv")
 
     def build_join_report(self) -> dict[str, Any]:
-        frame_rows = self.load_csv("video_frame_timestamps.csv")
+        frame_rows = self.load_frame_rows()
         imu_rows = self.load_csv("imu.csv")
         gnss_rows = self.load_csv("gnss.csv")
         bt_rows = self.load_bt_rows()
@@ -126,8 +136,8 @@ class SessionParser:
             "sessionId": self.manifest["sessionId"],
             "timebase": self.timebase,
             "frameCount": len(frame_rows),
-            "imuNearestDeltaNs": self._nearest_delta_ns(frame_rows, imu_rows, ("elapsed_realtime_ns",)),
-            "gnssNearestDeltaNs": self._nearest_delta_ns(frame_rows, gnss_rows, ("elapsed_realtime_ns",)),
+            "imuNearestDeltaNs": self._nearest_delta_ns(frame_rows, imu_rows, ("elapsed_realtime_ns", "timestamp_ns")),
+            "gnssNearestDeltaNs": self._nearest_delta_ns(frame_rows, gnss_rows, ("elapsed_realtime_ns", "timestamp_ns")),
             "btNearestDeltaNs": self._nearest_delta_ns(frame_rows, bt_rows, ("elapsedRealtimeNanos", "timestamp_ns")),
             "poseNearestDeltaNs": self._nearest_delta_ns(frame_rows, pose_rows, ("elapsedRealtimeNanos", "timestamp_ns")),
             "metadataSufficiency": {
@@ -143,14 +153,14 @@ class SessionParser:
         }
 
     def build_session_package_interface(self) -> SessionPackageInterface:
-        frame_rows = self.load_csv("video_frame_timestamps.csv")
+        frame_rows = self.load_frame_rows()
         imu_rows = self.load_csv("imu.csv")
         gnss_rows = self.load_csv("gnss.csv")
         bt_rows = self.load_bt_rows()
         pose_rows = self.load_pose_rows()
 
         required_inputs = {
-            "session_manifest": self.manifest_path.exists(),
+            "session_manifest": self.manifest_path is not None and self.manifest_path.exists(),
             "frames": len(frame_rows) > 0,
             "imu": len(imu_rows) > 0,
             "bt": len(bt_rows) > 0,
@@ -214,7 +224,10 @@ class SessionParser:
 
         nearest: int | None = None
         for row in frame_rows[: min(len(frame_rows), 60)]:
-            frame_value = int(float(row["elapsed_realtime_ns"]))
+            frame_raw = row.get("elapsed_realtime_ns", row.get("timestamp_ns"))
+            if frame_raw in (None, ""):
+                continue
+            frame_value = int(float(frame_raw))
             candidate = min(abs(frame_value - sensor_value) for sensor_value in sensor_values)
             nearest = candidate if nearest is None else min(nearest, candidate)
         return nearest

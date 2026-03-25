@@ -136,6 +136,48 @@ class SessionParserAliasCompatibilityTest(unittest.TestCase):
             self.assertEqual(4, join_report["poseNearestDeltaNs"])
             self.assertTrue(package_interface.ready_for_diagnose)
 
+    def test_manifest_frames_and_bt_csv_aliases_are_accepted(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            session_dir = Path(temp_dir) / "session-20260325-legacy-2"
+            session_dir.mkdir(parents=True)
+
+            manifest = {
+                "sessionId": "session-20260325-legacy-2",
+                "status": "ready",
+                "deviceModel": "Xperia 5 III",
+                "recordingMode": "review",
+                "timebase": {
+                    "sessionStartWallTimeMs": 1000,
+                    "sessionStartElapsedRealtimeNanos": 2000,
+                },
+            }
+            (session_dir / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            (session_dir / "frames.csv").write_text(
+                "frame_id,timestamp_ns\n0,2001\n",
+                encoding="utf-8",
+            )
+            (session_dir / "imu.csv").write_text(
+                "sensor_type,event_timestamp_ns,elapsed_realtime_ns,wall_time_ms,x,y,z,accuracy\naccel,2002,2002,1002,0,0,0,3\n",
+                encoding="utf-8",
+            )
+            (session_dir / "bt.csv").write_text(
+                "timestamp_ns,deviceAddress\n2004,AA:BB:CC:DD\n",
+                encoding="utf-8",
+            )
+            (session_dir / "arcore_pose.csv").write_text(
+                "timestamp_ns,tx,ty,tz\n2005,0,0,0\n",
+                encoding="utf-8",
+            )
+
+            parser = SessionParser(session_dir)
+            summary = parser.load_summary()
+            package_interface = parser.build_session_package_interface()
+
+            self.assertEqual("session-20260325-legacy-2", summary.session_id)
+            self.assertEqual(1, summary.stream_counts["frames"])
+            self.assertEqual(1, summary.stream_counts["bt"])
+            self.assertTrue(package_interface.ready_for_diagnose)
+
 
 if __name__ == "__main__":
     unittest.main()

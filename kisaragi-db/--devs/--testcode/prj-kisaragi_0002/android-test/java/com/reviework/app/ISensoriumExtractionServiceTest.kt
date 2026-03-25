@@ -94,12 +94,85 @@ class ISensoriumExtractionServiceTest {
         )
     }
 
+    @Test
+    fun exportAcceptsManifestFramesAndBtCsvAliases() {
+        val source =
+            InMemorySessionInput(
+                mapOf(
+                    "manifest.json" to
+                        """
+                        {
+                          "sessionId":"legacy-csv-session",
+                          "deviceModel":"SO-53B",
+                          "timebase":{
+                            "sessionStartWallTimeMs":1000,
+                            "sessionStartElapsedRealtimeNanos":2000
+                          }
+                        }
+                        """.trimIndent(),
+                    "frames.csv" to "frame_id,timestamp_ns\n0,2001\n",
+                    "imu.csv" to
+                        "sensor_type,event_timestamp_ns,elapsed_realtime_ns,wall_time_ms,x,y,z,accuracy\naccel,2002,2002,1002,0,0,0,3\n",
+                    "bt.csv" to "timestamp_ns,deviceAddress\n2004,AA:BB:CC:DD\n",
+                    "arcore_pose.csv" to "timestamp_ns,tx,ty,tz\n2005,0,0,0\n",
+                ),
+            )
+        val output = InMemorySessionOutput()
+
+        val result = service.export(source, output)
+
+        assertEquals("legacy-csv-session", result.sessionId)
+        assertTrue(output.files.containsKey("legacy-csv-session/isensorium/manifest.json"))
+        assertTrue(output.files.containsKey("legacy-csv-session/isensorium/frames.csv"))
+        assertTrue(output.files.containsKey("legacy-csv-session/isensorium/bt.csv"))
+        assertTrue(result.readyForDiagnose)
+    }
+
+    @Test
+    fun exportAcceptsParentDirectoryContainingSessionFolder() {
+        val child =
+            InMemorySessionInput(
+                mapOf(
+                    "manifest.json" to
+                        """
+                        {
+                          "sessionId":"nested-session",
+                          "deviceModel":"SO-53B",
+                          "timebase":{
+                            "sessionStartWallTimeMs":1000,
+                            "sessionStartElapsedRealtimeNanos":2000
+                          }
+                        }
+                        """.trimIndent(),
+                    "frames.csv" to "frame_id,timestamp_ns\n0,2001\n",
+                    "imu.csv" to
+                        "sensor_type,event_timestamp_ns,elapsed_realtime_ns,wall_time_ms,x,y,z,accuracy\naccel,2002,2002,1002,0,0,0,3\n",
+                    "bt.csv" to "timestamp_ns,deviceAddress\n2004,AA:BB:CC:DD\n",
+                ),
+            )
+        val source =
+            InMemorySessionInput(
+                files = emptyMap(),
+                children = listOf(child),
+            )
+        val output = InMemorySessionOutput()
+
+        val result = service.export(source, output)
+
+        assertEquals("nested-session", result.sessionId)
+        assertTrue(output.files.containsKey("nested-session/isensorium/manifest.json"))
+        assertTrue(result.readyForDiagnose)
+    }
+
     private class InMemorySessionInput(
         private val files: Map<String, String>,
+        private val children: List<InMemorySessionInput> = emptyList(),
     ) : SessionInputReader {
         override fun exists(filename: String): Boolean = files.containsKey(filename)
 
         override fun readText(filename: String): String? = files[filename]
+
+        override fun listChildDirectories(): List<SessionInputReader> = children
     }
 
     private class InMemorySessionOutput : SessionOutputWriter {
