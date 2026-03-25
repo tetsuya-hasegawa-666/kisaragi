@@ -224,6 +224,8 @@ kisaragi-tree/
 - 文字化けが疑われる表示は再読込なしに真実とみなさない。
 - build output、generated file、cache、device dump、screen capture、tmp、`__pycache__`、`.pytest_cache`、`*.egg-info` は commit / push しない。
 - stage は原則として明示 path で行う。
+- `--` で始まる top category directory を Codex 判断で新設してはならない。
+- 生成物出力先を rule 外の `--trial-data` のような新規 `--` directory で迂回してはならず、許可済み category のみを使う。
 
 ## Guard
 

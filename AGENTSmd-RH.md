@@ -12,6 +12,20 @@
 
 ## 更新履歴
 
+### 2026-03-25 AGENTS.md rule 外 `--` directory 生成の禁止
+
+- 日時: `2026-03-25`
+- 文書名: `AGENTS.md`
+- 標題: `--trial-data` のような rule 外 category 生成の禁止
+- 背景: `prj-kisaragi_0002` の build 生成物が `--trial-data` へ出力され、許可済み category を迂回する directory 新設が発生した。
+- 目的: `--` で始まる category directory の濫用を防ぎ、生成物は `--exsams` など既存 rule 内へ限定する。
+- 対処方法: commit / push hygiene 節へ、Codex 判断での `--` category 新設禁止と、`--trial-data` のような rule 外出力先の禁止を追記した。
+- 対応内容: shared rule を追加し、`gradle.properties` も `--trial-data` から `--exsams` へ修正した。
+- 更新結果: 今後の生成物は許可済み category のみを使い、rule 外の `--` directory を新設しない。
+- 新旧比較:
+  - 旧: rule 外の `--trial-data` を build 出力先として作れてしまった。
+  - 新: `--` category の無断新設と rule 外出力先の利用を明示禁止した。
+
 ### 2026-03-25 AGENTS.md project-name 対応表の No.2 更新
 
 - 日時: `2026-03-25`
