@@ -3,15 +3,15 @@
 ## 目標
 
 - `reviework` の再開計画を `prj-reviework` 配下の正本文書だけで読める状態にする
-- 外部一時文書に残っていた処理構造と UX 構想を `project-truth.md`、`bdd-release-compass.md`、`tdd-test-matrix.md` へ吸収する
+- 外部一時文書に残っていた処理構造と UX 構想を `project-truth.md` と `b2t-plans-result.md` へ吸収する
 - `MRL-1` の実装着手に直結する task を明確にする
 
 ## 第 1 段階
 
 - `project-truth.md` に 4 段階処理構造とパッケージ契約を固定する
 - 4 分担の入力、出力、受け渡し条件を固定する
-- `bdd-release-compass.md` に terminal behavior と `MRL` / `mRL` を固定する
-- `tdd-test-matrix.md` に検証 task と優先順を固定する
+- `b2t-plans-result.md` の BDD 章に terminal behavior と `MRL` / `mRL` を固定する
+- `b2t-plans-result.md` の TDD 章に検証 task と優先順を固定する
 - `mrl-record.md` を作成し、再開基線を記録する
 
 ## 第 2 段階
@@ -30,4 +30,4 @@
 
 - 外部参照が削除されても `prj-reviework` の正本文書だけで再開判断ができる
 - `MRL-1` 着手に必要な terminal behavior と TDD task が矛盾なく接続している
-- `current_state.md` から次の実装着手順が 3 件以内で読める
+- `b2t-plans-result.md` の `current_state` 章から次の実装着手順が 3 件以内で読める

@@ -23,6 +23,7 @@
   - raw build cache、binary results、pycache は `kisaragi-db/--exsams/prj-reviework/` に出力する
   - 要約 report と summary は `kisaragi-db/--devs/--testlogs/prj-reviework/` に出力する
 - 主要 evidence:
+  - `kisaragi-db/--devs/--plans/prj-reviework/b2t-plans-result.md`
   - `kisaragi-db/--devs/--testcode/prj-reviework/test_session_parser.py`
   - `kisaragi-db/--devs/--testcode/prj-reviework/test_project_contracts.py`
   - `kisaragi-db/--devs/--testcode/prj-reviework/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt`
