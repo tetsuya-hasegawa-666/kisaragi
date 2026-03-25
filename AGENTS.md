@@ -158,6 +158,7 @@ kisaragi-tree/
 - 到達段階は `MRL`、実行単位は `mRL` で管理する。
 - release 計画は `kisaragi-db/--devs/--plans/prj-<project>/` に置く。
 - 実装に着手する project は、原則として先に `bdd-release-compass.md` と `tdd-test-matrix.md` を計画書として作成または更新する。
+- `planned` は未着手または着手前提の計画状態、`active` は着手中、`pass` は `active` を経て完了した gate とする。
 - `MRL` または `mRL` が `pass` になったら `kisaragi-db/--devs/--evidence/prj-<project>/mrl-ux-valid.md` に記録する。
 - UX 検証成果は同 `mrl-ux-valid.md` に集約する。
 
@@ -392,3 +393,17 @@ kisaragi-tree/
 - 新旧比較:
   - 旧: `コアストーリー`、`user stories`、`terminal behaviors` の呼称と識別子が project ごとに揺れ得た。
   - 新: `Purpose Story` は `s1`、`System Behaviors` は `b1`、受け入れ基準と `MRL` 対応表は `s-id` と `b-id` 必須で統一した。
+
+## 2026-03-25 AGENTS.md MRL 状態語の意味固定
+
+- 日時: `2026-03-25`
+- 文書名: `AGENTS.md`
+- 標題: `planned`、`active`、`pass` の意味固定
+- 背景: `reviework` の `MRL` 更新時に、計画済み項目を一括で `pass` 扱いしてしまい、着手中と完了済みの区別が曖昧になった。
+- 目的: `MRL`、`mRL`、TDD task の状態語を全 project で同じ意味で使い、過大な closeout を防ぐ。
+- 対処方法: 開発計画節へ `planned`、`active`、`pass` の定義を追記した。
+- 対応内容: `planned` を未着手、`active` を着手中、`pass` を `active` 後に完了した gate として固定した。
+- 更新結果: 今後は `MRL` / `mRL` の進捗を、計画、着手中、完了で誤解なく管理できる。
+- 新旧比較:
+  - 旧: `planned` と `pass` の境界が明文化されていなかった。
+  - 新: `planned`、`active`、`pass` の意味を shared rule として固定した。

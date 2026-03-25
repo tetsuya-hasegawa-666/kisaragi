@@ -21,3 +21,8 @@
   - decision: `MRL` 作業中は、部分 blocker があっても他に進められる task を継続し、他に何もできない状態になるまで止まらない
   - rationale: blocker 1 件で停止すると、並行して close できる `mRL`、test、文書整合の消化が遅れるため
   - consequence: 今後の `MRL` 作業は、blocker の切り分けと並行して進められる task を先に潰す
+- 2026-03-25
+  - project: `shared`
+  - decision: `MRL`、`mRL`、TDD task の状態語は、`planned` を未着手、`active` を着手中、`pass` を `active` 後に完了した状態として扱う
+  - rationale: `reviework` で契約固定済み項目を一括 `pass` 扱いしてしまい、着手中と完了済みの境界が曖昧になったため
+  - consequence: 以後の closeout は、実装、検証、残作業の確認を経て `pass` を付与する

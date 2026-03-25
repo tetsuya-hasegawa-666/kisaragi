@@ -20,10 +20,10 @@
 | `T10` | `b9` | verify quality summary | `space` と `trajectory` の quality、同時刻比較の弱点、weak area を同時に返せる | pass | `kisaragi-db/--devs/--testcode/prj-reviework/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt` |
 | `T11` | `b9` | interpret attention point synthesis | `attention point` と同時刻ハイライトに時間範囲、理由、不確実区間情報を持たせる | pass | `kisaragi-db/--devs/--testcode/prj-reviework/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt` |
 | `T12` | `b10` | `ReviewArtifact` boundary contract | `Assembly` だけが `3DGS` 操作、経路表示、同時刻ハイライトを含む `ReviewArtifact` を生成する | pass | `kisaragi-db/--devs/--testcode/prj-reviework/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt` |
-| `T13` | `b12` | independent project boundary scan | `prj-reviework` products と docs が外部 project の shared 参照なしで継続できる | pass | `kisaragi-db/--devs/--project-truth/prj-reviework/project-truth.md` |
-| `T14` | `b12` | output routing hygiene | Android build cache と raw test report が `--exsams`、summary が `--testlogs` に分離される | pass | `kisaragi-db/--devs/--products/prj-reviework/scripts/run_android_unit_tests.ps1` |
+| `T13` | `b12` | independent project boundary scan | `prj-reviework` products と docs が外部 project の shared 参照なしで継続できる | active | `kisaragi-db/--devs/--project-truth/prj-reviework/project-truth.md` |
+| `T14` | `b12` | output routing hygiene | Android build cache と raw test report が `--exsams`、summary が `--testlogs` に分離される | planned | `kisaragi-db/--devs/--products/prj-reviework/scripts/run_android_unit_tests.ps1` |
 | `T15` | `b13` | `InputPackaging` interface manifest | `iSensorium` 生出力に加え、受理判定、品質、frame-pose 対応、主体対応表が JSON と CSV の契約で出力される | pass | `kisaragi-db/--devs/--testcode/prj-reviework/test_session_parser.py` |
-| `T16` | `b14` | stage handoff contract | 4 分担の各段階で入力、出力、受け渡し条件が文書と実装の両方で読める | pass | `kisaragi-db/--devs/--plans/prj-reviework/bdd-release-compass.md` |
+| `T16` | `b14` | stage handoff contract | 4 分担の各段階で入力、出力、受け渡し条件が文書と実装の両方で読める | active | `kisaragi-db/--devs/--plans/prj-reviework/bdd-release-compass.md` |
 
 ## 実行方針
 
@@ -35,6 +35,6 @@
 
 ## 現在の見立て
 
-- `reviework` の現行計画で `planned` だった `MRL` / `mRL` はすべて `pass` へ更新した
-- Python unittest と Android unit test により、入口契約から成果物境界までの契約面を先に close した
-- 今後の主作業は、pass した契約を実データ処理と viewer 実装へつなぐことになる
+- `T1` から `T12`、`T15` は契約 test で `pass` としたが、実データ接続と運用系の `T13`、`T14`、`T16` はまだ `active` または `planned` である
+- Python unittest と Android unit test により、入口契約から成果物境界までの契約面を部分的に固定した
+- 今後の主作業は、`active` / `planned` の task を実データ処理、viewer、生成物 routing に接続して close することになる

@@ -7,7 +7,7 @@
 
 ## 現在の重点
 
-- 現行計画で `planned` だった `MRL` / `mRL` は、契約 test と文書整合で `pass` へ更新した
+- `MRL-1` のうち入力契約と分担インターフェースは `pass` だが、diagnose、実行可否 gate、主空間、人物経路、viewer、routing は `active` または `planned` である
 - 4 分担作業のための段階間インターフェースと追加出力を正本文書へ明示した
 - Kotlin controller と Python parser により、受理、gate、空間品質、人物経路、同時刻ハイライト、成果物境界の契約を固定した
 - `GNSS` は任意入力とし、既定は `GNSS` なしでも成立する設計を維持する
@@ -26,4 +26,4 @@
 
 ## 2026-03-25 作業所有権
 
-- Codex が `project-truth.md`、`bdd-release-compass.md`、`tdd-test-matrix.md`、`mrl-record.md`、`current_state.md` の再開基線整備と `MRL` closeout を担当する
+- Codex が `project-truth.md`、`bdd-release-compass.md`、`tdd-test-matrix.md`、`mrl-record.md`、`current_state.md` の再開基線整備と、過大 closeout の修正後の `MRL` 継続作業を担当する

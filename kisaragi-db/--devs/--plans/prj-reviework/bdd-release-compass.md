@@ -71,20 +71,20 @@
 
 | MRL | mRL | 目的 | 関連 s-id | 関連 b-id | 現在 gate |
 | --- | --- | --- | --- | --- | --- |
-| `MRL-1` | `-` | 受理と診断の基礎線を成立させる | `s1`,`s2`,`s3` | `b1`,`b2`,`b3`,`b11`,`b13`,`b14` | `pass` |
+| `MRL-1` | `-` | 受理と診断の基礎線を成立させる | `s1`,`s2`,`s3` | `b1`,`b2`,`b3`,`b11`,`b13`,`b14` | `active` |
 | `MRL-1` | `mRL-1.1` | 主入力の受理契約 | `s1` | `b1`,`b11`,`b13` | `pass` |
-| `MRL-1` | `mRL-1.2` | 人物映り込みを含む診断基線 | `s2` | `b2` | `pass` |
-| `MRL-1` | `mRL-1.3` | 実行可否 gate | `s3` | `b3` | `pass` |
+| `MRL-1` | `mRL-1.2` | 人物映り込みを含む診断基線 | `s2` | `b2` | `active` |
+| `MRL-1` | `mRL-1.3` | 実行可否 gate | `s3` | `b3` | `active` |
 | `MRL-1` | `mRL-1.4` | 分担インターフェース固定 | `s1`,`s12` | `b13`,`b14` | `pass` |
-| `MRL-2` | `-` | 主空間再構成の基礎線を成立させる | `s4`,`s5`,`s6` | `b4`,`b5`,`b6` | `pass` |
-| `MRL-2` | `mRL-2.1` | 主カメラ path と空間基準固定 | `s4`,`s6` | `b4`,`b6` | `pass` |
-| `MRL-2` | `mRL-2.2` | `COLMAP` から `3DGS` への安全 gate | `s5` | `b5` | `pass` |
-| `MRL-2` | `mRL-2.3` | 空間品質要約 | `s6` | `b6` | `pass` |
-| `MRL-3` | `-` | 人物経路再構成と同時刻比較の基礎線を成立させる | `s7`,`s8`,`s9`,`s10` | `b7`,`b8`,`b9` | `pass` |
-| `MRL-3` | `mRL-3.1` | 人物経路の主空間登録 | `s7`,`s9` | `b7` | `pass` |
-| `MRL-3` | `mRL-3.2` | relink と不確実性 | `s7`,`s8` | `b8` | `pass` |
-| `MRL-3` | `mRL-3.3` | 同時刻ハイライトと `attention point` | `s9`,`s10` | `b9` | `pass` |
-| `MRL-4` | `-` | 閲覧成果物と運用硬化を成立させる | `s11`,`s12` | `b10`,`b12`,`b13`,`b14` | `pass` |
-| `MRL-4` | `mRL-4.1` | `ReviewArtifact` と viewer 境界 | `s11` | `b10` | `pass` |
-| `MRL-4` | `mRL-4.2` | 独立 project 境界 | `s12` | `b12`,`b14` | `pass` |
-| `MRL-4` | `mRL-4.3` | 生成物 routing hygiene | `s12` | `b12`,`b13` | `pass` |
+| `MRL-2` | `-` | 主空間再構成の基礎線を成立させる | `s4`,`s5`,`s6` | `b4`,`b5`,`b6` | `active` |
+| `MRL-2` | `mRL-2.1` | 主カメラ path と空間基準固定 | `s4`,`s6` | `b4`,`b6` | `active` |
+| `MRL-2` | `mRL-2.2` | `COLMAP` から `3DGS` への安全 gate | `s5` | `b5` | `active` |
+| `MRL-2` | `mRL-2.3` | 空間品質要約 | `s6` | `b6` | `active` |
+| `MRL-3` | `-` | 人物経路再構成と同時刻比較の基礎線を成立させる | `s7`,`s8`,`s9`,`s10` | `b7`,`b8`,`b9` | `active` |
+| `MRL-3` | `mRL-3.1` | 人物経路の主空間登録 | `s7`,`s9` | `b7` | `active` |
+| `MRL-3` | `mRL-3.2` | relink と不確実性 | `s7`,`s8` | `b8` | `active` |
+| `MRL-3` | `mRL-3.3` | 同時刻ハイライトと `attention point` | `s9`,`s10` | `b9` | `active` |
+| `MRL-4` | `-` | 閲覧成果物と運用硬化を成立させる | `s11`,`s12` | `b10`,`b12`,`b13`,`b14` | `active` |
+| `MRL-4` | `mRL-4.1` | `ReviewArtifact` と viewer 境界 | `s11` | `b10` | `active` |
+| `MRL-4` | `mRL-4.2` | 独立 project 境界 | `s12` | `b12`,`b14` | `active` |
+| `MRL-4` | `mRL-4.3` | 生成物 routing hygiene | `s12` | `b12`,`b13` | `planned` |
