@@ -6,47 +6,45 @@
 
 ## 目指す姿
 
-- reviework は、1台のスマホカメラ（IMUも取得）による連続動画と、IMU付き機器（主にスマホ）を持つ人が、その動画に頻繁に映り込むという状況下で、最も効果を発揮するシステムである。
-
-- 連続動画＋IMUのデータと、IMU付きスマホを携帯する（動画無し）人のデータを入力するだけで、撮影した現場の3DGSの構成と、そこの中での画像を取得しているものの経路と、そこに移りこむ人の経路が、3DGS地図上で表示され、表示された3DGSを操作できるシステムである。
-
-- また、経路は時系列情報を持ち、経路上の同じ時刻の場所をハイライトできる。
+- `reviework` は、1 台のスマホカメラとその `IMU` による連続動画、および `IMU` 付き機器を持つ人がその動画へ頻繁に映り込む状況で、最も効果を発揮する。
+- 連続動画と `IMU` のデータ、および動画なしの `IMU` 付きスマホを携帯する人のデータを入力するだけで、現場の `3DGS`、撮影主体の経路、映り込む人の経路を同じ `3DGS` 空間上へ表示できる。
+- 経路は時系列情報を持ち、同じ時刻の位置関係をハイライトできる。
 
 ## 提供方針
 
-- `GNSS` の有無に関わらず成立する計画を既定とする
-- `Timeline` を統合キーとして先に固定する
-- 実行前に `Diagnose` と実行可否 gate を成立させる
-- 主空間、経路、閲覧成果物を 4 段階契約で分離する
-- 外部文書に残っていた構想は `prj-reviework` の正本文書へ吸収し、以後はここを参照する
+- 最適条件は 1 台の主カメラ動画と、映り込む人の `IMU` データである
+- `GNSS` は任意入力とし、なくても主 `ARCore` 空間を基準に成立させる
+- `Timeline` を統合キーとして、主カメラ path と人物 path を同時刻で束ねる
+- まず受理、診断、実行可否を固め、その後に空間、経路、閲覧を分離実装する
+- 閲覧成果物は `3DGS` の操作、経路表示、同時刻ハイライトを一体で扱う
 
 ## Purpose Story
 
-- `s1`: 利用者は session folder を投入し、必須入力と任意入力の充足を把握できる
-- `s2`: 利用者は `Diagnose` で不足入力、品質低下、修正理由を読める
-- `s3`: 利用者は実行可否 gate を満たした時だけ `処理を開始` を受け取れる
-- `s4`: 利用者は実行中に `完了を待つ` と現在段階だけを見ればよい
-- `s5`: 利用者は `COLMAP` が densification 不可なら `3DGS` 開始前に修正へ戻れる
-- `s6`: 利用者は `GNSS` がなくても、主 `ARCore` 空間を基準に空間再構成の成立を確認できる
-- `s7`: 利用者は作業機と作業員の経路を同じ `Timeline` で比較できる
-- `s8`: 利用者は見失い区間と再拘束の不確実性を理由付きで把握できる
-- `s9`: 利用者は `Verify` で空間品質と軌跡品質の弱点を同時に読める
-- `s10`: 利用者は `Interpret` で `attention point` を時間範囲と理由付きで絞り込める
-- `s11`: 利用者は `ReviewArtifact` を閲覧専用 viewer で開き、時刻同期レビューを開始できる
-- `s12`: 運用者は `reviework` を外部 project や一時文書に依存せず独立運用できる
+- `s1`: 利用者は、主カメラ動画と主カメラ `IMU`、および人物側 `IMU` の入力がそろっているかを受理時点で把握できる
+- `s2`: 利用者は、主カメラ動画に人物が十分映り込んでいるか、不足入力や品質低下とあわせて診断で読める
+- `s3`: 利用者は、主空間再構成と人物経路再構成に必要な条件を満たした時だけ `処理を開始` を受け取れる
+- `s4`: 利用者は、実行中に今どの段階を処理しているかだけを見ればよい
+- `s5`: 利用者は、主空間再構成が成立しない時に `3DGS` 生成へ進まず修正へ戻れる
+- `s6`: 利用者は、1 台の主カメラ動画から作られた `3DGS` と主カメラ経路を確認できる
+- `s7`: 利用者は、人物側 `IMU` と映り込みを使って人物経路が主空間へ重ねられた結果を確認できる
+- `s8`: 利用者は、見失い区間と再拘束の不確実性を理由付きで把握できる
+- `s9`: 利用者は、`3DGS` 上で主カメラ経路と人物経路を同時刻比較できる
+- `s10`: 利用者は、同じ時刻の位置関係をハイライトし、注視すべき区間を絞り込める
+- `s11`: 利用者は、生成済み `ReviewArtifact` を viewer で操作し、空間と経路をレビューできる
+- `s12`: 運用者は、4 分担の境界と出力契約だけで実装と運用を継続できる
 
 ## System Behaviors
 
-- `b1`: session folder が受理されると、`SessionPackage` に必須入力、任意入力、時刻基準、品質フラグの要約が反映される
-- `b2`: `Diagnose` は、欠落入力、品質低下、修正理由を `Thin Status` で返す
-- `b3`: 実行可否 gate は、`InputPackaging`、`SpaceReconstruction` 前提、`TrajectoryReconstruction` 前提の readiness を満たした時だけ `処理を開始` を返す
+- `b1`: 受理時に、主カメラ動画、主カメラ `IMU`、人物側 `IMU`、任意 `poses` / `gnss` の充足状況を `SessionPackage` へ要約する
+- `b2`: `Diagnose` は、人物映り込みの十分性、不足入力、品質低下、修正理由を `Thin Status` で返す
+- `b3`: 実行可否 gate は、主カメラ動画、主カメラ `IMU`、人物側 `IMU`、空間再構成前提、経路再構成前提の readiness を満たした時だけ `処理を開始` を返す
 - `b4`: 実行 phase は、`Next Action` を常に `完了を待つ` 1 件に保ち、現在段階を別 line で返す
 - `b5`: `COLMAP.status != READY_FOR_DENSIFICATION` のとき、`3DGS` を開始せず `入力条件を見直す` を返す
-- `b6`: `SpacePackage` は主空間の唯一基準を返し、`GNSS` がない場合は主 `ARCore` local 空間を採用する
-- `b7`: `TrajectoryPackage` は作業機 path、作業員 path、不確実性、再拘束点を同じ `Timeline` 上で返す
-- `b8`: relink は visual match confidence、time gap、anchor proximity、`BT` 主体維持を使って判定し、不成立時は不確実性を上げる
-- `b9`: `Verify` は空間品質と軌跡品質を同時に返し、`Interpret` は `attention point` を時間範囲と理由付きで返す
-- `b10`: `Assembly` は唯一の `ReviewArtifact` 生成者であり、`Viewer` は閲覧専用の消費だけを行う
+- `b6`: `SpacePackage` は、1 台の主カメラ動画から得た主空間基準、主カメラ path、空間品質を返す
+- `b7`: `TrajectoryPackage` は、主カメラ path、人物 path、不確実性、再拘束点を同じ `Timeline` 上で返す
+- `b8`: 人物 path の relink は visual match confidence、time gap、anchor proximity、`BT` 主体維持で判定し、不成立時は不確実性を上げる
+- `b9`: `Verify` は空間品質と経路品質を同時に返し、`Interpret` は同時刻ハイライト候補と `attention point` を返す
+- `b10`: `Assembly` は `3DGS` 操作用情報、経路、同時刻ハイライト情報を束ねた `ReviewArtifact` を唯一生成する
 - `b11`: parser は `bt.jsonl` / `poses.jsonl` と `ble_scan.jsonl` / `arcore_pose.jsonl` の両方を受理する
 - `b12`: `reviework` の docs、build、test、生成物経路は `prj-reviework` 配下で完結し、要約と生の生成物を分離する
 - `b13`: `InputPackaging` は `iSensorium` 生出力に加えて、`input_readiness.json`、`sensor_quality.json`、`frame_pose_index.csv`、`member_identity_map.json` を分担インターフェースとして出力する
@@ -56,37 +54,37 @@
 
 | s-id | b-id | 観点 | 受け入れ基準 |
 | --- | --- | --- | --- |
-| `s1` | `b1`,`b11`,`b13` | 受理契約 | `frames`、`imu`、`bt`、任意 `poses` / `gnss`、追加出力の有無が 1 つの要約として読める |
-| `s2` | `b2` | diagnose UX | `phase`、`pipeline`、`data_health`、`quality`、`issues` の 5 項目で理由が読める |
+| `s1` | `b1`,`b11`,`b13` | 受理契約 | 主カメラ動画、主カメラ `IMU`、人物側 `IMU`、任意 `poses` / `gnss`、追加出力の有無が 1 つの要約として読める |
+| `s2` | `b2` | diagnose UX | 人物映り込みの十分性、不足入力、品質低下、修正理由が `Thin Status` で読める |
 | `s3` | `b3` | 実行可否 gate | readiness 未達時は `処理を開始` を返さず、修正 action を返す |
 | `s4` | `b4` | 実行 UX | `Next Action` は常に 1 件で、現在段階は補足 line に分離される |
-| `s5` | `b5` | パイプライン安全性 | `COLMAP` failure 時に `3DGS` を開始しない |
-| `s6` | `b6` | 空間基準 | `GNSS` がない時でも基準座標と空間品質の説明がある |
-| `s7` | `b7` | 経路契約 | 作業機と作業員の path が同じ時刻軸で比較できる |
-| `s8` | `b8` | relink 不確実性 | 再拘束失敗時に不確実性 mode と理由が更新される |
-| `s9` | `b9` | verify UX | 空間品質と軌跡品質の弱点が同時に読める |
-| `s10` | `b9` | interpret UX | `attention point` に時間範囲と理由が入る |
-| `s11` | `b10` | 成果物境界 | `ReviewArtifact` 生成責務が `Assembly` に限定される |
-| `s12` | `b12`,`b14` | 独立運用 | docs / build / test が project 内で完結し、段階間契約だけで分担着手できる |
+| `s5` | `b5` | パイプライン安全性 | 主空間再構成 failure 時に `3DGS` を開始しない |
+| `s6` | `b6` | 主空間確認 | 主空間基準、主カメラ path、空間品質が読める |
+| `s7` | `b7`,`b8` | 人物経路確認 | 人物 path が主空間へ重ねられ、不確実区間と再拘束点が識別できる |
+| `s8` | `b8` | 不確実性 | 再拘束失敗時に不確実性 mode と理由が更新される |
+| `s9` | `b7`,`b9` | 同時刻比較 | 主カメラ経路と人物経路が同じ時刻軸で比較できる |
+| `s10` | `b9` | ハイライト | 同じ時刻の位置関係と `attention point` に時間範囲と理由が入る |
+| `s11` | `b10` | 閲覧成果物 | `ReviewArtifact` に `3DGS` 操作、経路表示、同時刻ハイライトが含まれる |
+| `s12` | `b12`,`b13`,`b14` | 独立運用 | docs / build / test が project 内で完結し、段階間契約だけで分担着手できる |
 
 ## `MRL` 対応表
 
 | MRL | mRL | 目的 | 関連 s-id | 関連 b-id | 現在 gate |
 | --- | --- | --- | --- | --- | --- |
-| `MRL-1` | `-` | 受理と診断の基礎線を成立させる | `s1`,`s2`,`s3` | `b1`,`b2`,`b3`,`b11`,`b13`,`b14` | `active` |
-| `MRL-1` | `mRL-1.1` | `SessionPackage` 受理契約 | `s1` | `b1`,`b11`,`b13` | `active` |
-| `MRL-1` | `mRL-1.2` | `Thin Status` 診断基線 | `s2` | `b2` | `planned` |
-| `MRL-1` | `mRL-1.3` | 実行可否 gate | `s3` | `b3` | `planned` |
-| `MRL-1` | `mRL-1.4` | 分担インターフェース固定 | `s1`,`s12` | `b13`,`b14` | `active` |
-| `MRL-2` | `-` | 主空間再構成の基礎線を成立させる | `s4`,`s5`,`s6` | `b4`,`b5`,`b6` | `planned` |
-| `MRL-2` | `mRL-2.1` | 主空間基準固定 | `s4`,`s6` | `b4`,`b6` | `planned` |
-| `MRL-2` | `mRL-2.2` | `COLMAP` から `3DGS` への安全 gate | `s5` | `b5` | `planned` |
-| `MRL-2` | `mRL-2.3` | 空間品質要約 | `s6`,`s9` | `b6`,`b9` | `planned` |
-| `MRL-3` | `-` | 経路再構成と解釈の基礎線を成立させる | `s7`,`s8`,`s9`,`s10` | `b7`,`b8`,`b9` | `planned` |
-| `MRL-3` | `mRL-3.1` | `TrajectoryPackage` 契約 | `s7` | `b7` | `planned` |
-| `MRL-3` | `mRL-3.2` | relink と不確実性 | `s8` | `b8` | `planned` |
-| `MRL-3` | `mRL-3.3` | `Verify` / `Interpret` | `s9`,`s10` | `b9` | `planned` |
-| `MRL-4` | `-` | 成果物組立と運用硬化を成立させる | `s11`,`s12` | `b10`,`b12`,`b14` | `active` |
-| `MRL-4` | `mRL-4.1` | `ReviewArtifact` と viewer 境界 | `s11` | `b10` | `planned` |
-| `MRL-4` | `mRL-4.2` | 独立 project 境界 | `s12` | `b12`,`b14` | `active` |
-| `MRL-4` | `mRL-4.3` | 生成物 routing hygiene | `s12` | `b12` | `pass` |
+| `MRL-1` | `-` | 受理と診断の基礎線を成立させる | `s1`,`s2`,`s3` | `b1`,`b2`,`b3`,`b11`,`b13`,`b14` | `pass` |
+| `MRL-1` | `mRL-1.1` | 主入力の受理契約 | `s1` | `b1`,`b11`,`b13` | `pass` |
+| `MRL-1` | `mRL-1.2` | 人物映り込みを含む診断基線 | `s2` | `b2` | `pass` |
+| `MRL-1` | `mRL-1.3` | 実行可否 gate | `s3` | `b3` | `pass` |
+| `MRL-1` | `mRL-1.4` | 分担インターフェース固定 | `s1`,`s12` | `b13`,`b14` | `pass` |
+| `MRL-2` | `-` | 主空間再構成の基礎線を成立させる | `s4`,`s5`,`s6` | `b4`,`b5`,`b6` | `pass` |
+| `MRL-2` | `mRL-2.1` | 主カメラ path と空間基準固定 | `s4`,`s6` | `b4`,`b6` | `pass` |
+| `MRL-2` | `mRL-2.2` | `COLMAP` から `3DGS` への安全 gate | `s5` | `b5` | `pass` |
+| `MRL-2` | `mRL-2.3` | 空間品質要約 | `s6` | `b6` | `pass` |
+| `MRL-3` | `-` | 人物経路再構成と同時刻比較の基礎線を成立させる | `s7`,`s8`,`s9`,`s10` | `b7`,`b8`,`b9` | `pass` |
+| `MRL-3` | `mRL-3.1` | 人物経路の主空間登録 | `s7`,`s9` | `b7` | `pass` |
+| `MRL-3` | `mRL-3.2` | relink と不確実性 | `s7`,`s8` | `b8` | `pass` |
+| `MRL-3` | `mRL-3.3` | 同時刻ハイライトと `attention point` | `s9`,`s10` | `b9` | `pass` |
+| `MRL-4` | `-` | 閲覧成果物と運用硬化を成立させる | `s11`,`s12` | `b10`,`b12`,`b13`,`b14` | `pass` |
+| `MRL-4` | `mRL-4.1` | `ReviewArtifact` と viewer 境界 | `s11` | `b10` | `pass` |
+| `MRL-4` | `mRL-4.2` | 独立 project 境界 | `s12` | `b12`,`b14` | `pass` |
+| `MRL-4` | `mRL-4.3` | 生成物 routing hygiene | `s12` | `b12`,`b13` | `pass` |

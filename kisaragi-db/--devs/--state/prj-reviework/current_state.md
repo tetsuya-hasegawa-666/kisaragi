@@ -7,24 +7,23 @@
 
 ## 現在の重点
 
-- 外部一時文書に残っていた処理構造と UX 概念を `prj-reviework` の正本文書へ吸収した
-- 4 分担作業のための段階間インターフェースと追加出力を正本文書へ明示する
-- `MRL-1` の入口である `SessionPackage` intake summary、`Thin Status`、実行可否 gate を次の実装対象とする
-- `GNSS` は任意入力とし、既定は `GNSS` なしでも成立する設計とする
-- 主 `ARCore` 空間を唯一基準とする `SpacePackage` 契約を基準に進める
+- 現行計画で `planned` だった `MRL` / `mRL` は、契約 test と文書整合で `pass` へ更新した
+- 4 分担作業のための段階間インターフェースと追加出力を正本文書へ明示した
+- Kotlin controller と Python parser により、受理、gate、空間品質、人物経路、同時刻ハイライト、成果物境界の契約を固定した
+- `GNSS` は任意入力とし、既定は `GNSS` なしでも成立する設計を維持する
 
 ## 阻害要因の境界
 
 - `COLMAP` と `3DGS` の実行基盤は未選定である
-- 作業員 path の視覚再拘束に使う実データ条件が未確定である
+- 人物 path の視覚再拘束に使う実データ条件が未確定である
 - `ReviewArtifact` の最終 viewer 実装先は Android 固定ではない
 
 ## 次の確認
 
-1. `InputPackaging` の分担用インターフェース出力を Python parser に追加する
-2. `SessionPackage` intake summary と実行可否 gate の fail する test を追加する
-3. 主 `ARCore` 空間を唯一基準とする `SpacePackage` 契約と `COLMAP` failure return path を定義する
+1. parser と controller の契約評価を実データ読込へ接続する
+2. `3DGS` と viewer の実成果物を `ReviewArtifact` 契約へ接続する
+3. 同時刻ハイライトを実データから自動生成する
 
 ## 2026-03-25 作業所有権
 
-- Codex が `project-truth.md`、`bdd-release-compass.md`、`tdd-test-matrix.md`、`mrl-record.md`、`current_state.md` の再開基線整備を担当する
+- Codex が `project-truth.md`、`bdd-release-compass.md`、`tdd-test-matrix.md`、`mrl-record.md`、`current_state.md` の再開基線整備と `MRL` closeout を担当する

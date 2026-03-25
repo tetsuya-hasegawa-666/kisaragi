@@ -16,3 +16,8 @@
   - decision: 全 project の `bdd-release-compass.md` で `Purpose Story` を `s1` 形式、`System Behaviors` を `b1` 形式とし、受け入れ基準と `MRL` 対応表へ `s-id` と `b-id` を必須記載とする
   - rationale: `コアストーリー`、`user stories`、`terminal behaviors` の表記ゆれを止め、BDD 計画の参照粒度を全 project で統一するため
   - consequence: 以後の `bdd-release-compass.md` は `prj-reviework` を見本として記述し、TDD の `behavior_id` も `b1` 形式へ合わせる
+- 2026-03-25
+  - project: `shared`
+  - decision: `MRL` 作業中は、部分 blocker があっても他に進められる task を継続し、他に何もできない状態になるまで止まらない
+  - rationale: blocker 1 件で停止すると、並行して close できる `mRL`、test、文書整合の消化が遅れるため
+  - consequence: 今後の `MRL` 作業は、blocker の切り分けと並行して進められる task を先に潰す
