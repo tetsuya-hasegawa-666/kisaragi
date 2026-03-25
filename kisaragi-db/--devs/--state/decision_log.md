@@ -7,15 +7,20 @@
 ## entries
 
 - 2026-03-25
-  - project: `prj-reviework`
-  - decision: `reviework_process.md` と `reviework_UX_condept.md` の内容を、外部参照ではなく `prj-reviework` の正本文書へ吸収した
+  - project: `shared`
+  - decision: project 固有 directory 名は `prj-kisaragi_****` 形式を正本とし、`project-name` ではなく immutable な `project-code` を使う
+  - rationale: project 名は将来変更され得る一方、directory、生成物、log、識別 path は変更しない code で安定化した方が全 workspace の整合を保ちやすいため
+  - consequence: `prj-kisaragi_0001` と `prj-kisaragi_0002` を project directory 正本として運用し、参照先も code 基準へ更新する
+- 2026-03-25
+  - project: `prj-kisaragi_0002`
+  - decision: `reviework_process.md` と `reviework_UX_condept.md` の内容を、外部参照ではなく `prj-kisaragi_0002` の正本文書へ吸収した
   - rationale: 再開計画が外部一時文書に依存したままだと、削除後に `MRL` / `mRL` と実装着手の根拠が失われるため
   - consequence: 以後の再開判断は `project-truth.md`、`b2t-plans-result.md`、`mrl-record.md` を正本として行う
 - 2026-03-25
   - project: `shared`
   - decision: 全 project の `b2t-plans-result.md` の BDD 章で `Purpose Story` を `s1` 形式、`System Behaviors` を `b1` 形式とし、受け入れ基準と `MRL` 対応表へ `s-id` と `b-id` を必須記載とする
   - rationale: `コアストーリー`、`user stories`、`terminal behaviors` の表記ゆれを止め、BDD 計画の参照粒度を全 project で統一するため
-  - consequence: 以後の `b2t-plans-result.md` は `prj-reviework` を見本として記述し、TDD の `behavior_id` も `b1` 形式へ合わせる
+  - consequence: 以後の `b2t-plans-result.md` は `prj-kisaragi_0002` を見本として記述し、TDD の `behavior_id` も `b1` 形式へ合わせる
 - 2026-03-25
   - project: `shared`
   - decision: `MRL` 作業中は、部分 blocker があっても他に進められる task を継続し、他に何もできない状態になるまで止まらない
