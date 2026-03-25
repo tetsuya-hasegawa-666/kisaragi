@@ -34,3 +34,16 @@
 
 - 現行 `MRL` 計画は close した。
 - 次段では、pass 済み contract を実データ pipeline と viewer の実利用へ拡張する。
+
+## 2026-03-25 latest exsams output recheck
+
+- 対象:
+  - `run_python_tests.ps1`
+  - `run_android_unit_tests.ps1`
+- 結果:
+  - Python unittest: pass
+  - Android unit test: pass
+- 最新 raw output 確認:
+  - Python: `--exsams/prj-kisaragi_0002/python-pycache/.../test_project_contracts.cpython-314.pyc` と `test_session_parser.cpython-314.pyc` が `2026-03-25 19:12:07` に更新された
+  - Android: `--exsams/prj-kisaragi_0002/gradle-user-home/daemon/8.10.2/registry.bin.lock` などの Gradle raw artifact が `2026-03-25 19:12:08` に更新された
+- 判定: `prj-kisaragi_0002` は、最も最近実施した test の raw data を `--exsams` 側へ出力できる

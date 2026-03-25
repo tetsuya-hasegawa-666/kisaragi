@@ -29,3 +29,17 @@
 
 - `prj-kisaragi_0001` は `C:\Users\tetsuya\kisaragi\kisaragi_0001-launch.cmd` から起動し、`kisaragi` 直下全体を閲覧できる。`db-view` / `prj-view` の basis を切り替えつつ、既定は `prj-view` で起動できる。2026-03-25 時点の automated verification では正常運用継続可能と判断する。
 - raw log と generated artifact は `kisaragi-db/--exsams/prj-kisaragi_0001/logs/` に保持する。
+
+## 2026-03-25 latest exsams output recheck
+
+- 目的: `--exsams/prj-kisaragi_0001/` に、最も最近実施した test の raw data が出力されることを再確認する
+- 実施 command:
+  - `npm test`
+  - `npm run build`
+- 結果:
+  - `npm test`: pass
+  - `npm run build`: pass
+- 最新 raw output:
+  - `C:\Users\tetsuya\kisaragi\kisaragi-db\--exsams\prj-kisaragi_0001\logs\2026-03-25-191156-npm-test.log` at `2026-03-25 19:11:57`
+  - `C:\Users\tetsuya\kisaragi\kisaragi-db\--exsams\prj-kisaragi_0001\logs\2026-03-25-191156-npm-build.log` at `2026-03-25 19:11:59`
+- 判定: 直近 test の raw log が既存 log 群より新しい timestamp で `--exsams` 配下へ出力され、最新 test data の記録先として機能している
