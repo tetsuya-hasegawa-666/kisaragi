@@ -162,6 +162,12 @@ kisaragi-tree/
 - 更新情報は日時、文書名、標題、背景、目的、対処方法、対応内容、更新結果、新旧比較を持つ。
 - `AGENTS.md` の更新履歴は `AGENTSmd-RH.md` を参照する rule とし、この文書末尾には履歴本文を持たず参照だけを置く。
 
+## 共有 directory 統制
+
+- `--` で始まる top category directory は shared structure とし、Codex 判断で新設してはならない。
+- 生成物出力先を rule 外の `--trial-data` のような新規 `--` directory で迂回してはならず、許可済み category のみを使う。
+- 生成物や cache の出力先を変更する時は、既存 shared rule に適合する path へ修正し、rule 外 path を残さない。
+
 ## 実装原則
 
 - terminal behavior は BDD で定義し、user / operator から観測可能な振る舞いで書く。
@@ -224,8 +230,6 @@ kisaragi-tree/
 - 文字化けが疑われる表示は再読込なしに真実とみなさない。
 - build output、generated file、cache、device dump、screen capture、tmp、`__pycache__`、`.pytest_cache`、`*.egg-info` は commit / push しない。
 - stage は原則として明示 path で行う。
-- `--` で始まる top category directory を Codex 判断で新設してはならない。
-- 生成物出力先を rule 外の `--trial-data` のような新規 `--` directory で迂回してはならず、許可済み category のみを使う。
 
 ## Guard
 
