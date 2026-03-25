@@ -36,3 +36,8 @@
   - decision: project 個別の `current_state`、BDD、TDD は `b2t-plans-result.md` 1 file に統合して管理する
   - rationale: `bdd-release-compass.md`、`tdd-test-matrix.md`、project 個別 `current_state.md` の重複が強く、同期漏れが起きやすいため
   - consequence: 以後の project 計画更新は `b2t-plans-result.md` を最優先で更新し、個別 `current_state.md` は原則作らない
+- 2026-03-25
+  - project: `prj-kisaragi_0002`
+  - decision: `trajectreview` は UI mock のまま止めず、`iSensorium` session folder 抽出を app 内へ統合して `MRL-5` として closeout する
+  - rationale: `InputPackaging` は既存 parser 契約だけでは実利用に届かず、現場では app から raw と派生出力を取得できることが再開優先事項になったため
+  - consequence: `MRL-5` では legacy alias intake、`isensorium/` と `trajectreview/` の bundle 分離、quality 数値表示付き UI を実装対象に追加する

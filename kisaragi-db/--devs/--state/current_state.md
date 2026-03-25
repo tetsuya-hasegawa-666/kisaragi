@@ -11,6 +11,7 @@
 - 2026-03-25: 人間承認により、`MRL` 作業を開始したら、blocker があっても他に進められる作業を継続し、他に何もできない状態になるまで止まらない運用を採用する。
 - 2026-03-25: 人間確認により、`planned` は未着手、`active` は着手中、`pass` は `active` 後に完了した gate として扱う。
 - 2026-03-25: 人間承認により、project 個別の `current_state` は `b2t-plans-result.md` の `current_state` 章へ統合して管理する。
+- 2026-03-25: 人間承認により、`prj-kisaragi_0002` は UI mock に `iSensorium` 抽出機能を統合し、`MRL-5` として完了まで継続する。
 
 ## 人間確認待ち
 
@@ -26,3 +27,4 @@
 - `AGENTS.md` の branch 規則と state / decision path 規則の整合を維持する
 - `AGENTS.md` の Guard から未存在 `issue-note.md` 依存を外す
 - tree sync 実行物の起動方法と再生成手順を Windows 運用マニュアルへ追記する
+- `prj-kisaragi_0002` の `MRL-5` として `iSensorium` 抽出統合、bundle 分離、quality 数値表示を closeout する

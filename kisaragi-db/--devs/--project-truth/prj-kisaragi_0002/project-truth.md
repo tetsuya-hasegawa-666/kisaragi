@@ -41,9 +41,9 @@
 
 ### Intake
 
-- 目的: 主カメラ動画と `IMU`、人物側 `IMU` を受け取り、単一セッションとして受理する
-- 主表示: データフォルダを選択
-- 状態表示: frame 数、必須入力の充足、欠落有無
+- 目的: `iSensorium` session folder から主カメラ動画と `IMU`、人物側 `IMU` を抽出し、単一セッションとして受理する
+- 主表示: `iSensorium セッションを選択`
+- 状態表示: 選択元、抽出先、frame 数、必須入力の充足、欠落有無、時刻整列指標
 
 ### Diagnose
 
@@ -73,8 +73,8 @@
 
 ### 第 1 段階: `InputPackaging`
 
-- 責務: 主カメラ動画、主カメラ `IMU`、人物側 `IMU` を単一セッション入力へ正規化する
-- 主な処理: frame 抽出、`ARCore` pose 整理、`IMU` 整理、`BT` 整理、時刻整列、品質フラグ付与
+- 責務: `iSensorium` app data から主カメラ動画、主カメラ `IMU`、人物側 `IMU` を抽出し、単一セッション入力へ正規化する
+- 主な処理: session folder 選択、raw file 抽出、frame 抽出、`ARCore` pose 整理、`IMU` 整理、`BT` 整理、時刻整列、品質フラグ付与
 - 出力: `SessionPackage`
 
 ### 第 2 段階: `SpaceReconstruction`
@@ -99,7 +99,7 @@
 
 ### 分担 1: `InputPackaging`
 
-- 担当: `iSensorium` 由来入力の受理、整形、時刻整列、入力診断
+- 担当: `iSensorium` 由来入力の抽出、受理、整形、時刻整列、入力診断
 - 次段へ渡すもの:
   - `SessionPackage`
   - `input_readiness.json`
@@ -110,6 +110,7 @@
   - 主カメラ動画、主カメラ `IMU`、人物側 `IMU` の充足が判定済みである
   - 主体、端末、時刻基準の対応が追える
   - `iSensorium` 生出力と `trajectreview` 派生出力が分離されている
+  - app 内で抽出元と抽出先が追える
 
 ### 分担 2: `SpaceReconstruction`
 
@@ -216,17 +217,25 @@
 - `gnss.csv`
 - `bt.jsonl` または `ble_scan.jsonl`
 - `poses.jsonl` または `arcore_pose.jsonl`
+- legacy alias として `bt_events.csv`、`arcore_pose.csv` も受理対象に含める
 
 ### `trajectreview` で追加生成する出力
 
 - `input_readiness.json`: 必須入力、任意入力、次 action 判定
-- `sensor_quality.json`: stream ごとの品質低下と診断理由
+- `sensor_quality.json`: stream ごとの品質低下と診断理由、時刻整列 delta、completeness score、pose coverage ratio
 - `frame_pose_index.csv`: frame と pose の対応表
 - `member_identity_map.json`: 端末、主体、`BT` の対応表
 - `space_quality.json`: 主空間品質と coverage の要約
 - `trajectory_quality.json`: 経路品質と不確実区間の要約
 - `attention_seed.json`: `attention point` 候補の種
 - `same_time_highlights.json`: 同じ時刻の位置関係を強調表示するための候補
+
+## 抽出 bundle layout
+
+- `InputPackaging` の app 抽出結果は `session_id/isensorium/` と `session_id/trajectreview/` に分離する
+- `isensorium/` には source 側の raw file を保持する
+- `trajectreview/` には readiness、quality、frame-pose 対応、identity map を保持する
+- app UI は抽出元、抽出先、`ready_for_diagnose`、欠落入力、主要数値を表示できる
 
 ## `GNSS` なし前提の成立条件
 

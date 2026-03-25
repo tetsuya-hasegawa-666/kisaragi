@@ -17,22 +17,24 @@
 - 4 分担作業のための段階間インターフェースと追加出力を正本文書へ明示した
 - Kotlin controller と Python parser により、受理、gate、空間品質、人物経路、同時刻ハイライト、成果物境界の契約を固定した
 - `GNSS` は任意入力とし、既定は `GNSS` なしでも成立する設計を維持する
+- 次段では `iSensorium` session folder 抽出を app へ統合し、raw + 追加出力を `trajectreview` から生成可能にする
 
 ### 阻害要因の境界
 
 - `COLMAP` と `3DGS` の実行基盤は未選定である
 - 人物 path の視覚再拘束に使う実データ条件が未確定である
 - `ReviewArtifact` の最終 viewer 実装先は Android 固定ではない
+- `iSensorium` app data の配置差分は実機ごとの差を吸収する必要がある
 
 ### 次の確認
 
-1. parser と controller の契約評価を実データ読込へ接続する
-2. `3DGS` と viewer の実成果物を `ReviewArtifact` 契約へ接続する
-3. 同時刻ハイライトを実データから自動生成する
+1. `iSensorium` session folder 抽出を app に接続する
+2. parser と controller の契約評価を実データ読込へ接続する
+3. `3DGS` と viewer の実成果物を `ReviewArtifact` 契約へ接続する
 
 ### 作業所有権
 
-- Codex が `project-truth.md`、`b2t-plans-result.md`、`mrl-record.md` の再開基線整備と `MRL` 継続作業を担当する
+- Codex が `project-truth.md`、`b2t-plans-result.md`、`mrl-record.md` の再開基線整備、`MRL-5` 抽出統合作業、以後の `MRL` 継続作業を担当する
 
 ## BDD
 
@@ -68,6 +70,9 @@
 - `s10`: 利用者は、同じ時刻の位置関係をハイライトし、注視すべき区間を絞り込める
 - `s11`: 利用者は、生成済み `ReviewArtifact` を viewer で操作し、空間と経路をレビューできる
 - `s12`: 運用者は、4 分担の境界と出力契約だけで実装と運用を継続できる
+- `s13`: 利用者は、`trajectreview` から `iSensorium` session folder を選択し、抽出結果をその場で得られる
+- `s14`: 利用者は、抽出後に時刻整列とデータ確からしさを数値で確認できる
+- `s15`: 運用者は、抽出 bundle を見れば raw と `trajectreview` 派生出力の境界を追える
 
 ### System Behaviors
 
@@ -85,6 +90,10 @@
 - `b12`: `trajectreview` の docs、build、test、生成物経路は `prj-kisaragi_0002` 配下で完結し、要約と生の生成物を分離する
 - `b13`: `InputPackaging` は `iSensorium` 生出力に加えて、`input_readiness.json`、`sensor_quality.json`、`frame_pose_index.csv`、`member_identity_map.json` を分担インターフェースとして出力する
 - `b14`: 4 分担の各段階は、前段の出力契約だけを読めば次段へ着手できる
+- `b15`: `InputPackaging` app は `iSensorium` session folder を選択し、`session_manifest.json`、`video_frame_timestamps.csv`、`imu.csv`、`bt.jsonl` / `ble_scan.jsonl` / `bt_events.csv`、`poses.jsonl` / `arcore_pose.jsonl` / `arcore_pose.csv` を読める
+- `b16`: extractor は raw file を `isensorium/`、派生 file を `trajectreview/` に分離して app export dir へ出力する
+- `b17`: extractor は `sensor_quality.json` に時刻整列 delta、completeness score、pose coverage ratio を含める
+- `b18`: Android UI は抽出元、抽出先、`ready_for_diagnose`、欠落入力、主要 quality 数値を 1 画面で返す
 
 ### 受け入れ基準
 
@@ -102,6 +111,9 @@
 | `s10` | `b9` | ハイライト | 同じ時刻の位置関係と `attention point` に時間範囲と理由が入る |
 | `s11` | `b10` | 閲覧成果物 | `ReviewArtifact` に `3DGS` 操作、経路表示、同時刻ハイライトが含まれる |
 | `s12` | `b12`,`b13`,`b14` | 独立運用 | docs / build / test が project 内で完結し、段階間契約だけで分担着手できる |
+| `s13` | `b15`,`b16`,`b18` | app 抽出 | `trajectreview` から `iSensorium` session folder を選択し、抽出 bundle を生成できる |
+| `s14` | `b13`,`b17`,`b18` | quality 数値 | 時刻整列 delta、completeness score、pose coverage ratio、欠落入力が抽出直後に確認できる |
+| `s15` | `b16` | bundle 境界 | `isensorium/` と `trajectreview/` が分離され、raw と派生出力を誤読しない |
 
 ### `MRL` 対応表
 
@@ -124,6 +136,10 @@
 | `MRL-4` | `mRL-4.1` | `ReviewArtifact` と viewer 境界 | `s11` | `b10` | `pass` |
 | `MRL-4` | `mRL-4.2` | 独立 project 境界 | `s12` | `b12`,`b14` | `pass` |
 | `MRL-4` | `mRL-4.3` | 生成物 routing hygiene | `s12` | `b12`,`b13` | `pass` |
+| `MRL-5` | `-` | `iSensorium` 抽出統合を成立させる | `s13`,`s14`,`s15` | `b15`,`b16`,`b17`,`b18` | `active` |
+| `MRL-5` | `mRL-5.1` | legacy alias を含む session source 読込 | `s13` | `b15` | `active` |
+| `MRL-5` | `mRL-5.2` | raw / derived 分離 export | `s13`,`s15` | `b16` | `planned` |
+| `MRL-5` | `mRL-5.3` | quality 数値表示付き app UI | `s13`,`s14` | `b17`,`b18` | `planned` |
 
 ## TDD
 
@@ -151,6 +167,10 @@
 | `T14` | `b12` | output routing hygiene | Android build cache と raw test report が `--exsams`、summary が `--testlogs` に分離される | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/scripts/run_android_unit_tests.ps1` |
 | `T15` | `b13` | `InputPackaging` interface manifest | `iSensorium` 生出力に加え、受理判定、品質、frame-pose 対応、主体対応表が JSON と CSV の契約で出力される | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_session_parser.py` |
 | `T16` | `b14` | stage handoff contract | 4 分担の各段階で入力、出力、受け渡し条件が文書と実装の両方で読める | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_project_contracts.py` |
+| `T17` | `b15` | session source alias intake | `bt.jsonl` / `ble_scan.jsonl` / `bt_events.csv` と `poses.jsonl` / `arcore_pose.jsonl` / `arcore_pose.csv` を 1 抽出器で読める | active | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_session_parser.py` |
+| `T18` | `b16` | raw / derived export bundle | app 抽出が `isensorium/` と `trajectreview/` を分離した bundle を出力する | planned | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ISensoriumExtractionServiceTest.kt` |
+| `T19` | `b17` | quality 指標 export | `sensor_quality.json` に時刻整列 delta、completeness score、pose coverage ratio が入る | planned | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ISensoriumExtractionServiceTest.kt` |
+| `T20` | `b18` | extraction UI summary | Android UI が抽出元、抽出先、`ready_for_diagnose`、欠落入力、quality 数値を表示できる | planned | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt` |
 
 ### 実行方針
 
@@ -159,9 +179,10 @@
 - `MRL-2` では `T5`、`T6`、`T7` を使って主空間基準と安全 gate を固めた
 - `MRL-3` では `T8` から `T11` で人物経路、relink、不確実性、同時刻ハイライト、`attention point` を固めた
 - `MRL-4` では `T12` から `T14` で成果物境界と運用 hygiene を固めた
+- `MRL-5` では `T17` から `T20` で `iSensorium` 抽出統合、legacy alias intake、bundle 分離、quality 数値表示を固める
 
 ### 現在の見立て
 
 - `T1` から `T16` は、契約実装、project 境界 scan、output routing 実行で `pass` になった
 - Python unittest、Android unit test、PowerShell script 実行により、入口契約から成果物 routing までの計画範囲を固定した
-- 次の主作業は、pass した contract を実データ pipeline と viewer の実利用へ拡張することになる
+- `MRL-5` を追加し、`trajectreview` 自身から `iSensorium` raw + 追加出力を生成できる状態へ拡張する
