@@ -106,6 +106,8 @@
   - `sensor_quality.json`
   - `frame_pose_index.csv`
   - `member_identity_map.json`
+  - `session_package.json`
+  - `space_handoff_manifest.json`
 - 受け渡し条件:
   - 主カメラ動画、主カメラ `IMU`、人物側 `IMU` の充足が判定済みである
   - 主体、端末、時刻基準の対応が追える
@@ -117,6 +119,8 @@
 - 担当: 主空間再構成、空間基準固定、`COLMAP` / `3DGS` 連携
 - 前段から受け取るもの:
   - `SessionPackage`
+  - `session_package.json`
+  - `space_handoff_manifest.json`
   - `input_readiness.json`
   - `sensor_quality.json`
   - `frame_pose_index.csv`
@@ -228,6 +232,8 @@
 - `sensor_quality.json`: stream ごとの品質低下と診断理由、時刻整列 delta、completeness score、pose coverage ratio
 - `frame_pose_index.csv`: frame と pose の対応表
 - `member_identity_map.json`: 端末、主体、`BT` の対応表
+- `session_package.json`: 後段へ渡すための正規化済み `SessionPackage` 実体
+- `space_handoff_manifest.json`: `SpaceReconstruction` 着手可否、blocker、利用 artifact の要約
 - `space_quality.json`: 主空間品質と coverage の要約
 - `trajectory_quality.json`: 経路品質と不確実区間の要約
 - `attention_seed.json`: `attention point` 候補の種
@@ -237,8 +243,8 @@
 
 - `InputPackaging` の app 抽出結果は `session_id/isensorium/` と `session_id/trajectreview/` に分離する
 - `isensorium/` には source 側の raw file を保持する
-- `trajectreview/` には readiness、quality、frame-pose 対応、identity map を保持する
-- app UI は抽出元、抽出先、`ready_for_diagnose`、欠落入力、主要数値を表示できる
+- `trajectreview/` には readiness、quality、frame-pose 対応、identity map、`session_package.json`、`space_handoff_manifest.json` を保持する
+- app UI は抽出元、抽出先、`ready_for_diagnose`、`ready_for_space_reconstruction`、欠落入力、主要数値を表示できる
 - app は session folder 直下だけでなく、manifest を持つ 1 段下の child directory も抽出対象として受理する
 
 ## `GNSS` なし前提の成立条件

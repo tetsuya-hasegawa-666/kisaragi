@@ -18,6 +18,7 @@
 - Kotlin controller と Python parser により、受理、gate、空間品質、人物経路、同時刻ハイライト、成果物境界の契約を固定した
 - `GNSS` は任意入力とし、既定は `GNSS` なしでも成立する設計を維持する
 - `MRL-5` として `iSensorium` session folder 抽出を app へ統合し、raw + 追加出力を `trajectreview` から生成可能にした
+- `MRL-6` として `session_package.json`、`space_handoff_manifest.json`、`video.mp4` を含む後段 handoff 加工を計画し、`SpaceReconstruction` 着手単位を追加する
 
 ### 阻害要因の境界
 
@@ -28,7 +29,7 @@
 
 ### 次の確認
 
-1. 抽出した bundle を後段の実空間再構成へ接続する
+1. `space_handoff_manifest.json` を実 `SpaceReconstruction` engine の入口へ接続する
 2. `3DGS` と viewer の実成果物を `ReviewArtifact` 契約へ接続する
 3. 同時刻ハイライトを実データから自動生成する
 
@@ -73,6 +74,7 @@
 - `s13`: 利用者は、`trajectreview` から `iSensorium` session folder を選択し、抽出結果をその場で得られる
 - `s14`: 利用者は、抽出後に時刻整列とデータ確からしさを数値で確認できる
 - `s15`: 運用者は、抽出 bundle を見れば raw と `trajectreview` 派生出力の境界を追える
+- `s16`: 運用者は、抽出直後の bundle だけで `SpaceReconstruction` 着手可否と blocker を判断できる
 
 ### System Behaviors
 
@@ -94,6 +96,10 @@
 - `b16`: extractor は raw file を `isensorium/`、派生 file を `trajectreview/` に分離して app export dir へ出力する
 - `b17`: extractor は `sensor_quality.json` に時刻整列 delta、completeness score、pose coverage ratio を含める
 - `b18`: Android UI は抽出元、抽出先、`ready_for_diagnose`、欠落入力、主要 quality 数値を 1 画面で返す
+- `b19`: extractor は `video.mp4` と `video_events.jsonl` を含む raw bundle を維持し、後段が主カメラ動画を再利用できる
+- `b20`: extractor は `session_package.json` に source file、timebase、stream count、quality 指標、required / optional input を正規化して出力する
+- `b21`: extractor は `space_handoff_manifest.json` に `ready_for_space_reconstruction`、blocker、利用 artifact、次 action を出力する
+- `b22`: Android UI は `ready_for_space_reconstruction` と blocker を抽出結果画面で返す
 
 ### 受け入れ基準
 
@@ -114,6 +120,7 @@
 | `s13` | `b15`,`b16`,`b18` | app 抽出 | `trajectreview` から `iSensorium` session folder を選択し、抽出 bundle を生成できる |
 | `s14` | `b13`,`b17`,`b18` | quality 数値 | 時刻整列 delta、completeness score、pose coverage ratio、欠落入力が抽出直後に確認できる |
 | `s15` | `b16` | bundle 境界 | `isensorium/` と `trajectreview/` が分離され、raw と派生出力を誤読しない |
+| `s16` | `b19`,`b20`,`b21`,`b22` | 後段 handoff | `video.mp4` を含む raw bundle と `session_package.json` / `space_handoff_manifest.json` だけで `SpaceReconstruction` 着手可否と blocker を判断できる |
 
 ### `MRL` 対応表
 
@@ -140,6 +147,10 @@
 | `MRL-5` | `mRL-5.1` | legacy alias を含む session source 読込 | `s13` | `b15` | `pass` |
 | `MRL-5` | `mRL-5.2` | raw / derived 分離 export | `s13`,`s15` | `b16` | `pass` |
 | `MRL-5` | `mRL-5.3` | quality 数値表示付き app UI | `s13`,`s14` | `b17`,`b18` | `pass` |
+| `MRL-6` | `-` | 後段 handoff 加工を成立させる | `s16` | `b19`,`b20`,`b21`,`b22` | `active` |
+| `MRL-6` | `mRL-6.1` | 主カメラ動画を含む raw bundle 維持 | `s16` | `b19` | `planned` |
+| `MRL-6` | `mRL-6.2` | `session_package.json` 正規化 | `s16` | `b20` | `planned` |
+| `MRL-6` | `mRL-6.3` | `space_handoff_manifest.json` と UI gate | `s16` | `b21`,`b22` | `planned` |
 
 ## TDD
 
@@ -171,6 +182,9 @@
 | `T18` | `b16` | raw / derived export bundle | app 抽出が `isensorium/` と `trajectreview/` を分離した bundle を出力する | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ISensoriumExtractionServiceTest.kt` |
 | `T19` | `b17` | quality 指標 export | `sensor_quality.json` に時刻整列 delta、completeness score、pose coverage ratio が入る | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ISensoriumExtractionServiceTest.kt` |
 | `T20` | `b18` | extraction UI summary | Android UI が抽出元、抽出先、`ready_for_diagnose`、欠落入力、quality 数値を表示できる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/MainActivity.kt` |
+| `T21` | `b19` | video raw bundle export | app 抽出が `video.mp4` と `video_events.jsonl` を raw bundle に保持する | planned | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ISensoriumExtractionServiceTest.kt` |
+| `T22` | `b20`,`b21` | normalized handoff payload | Python parser と Android extractor が `session_package.json` と `space_handoff_manifest.json` を同じ契約で生成する | planned | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_session_parser.py` |
+| `T23` | `b22` | space reconstruction gate summary UI | Android UI が `ready_for_space_reconstruction` と blocker を結果画面で返す | planned | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/MainActivity.kt` |
 
 ### 実行方針
 
@@ -180,9 +194,11 @@
 - `MRL-3` では `T8` から `T11` で人物経路、relink、不確実性、同時刻ハイライト、`attention point` を固めた
 - `MRL-4` では `T12` から `T14` で成果物境界と運用 hygiene を固めた
 - `MRL-5` では `T17` から `T20` で `iSensorium` 抽出統合、legacy alias intake、bundle 分離、quality 数値表示を固める
+- `MRL-6` では `T21` から `T23` で raw video 維持、`SessionPackage` 正規化、`SpaceReconstruction` handoff gate を固める
 
 ### 現在の見立て
 
 - `T1` から `T16` は、契約実装、project 境界 scan、output routing 実行で `pass` になった
 - Python unittest、Android unit test、PowerShell script 実行により、入口契約から成果物 routing までの計画範囲を固定した
 - `T17` から `T20` も `pass` になり、`trajectreview` 自身から `iSensorium` raw + 追加出力を生成できる状態へ拡張した
+- 次段は `T21` から `T23` で `video.mp4` を含む raw bundle と `session_package.json` / `space_handoff_manifest.json` を後段 handoff 単位として生成できる状態へ拡張する

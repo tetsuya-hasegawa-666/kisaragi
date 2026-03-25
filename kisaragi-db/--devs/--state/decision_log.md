@@ -56,3 +56,8 @@
   - decision: `kisaragi` 側 mirror は比較用 app として `applicationId = com.kisaragi.isensorium`、表示名 `kisaragi-iSensorium` で install する
   - rationale: 本来の `iSensorium` を端末から消さずに、同じ `Xperia 5 III` 上で挙動比較したい要求があるため
   - consequence: 以後の比較検証は source app と `kisaragi-iSensorium` を同居させて実施できる
+- 2026-03-25
+  - project: `prj-kisaragi_0002`
+  - decision: `MRL-6` では `InputPackaging` の抽象 `SessionPackage` を concrete artifact の `session_package.json` と `space_handoff_manifest.json` へ落とし、`video.mp4` を raw bundle に保持する
+  - rationale: 抽出後の bundle を後段へ渡すには、主カメラ動画と stage-2 gate を同じ export 単位へ含める必要があるため
+  - consequence: `SpaceReconstruction` は `trajectreview/` 配下の handoff artifact だけで着手可否を判定できる
