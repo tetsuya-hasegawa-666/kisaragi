@@ -24,6 +24,7 @@ class MainActivity : AppCompatActivity() {
     private var routeTransitionInProgress: Boolean = false
     private var runtimeIssue: RecordingIssue? = null
     private var configurationIssue: RecordingIssue? = null
+    private val isCorrectingApp: Boolean by lazy { packageName == "com.reviework.correcting" }
 
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
@@ -100,6 +101,7 @@ class MainActivity : AppCompatActivity() {
         renderState(mainScreenController.buildInitialStatus())
         refreshConfigurationState()
         ensurePermissionsAndStartPreview()
+        binding.recordButton.text = startRecordingButtonText()
     }
 
     override fun onDestroy() {
@@ -186,7 +188,7 @@ class MainActivity : AppCompatActivity() {
             currentSession = state.session
             runtimeIssue = state.issue
             binding.recordButton.text =
-                if (state.recording) getString(R.string.stop_recording) else getString(R.string.start_recording)
+                if (state.recording) stopRecordingButtonText() else startRecordingButtonText()
             binding.bleSwitch.isEnabled = !state.recording
             binding.arcoreSwitch.isEnabled = !state.recording
             setInputsEnabled(!state.recording)
@@ -330,4 +332,18 @@ class MainActivity : AppCompatActivity() {
 
         private val allRequestedPermissions = requiredPermissions + optionalPermissions
     }
+
+    private fun startRecordingButtonText(): String =
+        if (isCorrectingApp) {
+            "現場撮影データ保存を開始"
+        } else {
+            getString(R.string.start_recording)
+        }
+
+    private fun stopRecordingButtonText(): String =
+        if (isCorrectingApp) {
+            "現場撮影データ保存を停止"
+        } else {
+            getString(R.string.stop_recording)
+        }
 }

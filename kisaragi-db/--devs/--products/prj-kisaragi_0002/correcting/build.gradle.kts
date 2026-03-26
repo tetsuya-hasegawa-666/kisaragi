@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.reviework.app"
+    namespace = "com.isensorium.app"
     compileSdk = 35
 
     defaultConfig {
@@ -13,9 +13,8 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
-        buildConfigField("String", "APP_MODE", "\"correcting\"")
-        buildConfigField("String", "APP_ROLE_LABEL", "\"入力補正 app\"")
-        buildConfigField("String", "APP_SCOPE_SUMMARY", "\"取得、抽出、データ検証、補正判断を担当します。\"")
+        buildConfigField("String", "CAMERA_STACK_ROUTE", "\"frozen_camerax_arcore\"")
+        buildConfigField("boolean", "CORECAMERA_RUNTIME_ENABLED", "true")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -46,8 +45,11 @@ android {
     sourceSets {
         getByName("main") {
             manifest.srcFile("src/main/AndroidManifest.xml")
-            java.srcDirs("../app/src/main/java")
-            res.srcDirs("../app/src/main/res")
+            java.srcDirs("../reference_isensorium_verified_20260325/app/src/main/java")
+            res.srcDirs("src/main/res", "../reference_isensorium_verified_20260325/app/src/main/res")
+        }
+        getByName("test") {
+            java.srcDirs("../../../../--testcode/prj-kisaragi_0002/reference_isensorium_verified_20260325/android-test/java")
         }
     }
 }
@@ -55,8 +57,19 @@ android {
 dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("androidx.documentfile:documentfile:1.0.1")
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.constraintlayout:constraintlayout:2.2.1")
-    implementation("org.json:json:20240303")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+
+    val cameraxVersion = "1.4.1"
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-video:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("com.google.ar:core:1.52.0")
+
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
 }

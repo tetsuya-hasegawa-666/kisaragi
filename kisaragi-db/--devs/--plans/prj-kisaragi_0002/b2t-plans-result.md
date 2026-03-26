@@ -21,6 +21,7 @@
 - `MRL-6` として `session_package.json`、`space_handoff_manifest.json`、`video.mp4` を含む後段 handoff 加工を追加し、`SpaceReconstruction` 着手単位を `pass` にした
 - 次段では、1 project / 4 app 構成として `trajectreview-correcting`、`trajectreview-modeling`、`trajectreview-reviewing`、統合 app を並立させ、作業境界と手戻り分析を明確化する
 - `MRL-8` では、mock ではなく抽出 bundle と modeling 結果を各 app が実際に読み、`modeling` は `Colab` 本処理前の軽量 local sample と handoff request を生成する実装まで `pass` にした
+- `trajectreview-correcting` は folder 選択 UI ではなく、現場撮影データ保存を開始する記録画面を持つ
 
 ### 阻害要因の境界
 
@@ -109,7 +110,7 @@
 - `b21`: extractor は `space_handoff_manifest.json` に `ready_for_space_reconstruction`、blocker、利用 artifact、次 action を出力する
 - `b22`: Android UI は `ready_for_space_reconstruction` と blocker を抽出結果画面で返す
 - `b23`: Android project は `trajectreview-correcting`、`trajectreview-modeling`、`trajectreview-reviewing`、統合 app の 4 app module を持ち、共通 source を再利用する
-- `b24`: `trajectreview-correcting` は intake / diagnose / correction に必要な画面と文言だけを主表示にする
+- `b24`: `trajectreview-correcting` は現場記録、intake / diagnose / correction に必要な画面と文言だけを主表示にする
 - `b25`: `trajectreview-modeling` は `SpaceReconstruction` と `TrajectoryReconstruction` に必要な gate、handoff、進行表示を主表示にする
 - `b26`: `trajectreview-reviewing` は verify / review / same-time highlight を主表示にし、統合 app は全 workflow を束ねる
 - `b27`: correcting、modeling、reviewing、統合 app は、選択した実 bundle から `ReviewContractSnapshot` を再構成し、mock 固定状態に依存しない

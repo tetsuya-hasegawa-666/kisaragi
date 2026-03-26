@@ -103,8 +103,8 @@
 ### `trajectreview-correcting`
 
 - 対象段階: `InputPackaging`
-- 主責務: 取得、抽出、入力補正、診断、後段 handoff 判定
-- 実データ基準: 選択した入力セッション folder から `trajectreview_export/<session_id>/` を生成し、その bundle を再読込して状態を表示する
+- 主責務: 現場記録、取得条件設定、source session 保存、入力補正の起点作成
+- 実データ基準: `trajectreview-correcting` 自体が camera / IMU / GNSS / BLE / ARCore 記録画面を持ち、source session を端末内へ保存する
 
 ### `trajectreview-modeling`
 
@@ -128,7 +128,7 @@
 
 ### 分担 1: `InputPackaging`
 
-- 担当: 取得元入力の抽出、受理、整形、時刻整列、入力診断
+- 担当: 現場記録、source session 生成、取得元入力の抽出、受理、整形、時刻整列、入力診断
 - 次段へ渡すもの:
   - `SessionPackage`
   - `input_readiness.json`
@@ -138,6 +138,7 @@
   - `session_package.json`
   - `space_handoff_manifest.json`
 - 受け渡し条件:
+  - `trajectreview-correcting` で source session が保存済みである
   - 主カメラ動画、主カメラ `IMU`、人物側 `IMU` の充足が判定済みである
   - 主体、端末、時刻基準の対応が追える
   - 取得元 raw と `trajectreview` 派生出力が分離されている

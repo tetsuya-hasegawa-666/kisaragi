@@ -14,11 +14,11 @@
 ## 操作手順
 
 1. Android 端末で app `trajectreview-correcting` を起動する。
-2. `取得元を選択` を押し、取得元の session folder を選ぶ。
-3. `保存先を選択` を押し、抽出結果を書き出す folder を選ぶ。
-4. `抽出を実行` を押し、`trajectreview_export/<session_id>`、`診断進行可`、`空間再構成進行可`、`充足率`、`pose 対応率` が見えることを確認する。
+2. camera preview、記録モード、`現場撮影データ保存を開始` button が見えることを確認する。
+3. `現場撮影データ保存を開始` を押し、preview が維持されたまま記録中表示へ切り替わることを確認する。
+4. `現場撮影データ保存を停止` を押し、session summary が更新されることを確認する。
 5. Android 端末で app `trajectreview-modeling` を起動する。
-6. `bundle を選択` を押し、手順 4 で作られた `trajectreview_export/<session_id>` folder を選ぶ。
+6. `bundle を選択` を押し、統合 app などで作られた `trajectreview_export/<session_id>` folder を選ぶ。
 7. `軽量 model を実行` を押し、`spaceQuality`、`trajectoryQuality`、`colab_job_request.json` を含む出力一覧が見えることを確認する。
 8. Android 端末で app `trajectreview-reviewing` を起動する。
 9. `結果 folder を選択` を押し、同じ `trajectreview_export/<session_id>` folder を選ぶ。
@@ -32,13 +32,15 @@
 
 - pass:
   - 4 app が起動する。
-  - `correcting` で `trajectreview_export/<session_id>` と quality 数値が出る。
+  - `correcting` で camera preview と `現場撮影データ保存を開始` が出る。
+  - `correcting` で記録開始と停止ができ、session summary が更新される。
   - `modeling` で `colab_job_request.json` を含む modeling 結果が出る。
   - `reviewing` で `verify` または `review` 状態と `Attention` が出る。
   - 統合 app で `抽出` と `軽量 model` の両方が動き、`前へ` と `次へ` でも落ちない。
 - fail:
   - いずれかの app が起動しない。
-  - `correcting` で bundle 名や quality 数値が出ない。
+  - `correcting` で camera preview や記録開始 button が出ない。
+  - `correcting` で記録開始または停止ができない。
   - `modeling` で `colab_job_request.json` を含む結果が出ない。
   - `reviewing` で状態要約や `Attention` が出ない。
   - button を押すと落ちる、固まる、表示が大きく崩れる。
