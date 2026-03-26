@@ -279,6 +279,35 @@
                     android:layout_marginTop="8dp"
                     android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
 
+                <TextView
+                    android:id="@+id/transferHeaderText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="PC 転送"
+                    android:textAppearance="@style/TextAppearance.Material3.TitleSmall" />
+
+                <TextView
+                    android:id="@+id/transferText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/transferDiscoveryButton"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="PC 候補を検索" />
+
+                <Spinner
+                    android:id="@+id/transferTargetSpinner"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp" />
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -306,6 +335,14 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
                         android:text="data-check を実行" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/transferButton"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="PC 転送を実行" />
                 </LinearLayout>
             </LinearLayout>
         </ScrollView>

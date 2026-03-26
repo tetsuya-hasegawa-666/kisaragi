@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.SystemClock
 import android.view.View
+import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,7 +28,14 @@ class MainActivity : AppCompatActivity() {
     private var configurationIssue: RecordingIssue? = null
     private val isCorrectingApp: Boolean by lazy { packageName == "com.reviework.correcting" }
     private val correctingDataCheckService by lazy { CorrectingDataCheckService() }
+    private val pcTransferService by lazy { PcTransferService() }
     private var dataCheckInProgress: Boolean = false
+    private var transferInProgress: Boolean = false
+    private var latestDataCheckResult: CorrectingDataCheckResult? = null
+    private var checkedSessionId: String? = null
+    private var successfulDataCheckCount: Int = 0
+    private var discoveredTargets: List<PcTransferTarget> = emptyList()
+    private var selectedTarget: PcTransferTarget? = null
 
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
@@ -70,6 +78,25 @@ class MainActivity : AppCompatActivity() {
             currentSession?.let { runCorrectingDataCheck(it, false) }
                 ?: Toast.makeText(this, "先に現場撮影データ保存を実行してください", Toast.LENGTH_SHORT).show()
         }
+        binding.transferButton.setOnClickListener {
+            currentSession?.let { runPcTransfer(it) }
+                ?: Toast.makeText(this, "先に現場撮影データ保存を実行してください", Toast.LENGTH_SHORT).show()
+        }
+        binding.transferDiscoveryButton.setOnClickListener {
+            discoverPcTargets()
+        }
+        binding.transferTargetSpinner.onItemSelectedListener =
+            object : android.widget.AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
+                    selectedTarget = discoveredTargets.getOrNull(position)
+                    renderTransferState(null)
+                }
+
+                override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {
+                    selectedTarget = null
+                    renderTransferState(null)
+                }
+            }
         binding.recordingModeGroup.setOnCheckedChangeListener { _, _ ->
             if (!recordingCoordinator.isRecording()) {
                 refreshConfigurationState()
@@ -110,6 +137,7 @@ class MainActivity : AppCompatActivity() {
         ensurePermissionsAndStartPreview()
         binding.recordButton.text = startRecordingButtonText()
         renderCorrectingDataCheck(null)
+        renderTransferState(null)
     }
 
     override fun onDestroy() {
@@ -195,6 +223,14 @@ class MainActivity : AppCompatActivity() {
         runOnUiThread {
             currentSession = state.session
             runtimeIssue = state.issue
+            if (state.session?.sessionId != checkedSessionId) {
+                checkedSessionId = state.session?.sessionId
+                latestDataCheckResult = null
+                successfulDataCheckCount = 0
+                discoveredTargets = emptyList()
+                selectedTarget = null
+                renderTransferState(null)
+            }
             binding.recordButton.text =
                 if (state.recording) stopRecordingButtonText() else startRecordingButtonText()
             binding.bleSwitch.isEnabled = !state.recording
@@ -340,6 +376,7 @@ class MainActivity : AppCompatActivity() {
         binding.sessionText.text = presentation.summaryText
         binding.filesText.text = presentation.filesText
         binding.dataCheckButton.isEnabled = !dataCheckInProgress
+        binding.transferButton.isEnabled = !transferInProgress && successfulDataCheckCount > 0 && selectedTarget != null
     }
 
     private fun runCorrectingDataCheck(session: RecordingSession, autoTriggered: Boolean) {
@@ -355,11 +392,16 @@ class MainActivity : AppCompatActivity() {
                 dataCheckInProgress = false
                 binding.dataCheckButton.isEnabled = true
                 result.onSuccess {
+                    checkedSessionId = session.sessionId
+                    latestDataCheckResult = it
+                    successfulDataCheckCount += 1
                     renderCorrectingDataCheck(it)
+                    renderTransferState(null)
                     if (!autoTriggered) {
                         Toast.makeText(this, "data-check を更新しました", Toast.LENGTH_SHORT).show()
                     }
                 }.onFailure { error ->
+                    latestDataCheckResult = null
                     binding.dataCheckText.text = "data-check に失敗しました: ${error.message ?: error::class.java.simpleName}"
                     if (!autoTriggered) {
                         Toast.makeText(this, "data-check に失敗しました", Toast.LENGTH_SHORT).show()
@@ -396,6 +438,119 @@ class MainActivity : AppCompatActivity() {
                     append("保存先: ${result.derivedDir.absolutePath}")
                 }
             }
+    }
+
+    private fun runPcTransfer(session: RecordingSession) {
+        if (!isCorrectingApp || transferInProgress) {
+            return
+        }
+        if (successfulDataCheckCount <= 0 || latestDataCheckResult == null) {
+            Toast.makeText(this, "先に 1 回以上 data-check を実行してください", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val target = selectedTarget ?: run {
+            Toast.makeText(this, "同一ネットワーク上の対象 PC を選択してください", Toast.LENGTH_SHORT).show()
+            return
+        }
+        transferInProgress = true
+        binding.transferButton.isEnabled = false
+        renderTransferState("PC 転送を開始しています。")
+        thread {
+            val result =
+                runCatching {
+                    pcTransferService.transferCheckedSession(
+                        sessionDir = session.sessionDir,
+                        dataCheckCount = successfulDataCheckCount,
+                        target = target,
+                    )
+                }
+            runOnUiThread {
+                transferInProgress = false
+                binding.transferButton.isEnabled = successfulDataCheckCount > 0
+                result.onSuccess {
+                    renderTransferState(
+                        buildString {
+                            appendLine("PC 転送完了: ${it.sessionId}")
+                            appendLine("送信先: ${it.resolvedHost}:${it.resolvedPort}")
+                            appendLine("PC 保存先: ${it.targetRoot}")
+                            append("送信量: ${it.uploadedBytes} bytes")
+                        },
+                    )
+                    Toast.makeText(this, "PC 転送が完了しました", Toast.LENGTH_SHORT).show()
+                }.onFailure { error ->
+                    renderTransferState("PC 転送に失敗しました: ${error.message ?: error::class.java.simpleName}")
+                    Toast.makeText(this, "PC 転送に失敗しました", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun renderTransferState(message: String?) {
+        if (!isCorrectingApp) {
+            binding.transferHeaderText.visibility = View.GONE
+            binding.transferText.visibility = View.GONE
+            binding.transferDiscoveryButton.visibility = View.GONE
+            binding.transferTargetSpinner.visibility = View.GONE
+            binding.transferButton.visibility = View.GONE
+            return
+        }
+        binding.transferHeaderText.visibility = View.VISIBLE
+        binding.transferText.visibility = View.VISIBLE
+        binding.transferDiscoveryButton.visibility = View.VISIBLE
+        binding.transferTargetSpinner.visibility = View.VISIBLE
+        binding.transferButton.visibility = View.VISIBLE
+        binding.transferButton.isEnabled = !transferInProgress && successfulDataCheckCount > 0 && selectedTarget != null
+        val labels =
+            if (discoveredTargets.isEmpty()) {
+                listOf("同一ネットワーク上の PC 候補を検索してください")
+            } else {
+                discoveredTargets.map { "${it.displayName} (${it.host}:${it.port})" }
+            }
+        binding.transferTargetSpinner.adapter =
+            ArrayAdapter(this, android.R.layout.simple_spinner_item, labels).also { adapter ->
+                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            }
+        if (discoveredTargets.isNotEmpty()) {
+            val index = discoveredTargets.indexOfFirst { it == selectedTarget }.takeIf { it != -1 } ?: 0
+            binding.transferTargetSpinner.setSelection(index, false)
+        }
+        binding.transferText.text =
+            message ?: buildString {
+                appendLine("同一ネットワーク上の PC 候補を検索して選択してください。")
+                appendLine("PC 転送は data-check を 1 回以上実行すると有効になります。")
+                appendLine("転送順: 現場撮影データ保存 -> data-check -> PC 転送")
+                appendLine("選択中 PC: ${selectedTarget?.displayName ?: "未選択"}")
+                append("成功した data-check 回数: $successfulDataCheckCount")
+            }
+    }
+
+    private fun discoverPcTargets() {
+        if (transferInProgress) {
+            return
+        }
+        binding.transferDiscoveryButton.isEnabled = false
+        renderTransferState("同一ネットワーク上の PC 候補を検索しています。")
+        thread {
+            val result = runCatching { pcTransferService.discoverTargets() }
+            runOnUiThread {
+                binding.transferDiscoveryButton.isEnabled = true
+                result.onSuccess { targets ->
+                    discoveredTargets = targets
+                    selectedTarget = targets.firstOrNull()
+                    renderTransferState(
+                        if (targets.isEmpty()) {
+                            "同一ネットワーク上の PC 候補が見つかりません。PC で bootstrap script を起動してください。"
+                        } else {
+                            "PC 候補を ${targets.size} 件検出しました。対象 PC を選択してください。"
+                        },
+                    )
+                }.onFailure { error ->
+                    discoveredTargets = emptyList()
+                    selectedTarget = null
+                    renderTransferState("PC 候補検索に失敗しました: ${error.message ?: error::class.java.simpleName}")
+                }
+            }
+        }
     }
 
     companion object {
