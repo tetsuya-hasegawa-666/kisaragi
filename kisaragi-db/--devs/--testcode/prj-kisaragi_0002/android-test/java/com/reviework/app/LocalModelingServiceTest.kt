@@ -34,10 +34,19 @@ class LocalModelingServiceTest {
         assertEquals("session-modeling", result.sessionId)
         assertTrue(result.reviewReady)
         assertTrue(output.files.containsKey("modeling/colab_job_request.json"))
+        assertTrue(output.files.containsKey("modeling/experiment_manifest.json"))
+        assertTrue(output.files.containsKey("modeling/colmap_input_manifest.json"))
+        assertTrue(output.files.containsKey("modeling/benchmark_summary.json"))
+        assertTrue(output.files.containsKey("modeling/selected_route.json"))
         assertTrue(output.files.containsKey("modeling/local_model_summary.json"))
         assertTrue(output.files.containsKey("modeling/review_artifact_stub.json"))
         val colab = JSONObject(output.files.getValue("modeling/colab_job_request.json"))
-        assertEquals("colab_3dgs", colab.getString("targetEngine"))
+        val experiment = JSONObject(output.files.getValue("modeling/experiment_manifest.json"))
+        val selectedRoute = JSONObject(output.files.getValue("modeling/selected_route.json"))
+        assertEquals("colab_colmap4_nerfstudio_splatfacto", colab.getString("targetEngine"))
+        assertEquals("trajectreview-colmap40-splatfacto", colab.getString("recommendedNotebookId"))
+        assertEquals(3, experiment.getJSONArray("routes").length())
+        assertEquals(selectedRoute.getString("selectedRouteId"), colab.getString("defaultRouteId"))
     }
 
     @Test
@@ -55,10 +64,12 @@ class LocalModelingServiceTest {
 
         val result = service.run(input, output)
         val reviewStub = JSONObject(output.files.getValue("modeling/review_artifact_stub.json"))
+        val poseReport = JSONObject(output.files.getValue("modeling/pose_estimation_report.json"))
 
         assertTrue(result.blockers.contains("video.mp4 が不足している"))
         assertTrue(!result.reviewReady)
         assertTrue(!reviewStub.getBoolean("reviewReady"))
+        assertEquals("blocked_before_remote_execution", poseReport.getJSONArray("routes").getJSONObject(0).getString("status"))
     }
 
     private class InMemorySessionInput(

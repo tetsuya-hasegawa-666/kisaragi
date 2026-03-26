@@ -7,14 +7,118 @@
 ## 2026-03-26 再評価
 
 - 判定:
+  - admin `UX check 完了` を `pass` 必須条件にする shared rule へ更新したため、既存の `pass` 解釈は全件再評価対象になった
+  - `MRL-1` から `MRL-8`、`MRL-5C` の既存 `pass` は、admin `UX check` 記録が明示されるまで `active` または `planned` として扱う
+  - admin `UX check` は app 運用順に沿って、関連 gate をまとめた batch で実施してよい
   - 2026-03-25 から 2026-03-26 に記録した `MRL-5` から `MRL-8` の一部は、`UX-only`、`build / install`、`local sample`、summary 読込の確認としては有効だった
   - ただし、これらは `本来機能が app として完成した証拠` ではないため、対応する `MRL` / `mRL` の一部を `active` / `planned` へ戻した
 - 維持する evidence:
   - 記録画面への到達、bundle 読込、request 生成、summary 表示、multi-app build は中間成果として引き続き有効である
+  - Python unittest、Android unit test、device install、短時間 harness、局所 service 実行結果は、admin `UX check` 前の候補 evidence として引き続き有効である
 - 取り消す解釈:
   - `correcting`、`modeling`、`reviewing`、統合 app が本来機能完成であるという解釈は採らない
+  - admin `UX check` 未完でも `pass` にできるという解釈は採らない
 
-## 2026-03-26 `MRL-5C` closeout
+## admin batch UX check rule
+
+- `pass` に必要な `UX check` は admin が実施したものだけを有効とする
+- `UX check` は 1 gate 単位に限らず、関連する複数 `MRL` / `mRL` を 1 回の batch でまとめて実施してよい
+- batch 記録には、対象 `MRL` / `mRL`、実施日時、端末または環境、pass / fail、失敗時の要点を必ず含める
+- `mrl-ux-valid.md` は admin batch `UX check` の記録場所として使う
+
+## correcting batch 定義
+
+- 対象 `MRL`:
+  - `MRL-5`
+  - `MRL-5C`
+  - `MRL-6`
+- 対象 `mRL`:
+  - `mRL-5.1` から `mRL-5.4`
+  - `mRL-5C.1` から `mRL-5C.3`
+  - `mRL-6.1` から `mRL-6.4`
+- admin 操作観点:
+  - `trajectreview-correcting` で記録開始、停止、session 保存ができる
+  - `data-check` に readiness、blocker、recommended correction が出る
+  - export 後の bundle に `session_package.json`、`space_handoff_manifest.json`、`sensor_quality.json` が出る
+  - `modeling` 着手に必要な handoff 情報が 1 回の収録から読める
+
+### correcting batch 記録テンプレート
+
+- batch id: `correcting-batch-YYYYMMDD-01`
+- 実施日時:
+- 実施者: `admin`
+- 端末 / 環境:
+- 対象 `MRL` / `mRL`:
+  - `MRL-5`
+  - `MRL-5C`
+  - `MRL-6`
+- 結果: `pass / fail`
+- fail の時の要点:
+- evidence path:
+
+## modeling batch 定義
+
+- 対象 `MRL`:
+  - `MRL-8`
+  - `MRL-9A`
+  - `MRL-9B`
+  - `MRL-9C`
+- 対象 `mRL`:
+  - `mRL-8.1`
+  - `mRL-8.2`
+  - `mRL-8.4`
+  - `mRL-9A.1` から `mRL-9A.3`
+  - `mRL-9B.1` から `mRL-9B.3`
+  - `mRL-9C.1` から `mRL-9C.3`
+- admin 操作観点:
+  - `trajectreview-modeling` で実 bundle を読み、`colab_job_request.json` を生成できる
+  - `COLMAP 4.0.x` と `nerfstudio splatfacto` の Colab route を起動できる
+  - `benchmark_summary.json` と `selected_route.json` により route 比較と暫定採用が読める
+  - remote result import 後に `SpacePackage`、`TrajectoryPackage`、`modeling_handoff_manifest.json` が更新される
+
+### modeling batch 記録テンプレート
+
+- batch id: `modeling-batch-YYYYMMDD-01`
+- 実施日時:
+- 実施者: `admin`
+- 端末 / 環境:
+- 対象 `MRL` / `mRL`:
+  - `MRL-8`
+  - `MRL-9A`
+  - `MRL-9B`
+  - `MRL-9C`
+- 結果: `pass / fail`
+- fail の時の要点:
+- evidence path:
+
+## reviewing batch 定義
+
+- 対象 `MRL`:
+  - `MRL-10`
+  - `MRL-7`
+- 対象 `mRL`:
+  - `mRL-10.1` から `mRL-10.3`
+  - `mRL-7.1` から `mRL-7.4`
+- admin 操作観点:
+  - `trajectreview-reviewing` で実 `ReviewArtifact` を読み、verify / review 状態を確認できる
+  - same-time highlight と `attention point` 操作ができる
+  - 統合 app から correcting、modeling、reviewing の流れと担当境界を確認できる
+  - app 間の切り分け理由を UI 上で読める
+
+### reviewing batch 記録テンプレート
+
+- batch id: `reviewing-batch-YYYYMMDD-01`
+- 実施日時:
+- 実施者: `admin`
+- 端末 / 環境:
+- 対象 `MRL` / `mRL`:
+  - `MRL-10`
+  - `MRL-7`
+- 結果: `pass / fail`
+- fail の時の要点:
+- evidence path:
+
+## 2026-03-26 `MRL-5C` candidate evidence
 
 - 対象 gate:
   - `MRL-5C`
@@ -44,7 +148,36 @@
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/res/layout/activity_main.xml`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/test/java/com/isensorium/app/CorrectingDataCheckServiceSmokeTest.java`
 
-## 2026-03-25 closeout
+## 2026-03-27 `MRL-5D` candidate evidence
+
+- 対象 gate:
+  - `MRL-5D`
+  - `mRL-5D.1` から `mRL-5D.3`
+- UX 観点:
+  - `trajectreview-correcting` の `PC 転送` 欄に、同一ネットワーク要件と `現場撮影データ保存 -> data-check -> PC 転送` の順序が出る
+  - `PC 候補を検索` により、同一ネットワーク上の対象 PC 候補を smartphone 上で選択できる
+  - `PC 転送を実行` は `data-check` 成功回数が 1 回以上の時だけ有効になる
+- 実装 / test 観点:
+  - JVM unit test:
+    - `:correcting:testDebugUnitTest`
+  - build / install:
+    - `:correcting:assembleDebug`
+    - `:correcting:installDebug`
+  - script parse:
+    - `correcting/scripts/pc-transfer-bootstrap.ps1`
+    - `correcting/scripts/pc-transfer-receiver.ps1`
+- 制約:
+  - PC 側 script の完全 end-to-end runtime は、この session では shell policy が background 起動を拒否したため未確認である
+  - そのため `MRL-5D` は admin 実機 UX check と PC 側 runtime 確認前の `candidate evidence` として扱う
+- 主要 evidence:
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/PcTransferService.kt`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/scripts/pc-transfer-bootstrap.ps1`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/scripts/pc-transfer-receiver.ps1`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/java/com/isensorium/app/MainActivity.kt`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/res/layout/activity_main.xml`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/test/java/com/isensorium/app/PcTransferServiceTest.kt`
+
+## 2026-03-25 candidate evidence
 
 - 対象 gate:
   - `MRL-1` から `MRL-4`
@@ -90,7 +223,7 @@
   - Android: `--exsams/prj-kisaragi_0002/gradle-user-home/daemon/8.10.2/registry.bin.lock` などの Gradle raw artifact が `2026-03-25 19:12:08` に更新された
 - 判定: `prj-kisaragi_0002` は、最も最近実施した test の raw data を `--exsams` 側へ出力できる
 
-## 2026-03-25 `MRL-5` closeout
+## 2026-03-25 `MRL-5` candidate evidence
 
 - 対象 gate:
   - `MRL-5`
@@ -118,7 +251,7 @@
   - `kisaragi-db/--devs/--testlogs/prj-kisaragi_0002/reports/python-unittest-summary.md`
   - `kisaragi-db/--devs/--testlogs/prj-kisaragi_0002/reports/android-test-summary.md`
 
-## 2026-03-25 `MRL-6` closeout
+## 2026-03-25 `MRL-6` candidate evidence
 
 - 対象 gate:
   - `MRL-6`
@@ -141,7 +274,7 @@
   - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ISensoriumExtractionServiceTest.kt`
   - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_session_parser.py`
 - 
-## 2026-03-26 `MRL-7` closeout
+## 2026-03-26 `MRL-7` candidate evidence
 
 - 対象 gate:
   - `MRL-7`
@@ -167,7 +300,7 @@
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/MainActivity.kt`
   - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt`
 
-## 2026-03-26 `MRL-8` closeout
+## 2026-03-26 `MRL-8` candidate evidence
 
 - 対象 gate:
   - `MRL-8`

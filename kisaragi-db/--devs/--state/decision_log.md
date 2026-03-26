@@ -6,6 +6,41 @@
 
 ## entries
 
+- 2026-03-27
+  - project: `prj-kisaragi_0002`
+  - decision: `MRL-5D` として `trajectreview-correcting` に wireless PC transfer を追加し、同一ネットワーク上の対象 PC を smartphone 上で選択して転送する
+  - rationale: `modeling` 前に Android 端末の session を PC へ移す UX が欠けており、USB 前提ではなく `現場撮影データ保存 -> data-check -> PC 転送` を `correcting` 単体で閉じる必要があるため
+  - consequence: `correcting` は UDP bootstrap による PC 候補検出、対象 PC 選択、HTTP upload を持ち、PC 側は `correcting/scripts` の `bootstrap / receiver` script で受信と idle 後自動終了を扱う
+- 2026-03-26
+  - project: `shared`
+  - decision: `MRL` 対応表の並び順は gate 状態や closeout 時系列ではなく、既定で `correcting -> modeling -> reviewing` の運用順を優先する
+  - rationale: 実運用の順と表の順がずれると、admin が batch UX check と handoff 境界を追いにくく、closeout 判断を誤りやすいため
+  - consequence: 以後の `MRL` 対応表は app 運用順で記載し、cross-app や基礎線はその順序を乱さない位置へ置く
+- 2026-03-26
+  - project: `shared`
+  - decision: `MRL` / `mRL` の `pass` は admin の `UX check 完了` が明示されたものだけに限定し、複数 gate の batch UX check を許容する
+  - rationale: test、contract、build、local sample だけでは admin 観点の運用完了を意味せず、また UX check は app の流れに沿ってまとめて確認した方が効率がよいため
+  - consequence: 既存 `pass` も admin UX check 基準で再評価し、未確認 gate は `active` または `planned` へ戻す。`mrl-ux-valid.md` には batch check の対象範囲と結果を明記する
+- 2026-03-26
+  - project: `prj-kisaragi_0002`
+  - decision: `trajectreview-modeling` は `COLMAP 4.0.x` を first target とし、single route 固定ではなく `MRL-9A` 比較基盤、`MRL-9B` 比較実験、`MRL-9C` 採用 route 運用化の 3 段で進める
+  - rationale: `3DGS` 前段の pose / sparse reconstruction は `COLMAP 4.0.x` が有力だが、project の目的は特定 engine 採用ではなく、同一 session で複数 route を比較して精度と運用性の高い方法を選ぶことにあるため
+  - consequence: `modeling` は `experiment_manifest.json`、`benchmark_summary.json`、`selected_route.json` を正本 artifact とし、比較可能性を維持したまま暫定採用 route を既定化する
+- 2026-03-26
+  - project: `prj-kisaragi_0002`
+  - decision: `trajectreview-modeling` の Colab 実行一式は、app が machine-readable な preflight artifact を生成し、Python helper が notebook 生成と remote result import を担う二段構成で進める
+  - rationale: Android app 自身は session bundle から route 契約と handoff request を出す責務に留め、Colab 固有の notebook 生成と import 作業は PC 側 helper に分けた方が、app 実装と運用手順の境界が明確になるため
+  - consequence: `LocalModelingService` は `experiment_manifest.json`、`colmap_input_manifest.json`、`benchmark_summary.json`、`selected_route.json`、`colab_job_request.json` を生成し、`modeling_colab_tool.py` と Colab notebook template がそれを消費する
+- 2026-03-27
+  - project: `prj-kisaragi_0002`
+  - decision: Colab notebook の user 入力は `session_root` と `result_root` を最小単位とし、`session_id`、`route_id`、`mapper`、`input_root` は session bundle 内の artifact から自動解決する
+  - rationale: `CONFIG` に個別値を多く手入力させると、Colab 未経験者が `session_id` と parent path を混同しやすく、実行前に止まりやすいため
+  - consequence: notebook と helper は `session_package.json`、`selected_route.json`、`colab_job_request.json` を読んで値を補完し、manual も `session_root` 起点で説明する
+- 2026-03-27
+  - project: `shared`
+  - decision: top `README.md` を GitHub 公開用の repository overview として使い、説明は repository 内の正本文書リンクを中心に構成する
+  - rationale: `README.md` を禁止例外として使うなら、重複した説明文書ではなく、外部閲覧者が今の構成と正本参照先をすぐ辿れる入口に限定した方が運用が安定するため
+  - consequence: top `README.md` は構成概要、project 対応表、主要な正本文書リンクを持ち、詳細説明は `AGENTS.md`、`project-truth`、`b2t-plans-result.md`、`ux_check_manual.md` 側で維持する
 - 2026-03-26
   - project: `shared`
   - decision: `UX-only`、contract、build / install、local sample を本機能 `MRL` / `mRL` の `pass` 条件と分離する

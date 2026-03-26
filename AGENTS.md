@@ -45,6 +45,7 @@
 ## top 構造
 
 - `kisaragi/` の最上位運用正本は `AGENTS.md` とする。
+- top の `README.md` は GitHub 公開時に repository 全体の構成と正本文書への入口を示す用途に限って許容する。
 - workspace 管理に必要な最小 file は、top 構造の例外として許容する。
 
 ```text
@@ -54,6 +55,7 @@ kisaragi/
   kisaragi-skills/
   kisaragi-tree/
   AGENTS.md
+  README.md
 ```
 
 </order>
@@ -183,7 +185,9 @@ kisaragi-tree/
 - 完了した挙動は docs、plan、evidence のいずれかに trace を残す。
 - `UX 確認済み`、`contract 固定済み`、`build / install 済み`、`local sample 済み` は、それぞれ `本来機能が実行できる` ことと同義に扱ってはならない。
 - mock、stub、sample、代替 route、説明用 UI、表示だけの接続で確認した内容は、対応する本機能 `MRL` / `mRL` を `pass` にしてはならず、必要なら `UX-only` または `補助 gate` と明記した別 gate で管理する。
-- 本機能 gate の `pass` には、対象 app 自身で本来の入出力を扱い、後段が消費する実生成物を出し、主要 blocker が plan 上で解消済みであることを要件とする。
+- 本機能 gate の `pass` には、対象 app 自身で本来の入出力を扱い、後段が消費する実生成物を出し、主要 blocker が plan 上で解消済みであり、かつ admin の `UX check 完了` が明示記録されていることを要件とする。
+- `MRL` / `mRL` の `pass` は、既存 gate を含めて admin `UX check 完了` が確認できたものだけに付与する。
+- admin の `UX check` は、関連する複数 `MRL` / `mRL` を 1 回の batch でまとめて実施してよい。
 - `warning` は後続へ注意を渡すための情報であり、データ欠落や品質低下を明示してよいが、`warning` の存在だけを理由に後続処理や user の継続操作を停止してはならない。
 - 後続処理を停止してよいのは、file 不在、contract 不成立、実行時例外などで対象処理そのものが物理的または論理的に実行不能な場合だけとし、`warning` と `blocker` を混同してはならない。
 
@@ -208,6 +212,7 @@ kisaragi-tree/
 - `System Behaviors` は `b1` 形式の識別子で、観測可能な振る舞いとして記述する。
 - `受け入れ基準` は `s-id`、`b-id`、観点、受け入れ基準の表で持つ。
 - `MRL` 対応表は `MRL`、`mRL`、目的、関連 `s-id`、関連 `b-id`、現在 gate の表で持つ。
+- `MRL` 対応表の記載順は、`planned` から `pass` への時系列ではなく、既定で運用順 `correcting`、`modeling`、`reviewing` を優先する。
 - BDD 章は、目的文、ノーススター、提供方針、`Purpose Story`、`System Behaviors`、受け入れ基準、`MRL` 対応表を持つ。
 - TDD 章は、目的文、TDD タスク表、実行方針、現在の見立てを持つ。
 - `b2t-plans-result.md` の記法見本は `kisaragi-db/--devs/--plans/prj-kisaragi_0002/b2t-plans-result.md` とする。

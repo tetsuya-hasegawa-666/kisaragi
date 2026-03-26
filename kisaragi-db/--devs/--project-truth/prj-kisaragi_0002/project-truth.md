@@ -22,8 +22,12 @@
 ## 現在の到達認識
 
 - `trajectreview-correcting` は `現場記録 -> 最新 session 再読込 -> data-check -> correction guidance` を 1 app 内で実行できる
+- `trajectreview-correcting` は `現場記録 -> data-check -> 同一ネットワーク上の対象 PC 選択 -> wireless PC transfer` を 1 app 内で閉じる方針を採る
 - `frozen_camerax_arcore` route では録画安定性を優先し、記録中の `ARCore` 収集を停止する
-- `trajectreview-modeling` は `local sample before colab` と request 生成を持つが、実 `COLMAP` / `3DGS` / trajectory reconstruction は未実装である
+- `trajectreview-modeling` は `local sample before colab` と request 生成を持つが、実 `COLMAP 4.0.x` / `3DGS` / trajectory reconstruction は未実装である
+- `trajectreview-modeling` は preflight として `experiment_manifest.json`、`colmap_input_manifest.json`、`benchmark_summary.json`、`selected_route.json`、Colab notebook / import helper を生成できる
+- Colab notebook は `session_root` と `result_root` を最小入力とし、`session_package.json`、`selected_route.json`、`colab_job_request.json` から `session_id`、`route_id`、`mapper` を自動解決する
+- `trajectreview-modeling` は単一 route 固定で始めず、`COLMAP 4.0.x` を含む複数 route を比較し、暫定採用 route を後から既定化する方針を採る
 - `trajectreview-reviewing` は summary / stub 読込を持つが、実 `ReviewArtifact` viewer と操作系は未実装である
 - 統合 app は workflow 境界の理解には使えるが、現時点では本来機能を end-to-end で閉じていない
 
@@ -122,16 +126,27 @@
   - `trajectreview-correcting` 自体が camera / IMU / GNSS / BLE / ARCore 記録画面を持ち、source session を端末内へ保存する
   - 同じ app 内で session を intake し、`session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json` まで生成する
   - `data-check` が readiness、quality、blocker、recommended correction を返す
-  - 利用者が `現場撮影データ保存を開始` から export 完了まで、別 app へ移らず進められる
+  - `data-check` を 1 回以上通した後にだけ `PC 転送` を有効化し、同一ネットワーク上の対象 PC を app 内で選択できる
+  - 利用者が `現場撮影データ保存を開始` から wireless PC transfer 完了まで、別 app へ移らず進められる
 
 ### `trajectreview-modeling`
 
 - 対象段階: `SpaceReconstruction`、`TrajectoryReconstruction`
 - 主責務: model 入力確認、実行 gate、進行把握、再構成 blocker 確認
 - 完成基準:
-  - `session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json` を入力として、`Colab` upload 対象と job request を生成する
+  - `session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json` を入力として、`COLMAP 4.0.x` の前処理入力、`Colab` upload 対象、job request を route 単位で生成する
+  - `COLMAP 4.0.x` の image-only pose estimation と sparse reconstruction を実行し、主要 quality 指標と failure reason を route 単位で記録する
+  - 複数の pose / `3DGS` route を比較し、`benchmark_summary.json` と `selected_route.json` により暫定採用 route を固定する
   - remote 実行結果を受理し、`SpacePackage`、`TrajectoryPackage`、`space_quality.json`、`trajectory_quality.json`、`attention_seed.json` を更新する
   - `local sample before colab` は preflight 用補助 route とし、完成判定の代替に使わない
+
+## modeling route 方針
+
+- `COLMAP 4.0.x` を first target の pose / sparse reconstruction 基盤とする
+- 最初から最終 route を固定せず、少なくとも `incremental mapper`、`hierarchical mapper`、`global_mapper` を比較候補として扱う
+- `3DGS` 側も単一路線で固定せず、quality、runtime、resource usage、failure rate を比較して暫定採用 route を決める
+- route 比較は同一 session、同一 export contract、同一評価指標で行う
+- 暫定採用 route と research route は `selected_route.json` で分離し、既定 route の変更履歴を追えるようにする
 
 ### `trajectreview-reviewing`
 
@@ -184,12 +199,18 @@
   - `space_quality.json`
   - `coverage_report.json`
   - `main_camera_path.csv`
+  - `trajectreview/modeling/experiment_manifest.json`
+  - `trajectreview/modeling/colmap_input_manifest.json`
+  - `trajectreview/modeling/benchmark_summary.json`
+  - `trajectreview/modeling/selected_route.json`
   - `trajectreview/modeling/local_model_summary.json`
   - `trajectreview/modeling/colab_job_request.json`
   - `trajectreview/modeling/review_artifact_stub.json`
 - 受け渡し条件:
   - 主空間基準が一意に決まっている
   - `COLMAP` から `3DGS` へ進める可否が判定済みである
+  - 比較対象 route の quality、runtime、resource usage、failure reason が同一指標で記録されている
+  - 暫定採用 route と research route が分離されている
   - `Colab` account 未取得時も local sample 実行で logic 検証済みである
 
 ### 分担 3: `TrajectoryReconstruction`
@@ -294,6 +315,11 @@
 - `session_package.json`: 後段へ渡すための正規化済み `SessionPackage` 実体
 - `space_handoff_manifest.json`: `SpaceReconstruction` 着手可否、blocker、利用 artifact の要約
 - `modeling/local_model_summary.json`: `Colab` 前の軽量 local sample model 結果
+- `modeling/experiment_manifest.json`: route ごとの前処理、mapper、`3DGS` backend、resource 制約、出力先の定義
+- `modeling/colmap_input_manifest.json`: `COLMAP 4.0.x` に渡す画像入力、feature / matcher、mapper 指定
+- `modeling/pose_estimation_report.json`: image-only pose estimation の主要指標と failure reason
+- `modeling/benchmark_summary.json`: pose / `3DGS` route ごとの比較結果
+- `modeling/selected_route.json`: 暫定採用 route、research route、不採用理由、再評価条件
 - `modeling/colab_job_request.json`: `Colab` remote 実行へ渡す request
 - `modeling/review_artifact_stub.json`: reviewing app と統合 app が読む review 用 stub
 - `modeling/modeling_handoff_manifest.json`: reviewing 着手可否と blocker の要約
@@ -309,6 +335,9 @@
 - `trajectreview/` には readiness、quality、frame-pose 対応、identity map、`session_package.json`、`space_handoff_manifest.json` を保持する
 - app UI は抽出元、抽出先、`ready_for_diagnose`、`ready_for_space_reconstruction`、欠落入力、主要数値を表示できる
 - app は session folder 直下だけでなく、manifest を持つ 1 段下の child directory も抽出対象として受理する
+- `trajectreview-correcting` の wireless PC transfer は、同一ネットワーク上の PC を UDP bootstrap で検出し、選択した対象へ HTTP で session archive を送る
+- PC 側 companion script は `correcting/scripts/pc-transfer-bootstrap.ps1` と `correcting/scripts/pc-transfer-receiver.ps1` を正本とし、`receiver` は idle 後に自動終了する
+- PC 側既定保存先は `kisaragi-db/--exsams/prj-kisaragi_0002/pc-transfer-inbox/` とする
 
 ## `GNSS` なし前提の成立条件
 

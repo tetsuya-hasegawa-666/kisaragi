@@ -59,10 +59,17 @@ def build_stage_handoff_contracts() -> list[StageHandoffContract]:
                 "space_quality.json",
                 "coverage_report.json",
                 "main_camera_path.csv",
+                "modeling/experiment_manifest.json",
+                "modeling/colmap_input_manifest.json",
+                "modeling/pose_estimation_report.json",
+                "modeling/benchmark_summary.json",
+                "modeling/selected_route.json",
+                "modeling/colab_job_request.json",
             ],
             handoff_conditions=[
                 "主空間基準が一意に決まっている",
                 "COLMAP から 3DGS へ進める可否が判定済みである",
+                "比較対象 route の quality と failure reason が同一形式で読める",
             ],
         ),
         StageHandoffContract(

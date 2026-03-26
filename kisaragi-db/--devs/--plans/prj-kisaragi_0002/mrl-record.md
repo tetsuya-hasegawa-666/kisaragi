@@ -13,6 +13,16 @@
 ## Entries
 
 - record date: `2026-03-26`
+  target MRL: `MRL-1` から `MRL-8`、`MRL-5C`
+  target mRL: `current pass entries all`
+  gate change: `reverted to active/planned`
+  issue: admin `UX check 完了` 前でも、test、contract、build、local sample、局所 device 確認を根拠に `pass` を付けていた
+  cause: `pass` の必須条件として admin `UX check` と batch check 運用を shared rule へ明文化していなかった
+  resolution: `AGENTS.md`、`current_state.md`、`decision_log.md`、`b2t-plans-result.md` を更新し、`MRL` 記載順を運用順 `correcting -> modeling -> reviewing` に統一し、admin `UX check` 未完の gate を `active` / `planned` へ戻した
+  recurrence prevention: 以後の `pass` は admin `UX check 完了` が記録された gate のみに付与し、関連 gate は batch でまとめて確認範囲を記録する
+  remaining work: admin 向け batch `UX check` の対象範囲、手順、結果記録を `mrl-ux-valid.md` へ追加し、各 gate を再 closeout する
+  evidence path: `kisaragi-db/--devs/--plans/prj-kisaragi_0002/b2t-plans-result.md`
+- record date: `2026-03-26`
   target MRL: `MRL-5C`
   target mRL: `mRL-5C.1`、`mRL-5C.2`、`mRL-5C.3`
   gate change: `pass`

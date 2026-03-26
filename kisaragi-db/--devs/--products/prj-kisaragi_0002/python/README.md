@@ -3,6 +3,7 @@
 - `session_parser.py`: `trajectreview` session directory を読み込み、`SessionPackage` に必要な manifest / CSV / JSONL を統一的に扱う
 - `validate_session.py`: 1 session を検証し、intake / diagnose 向け summary、join report、分担用 `SessionPackage` インターフェース出力を JSON 出力する
 - `review_contracts.py`: 4 段階の handoff contract を code として保持し、文書と実装の整合確認に使う
+- `modeling_colab_tool.py`: `COLMAP 4.0.x` と `nerfstudio splatfacto` 向けの Colab notebook 生成と remote result import を行う
 - Python 実行時の bytecode cache は `--exsams/prj-kisaragi_0002/python-pycache/` を使うものとする
 
 ## 互換境界
@@ -21,6 +22,12 @@
 - `member_identity_map.json` 相当: 端末、主体、`BT` 識別子の対応表
 - `session_package.json` 相当: 後段へ渡すための正規化済み `SessionPackage` 実体
 - `space_handoff_manifest.json` 相当: `SpaceReconstruction` 着手可否、blocker、利用 artifact の要約
+- `experiment_manifest.json` 相当: route ごとの前処理、mapper、`3DGS` backend、resource 制約
+- `colmap_input_manifest.json` 相当: `COLMAP 4.0.x` に渡す画像入力、feature / matcher、mapper 情報
+- `pose_estimation_report.json` 相当: image-only pose estimation の主要指標と failure reason
+- `benchmark_summary.json` 相当: pose / `3DGS` route 比較結果
+- `selected_route.json` 相当: 暫定採用 route と research route
+- `colab_job_request.json` 相当: `Colab` notebook 実行契約
 
 ## 実行例
 
@@ -28,3 +35,13 @@
 $env:PYTHONPYCACHEPREFIX='C:\Users\tetsuya\kisaragi\kisaragi-db\--exsams\prj-kisaragi_0002\python-pycache'
 python python/validate_session.py tmp/session-20260323-001
 ```
+
+```powershell
+python python/modeling_colab_tool.py build-notebook `
+  --job-request tmp/session-20260323-001/trajectreview/modeling/colab_job_request.json `
+  --selected-route tmp/session-20260323-001/trajectreview/modeling/selected_route.json `
+  --output tmp/session-20260323-001/trajectreview/modeling/colab
+```
+
+- notebook の `CONFIG` は `session_root` を最小入力とし、`session_package.json`、`selected_route.json`、`colab_job_request.json` から `session_id`、`route_id`、`mapper` を自動で解決する。
+- `input_root` は `session_root` の親 folder として扱い、`result_root` は結果保存先の親 folder とする。

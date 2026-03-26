@@ -3,6 +3,7 @@
 ## 共有制御
 
 - この文書は project 横断の shared current state 正本とする。
+- 2026-03-26: Codex が `MRL` 記載順と `pass` 判定基準の是正のため、`current_state.md`、`decision_log.md`、`AGENTS.md`、`b2t-plans-result.md`、`mrl-record.md`、`mrl-ux-valid.md` の整合更新を担当する。
 - 2026-03-26: Codex が `prj-kisaragi_0002` の mock 完了誤認を是正するため、`b2t-plans-result.md`、`project-truth.md`、`mrl-record.md`、`mrl-ux-valid.md`、`AGENTS.md`、`AGENTSmd-RH.md` の整合更新を担当する。
 - 2026-03-25: Codex が `project code` 命名規則に合わせた `prj-kisaragi_****` rename と全参照整合を担当する。
 - 2026-03-25: Codex が `AGENTS.md` の Guard、branch 補足、Windows 運用マニュアル追記を担当する。
@@ -21,7 +22,14 @@
 - 2026-03-26: Codex が `prj-kisaragi_0002` の `MRL-8` として、各 app の実 bundle 読込と `modeling` の `local sample before colab` を中間成果として進める。
 - 2026-03-26: 人間承認により、`C:\Users\tetsuya\kisaragi` 作業中の workspace 外 directory access は `READ` のみを許可し、write 系 access を禁止する shared rule を採用する。
 - 2026-03-26: 人間確認により、`prj-kisaragi_0002` の app 状態は `UX と局所 logic の確認が一部できた段階` であり、`本来機能が使える完成 app` とは扱わない。
-- 2026-03-26: Codex が `prj-kisaragi_0002` の `MRL-5C` を完了し、`trajectreview-correcting` 単体で `現場記録 -> data-check -> correction guidance` を実機 session で確認した。
+- 2026-03-26: Codex が `prj-kisaragi_0002` の `MRL-5C` 実装と局所確認を進め、`trajectreview-correcting` 単体で `現場記録 -> data-check -> correction guidance` を実機 session で確認した。
+- 2026-03-26: 人間承認により、`prj-kisaragi_0002` の `trajectreview-modeling` は `COLMAP 4.0.x` を first target とし、single route 固定ではなく `比較基盤`、`比較実験`、`採用 route の運用化` の 3 段 `MRL-9A` から `MRL-9C` で進める。
+- 2026-03-26: 人間承認により、`MRL` 対応表は `planned` から `pass` への時系列ではなく、運用順 `correcting -> modeling -> reviewing` を優先して記載する。
+- 2026-03-26: 人間承認により、`MRL` / `mRL` の `pass` は admin の `UX check 完了` があるものだけに限定し、既存 `pass` も同基準で再評価する。
+- 2026-03-26: 人間承認により、admin の `UX check` は 1 gate ずつに限らず、関連する複数 `MRL` / `mRL` を 1 回の batch でまとめて実施してよい。
+- 2026-03-26: Codex が `prj-kisaragi_0002` の admin batch `UX check` 雛形、`COLMAP 4.0.x + nerfstudio splatfacto` Colab notebook、remote result import helper、関連 test を整備する。
+- 2026-03-27: Codex が `prj-kisaragi_0002` の `MRL-5D` として、`trajectreview-correcting` の `1 回以上 data-check -> 同一ネットワーク上の対象 PC 選択 -> wireless PC transfer` と、PC 側 `bootstrap / receiver` script を実装する。
+- 2026-03-27: Codex が top `README.md` を GitHub 向け repository overview として整備し、正本文書への入口を整理したうえで push を担当する。
 
 ## 人間確認待ち
 
@@ -34,7 +42,12 @@
 ## 次の確認
 
 - `prj-kisaragi_0002` の `UX-only` gate と `本機能完成` gate を分離し、誤って `pass` を付けた `MRL` を是正する
-- `prj-kisaragi_0002` の次段として `modeling` の `Colab` handoff と remote result import を実装する
+- `prj-kisaragi_0002` の `modeling` で、Colab notebook を実アカウント / GPU 上で起動し、`COLMAP 4.0.x` image-only pose estimation と `nerfstudio splatfacto` 学習の remote 実測を取る
+- `prj-kisaragi_0002` の `MRL-9A` として `COLMAP 4.0.x` image-only pose estimation と sparse reconstruction の実行証跡を追加する
+- `prj-kisaragi_0002` の `MRL-5D` として `correcting` の wireless PC transfer を局所検証し、PC 側 bootstrap / receiver script の手順を evidence へ反映する
+- `prj-kisaragi_0002` の `MRL-9B` として pose / `3DGS` の remote 実測比較結果を `benchmark_summary.json` へ反映する
+- `prj-kisaragi_0002` の `MRL-9C` として remote result import 後の `SpacePackage` / `TrajectoryPackage` 更新を app 側へ接続する
+- `prj-kisaragi_0002` の `MRL` 表を `correcting -> modeling -> reviewing` 順へ再編し、admin `UX check` 未完の `pass` を `active` / `planned` へ戻す
 - `prj-kisaragi_0001` と `prj-kisaragi_0002` rename 後の stale 参照と test routing を確認する
 - `AGENTS.md` の branch 規則と state / decision path 規則の整合を維持する
 - `AGENTS.md` の Guard から未存在 `issue-note.md` 依存を外す
@@ -43,4 +56,4 @@
 - `prj-kisaragi_0002` の `iSensorium` source intake 仕様を `Xperia 5 III` 実機操作手順へ結び付ける
 - `prj-kisaragi_0002` の `iSensorium` collector 起動順と state transition を verified mirror から追加抽出する
 - `prj-kisaragi_0002` の `space_handoff_manifest.json` を実 `SpaceReconstruction` engine へ接続する
-- `prj-kisaragi_0002` の `colab_job_request.json` を remote 実行へ接続する
+- `prj-kisaragi_0002` の `colab_job_request.json` と生成 notebook を admin の batch `UX check` 手順へ接続する

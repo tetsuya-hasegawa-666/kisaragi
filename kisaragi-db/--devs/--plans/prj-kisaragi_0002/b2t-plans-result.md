@@ -13,31 +13,36 @@
 
 ### 現在の重点
 
-- 現行計画の `MRL` / `mRL` と `T1` から `T16` は、contract 実装、test、routing 実行で `pass` になった
+- `T1` から `T16` は contract 実装、test、routing 実行で成立したが、admin `UX check` 未完のため対応 `MRL` / `mRL` は `active` として扱う
 - 4 分担作業のための段階間インターフェースと追加出力を正本文書へ明示した
 - Kotlin controller と Python parser により、受理、gate、空間品質、人物経路、同時刻ハイライト、成果物境界の契約を固定した
 - `GNSS` は任意入力とし、既定は `GNSS` なしでも成立する設計を維持する
 - `MRL-5` と `MRL-6` は、入力契約と handoff artifact の整備までは進んだが、`correcting` から `modeling` への end-to-end handoff は未完である
-- `MRL-5C` を `trajectreview-correcting` 専用 gate とし、現場記録後に同じ app 内で `data-check` と correction guidance を返せる状態まで close した
+- `MRL-5C` を `trajectreview-correcting` 専用 gate とし、現場記録後に同じ app 内で `data-check` と correction guidance を返せる実装までは進んだが、`pass` は admin `UX check` 待ちである
+- `MRL-5D` を `trajectreview-correcting` 専用 gate とし、`1 回以上 data-check` の後に無線で PC 特定 folder へ転送する実装を追加する
 - `MRL-7` と `MRL-8` は、4 app の骨格、build、install、実 bundle 読込、`local sample` による局所 logic 確認まで進んだが、本来機能の完成 gate としては `active` に巻き戻す
 - `trajectreview-correcting` は `iSensorium` 由来の記録画面に加え、最新 session の `data-check` と correction guidance を app 内で返せる
-- `MRL-5C` の範囲では、`trajectreview-correcting` 単体で source session を保存し、`sensor_quality.json`、`session_package.json`、`space_handoff_manifest.json` を生成し、修正指示を返せる
-- `trajectreview-modeling` は `Colab` 前段の `local sample` と request 生成を持つが、実 `COLMAP` / `3DGS` / trajectory reconstruction をまだ実行しない
+- `MRL-5C` の範囲では、`trajectreview-correcting` 単体で source session を保存し、`sensor_quality.json`、`session_package.json`、`space_handoff_manifest.json` を生成し、修正指示を返せる実装がある
+- `MRL-5D` の範囲では、`trajectreview-correcting` 単体で `現場撮影データ保存 -> data-check -> PC 転送` を閉じ、PC 側 `bootstrap / receiver` script を `correcting` 必須 script 群として扱う
+- `trajectreview-modeling` は `Colab` 前段の `local sample` と request 生成を持つが、実 `COLMAP 4.0.x` / `3DGS` / trajectory reconstruction をまだ実行しない
+- `trajectreview-modeling` は preflight artifact として `experiment_manifest.json`、`colmap_input_manifest.json`、`benchmark_summary.json`、`selected_route.json`、Colab notebook / import helper を持つ
+- Colab notebook の `CONFIG` は `session_root` と `result_root` を最小入力とし、残りの route 情報は session bundle 内の artifact から自動で補完する
+- `trajectreview-modeling` の本機能 gate は、単一 route の一括 close ではなく、`比較基盤`、`比較実験`、`採用 route の運用化` の 3 段で閉じる
 - `trajectreview-reviewing` は summary と stub 読込までは持つが、実 `ReviewArtifact` viewer と同時刻ハイライト操作は未実装である
 
 ### 阻害要因の境界
 
-- `COLMAP` と `3DGS` の実行基盤は未選定である
+- `COLMAP 4.0.x` を first target とする前処理 / pose 基盤は定まったが、最終採用する `3DGS` route は未決定である
 - 人物 path の視覚再拘束に使う実データ条件が未確定である
 - `ReviewArtifact` の最終 viewer 実装先は Android 固定ではない
 - 取得元 app data の配置差分は実機ごとの差を吸収する必要がある
 - multi-app 化では共通 source を維持しつつ app role を分ける必要がある
 - `Colab` account 情報は未取得であり、remote 実行は後続 task とする
-- `UX-only` 確認と本機能完成 gate を plan 上で分離していなかったため、closeout が過大になった
+- `UX-only` 確認と本機能完成 gate を plan 上で分離していなかったことに加え、admin `UX check` 完了前に `pass` を付けていたため、closeout が過大になった
 
 ### 次の確認
 
-1. `trajectreview-modeling` を `Colab` 実行前提の job 準備、local preflight、remote result 受理の 3 段で閉じる
+1. `trajectreview-modeling` を `COLMAP 4.0.x` 前処理 + image-only pose、multi-route 比較、採用 route 運用化の 3 段で閉じる
 2. `trajectreview-reviewing` を `ReviewArtifact` 実 viewer と same-time highlight 操作まで閉じる
 3. 統合 app に `MRL-5C` の correction guidance を反映する
 
@@ -89,7 +94,11 @@
 - `s20`: 運用者は、`trajectreview-modeling` から `Colab` 送信前の軽量 local sample model と handoff request を生成し、PC 上で logic を先に検証できる
 - `s21`: 利用者は、`trajectreview-correcting` だけで現場記録開始、停止、session 保存、診断前 export まで進められる
 - `s21a`: 利用者は、`trajectreview-correcting` の記録停止後に同じ app 内で `data-check` 結果と修正指示を読める
+- `s21b`: 利用者は、`trajectreview-correcting` の `data-check` を 1 回以上通した後、無線で PC の所定 folder へ session を転送できる
 - `s22`: 利用者は、`trajectreview-modeling` だけで `Colab` 実行 request の作成、upload 対象確認、remote result 受理まで進められる
+- `s22a`: 運用者は、`trajectreview-modeling` だけで `COLMAP 4.0.x` の image-only pose estimation と sparse reconstruction の成否を確認できる
+- `s22b`: 運用者は、同じ session に対して複数の pose / `3DGS` route を同一指標で比較できる
+- `s22c`: 運用者は、比較結果から暫定採用 route を決め、以後の既定 route と research route を分けて運用できる
 - `s23`: 利用者は、`trajectreview-reviewing` だけで実 `ReviewArtifact` を開き、経路、同時刻ハイライト、`attention point` を操作できる
 - `s24`: 運用者は、`UX-only` 確認、契約固定、local sample、本機能完成を別 gate として追跡できる
 
@@ -126,9 +135,14 @@
 - `b29`: `trajectreview-reviewing` と統合 app は `local_model_summary.json` と `review_artifact_stub.json` を読んで verify / review 状態を組み立てる
 - `b30`: `trajectreview-correcting` は現場記録開始、停止、session 保存、input export を app 内で完結し、後段が読む concrete bundle を生成する
 - `b30a`: `trajectreview-correcting` は最新 session を再読込し、`data-check` により readiness、quality、blocker、recommended correction を返す
+- `b30b`: `trajectreview-correcting` は `data-check` 成功後にだけ `PC 転送` を有効化し、無線で session archive を PC 側 receiver へ送る
+- `b30c`: `trajectreview-correcting` の必須 script 群は、PC 側 `bootstrap` request 受理、receiver 自動起動、指定 folder 保存、idle 後の自動終了を扱う
 - `b31`: `trajectreview-modeling` は `Colab` 実行 request を export し、remote 実行結果の受理後に `SpacePackage`、`TrajectoryPackage`、`modeling_handoff_manifest.json` を更新する
+- `b31a`: `trajectreview-modeling` は `session_package.json` と frame 群から `COLMAP 4.0.x` 用の前処理入力、image-only pose estimation、sparse reconstruction を route 単位で実行できる
+- `b31b`: `trajectreview-modeling` は pose route、`3DGS` route、ごとの quality、runtime、resource usage、failure reason を `benchmark_summary.json` へ集約できる
+- `b31c`: `trajectreview-modeling` は比較結果から `selected_route.json` を生成し、採用 route と research route を分離できる
 - `b32`: `trajectreview-reviewing` は `ReviewArtifact` 実体を読み、viewer 操作、same-time highlight、`attention point` jump を返す
-- `b33`: `MRL` / `mRL` の `pass` は本来機能の実行証跡を要件とし、`UX-only`、contract、sample、build / install は補助 gate として別記する
+- `b33`: `MRL` / `mRL` の `pass` は admin `UX check 完了` と本来機能の実行証跡を要件とし、`UX-only`、contract、sample、build / install は補助 gate として別記する
 
 ### 受け入れ基準
 
@@ -156,7 +170,11 @@
 | `s20` | `b28`,`b29` | local sample modeling | `Colab` account 未取得でも local sample model と handoff request を生成し、reviewing へ渡せる |
 | `s21` | `b30` | correcting 本機能 | `trajectreview-correcting` だけで現場記録開始、停止、session 保存、input export まで進められる |
 | `s21a` | `b30a` | correcting data-check | `trajectreview-correcting` が同じ app 内で `data-check` 結果、blocker、recommended correction を返す |
+| `s21b` | `b30b`,`b30c` | wireless PC transfer | `trajectreview-correcting` が `1 回以上 data-check` の後に `PC 転送` を有効化し、無線で PC 所定 folder へ保存できる |
 | `s22` | `b31` | modeling 本機能 | `trajectreview-modeling` だけで `Colab` request、upload 対象、remote result 受理後の package 更新を行える |
+| `s22a` | `b31a` | `COLMAP` pose 基盤 | `COLMAP 4.0.x` により image-only pose estimation と sparse reconstruction の成否、主要指標、失敗理由を route 単位で確認できる |
+| `s22b` | `b31a`,`b31b` | route 比較 | 同一 session に対し複数 route を再実行し、quality、runtime、resource usage、failure reason を同一形式で比較できる |
+| `s22c` | `b31b`,`b31c` | route 運用化 | 採用 route と research route が分離され、既定 route を machine-readable に固定できる |
 | `s23` | `b32` | reviewing 本機能 | `trajectreview-reviewing` が実 `ReviewArtifact` を開き、経路、同時刻ハイライト、`attention point` を操作できる |
 | `s24` | `b33` | gate 運用 | `UX-only`、contract、sample、本機能完成が別 gate として記録され、完了誤認が起きない |
 
@@ -164,49 +182,66 @@
 
 | MRL | mRL | 目的 | 関連 s-id | 関連 b-id | 現在 gate |
 | --- | --- | --- | --- | --- | --- |
-| `MRL-1` | `-` | 受理と診断の基礎線を成立させる | `s1`,`s2`,`s3` | `b1`,`b2`,`b3`,`b11`,`b13`,`b14` | `pass` |
-| `MRL-1` | `mRL-1.1` | 主入力の受理契約 | `s1` | `b1`,`b11`,`b13` | `pass` |
-| `MRL-1` | `mRL-1.2` | 人物映り込みを含む診断基線 | `s2` | `b2` | `pass` |
-| `MRL-1` | `mRL-1.3` | 実行可否 gate | `s3` | `b3` | `pass` |
-| `MRL-1` | `mRL-1.4` | 分担インターフェース固定 | `s1`,`s12` | `b13`,`b14` | `pass` |
-| `MRL-2` | `-` | 主空間再構成の基礎線を成立させる | `s4`,`s5`,`s6` | `b4`,`b5`,`b6` | `pass` |
-| `MRL-2` | `mRL-2.1` | 主カメラ path と空間基準固定 | `s4`,`s6` | `b4`,`b6` | `pass` |
-| `MRL-2` | `mRL-2.2` | `COLMAP` から `3DGS` への安全 gate | `s5` | `b5` | `pass` |
-| `MRL-2` | `mRL-2.3` | 空間品質要約 | `s6` | `b6` | `pass` |
-| `MRL-3` | `-` | 人物経路再構成と同時刻比較の基礎線を成立させる | `s7`,`s8`,`s9`,`s10` | `b7`,`b8`,`b9` | `pass` |
-| `MRL-3` | `mRL-3.1` | 人物経路の主空間登録 | `s7`,`s9` | `b7` | `pass` |
-| `MRL-3` | `mRL-3.2` | relink と不確実性 | `s7`,`s8` | `b8` | `pass` |
-| `MRL-3` | `mRL-3.3` | 同時刻ハイライトと `attention point` | `s9`,`s10` | `b9` | `pass` |
-| `MRL-4` | `-` | 閲覧成果物と運用硬化を成立させる | `s11`,`s12` | `b10`,`b12`,`b13`,`b14` | `pass` |
-| `MRL-4` | `mRL-4.1` | `ReviewArtifact` と viewer 境界 | `s11` | `b10` | `pass` |
-| `MRL-4` | `mRL-4.2` | 独立 project 境界 | `s12` | `b12`,`b14` | `pass` |
-| `MRL-4` | `mRL-4.3` | 生成物 routing hygiene | `s12` | `b12`,`b13` | `pass` |
+| `MRL-1` | `-` | 受理と診断の基礎線を成立させる | `s1`,`s2`,`s3` | `b1`,`b2`,`b3`,`b11`,`b13`,`b14` | `active` |
+| `MRL-1` | `mRL-1.1` | 主入力の受理契約 | `s1` | `b1`,`b11`,`b13` | `active` |
+| `MRL-1` | `mRL-1.2` | 人物映り込みを含む診断基線 | `s2` | `b2` | `active` |
+| `MRL-1` | `mRL-1.3` | 実行可否 gate | `s3` | `b3` | `active` |
+| `MRL-1` | `mRL-1.4` | 分担インターフェース固定 | `s1`,`s12` | `b13`,`b14` | `active` |
+| `MRL-2` | `-` | 主空間再構成の基礎線を成立させる | `s4`,`s5`,`s6` | `b4`,`b5`,`b6` | `active` |
+| `MRL-2` | `mRL-2.1` | 主カメラ path と空間基準固定 | `s4`,`s6` | `b4`,`b6` | `active` |
+| `MRL-2` | `mRL-2.2` | `COLMAP` から `3DGS` への安全 gate | `s5` | `b5` | `active` |
+| `MRL-2` | `mRL-2.3` | 空間品質要約 | `s6` | `b6` | `active` |
+| `MRL-3` | `-` | 人物経路再構成と同時刻比較の基礎線を成立させる | `s7`,`s8`,`s9`,`s10` | `b7`,`b8`,`b9` | `active` |
+| `MRL-3` | `mRL-3.1` | 人物経路の主空間登録 | `s7`,`s9` | `b7` | `active` |
+| `MRL-3` | `mRL-3.2` | relink と不確実性 | `s7`,`s8` | `b8` | `active` |
+| `MRL-3` | `mRL-3.3` | 同時刻ハイライトと `attention point` | `s9`,`s10` | `b9` | `active` |
+| `MRL-4` | `-` | 閲覧成果物と運用硬化を成立させる | `s11`,`s12` | `b10`,`b12`,`b13`,`b14` | `active` |
+| `MRL-4` | `mRL-4.1` | `ReviewArtifact` と viewer 境界 | `s11` | `b10` | `active` |
+| `MRL-4` | `mRL-4.2` | 独立 project 境界 | `s12` | `b12`,`b14` | `active` |
+| `MRL-4` | `mRL-4.3` | 生成物 routing hygiene | `s12` | `b12`,`b13` | `active` |
 | `MRL-5` | `-` | correcting の intake / diagnose 基盤を成立させる | `s13`,`s14`,`s15`,`s21` | `b15`,`b16`,`b17`,`b18`,`b30` | `active` |
-| `MRL-5` | `mRL-5.1` | legacy alias を含む session source 読込 | `s13` | `b15` | `pass` |
-| `MRL-5` | `mRL-5.2` | raw / derived 分離 export | `s13`,`s15` | `b16` | `pass` |
+| `MRL-5` | `mRL-5.1` | legacy alias を含む session source 読込 | `s13` | `b15` | `active` |
+| `MRL-5` | `mRL-5.2` | raw / derived 分離 export | `s13`,`s15` | `b16` | `active` |
 | `MRL-5` | `mRL-5.3` | quality 数値表示付き app UI | `s13`,`s14` | `b17`,`b18` | `active` |
 | `MRL-5` | `mRL-5.4` | correcting 内の現場記録から export までの一連実行 | `s21` | `b30` | `planned` |
+| `MRL-5C` | `-` | `trajectreview-correcting` の記録 + data-check を成立させる | `s21`,`s21a`,`s24` | `b30`,`b30a`,`b33` | `active` |
+| `MRL-5C` | `mRL-5C.1` | 記録停止後の最新 session 再読込 | `s21` | `b30` | `active` |
+| `MRL-5C` | `mRL-5C.2` | app 内 `data-check` artifact 生成 | `s21`,`s21a` | `b30`,`b30a` | `active` |
+| `MRL-5C` | `mRL-5C.3` | recommended correction 表示 | `s21a` | `b30a` | `active` |
+| `MRL-5D` | `-` | `trajectreview-correcting` の wireless PC transfer を成立させる | `s21b`,`s24` | `b30b`,`b30c`,`b33` | `active` |
+| `MRL-5D` | `mRL-5D.1` | `1 回以上 data-check` 後の転送 gate | `s21b` | `b30b` | `active` |
+| `MRL-5D` | `mRL-5D.2` | 無線 session archive 転送 | `s21b` | `b30b` | `active` |
+| `MRL-5D` | `mRL-5D.3` | PC 側 bootstrap / receiver script | `s21b` | `b30c` | `active` |
 | `MRL-6` | `-` | correcting から modeling への concrete handoff を成立させる | `s16`,`s21` | `b19`,`b20`,`b21`,`b22`,`b30` | `active` |
-| `MRL-6` | `mRL-6.1` | 主カメラ動画を含む raw bundle 維持 | `s16` | `b19` | `pass` |
-| `MRL-6` | `mRL-6.2` | `session_package.json` 正規化 | `s16` | `b20` | `pass` |
+| `MRL-6` | `mRL-6.1` | 主カメラ動画を含む raw bundle 維持 | `s16` | `b19` | `active` |
+| `MRL-6` | `mRL-6.2` | `session_package.json` 正規化 | `s16` | `b20` | `active` |
 | `MRL-6` | `mRL-6.3` | `space_handoff_manifest.json` と UI gate | `s16` | `b21`,`b22` | `active` |
 | `MRL-6` | `mRL-6.4` | correcting export と modeling intake の end-to-end 接続 | `s16`,`s21` | `b30` | `planned` |
+| `MRL-8` | `-` | modeling の preflight と remote handoff 準備を成立させる | `s19`,`s20`,`s22` | `b27`,`b28`,`b31` | `active` |
+| `MRL-8` | `mRL-8.1` | 実 bundle 読込 state 再構成 | `s19` | `b27` | `active` |
+| `MRL-8` | `mRL-8.2` | local sample modeling と Colab handoff request | `s20` | `b28` | `active` |
+| `MRL-8` | `mRL-8.4` | remote modeling 結果受理前提の package 更新契約 | `s22` | `b31` | `planned` |
+| `MRL-9A` | `-` | modeling 比較基盤を成立させる | `s22`,`s22a`,`s24` | `b31`,`b31a`,`b33` | `active` |
+| `MRL-9A` | `mRL-9A.1` | `COLMAP 4.0.x` 前処理入力生成 | `s22a` | `b31a` | `active` |
+| `MRL-9A` | `mRL-9A.2` | image-only pose estimation と sparse reconstruction | `s22a` | `b31a` | `planned` |
+| `MRL-9A` | `mRL-9A.3` | `Colab` upload manifest と job 実行依頼 | `s22` | `b31` | `active` |
+| `MRL-9B` | `-` | modeling の multi-route 比較実験を成立させる | `s22b`,`s24` | `b31a`,`b31b`,`b33` | `active` |
+| `MRL-9B` | `mRL-9B.1` | pose route 比較実行 | `s22b` | `b31a`,`b31b` | `planned` |
+| `MRL-9B` | `mRL-9B.2` | `3DGS` route 比較実行 | `s22b` | `b31b` | `planned` |
+| `MRL-9B` | `mRL-9B.3` | `benchmark_summary.json` 集約 | `s22b` | `b31b` | `active` |
+| `MRL-9C` | `-` | modeling の採用 route 運用化を成立させる | `s22`,`s22c`,`s24` | `b31`,`b31c`,`b33` | `active` |
+| `MRL-9C` | `mRL-9C.1` | `selected_route.json` と default route 固定 | `s22c` | `b31c` | `active` |
+| `MRL-9C` | `mRL-9C.2` | remote result 受理と `SpacePackage` / `TrajectoryPackage` 更新 | `s22` | `b31` | `planned` |
+| `MRL-9C` | `mRL-9C.3` | research route 分離と再実行再現性 | `s22c` | `b31c` | `planned` |
+| `MRL-10` | `-` | reviewing 本機能を成立させる | `s19`,`s20`,`s23`,`s24` | `b29`,`b32`,`b33` | `planned` |
+| `MRL-10` | `mRL-10.1` | reviewing app の実 bundle verify / review summary | `s19`,`s20` | `b29` | `planned` |
+| `MRL-10` | `mRL-10.2` | 実 `ReviewArtifact` loader | `s23` | `b32` | `planned` |
+| `MRL-10` | `mRL-10.3` | same-time highlight と `attention point` 操作 | `s23` | `b32` | `planned` |
 | `MRL-7` | `-` | multi-app 骨格と役割境界を成立させる | `s17`,`s18`,`s24` | `b23`,`b24`,`b25`,`b26`,`b33` | `active` |
-| `MRL-7` | `mRL-7.1` | multi-app module 構成 | `s17`,`s18` | `b23` | `pass` |
+| `MRL-7` | `mRL-7.1` | multi-app module 構成 | `s17`,`s18` | `b23` | `active` |
 | `MRL-7` | `mRL-7.2` | correcting / modeling / reviewing UX 分離 | `s17` | `b24`,`b25`,`b26` | `active` |
 | `MRL-7` | `mRL-7.3` | 統合 app と app 単位切り分け summary | `s18` | `b26` | `active` |
 | `MRL-7` | `mRL-7.4` | gate 運用の分離 | `s24` | `b33` | `planned` |
-| `MRL-8` | `-` | modeling の preflight と reviewing の bundle 読込を成立させる | `s19`,`s20`,`s22` | `b27`,`b28`,`b29`,`b31` | `active` |
-| `MRL-8` | `mRL-8.1` | 実 bundle 読込 state 再構成 | `s19` | `b27` | `pass` |
-| `MRL-8` | `mRL-8.2` | local sample modeling と Colab handoff request | `s20` | `b28` | `pass` |
-| `MRL-8` | `mRL-8.3` | reviewing app の実 bundle verify / review summary | `s19`,`s20` | `b29` | `active` |
-| `MRL-8` | `mRL-8.4` | remote modeling 結果受理前提の package 更新 | `s22` | `b31` | `planned` |
-| `MRL-9` | `-` | modeling 本機能を成立させる | `s22`,`s24` | `b31`,`b33` | `planned` |
-| `MRL-9` | `mRL-9.1` | `Colab` upload manifest と job 実行依頼 | `s22` | `b31` | `planned` |
-| `MRL-9` | `mRL-9.2` | remote result 受理と `SpacePackage` / `TrajectoryPackage` 更新 | `s22` | `b31` | `planned` |
-| `MRL-10` | `-` | reviewing 本機能を成立させる | `s23`,`s24` | `b32`,`b33` | `planned` |
-| `MRL-10` | `mRL-10.1` | 実 `ReviewArtifact` loader | `s23` | `b32` | `planned` |
-| `MRL-10` | `mRL-10.2` | same-time highlight と `attention point` 操作 | `s23` | `b32` | `planned` |
 
 ## TDD
 
@@ -250,10 +285,19 @@
 | `T30` | `b30` | correcting end-to-end recording export | `trajectreview-correcting` で現場記録開始、停止、session 保存、input export までを 1 app 内で完了できる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/java/com/isensorium/app/MainActivity.kt` |
 | `T30a` | `b30a` | correcting data-check service | 最新 session から `sensor_quality.json`、`session_package.json`、`space_handoff_manifest.json`、recommended correction を生成できる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/CorrectingDataCheckService.kt` |
 | `T30b` | `b30a` | correcting data-check UI | 記録停止後に app 内で readiness、quality、blocker、recommended correction を確認できる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/res/layout/activity_main.xml` |
-| `T31` | `b31` | colab handoff manifest | `modeling` app が upload 対象、job parameter、result 受理先を machine-readable に出力できる | planned | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/LocalModelingService.kt` |
-| `T32` | `b31` | remote result import | remote modeling 結果を受理し、`SpacePackage`、`TrajectoryPackage`、`modeling_handoff_manifest.json` を更新できる | planned | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/` |
-| `T33` | `b32` | review artifact viewer | `reviewing` app が実 `ReviewArtifact` を読み、viewer と timeline 操作を提供できる | planned | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reviewing/` |
-| `T34` | `b33` | gate classification rule trace | `UX-only`、contract、sample、本機能の区別が `b2t`、`mrl-record`、`mrl-ux-valid` で矛盾なく追える | planned | `kisaragi-db/--devs/--plans/prj-kisaragi_0002/` |
+| `T30c` | `b30b` | correcting wireless transfer gate | `data-check` を 1 回以上成功させた session にだけ `PC 転送` を許可する | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/java/com/isensorium/app/MainActivity.kt` |
+| `T30d` | `b30b` | session archive wireless upload | session archive を無線で PC receiver へ送信し、PC 側保存先を応答で受け取れる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/PcTransferService.kt` |
+| `T30e` | `b30c` | PC bootstrap / receiver scripts | `bootstrap` が request を受けて receiver を起動し、receiver が idle 後に自動終了する | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/scripts/` |
+| `T31` | `b31a` | `COLMAP 4.0.x` preprocess manifest | `modeling` app が frame 選別、mask、camera option、mapper 種別を route 単位で `experiment_manifest.json` と `colmap_input_manifest.json` に出力できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/LocalModelingService.kt` |
+| `T32` | `b31a` | image-only pose estimation runner | `COLMAP 4.0.x` の `incremental`、`hierarchical`、`global_mapper` の少なくとも 1 route を `Colab` で実行し、camera pose と sparse model を保存できる | planned | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
+| `T33` | `b31a` | pose estimation report | `registered image ratio`、`reprojection error`、`track length`、`sparse point count`、failure reason を `pose_estimation_report.json` に正規化できる | planned | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
+| `T34` | `b31` | colab handoff manifest | `modeling` app が upload 対象、job parameter、result 受理先を machine-readable に出力できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/LocalModelingService.kt` |
+| `T35` | `b31b` | pose route benchmark aggregation | 同一 session に対して複数の pose route を比較し、quality、runtime、resource usage、failure reason を `benchmark_summary.json` に集約できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/LocalModelingService.kt` |
+| `T36` | `b31b` | `3DGS` route benchmark aggregation | 少なくとも 2 つの `3DGS` route の結果を同一比較表へ集約できる | planned | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
+| `T37` | `b31c` | selected route decision artifact | 暫定採用 route、不採用理由、research route、再評価条件を `selected_route.json` に保存できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/LocalModelingService.kt` |
+| `T38` | `b31` | remote result import | remote modeling 結果を受理し、`SpacePackage`、`TrajectoryPackage`、`modeling_handoff_manifest.json` を更新できる | planned | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
+| `T39` | `b32` | review artifact viewer | `reviewing` app が実 `ReviewArtifact` を読み、viewer と timeline 操作を提供できる | planned | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reviewing/` |
+| `T40` | `b33` | gate classification rule trace | `UX-only`、contract、sample、本機能の区別が `b2t`、`mrl-record`、`mrl-ux-valid` で矛盾なく追える | planned | `kisaragi-db/--devs/--plans/prj-kisaragi_0002/` |
 
 ### 実行方針
 
@@ -263,22 +307,22 @@
 - `MRL-3` では `T8` から `T11` で人物経路、relink、不確実性、同時刻ハイライト、`attention point` を固めた
 - `MRL-4` では `T12` から `T14` で成果物境界と運用 hygiene を固めた
 - `MRL-5` では `T17` から `T20` で入力セッション抽出統合、legacy alias intake、bundle 分離、quality 数値表示を固める
-- `MRL-5C` では `T30`、`T30a`、`T30b` で `correcting` 単体の記録 + data-check を閉じた
+- `MRL-5C` では `T30`、`T30a`、`T30b` で `correcting` 単体の記録 + data-check 実装を固めた
+- `MRL-5D` では `T30c`、`T30d`、`T30e` で `correcting` 単体の wireless PC transfer を固める
 - `MRL-6` では `T21` から `T23` で raw video 維持、`SessionPackage` 正規化、`SpaceReconstruction` handoff gate を固める
-- `MRL-7` では `T24` から `T26` と `T34` で 4 app 骨格、role-specific UX、統合 app overview、gate 分類を固める
-- `MRL-8` では `T27` から `T29` で実 bundle 読込、local sample modeling、reviewing 実データ summary を固める
-- `MRL-9` では `T31` と `T32` で `Colab` handoff と remote result import を固める
-- `MRL-10` では `T33` で実 `ReviewArtifact` viewer を固める
+- `MRL-7` では `T24` から `T26` で 4 app 骨格、role-specific UX、統合 app overview を固める
+- `MRL-8` では `T27` と `T28` で実 bundle 読込と local sample modeling を固める
+- `MRL-9A` では `T31` から `T34` で `COLMAP 4.0.x` 前処理、image-only pose、`Colab` handoff を固める
+- `MRL-9B` では `T35` と `T36` で pose / `3DGS` route 比較を固める
+- `MRL-9C` では `T37` と `T38` で採用 route 固定と remote result import を固める
+- `MRL-10` では `T29` と `T39` で reviewing 実 bundle summary と実 `ReviewArtifact` viewer を固める
 
 ### 現在の見立て
 
 - `T1` から `T16` は、契約実装、project 境界 scan、output routing 実行で `pass` になった
 - Python unittest、Android unit test、PowerShell script 実行により、入口契約から成果物 routing までの計画範囲を固定した
 - `T17` から `T23` は contract と handoff artifact の基礎は通っているが、`correcting` の本機能 close には未達である
-- `MRL-5C` は close した。`correcting` 単体で現場記録と `data-check` が完結し、不十分な session でも correction 指示を返せる
+- `MRL-5C` は実装と局所検証が通っているが、`pass` は admin `UX check` batch 実施後に再判定する
+- `MRL-5D` は `correcting` の次 gate とし、`現場撮影データ保存 -> data-check -> PC 転送` を 1 app UX として閉じる
 - `T24` から `T29` は multi-app 骨格、実 bundle summary、`local sample` の検証としては有効だが、本機能完成の証拠としては不十分である
-- 次段は `T31` から `T34` を追加し、`Colab` handoff、remote result import、実 `ReviewArtifact` viewer、gate 分類を詰める
-| `MRL-5C` | `-` | `trajectreview-correcting` の記録 + data-check を成立させる | `s21`,`s21a`,`s24` | `b30`,`b30a`,`b33` | `pass` |
-| `MRL-5C` | `mRL-5C.1` | 記録停止後の最新 session 再読込 | `s21` | `b30` | `pass` |
-| `MRL-5C` | `mRL-5C.2` | app 内 `data-check` artifact 生成 | `s21`,`s21a` | `b30`,`b30a` | `pass` |
-| `MRL-5C` | `mRL-5C.3` | recommended correction 表示 | `s21a` | `b30a` | `pass` |
+- 次段は `T31` から `T40` を追加し、`COLMAP 4.0.x` 前処理、multi-route 比較、採用 route 固定、remote result import、実 `ReviewArtifact` viewer、gate 分類を詰める
