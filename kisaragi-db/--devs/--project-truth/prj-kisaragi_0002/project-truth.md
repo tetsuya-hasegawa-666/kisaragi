@@ -41,8 +41,8 @@
 
 ### Intake
 
-- 目的: `iSensorium` session folder から主カメラ動画と `IMU`、人物側 `IMU` を抽出し、単一セッションとして受理する
-- 主表示: `iSensorium セッションを選択`
+- 目的: 入力セッション folder から主カメラ動画と `IMU`、人物側 `IMU` を抽出し、単一セッションとして受理する
+- 主表示: `入力セッションを選択`
 - 状態表示: 選択元、抽出先、frame 数、必須入力の充足、欠落有無、時刻整列指標
 
 ### Diagnose
@@ -76,7 +76,7 @@
 
 ### 第 1 段階: `InputPackaging`
 
-- 責務: `iSensorium` app data から主カメラ動画、主カメラ `IMU`、人物側 `IMU` を抽出し、単一セッション入力へ正規化する
+- 責務: 取得元 app data から主カメラ動画、主カメラ `IMU`、人物側 `IMU` を抽出し、単一セッション入力へ正規化する
 - 主な処理: session folder 選択、raw file 抽出、frame 抽出、`ARCore` pose 整理、`IMU` 整理、`BT` 整理、時刻整列、品質フラグ付与
 - 出力: `SessionPackage`
 
@@ -104,7 +104,7 @@
 
 - 対象段階: `InputPackaging`
 - 主責務: 取得、抽出、入力補正、診断、後段 handoff 判定
-- 実データ基準: 選択した `iSensorium` session folder から `trajectreview_export/<session_id>/` を生成し、その bundle を再読込して状態を表示する
+- 実データ基準: 選択した入力セッション folder から `trajectreview_export/<session_id>/` を生成し、その bundle を再読込して状態を表示する
 
 ### `trajectreview-modeling`
 
@@ -128,7 +128,7 @@
 
 ### 分担 1: `InputPackaging`
 
-- 担当: `iSensorium` 由来入力の抽出、受理、整形、時刻整列、入力診断
+- 担当: 取得元入力の抽出、受理、整形、時刻整列、入力診断
 - 次段へ渡すもの:
   - `SessionPackage`
   - `input_readiness.json`
@@ -140,7 +140,7 @@
 - 受け渡し条件:
   - 主カメラ動画、主カメラ `IMU`、人物側 `IMU` の充足が判定済みである
   - 主体、端末、時刻基準の対応が追える
-  - `iSensorium` 生出力と `trajectreview` 派生出力が分離されている
+  - 取得元 raw と `trajectreview` 派生出力が分離されている
   - app 内で抽出元と抽出先が追える
 
 ### 分担 2: `SpaceReconstruction`
@@ -214,7 +214,7 @@
   - 全 record が共通単調時刻軸で比較できる
   - `frame_id` と `image_path` が一意である
   - 主体と端末の対応が追える
-  - `iSensorium` の生出力だけでなく、`trajectreview` 派生の受理判定、品質、対応表を同梱または併設参照できる
+  - 取得元 raw だけでなく、`trajectreview` 派生の受理判定、品質、対応表を同梱または併設参照できる
 
 ### `SpacePackage`
 

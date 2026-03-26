@@ -204,6 +204,16 @@
                 android:textColor="@color/reviework_primary_text" />
 
             <TextView
+                android:id="@+id/extractionOutputText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:fontFamily="monospace"
+                android:text="@string/export_idle"
+                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                android:textColor="@color/reviework_primary_text" />
+
+            <TextView
                 android:id="@+id/extractionResultText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -227,6 +237,14 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="@string/select_session" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/selectOutputButton"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:text="@string/select_export_root" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/exportButton"

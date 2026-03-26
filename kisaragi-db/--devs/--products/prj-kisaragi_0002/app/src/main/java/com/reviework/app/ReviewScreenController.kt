@@ -373,8 +373,8 @@ class ReviewScreenController {
             }
         return listOf(
             ReviewScreenState(
-                nextActionTitle = "iSensorium セッションを選択",
-                nextActionReason = "iSensorium 生出力と trajectreview 追加出力を抽出します。",
+                nextActionTitle = "入力セッションを選択",
+                nextActionReason = "取得元データと trajectreview 追加出力を抽出します。",
                 thinStatus =
                     ReviewThinStatus(
                         phase = ReviewPhase.INTAKE,

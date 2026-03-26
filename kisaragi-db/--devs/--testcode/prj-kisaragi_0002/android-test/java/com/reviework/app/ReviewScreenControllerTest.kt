@@ -58,7 +58,7 @@ class ReviewScreenControllerTest {
         val state = controller.initialState()
 
         assertEquals(ReviewPhase.INTAKE, state.thinStatus.phase)
-        assertEquals("iSensorium セッションを選択", state.nextActionTitle)
+        assertEquals("入力セッションを選択", state.nextActionTitle)
     }
 
     @Test

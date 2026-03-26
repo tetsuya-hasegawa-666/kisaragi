@@ -7,8 +7,10 @@
     <string name="select_session">セッションを選択</string>
     <string name="run_extract">抽出を実行</string>
     <string name="run_modeling">軽量 model を実行</string>
-    <string name="extract_idle">選択先: 未選択</string>
-    <string name="extract_idle_detail">iSensorium session folder を選択すると、raw と trajectreview 追加出力を抽出できます。</string>
+    <string name="extract_idle">取得元: 未選択</string>
+    <string name="export_idle">保存先: 未選択</string>
+    <string name="select_export_root">保存先を選択</string>
+    <string name="extract_idle_detail">入力セッション folder と保存先 folder を選択すると、raw と trajectreview 追加出力を抽出できます。</string>
     <string name="extract_running">抽出中です。完了まで待ってください。</string>
     <string name="modeling_running">軽量 model 実行中です。完了まで待ってください。</string>
     <string name="review_load_running">review bundle 読込中です。完了まで待ってください。</string>

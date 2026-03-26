@@ -54,7 +54,7 @@
   - `MRL-5`
   - `mRL-5.1` から `mRL-5.3`
 - UX 観点:
-  - app 起動直後に `iSensorium セッションを選択` が `Next Action` として見える
+  - app 起動直後に `入力セッションを選択` が `Next Action` として見える
   - `Extraction` card で抽出元、抽出先、`ready_for_diagnose`、欠落入力、quality 数値を 1 画面で読める
   - `ux_check_manual.md` を、抽出 UI を含む最小操作手順へ更新した
 - 実装 / test 観点:

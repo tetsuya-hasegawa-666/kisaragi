@@ -14,17 +14,19 @@
 ## 操作手順
 
 1. Android 端末で app `trajectreview-correcting` を起動する。
-2. `入力 tree を選択` を押し、`iSensorium` の session folder を選ぶ。
-3. `抽出を実行` を押し、`trajectreview_export/<session_id>`、`診断進行可`、`空間再構成進行可`、`充足率`、`pose 対応率` が見えることを確認する。
-4. Android 端末で app `trajectreview-modeling` を起動する。
-5. `bundle を選択` を押し、手順 3 で作られた `trajectreview_export/<session_id>` folder を選ぶ。
-6. `軽量 model を実行` を押し、`spaceQuality`、`trajectoryQuality`、`colab_job_request.json` を含む出力一覧が見えることを確認する。
-7. Android 端末で app `trajectreview-reviewing` を起動する。
-8. `結果 folder を選択` を押し、同じ `trajectreview_export/<session_id>` folder を選ぶ。
-9. `結果を読込` を押し、`verify` または `review` の状態、`Attention`、`same_time` が見えることを確認する。
-10. Android 端末で統合 app `trajectreview` を起動する。
-11. `入力 tree を選択` を押して同じ session folder を選び、`抽出を実行` の後に `軽量 model を実行` を押す。
-12. `Thin Status` と `Attention` が実データ由来に更新され、`前へ` と `次へ` で段階を追えることを確認する。
+2. `取得元を選択` を押し、取得元の session folder を選ぶ。
+3. `保存先を選択` を押し、抽出結果を書き出す folder を選ぶ。
+4. `抽出を実行` を押し、`trajectreview_export/<session_id>`、`診断進行可`、`空間再構成進行可`、`充足率`、`pose 対応率` が見えることを確認する。
+5. Android 端末で app `trajectreview-modeling` を起動する。
+6. `bundle を選択` を押し、手順 4 で作られた `trajectreview_export/<session_id>` folder を選ぶ。
+7. `軽量 model を実行` を押し、`spaceQuality`、`trajectoryQuality`、`colab_job_request.json` を含む出力一覧が見えることを確認する。
+8. Android 端末で app `trajectreview-reviewing` を起動する。
+9. `結果 folder を選択` を押し、同じ `trajectreview_export/<session_id>` folder を選ぶ。
+10. `結果を読込` を押し、`verify` または `review` の状態、`Attention`、`same_time` が見えることを確認する。
+11. Android 端末で統合 app `trajectreview` を起動する。
+12. `取得元を選択` を押して同じ session folder を選び、`保存先を選択` で出力先 folder を選ぶ。
+13. `抽出を実行` の後に `軽量 model を実行` を押す。
+14. `Thin Status` と `Attention` が実データ由来に更新され、`前へ` と `次へ` で段階を追えることを確認する。
 
 ## pass の判断
 

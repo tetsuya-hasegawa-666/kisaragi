@@ -87,7 +87,7 @@
   target MRL: `MRL-5`
   target mRL: `mRL-5.1` から `mRL-5.3`
   gate change: `pass`
-  issue: `trajectreview` が UI mock のままで、`iSensorium` session folder から raw と追加出力を app 自身では取り出せなかった
+  issue: `trajectreview` が UI mock のままで、入力セッション folder から raw と追加出力を app 自身では取り出せなかった
   cause: `InputPackaging` は Python parser 契約までは固定済みだったが、Android app 側に source 選択、export、quality summary の導線がなかった
   resolution: Kotlin extractor を追加し、legacy alias intake、`isensorium/` と `trajectreview/` の分離 export、quality 数値表示付き UI、Python / Android test を実装した
   recurrence prevention: `InputPackaging` の route 変更は、parser 互換 test、Android export test、UX manual を同じ task で更新する
