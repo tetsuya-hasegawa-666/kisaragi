@@ -12,6 +12,26 @@
 
 ## Entries
 
+- record date: `2026-03-26`
+  target MRL: `MRL-5C`
+  target mRL: `mRL-5C.1`、`mRL-5C.2`、`mRL-5C.3`
+  gate change: `pass`
+  issue: `trajectreview-correcting` は記録画面だけで、同じ app 内の `data-check` と correction guidance が不足していた
+  cause: `correcting` は verified mirror の recording screen に依存しており、session 停止後の intake / diagnose を app 内で閉じていなかった
+  resolution: `CorrectingDataCheckService` を追加し、最新 session 再読込、`sensor_quality.json`、`session_package.json`、`space_handoff_manifest.json` 生成、recommended correction 表示を `correcting` 内へ実装した
+  recurrence prevention: `correcting` の gate は記録画面だけで close せず、実 session から derived artifact が生成され、app 上に correction guidance が表示されるまで `pass` にしない
+  remaining work: `modeling` 側の `Colab` handoff と `reviewing` 側の実 `ReviewArtifact` viewer を継続する
+  evidence path: `kisaragi-db/--devs/--evidence/prj-kisaragi_0002/mrl-ux-valid.md`
+- record date: `2026-03-26`
+  target MRL: `MRL-5` から `MRL-8`
+  target mRL: `mRL-5.3`、`mRL-5.4`、`mRL-6.3`、`mRL-6.4`、`mRL-7.x`、`mRL-8.3`、`mRL-8.4`
+  gate change: `reverted to active/planned`
+  issue: `UX 確認`、`build / install`、`local sample`、summary 読込を本来機能完成に近い意味で扱い、app の完成度を過大に closeout していた
+  cause: `UX-only` gate と本機能 gate を分離せず、multi-app 骨格と実 app 機能の境界を `MRL` 表へ十分に反映していなかった
+  resolution: `b2t-plans-result.md` と `project-truth.md` を再設計し、correcting、modeling、reviewing、統合 app の完成条件を本来機能基準へ引き直し、該当 gate を `active` / `planned` へ戻した
+  recurrence prevention: mock、stub、sample、contract、build / install は補助 gate として別扱いにし、本機能 `pass` は実入出力と実生成物の end-to-end 証跡がある時だけ付与する
+  remaining work: `correcting` の end-to-end、`Colab` handoff、remote result import、実 `ReviewArtifact` viewer、統合 app の end-to-end を実装する
+  evidence path: `kisaragi-db/--devs/--plans/prj-kisaragi_0002/b2t-plans-result.md`
 - record date: `2026-03-25`
   target MRL: `none`
   target mRL: `none`

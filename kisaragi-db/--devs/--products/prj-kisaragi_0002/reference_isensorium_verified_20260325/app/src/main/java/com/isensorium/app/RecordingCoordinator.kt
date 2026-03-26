@@ -203,7 +203,7 @@ class RecordingCoordinator(
                 false,
                 session,
                 if (recordingConfig.bleEnabled || recordingConfig.arCoreEnabled) {
-                    "${recordingModeLabel(recordingConfig.recordingMode)}でセッションを作成しました。動画・IMU・GNSS を準備し、BLE / ARCore は低頻度確認として開始します。"
+                    "${recordingModeLabel(recordingConfig.recordingMode)}でセッションを作成しました。動画・IMU・GNSS を準備し、BLE は低頻度確認、ARCore は frozen route では停止します。"
                 } else {
                     "${recordingModeLabel(recordingConfig.recordingMode)}でセッションを作成しました。動画・IMU・GNSS の記録を開始します。"
                 },
@@ -218,7 +218,10 @@ class RecordingCoordinator(
             sessionManager.appendCollectorStatus(session, "ble", "disabled")
         }
         if (recordingConfig.arCoreEnabled) {
-            arCoreLogger.start(session)
+            // `frozen_camerax_arcore` cannot safely keep CameraX video capture and ARCore camera updates
+            // alive on Xperia 5 III at the same time. In this route we prefer uninterrupted recording and
+            // explicitly disable ARCore capture during the session.
+            sessionManager.appendCollectorStatus(session, "arcore", "disabled_in_frozen_route")
         } else {
             sessionManager.appendCollectorStatus(session, "arcore", "disabled")
         }
@@ -290,7 +293,7 @@ class RecordingCoordinator(
                             session = session,
                             statusText = "${recordingModeLabel(session.recordingConfig.recordingMode)}: ${session.sessionId} を記録中です。",
                             toastMessage = if (session.recordingConfig.bleEnabled || session.recordingConfig.arCoreEnabled) {
-                                "動画・IMU・GNSS を記録中、BLE / ARCore は低頻度確認です"
+                                "動画・IMU・GNSS を記録中、BLE は低頻度確認、ARCore は frozen route では停止します"
                             } else {
                                 "動画・IMU・GNSS を記録中です"
                             },
@@ -350,7 +353,7 @@ class RecordingCoordinator(
                                 "セッション終了時にエラーが発生しました: ${event.error}"
                             } else {
                                 if (session.recordingConfig.bleEnabled || session.recordingConfig.arCoreEnabled) {
-                                    "5 系統構成のセッションを保存しました。保存先を確認してください。"
+                                    "セッションを保存しました。frozen route では ARCore は録画安定性優先で停止します。"
                                 } else {
                                     "動画・IMU・GNSS のセッションを保存しました。保存先を確認してください。"
                                 }
@@ -358,7 +361,7 @@ class RecordingCoordinator(
                             toastMessage = if (event.hasError()) {
                                 null
                             } else if (session.recordingConfig.bleEnabled || session.recordingConfig.arCoreEnabled) {
-                                "5 系統構成のセッションを保存しました"
+                                "録画を優先してセッションを保存しました"
                             } else {
                                 "動画・IMU・GNSS のセッションを保存しました"
                             },

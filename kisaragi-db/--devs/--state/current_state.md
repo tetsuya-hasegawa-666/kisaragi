@@ -3,6 +3,7 @@
 ## 共有制御
 
 - この文書は project 横断の shared current state 正本とする。
+- 2026-03-26: Codex が `prj-kisaragi_0002` の mock 完了誤認を是正するため、`b2t-plans-result.md`、`project-truth.md`、`mrl-record.md`、`mrl-ux-valid.md`、`AGENTS.md`、`AGENTSmd-RH.md` の整合更新を担当する。
 - 2026-03-25: Codex が `project code` 命名規則に合わせた `prj-kisaragi_****` rename と全参照整合を担当する。
 - 2026-03-25: Codex が `AGENTS.md` の Guard、branch 補足、Windows 運用マニュアル追記を担当する。
 - 2026-03-25: Codex が今回に限る許可に基づき、`AGENTS.md` の `<order>` を含む全体圧縮を担当する。
@@ -16,8 +17,11 @@
 - 2026-03-25: Codex が `iSensorium` verified mirror を `prj-kisaragi_0002` の `--products` / `--testcode` へ保持し、`project-truth` から参照できる状態へ整える。
 - 2026-03-25: Codex が `iSensorium` verified mirror を比較用 app `kisaragi-iSensorium` として `Xperia 5 III` へ install し、本来の `iSensorium` と並行比較できる状態へ整える。
 - 2026-03-25: Codex が `prj-kisaragi_0002` の `MRL-6` として、`session_package.json`、`space_handoff_manifest.json`、主カメラ動画を含む後段 handoff 加工を完了まで進める。
-- 2026-03-26: Codex が `prj-kisaragi_0002` の `MRL-7` として、`correcting`、`modeling`、`reviewing`、統合 app の 4 app 構成を完了まで進める。
-- 2026-03-26: Codex が `prj-kisaragi_0002` の `MRL-8` として、各 app が実 bundle を読み、`modeling` が `Colab` 前提の local sample model と handoff request を生成する実装を完了した。
+- 2026-03-26: Codex が `prj-kisaragi_0002` の `MRL-7` として、`correcting`、`modeling`、`reviewing`、統合 app の 4 app 構成と役割境界の中間成果を進める。
+- 2026-03-26: Codex が `prj-kisaragi_0002` の `MRL-8` として、各 app の実 bundle 読込と `modeling` の `local sample before colab` を中間成果として進める。
+- 2026-03-26: 人間承認により、`C:\Users\tetsuya\kisaragi` 作業中の workspace 外 directory access は `READ` のみを許可し、write 系 access を禁止する shared rule を採用する。
+- 2026-03-26: 人間確認により、`prj-kisaragi_0002` の app 状態は `UX と局所 logic の確認が一部できた段階` であり、`本来機能が使える完成 app` とは扱わない。
+- 2026-03-26: Codex が `prj-kisaragi_0002` の `MRL-5C` を完了し、`trajectreview-correcting` 単体で `現場記録 -> data-check -> correction guidance` を実機 session で確認した。
 
 ## 人間確認待ち
 
@@ -29,6 +33,8 @@
 
 ## 次の確認
 
+- `prj-kisaragi_0002` の `UX-only` gate と `本機能完成` gate を分離し、誤って `pass` を付けた `MRL` を是正する
+- `prj-kisaragi_0002` の次段として `modeling` の `Colab` handoff と remote result import を実装する
 - `prj-kisaragi_0001` と `prj-kisaragi_0002` rename 後の stale 参照と test routing を確認する
 - `AGENTS.md` の branch 規則と state / decision path 規則の整合を維持する
 - `AGENTS.md` の Guard から未存在 `issue-note.md` 依存を外す

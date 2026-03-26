@@ -12,6 +12,48 @@
 
 ## 更新履歴
 
+### 2026-03-26 AGENTS.md warning と blocker の役割分離
+
+- 日時: `2026-03-26`
+- 文書名: `AGENTS.md`
+- 標題: `warning` による後続停止の禁止
+- 背景: `prj-kisaragi_0002` で data-check の警告表示自体は有益だった一方、警告があるだけで後続の `3DGS` 前段処理へ進めない構成が生じ、機能不全の再発防止が必要になった。
+- 目的: `warning` を user への注意喚起情報として扱い、実行不能条件である `blocker` と混同して後続処理を止めない shared rule を固定する。
+- 対処方法: `実装原則` に、`warning` の存在だけでは後続処理や継続操作を停止してはならないこと、停止してよいのは実行不能条件だけであることを追記した。
+- 対応内容: `warning` は情報提示、`blocker` は実行不能条件という責務分離を明文化し、両者の混同を禁止した。
+- 更新結果: 今後は警告を UX として表示しても、実行可能な後続処理は継続できる設計を shared rule として要求できる。
+- 新旧比較:
+  - 旧: 警告表示と実行停止条件の境界が shared rule として十分に固定されていなかった。
+  - 新: `warning` では止めず、実行不能な `blocker` の時だけ止める rule を shared 化した。
+
+### 2026-03-26 AGENTS.md mock 完了誤認の再発防止
+
+- 日時: `2026-03-26`
+- 文書名: `AGENTS.md`
+- 標題: `UX-only` と本機能 `pass` の分離
+- 背景: `prj-kisaragi_0002` で build、install、UX 確認、local sample 実装を本来機能の完成と近い意味で扱い、app の完成度を過大評価した。
+- 目的: mock、stub、sample、説明用 UI の確認を、本機能 `MRL` / `mRL` の `pass` と取り違えない shared rule を固定する。
+- 対処方法: `実装原則` に `UX 確認済み`、`contract 固定済み`、`build / install 済み`、`local sample 済み` を本機能完成と同義にしない rule を追加した。
+- 対応内容: 本機能 gate の `pass` には、対象 app 自身で本来の入出力を扱い、後段が消費する実生成物を出し、主要 blocker が解消済みであることを要件化した。
+- 更新結果: 今後は UX 検証や補助 route の確認だけでは、本来機能 gate を `pass` にできない。
+- 新旧比較:
+  - 旧: UX、contract、sample、install の確認と本機能完成の境界が shared rule として十分に明文化されていなかった。
+  - 新: `UX-only` と本機能 `pass` を明確に分離し、mock 完了誤認を防ぐ rule を shared 化した。
+
+### 2026-03-26 AGENTS.md workspace 外 directory の write 禁止
+
+- 日時: `2026-03-26`
+- 文書名: `AGENTS.md`
+- 標題: `kisaragi` 作業時の workspace 外 access 制限
+- 背景: `kisaragi` 作業中に外部 directory を参照する必要はある一方、workspace 外へ write 系 access を許すと管理境界と再現性が崩れる。
+- 目的: `C:\Users\tetsuya\kisaragi` を作業中の workspace とする時、workspace 外 directory への access を `READ` のみに限定し、write 系操作を明確に禁止する。
+- 対処方法: `AGENTS.md` に `workspace 外 access 制限` 節を追加し、`READ` 以外の access 禁止を shared rule として明文化した。
+- 対応内容: 外部 directory への作成、編集、移動、削除、rename、生成物出力、cache 出力などを禁止し、必要情報は `kisaragi/` 配下へ吸収する運用を追記した。
+- 更新結果: 今後 `kisaragi` 作業中は、workspace 外 directory への access は参照のみで扱い、write 系操作は行わない。
+- 新旧比較:
+  - 旧: 外部 directory 参照時の write 禁止が shared rule として明文化されていなかった。
+  - 新: workspace 外 directory への access は `READ` のみに限定し、write 系 access を禁止する rule を shared 化した。
+
 ### 2026-03-25 AGENTS.md rule 外 `--` directory 生成の禁止
 
 - 日時: `2026-03-25`

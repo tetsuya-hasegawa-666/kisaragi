@@ -13,6 +13,20 @@
 - 利用者は主空間、主カメラ経路、人物経路を同じ `Timeline` で見比べ、同時刻ハイライトと `attention point` からレビュー判断へ進める
 - 運用者は外部 project や一時文書に依存せず、`prj-kisaragi_0002` 配下だけで計画、実装、検証を継続できる
 
+## 完成判定の原則
+
+- `trajectreview` の完成判定は `本来機能が app 内で実行できること` を基準とする
+- `UX 確認`、`contract 固定`、`build / install`、`local sample`、`stub 読込` は価値のある中間成果だが、完成そのものではない
+- `pass` を付ける時は、対象 app が本来の入出力を扱い、後段が消費する実生成物を出し、主要 blocker が残っていないことを要件とする
+
+## 現在の到達認識
+
+- `trajectreview-correcting` は `現場記録 -> 最新 session 再読込 -> data-check -> correction guidance` を 1 app 内で実行できる
+- `frozen_camerax_arcore` route では録画安定性を優先し、記録中の `ARCore` 収集を停止する
+- `trajectreview-modeling` は `local sample before colab` と request 生成を持つが、実 `COLMAP` / `3DGS` / trajectory reconstruction は未実装である
+- `trajectreview-reviewing` は summary / stub 読込を持つが、実 `ReviewArtifact` viewer と操作系は未実装である
+- 統合 app は workflow 境界の理解には使えるが、現時点では本来機能を end-to-end で閉じていない
+
 ## 対象シナリオ
 
 - 主空間収録主体は `ARCore` 連携スマホカメラを持ち、連続動画と `IMU` を記録して主空間の基準となる
@@ -104,25 +118,36 @@
 
 - 対象段階: `InputPackaging`
 - 主責務: 現場記録、取得条件設定、source session 保存、入力補正の起点作成
-- 実データ基準: `trajectreview-correcting` 自体が camera / IMU / GNSS / BLE / ARCore 記録画面を持ち、source session を端末内へ保存する
+- 完成基準:
+  - `trajectreview-correcting` 自体が camera / IMU / GNSS / BLE / ARCore 記録画面を持ち、source session を端末内へ保存する
+  - 同じ app 内で session を intake し、`session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json` まで生成する
+  - `data-check` が readiness、quality、blocker、recommended correction を返す
+  - 利用者が `現場撮影データ保存を開始` から export 完了まで、別 app へ移らず進められる
 
 ### `trajectreview-modeling`
 
 - 対象段階: `SpaceReconstruction`、`TrajectoryReconstruction`
 - 主責務: model 入力確認、実行 gate、進行把握、再構成 blocker 確認
-- 実データ基準: `session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json` を入力として、`Colab` 送信前の `local sample before colab` を実行し、`colab_job_request.json` と review 用 stub を生成する
+- 完成基準:
+  - `session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json` を入力として、`Colab` upload 対象と job request を生成する
+  - remote 実行結果を受理し、`SpacePackage`、`TrajectoryPackage`、`space_quality.json`、`trajectory_quality.json`、`attention_seed.json` を更新する
+  - `local sample before colab` は preflight 用補助 route とし、完成判定の代替に使わない
 
 ### `trajectreview-reviewing`
 
 - 対象段階: `AssemblyAndViewer`
 - 主責務: verify、review、same-time highlight、`attention point` 確認
-- 実データ基準: `local_model_summary.json` と `review_artifact_stub.json` を読み、verify / review 状態を mock ではなく実 bundle で表示する
+- 完成基準:
+  - `ReviewArtifact` 実体を読み、viewer、timeline、same-time highlight、`attention point` jump を提供する
+  - summary / stub 読込だけでなく、後段成果物そのものを利用者が操作できる
 
 ### 統合 app
 
 - 対象段階: 全段階
 - 主責務: correcting、modeling、reviewing の全 workflow を 1 つの視点で束ねる
-- 実データ基準: 抽出直後の bundle を保持し、同じ app 内で `local sample before colab` を続行できる
+- 完成基準:
+  - correcting、modeling、reviewing の本来機能を 1 app から順につなげられる
+  - workflow 全体の現在地と blocker を示しつつ、各段階の実生成物へ到達できる
 
 ## 分担インターフェース
 

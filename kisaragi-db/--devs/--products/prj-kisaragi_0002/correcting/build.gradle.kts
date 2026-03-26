@@ -45,11 +45,14 @@ android {
     sourceSets {
         getByName("main") {
             manifest.srcFile("src/main/AndroidManifest.xml")
-            java.srcDirs("../reference_isensorium_verified_20260325/app/src/main/java")
+            java.srcDirs("src/main/java", "../reference_isensorium_verified_20260325/app/src/main/java")
             res.srcDirs("src/main/res", "../reference_isensorium_verified_20260325/app/src/main/res")
         }
         getByName("test") {
-            java.srcDirs("../../../../--testcode/prj-kisaragi_0002/reference_isensorium_verified_20260325/android-test/java")
+            java.srcDirs(
+                "../../../../--testcode/prj-kisaragi_0002/reference_isensorium_verified_20260325/android-test/java",
+                "../../../../--testcode/prj-kisaragi_0002/correcting-test/java",
+            )
         }
     }
 }
@@ -70,6 +73,7 @@ dependencies {
     implementation("com.google.ar:core:1.52.0")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
 }

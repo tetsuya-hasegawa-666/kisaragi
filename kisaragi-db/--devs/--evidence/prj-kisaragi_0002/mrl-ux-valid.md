@@ -4,6 +4,46 @@
 
 この文書は `prj-kisaragi_0002` の `MRL` / `mRL` が `pass` になった根拠を、UX と実行証跡の両面から集約する。
 
+## 2026-03-26 再評価
+
+- 判定:
+  - 2026-03-25 から 2026-03-26 に記録した `MRL-5` から `MRL-8` の一部は、`UX-only`、`build / install`、`local sample`、summary 読込の確認としては有効だった
+  - ただし、これらは `本来機能が app として完成した証拠` ではないため、対応する `MRL` / `mRL` の一部を `active` / `planned` へ戻した
+- 維持する evidence:
+  - 記録画面への到達、bundle 読込、request 生成、summary 表示、multi-app build は中間成果として引き続き有効である
+- 取り消す解釈:
+  - `correcting`、`modeling`、`reviewing`、統合 app が本来機能完成であるという解釈は採らない
+
+## 2026-03-26 `MRL-5C` closeout
+
+- 対象 gate:
+  - `MRL-5C`
+  - `mRL-5C.1` から `mRL-5C.3`
+- UX 観点:
+  - `trajectreview-correcting` で `現場撮影データ保存を開始` と `現場撮影データ保存を停止` が動く
+  - 記録停止後に同じ app 内で `data-check` 欄へ `診断進行可`、`modeling 着手可`、`blocker`、`補正指示` が表示される
+  - `data-check を実行` により、最新 session から結果を再計算できる
+- 実装 / test 観点:
+  - JVM unit test:
+    - `:correcting:testDebugUnitTest`
+  - build / install:
+    - `:correcting:assembleDebug`
+    - `:correcting:installDebug`
+  - device verification:
+    - short harness を `com.reviework.correcting` 向けに実行し、`session-20260326-193340/trajectreview/` 配下へ derived artifact が生成されることを確認した
+- 実 session 観点:
+  - `sensor_quality.json`
+  - `session_package.json`
+  - `space_handoff_manifest.json`
+  - `frame_pose_index.csv`
+  - `member_identity_map.json`
+  - 不十分な収録では `video.mp4 が不足しています` のような blocker と correction guidance を返す
+- 主要 evidence:
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/CorrectingDataCheckService.kt`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/java/com/isensorium/app/MainActivity.kt`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/res/layout/activity_main.xml`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/test/java/com/isensorium/app/CorrectingDataCheckServiceSmokeTest.java`
+
 ## 2026-03-25 closeout
 
 - 対象 gate:
@@ -32,8 +72,10 @@
 
 ## 残作業
 
-- 現行 `MRL` 計画は close した。
-- 次段では、pass 済み contract を実データ pipeline と viewer の実利用へ拡張する。
+- `correcting` の `現場記録 -> intake -> diagnose -> correction export` を 1 app 内で閉じる
+- `modeling` の `Colab` handoff と remote result import を実装する
+- `reviewing` の実 `ReviewArtifact` viewer と same-time highlight 操作を実装する
+- 統合 app の end-to-end と、本機能 `pass` の再 closeout を実施する
 
 ## 2026-03-25 latest exsams output recheck
 

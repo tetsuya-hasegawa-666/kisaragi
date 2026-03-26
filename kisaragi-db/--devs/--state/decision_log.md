@@ -6,6 +6,21 @@
 
 ## entries
 
+- 2026-03-26
+  - project: `shared`
+  - decision: `UX-only`、contract、build / install、local sample を本機能 `MRL` / `mRL` の `pass` 条件と分離する
+  - rationale: `prj-kisaragi_0002` で app の中間成果を完成状態に近い意味で closeout し、利用者が本来期待する `使える app` との間に認識差が出たため
+  - consequence: 以後の `pass` は、対象 app が本来の入出力を扱い、後段が消費する実生成物を出し、主要 blocker が解消した時だけ付与する
+- 2026-03-26
+  - project: `prj-kisaragi_0002`
+  - decision: `trajectreview` の完成目標を `correcting`、`modeling`、`reviewing`、統合 app の本来機能が実行できる状態へ引き直し、`MRL-5` から `MRL-8` の一部 gate を `active` / `planned` へ戻す
+  - rationale: 現状は multi-app 骨格、実 bundle 読込、`local sample` の検証までは進んだ一方、`Colab` 実行、remote result import、実 `ReviewArtifact` viewer などの本機能が未完のため
+  - consequence: 次段では `correcting` の end-to-end、`Colab` handoff、remote result import、reviewing viewer を優先実装する
+- 2026-03-26
+  - project: `prj-kisaragi_0002`
+  - decision: `MRL-5C` を `trajectreview-correcting` 専用 gate とし、現場記録後の `data-check` と correction guidance を `correcting` 単体で close する
+  - rationale: `trajectreview` は一気に完成しないため、まず `correcting` を独立して使える app にする必要があり、記録画面だけでは利用者の誤認を防げないため
+  - consequence: `correcting` は最新 session から `sensor_quality.json`、`session_package.json`、`space_handoff_manifest.json` を生成し、blocker と補正指示を同じ app で返す
 - 2026-03-25
   - project: `shared`
   - decision: project 固有 directory 名は `prj-kisaragi_****` 形式を正本とし、`project-name` ではなく immutable な `project-code` を使う

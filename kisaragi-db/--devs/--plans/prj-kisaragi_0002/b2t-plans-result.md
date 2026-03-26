@@ -17,11 +17,13 @@
 - 4 分担作業のための段階間インターフェースと追加出力を正本文書へ明示した
 - Kotlin controller と Python parser により、受理、gate、空間品質、人物経路、同時刻ハイライト、成果物境界の契約を固定した
 - `GNSS` は任意入力とし、既定は `GNSS` なしでも成立する設計を維持する
-- `MRL-5` として取得元 session folder 抽出を app へ統合し、raw + 追加出力を `trajectreview` から生成可能にした
-- `MRL-6` として `session_package.json`、`space_handoff_manifest.json`、`video.mp4` を含む後段 handoff 加工を追加し、`SpaceReconstruction` 着手単位を `pass` にした
-- 次段では、1 project / 4 app 構成として `trajectreview-correcting`、`trajectreview-modeling`、`trajectreview-reviewing`、統合 app を並立させ、作業境界と手戻り分析を明確化する
-- `MRL-8` では、mock ではなく抽出 bundle と modeling 結果を各 app が実際に読み、`modeling` は `Colab` 本処理前の軽量 local sample と handoff request を生成する実装まで `pass` にした
-- `trajectreview-correcting` は folder 選択 UI ではなく、現場撮影データ保存を開始する記録画面を持つ
+- `MRL-5` と `MRL-6` は、入力契約と handoff artifact の整備までは進んだが、`correcting` から `modeling` への end-to-end handoff は未完である
+- `MRL-5C` を `trajectreview-correcting` 専用 gate とし、現場記録後に同じ app 内で `data-check` と correction guidance を返せる状態まで close した
+- `MRL-7` と `MRL-8` は、4 app の骨格、build、install、実 bundle 読込、`local sample` による局所 logic 確認まで進んだが、本来機能の完成 gate としては `active` に巻き戻す
+- `trajectreview-correcting` は `iSensorium` 由来の記録画面に加え、最新 session の `data-check` と correction guidance を app 内で返せる
+- `MRL-5C` の範囲では、`trajectreview-correcting` 単体で source session を保存し、`sensor_quality.json`、`session_package.json`、`space_handoff_manifest.json` を生成し、修正指示を返せる
+- `trajectreview-modeling` は `Colab` 前段の `local sample` と request 生成を持つが、実 `COLMAP` / `3DGS` / trajectory reconstruction をまだ実行しない
+- `trajectreview-reviewing` は summary と stub 読込までは持つが、実 `ReviewArtifact` viewer と同時刻ハイライト操作は未実装である
 
 ### 阻害要因の境界
 
@@ -31,12 +33,13 @@
 - 取得元 app data の配置差分は実機ごとの差を吸収する必要がある
 - multi-app 化では共通 source を維持しつつ app role を分ける必要がある
 - `Colab` account 情報は未取得であり、remote 実行は後続 task とする
+- `UX-only` 確認と本機能完成 gate を plan 上で分離していなかったため、closeout が過大になった
 
 ### 次の確認
 
-1. `Colab` account 取得後に `colab_job_request.json` を remote 実行へ接続する
-2. local sample model の出力を実 `3DGS` / `Trajectory` 実成果物へ置き換える
-3. `ReviewArtifact` を Android 以外の viewer も含めて接続する
+1. `trajectreview-modeling` を `Colab` 実行前提の job 準備、local preflight、remote result 受理の 3 段で閉じる
+2. `trajectreview-reviewing` を `ReviewArtifact` 実 viewer と same-time highlight 操作まで閉じる
+3. 統合 app に `MRL-5C` の correction guidance を反映する
 
 ### 作業所有権
 
@@ -84,6 +87,11 @@
 - `s18`: 運用者は、統合 app からも同じ workflow を通しで扱え、手戻り時にどの app 範囲で問題が起きたかを即座に切り分けられる
 - `s19`: 運用者は、4 app の各画面で mock ではなく直近の実 bundle を読み、同じ project truth で UX 確認できる
 - `s20`: 運用者は、`trajectreview-modeling` から `Colab` 送信前の軽量 local sample model と handoff request を生成し、PC 上で logic を先に検証できる
+- `s21`: 利用者は、`trajectreview-correcting` だけで現場記録開始、停止、session 保存、診断前 export まで進められる
+- `s21a`: 利用者は、`trajectreview-correcting` の記録停止後に同じ app 内で `data-check` 結果と修正指示を読める
+- `s22`: 利用者は、`trajectreview-modeling` だけで `Colab` 実行 request の作成、upload 対象確認、remote result 受理まで進められる
+- `s23`: 利用者は、`trajectreview-reviewing` だけで実 `ReviewArtifact` を開き、経路、同時刻ハイライト、`attention point` を操作できる
+- `s24`: 運用者は、`UX-only` 確認、契約固定、local sample、本機能完成を別 gate として追跡できる
 
 ### System Behaviors
 
@@ -116,6 +124,11 @@
 - `b27`: correcting、modeling、reviewing、統合 app は、選択した実 bundle から `ReviewContractSnapshot` を再構成し、mock 固定状態に依存しない
 - `b28`: `trajectreview-modeling` は `session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json` を読み、`local_model_summary.json`、`colab_job_request.json`、`review_artifact_stub.json` を生成する
 - `b29`: `trajectreview-reviewing` と統合 app は `local_model_summary.json` と `review_artifact_stub.json` を読んで verify / review 状態を組み立てる
+- `b30`: `trajectreview-correcting` は現場記録開始、停止、session 保存、input export を app 内で完結し、後段が読む concrete bundle を生成する
+- `b30a`: `trajectreview-correcting` は最新 session を再読込し、`data-check` により readiness、quality、blocker、recommended correction を返す
+- `b31`: `trajectreview-modeling` は `Colab` 実行 request を export し、remote 実行結果の受理後に `SpacePackage`、`TrajectoryPackage`、`modeling_handoff_manifest.json` を更新する
+- `b32`: `trajectreview-reviewing` は `ReviewArtifact` 実体を読み、viewer 操作、same-time highlight、`attention point` jump を返す
+- `b33`: `MRL` / `mRL` の `pass` は本来機能の実行証跡を要件とし、`UX-only`、contract、sample、build / install は補助 gate として別記する
 
 ### 受け入れ基準
 
@@ -141,6 +154,11 @@
 | `s18` | `b23`,`b26` | 統合運用 | 統合 app からも同じ workflow を通しで扱え、問題発生時に app 単位で切り分けられる |
 | `s19` | `b27`,`b29` | 実データ UX | 各 app が抽出済みまたは modeling 済み bundle を読み、直近実データに基づく状態を表示できる |
 | `s20` | `b28`,`b29` | local sample modeling | `Colab` account 未取得でも local sample model と handoff request を生成し、reviewing へ渡せる |
+| `s21` | `b30` | correcting 本機能 | `trajectreview-correcting` だけで現場記録開始、停止、session 保存、input export まで進められる |
+| `s21a` | `b30a` | correcting data-check | `trajectreview-correcting` が同じ app 内で `data-check` 結果、blocker、recommended correction を返す |
+| `s22` | `b31` | modeling 本機能 | `trajectreview-modeling` だけで `Colab` request、upload 対象、remote result 受理後の package 更新を行える |
+| `s23` | `b32` | reviewing 本機能 | `trajectreview-reviewing` が実 `ReviewArtifact` を開き、経路、同時刻ハイライト、`attention point` を操作できる |
+| `s24` | `b33` | gate 運用 | `UX-only`、contract、sample、本機能完成が別 gate として記録され、完了誤認が起きない |
 
 ### `MRL` 対応表
 
@@ -163,22 +181,32 @@
 | `MRL-4` | `mRL-4.1` | `ReviewArtifact` と viewer 境界 | `s11` | `b10` | `pass` |
 | `MRL-4` | `mRL-4.2` | 独立 project 境界 | `s12` | `b12`,`b14` | `pass` |
 | `MRL-4` | `mRL-4.3` | 生成物 routing hygiene | `s12` | `b12`,`b13` | `pass` |
-| `MRL-5` | `-` | 入力セッション抽出統合を成立させる | `s13`,`s14`,`s15` | `b15`,`b16`,`b17`,`b18` | `pass` |
+| `MRL-5` | `-` | correcting の intake / diagnose 基盤を成立させる | `s13`,`s14`,`s15`,`s21` | `b15`,`b16`,`b17`,`b18`,`b30` | `active` |
 | `MRL-5` | `mRL-5.1` | legacy alias を含む session source 読込 | `s13` | `b15` | `pass` |
 | `MRL-5` | `mRL-5.2` | raw / derived 分離 export | `s13`,`s15` | `b16` | `pass` |
-| `MRL-5` | `mRL-5.3` | quality 数値表示付き app UI | `s13`,`s14` | `b17`,`b18` | `pass` |
-| `MRL-6` | `-` | 後段 handoff 加工を成立させる | `s16` | `b19`,`b20`,`b21`,`b22` | `pass` |
+| `MRL-5` | `mRL-5.3` | quality 数値表示付き app UI | `s13`,`s14` | `b17`,`b18` | `active` |
+| `MRL-5` | `mRL-5.4` | correcting 内の現場記録から export までの一連実行 | `s21` | `b30` | `planned` |
+| `MRL-6` | `-` | correcting から modeling への concrete handoff を成立させる | `s16`,`s21` | `b19`,`b20`,`b21`,`b22`,`b30` | `active` |
 | `MRL-6` | `mRL-6.1` | 主カメラ動画を含む raw bundle 維持 | `s16` | `b19` | `pass` |
 | `MRL-6` | `mRL-6.2` | `session_package.json` 正規化 | `s16` | `b20` | `pass` |
-| `MRL-6` | `mRL-6.3` | `space_handoff_manifest.json` と UI gate | `s16` | `b21`,`b22` | `pass` |
-| `MRL-7` | `-` | 4 app 分割と統合運用を成立させる | `s17`,`s18` | `b23`,`b24`,`b25`,`b26` | `pass` |
+| `MRL-6` | `mRL-6.3` | `space_handoff_manifest.json` と UI gate | `s16` | `b21`,`b22` | `active` |
+| `MRL-6` | `mRL-6.4` | correcting export と modeling intake の end-to-end 接続 | `s16`,`s21` | `b30` | `planned` |
+| `MRL-7` | `-` | multi-app 骨格と役割境界を成立させる | `s17`,`s18`,`s24` | `b23`,`b24`,`b25`,`b26`,`b33` | `active` |
 | `MRL-7` | `mRL-7.1` | multi-app module 構成 | `s17`,`s18` | `b23` | `pass` |
-| `MRL-7` | `mRL-7.2` | correcting / modeling / reviewing UX 分離 | `s17` | `b24`,`b25`,`b26` | `pass` |
-| `MRL-7` | `mRL-7.3` | 統合 app と app 単位切り分け summary | `s18` | `b26` | `pass` |
-| `MRL-8` | `-` | 実 bundle UX と local sample modeling を成立させる | `s19`,`s20` | `b27`,`b28`,`b29` | `pass` |
+| `MRL-7` | `mRL-7.2` | correcting / modeling / reviewing UX 分離 | `s17` | `b24`,`b25`,`b26` | `active` |
+| `MRL-7` | `mRL-7.3` | 統合 app と app 単位切り分け summary | `s18` | `b26` | `active` |
+| `MRL-7` | `mRL-7.4` | gate 運用の分離 | `s24` | `b33` | `planned` |
+| `MRL-8` | `-` | modeling の preflight と reviewing の bundle 読込を成立させる | `s19`,`s20`,`s22` | `b27`,`b28`,`b29`,`b31` | `active` |
 | `MRL-8` | `mRL-8.1` | 実 bundle 読込 state 再構成 | `s19` | `b27` | `pass` |
 | `MRL-8` | `mRL-8.2` | local sample modeling と Colab handoff request | `s20` | `b28` | `pass` |
-| `MRL-8` | `mRL-8.3` | reviewing app の実 bundle verify / review | `s19`,`s20` | `b29` | `pass` |
+| `MRL-8` | `mRL-8.3` | reviewing app の実 bundle verify / review summary | `s19`,`s20` | `b29` | `active` |
+| `MRL-8` | `mRL-8.4` | remote modeling 結果受理前提の package 更新 | `s22` | `b31` | `planned` |
+| `MRL-9` | `-` | modeling 本機能を成立させる | `s22`,`s24` | `b31`,`b33` | `planned` |
+| `MRL-9` | `mRL-9.1` | `Colab` upload manifest と job 実行依頼 | `s22` | `b31` | `planned` |
+| `MRL-9` | `mRL-9.2` | remote result 受理と `SpacePackage` / `TrajectoryPackage` 更新 | `s22` | `b31` | `planned` |
+| `MRL-10` | `-` | reviewing 本機能を成立させる | `s23`,`s24` | `b32`,`b33` | `planned` |
+| `MRL-10` | `mRL-10.1` | 実 `ReviewArtifact` loader | `s23` | `b32` | `planned` |
+| `MRL-10` | `mRL-10.2` | same-time highlight と `attention point` 操作 | `s23` | `b32` | `planned` |
 
 ## TDD
 
@@ -219,6 +247,13 @@
 | `T27` | `b27` | extracted bundle snapshot loader | app が `session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json`、`member_identity_map.json` を読んで実データ state を再構成できる | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/WorkflowBundleServiceTest.kt` |
 | `T28` | `b28` | local sample modeling output | `modeling` app が `local_model_summary.json`、`colab_job_request.json`、`review_artifact_stub.json` を生成できる | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/LocalModelingServiceTest.kt` |
 | `T29` | `b29` | reviewing actual bundle state | `reviewing` app と統合 app が modeling 結果を読み、verify / review 状態へ反映できる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/MainActivity.kt` |
+| `T30` | `b30` | correcting end-to-end recording export | `trajectreview-correcting` で現場記録開始、停止、session 保存、input export までを 1 app 内で完了できる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/java/com/isensorium/app/MainActivity.kt` |
+| `T30a` | `b30a` | correcting data-check service | 最新 session から `sensor_quality.json`、`session_package.json`、`space_handoff_manifest.json`、recommended correction を生成できる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/CorrectingDataCheckService.kt` |
+| `T30b` | `b30a` | correcting data-check UI | 記録停止後に app 内で readiness、quality、blocker、recommended correction を確認できる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/res/layout/activity_main.xml` |
+| `T31` | `b31` | colab handoff manifest | `modeling` app が upload 対象、job parameter、result 受理先を machine-readable に出力できる | planned | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/LocalModelingService.kt` |
+| `T32` | `b31` | remote result import | remote modeling 結果を受理し、`SpacePackage`、`TrajectoryPackage`、`modeling_handoff_manifest.json` を更新できる | planned | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/` |
+| `T33` | `b32` | review artifact viewer | `reviewing` app が実 `ReviewArtifact` を読み、viewer と timeline 操作を提供できる | planned | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reviewing/` |
+| `T34` | `b33` | gate classification rule trace | `UX-only`、contract、sample、本機能の区別が `b2t`、`mrl-record`、`mrl-ux-valid` で矛盾なく追える | planned | `kisaragi-db/--devs/--plans/prj-kisaragi_0002/` |
 
 ### 実行方針
 
@@ -228,15 +263,22 @@
 - `MRL-3` では `T8` から `T11` で人物経路、relink、不確実性、同時刻ハイライト、`attention point` を固めた
 - `MRL-4` では `T12` から `T14` で成果物境界と運用 hygiene を固めた
 - `MRL-5` では `T17` から `T20` で入力セッション抽出統合、legacy alias intake、bundle 分離、quality 数値表示を固める
+- `MRL-5C` では `T30`、`T30a`、`T30b` で `correcting` 単体の記録 + data-check を閉じた
 - `MRL-6` では `T21` から `T23` で raw video 維持、`SessionPackage` 正規化、`SpaceReconstruction` handoff gate を固める
-- `MRL-7` では `T24` から `T26` で 4 app 構成、role-specific UX、統合 app overview を固める
-- `MRL-8` では `T27` から `T29` で実 bundle 読込、local sample modeling、reviewing 実データ UX を固める
+- `MRL-7` では `T24` から `T26` と `T34` で 4 app 骨格、role-specific UX、統合 app overview、gate 分類を固める
+- `MRL-8` では `T27` から `T29` で実 bundle 読込、local sample modeling、reviewing 実データ summary を固める
+- `MRL-9` では `T31` と `T32` で `Colab` handoff と remote result import を固める
+- `MRL-10` では `T33` で実 `ReviewArtifact` viewer を固める
 
 ### 現在の見立て
 
 - `T1` から `T16` は、契約実装、project 境界 scan、output routing 実行で `pass` になった
 - Python unittest、Android unit test、PowerShell script 実行により、入口契約から成果物 routing までの計画範囲を固定した
-- `T17` から `T20` も `pass` になり、`trajectreview` 自身から取得元 raw + 追加出力を生成できる状態へ拡張した
-- `T21` から `T23` も `pass` になり、`video.mp4` を含む raw bundle と `session_package.json` / `space_handoff_manifest.json` を後段 handoff 単位として生成できる状態へ拡張した
-- `T24` から `T29` は 4 app build、role-specific UX、実 bundle 読込、local sample modeling、reviewing 読込まで `pass` になった
-- 次段は `colab_job_request.json` を remote 実行へ接続し、local sample 出力を実 `3DGS` / viewer 成果物へ置き換える
+- `T17` から `T23` は contract と handoff artifact の基礎は通っているが、`correcting` の本機能 close には未達である
+- `MRL-5C` は close した。`correcting` 単体で現場記録と `data-check` が完結し、不十分な session でも correction 指示を返せる
+- `T24` から `T29` は multi-app 骨格、実 bundle summary、`local sample` の検証としては有効だが、本機能完成の証拠としては不十分である
+- 次段は `T31` から `T34` を追加し、`Colab` handoff、remote result import、実 `ReviewArtifact` viewer、gate 分類を詰める
+| `MRL-5C` | `-` | `trajectreview-correcting` の記録 + data-check を成立させる | `s21`,`s21a`,`s24` | `b30`,`b30a`,`b33` | `pass` |
+| `MRL-5C` | `mRL-5C.1` | 記録停止後の最新 session 再読込 | `s21` | `b30` | `pass` |
+| `MRL-5C` | `mRL-5C.2` | app 内 `data-check` artifact 生成 | `s21`,`s21a` | `b30`,`b30a` | `pass` |
+| `MRL-5C` | `mRL-5C.3` | recommended correction 表示 | `s21a` | `b30a` | `pass` |

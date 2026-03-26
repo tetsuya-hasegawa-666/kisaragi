@@ -168,6 +168,12 @@ kisaragi-tree/
 - 生成物出力先を rule 外の `--trial-data` のような新規 `--` directory で迂回してはならず、許可済み category のみを使う。
 - 生成物や cache の出力先を変更する時は、既存 shared rule に適合する path へ修正し、rule 外 path を残さない。
 
+## workspace 外 access 制限
+
+- `C:\Users\tetsuya\kisaragi` を workspace として作業している時は、`kisaragi/` 配下以外の directory に対する access は `READ` のみ許可する。
+- `kisaragi/` 配下以外の directory に対して、作成、編集、移動、削除、rename、生成物出力、cache 出力、install 元配置などの `READ` 以外の access を行ってはならない。
+- 外部 directory の情報が必要な時は、参照後に `kisaragi/` 配下の正本へ吸収し、外部 directory 自体を変更しない。
+
 ## 実装原則
 
 - terminal behavior は BDD で定義し、user / operator から観測可能な振る舞いで書く。
@@ -175,6 +181,11 @@ kisaragi-tree/
 - green 後の refactor は visible behavior を壊さない範囲で行う。
 - MVC を採る project では、View は表示と入力、Controller は状態遷移と orchestration、Model は contract と record structure を担当する。
 - 完了した挙動は docs、plan、evidence のいずれかに trace を残す。
+- `UX 確認済み`、`contract 固定済み`、`build / install 済み`、`local sample 済み` は、それぞれ `本来機能が実行できる` ことと同義に扱ってはならない。
+- mock、stub、sample、代替 route、説明用 UI、表示だけの接続で確認した内容は、対応する本機能 `MRL` / `mRL` を `pass` にしてはならず、必要なら `UX-only` または `補助 gate` と明記した別 gate で管理する。
+- 本機能 gate の `pass` には、対象 app 自身で本来の入出力を扱い、後段が消費する実生成物を出し、主要 blocker が plan 上で解消済みであることを要件とする。
+- `warning` は後続へ注意を渡すための情報であり、データ欠落や品質低下を明示してよいが、`warning` の存在だけを理由に後続処理や user の継続操作を停止してはならない。
+- 後続処理を停止してよいのは、file 不在、contract 不成立、実行時例外などで対象処理そのものが物理的または論理的に実行不能な場合だけとし、`warning` と `blocker` を混同してはならない。
 
 ## 開発計画
 

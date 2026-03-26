@@ -13,6 +13,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
 import androidx.core.content.ContextCompat
 import com.isensorium.app.databinding.ActivityMainBinding
+import kotlin.concurrent.thread
 
 class MainActivity : AppCompatActivity() {
 
@@ -25,6 +26,8 @@ class MainActivity : AppCompatActivity() {
     private var runtimeIssue: RecordingIssue? = null
     private var configurationIssue: RecordingIssue? = null
     private val isCorrectingApp: Boolean by lazy { packageName == "com.reviework.correcting" }
+    private val correctingDataCheckService by lazy { CorrectingDataCheckService() }
+    private var dataCheckInProgress: Boolean = false
 
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
@@ -62,6 +65,10 @@ class MainActivity : AppCompatActivity() {
 
         binding.refreshButton.setOnClickListener {
             refreshLatestSessionDetails()
+        }
+        binding.dataCheckButton.setOnClickListener {
+            currentSession?.let { runCorrectingDataCheck(it, false) }
+                ?: Toast.makeText(this, "先に現場撮影データ保存を実行してください", Toast.LENGTH_SHORT).show()
         }
         binding.recordingModeGroup.setOnCheckedChangeListener { _, _ ->
             if (!recordingCoordinator.isRecording()) {
@@ -102,6 +109,7 @@ class MainActivity : AppCompatActivity() {
         refreshConfigurationState()
         ensurePermissionsAndStartPreview()
         binding.recordButton.text = startRecordingButtonText()
+        renderCorrectingDataCheck(null)
     }
 
     override fun onDestroy() {
@@ -201,6 +209,9 @@ class MainActivity : AppCompatActivity() {
             }
             if (!state.recording) {
                 refreshConfigurationState()
+                if (isCorrectingApp && state.session != null) {
+                    runCorrectingDataCheck(state.session, true)
+                }
             }
         }
     }
@@ -262,7 +273,19 @@ class MainActivity : AppCompatActivity() {
 
     private fun refreshConfigurationState() {
         val resolution = resolveRecordingConfig()
-        configurationIssue = resolution.issue
+        configurationIssue =
+            if (
+                selectedRoute() == CameraStackRoute.FROZEN_CAMERAX_ARCORE &&
+                resolution.config.arCoreEnabled
+            ) {
+                RecordingIssue(
+                    severity = RecordingIssueSeverity.INFO,
+                    message = "frozen route では録画安定性を優先し、記録中の ARCore 収集を停止します。",
+                    suggestedAction = "ARCore を使った pose 記録が必要な時は guarded replacement route を ON にしてください。",
+                )
+            } else {
+                resolution.issue
+            }
         renderModeState(resolution.config)
         refreshDisplayedIssue()
     }
@@ -290,6 +313,9 @@ class MainActivity : AppCompatActivity() {
                 if (currentSession == null) "最新 session はまだありません" else "再読み込みが完了しました",
                 Toast.LENGTH_SHORT,
             ).show()
+            if (isCorrectingApp && currentSession != null) {
+                runCorrectingDataCheck(currentSession!!, false)
+            }
         }.onFailure { error ->
             runtimeIssue = mainScreenController.buildRefreshExecutionIssue(error)
             refreshDisplayedIssue()
@@ -313,6 +339,63 @@ class MainActivity : AppCompatActivity() {
         val presentation = mainScreenController.buildSessionPresentation(session, sessionElapsedSec)
         binding.sessionText.text = presentation.summaryText
         binding.filesText.text = presentation.filesText
+        binding.dataCheckButton.isEnabled = !dataCheckInProgress
+    }
+
+    private fun runCorrectingDataCheck(session: RecordingSession, autoTriggered: Boolean) {
+        if (!isCorrectingApp || dataCheckInProgress) {
+            return
+        }
+        dataCheckInProgress = true
+        binding.dataCheckButton.isEnabled = false
+        binding.dataCheckText.text = "data-check を実行中です。"
+        thread {
+            val result = runCatching { correctingDataCheckService.run(session.sessionDir) }
+            runOnUiThread {
+                dataCheckInProgress = false
+                binding.dataCheckButton.isEnabled = true
+                result.onSuccess {
+                    renderCorrectingDataCheck(it)
+                    if (!autoTriggered) {
+                        Toast.makeText(this, "data-check を更新しました", Toast.LENGTH_SHORT).show()
+                    }
+                }.onFailure { error ->
+                    binding.dataCheckText.text = "data-check に失敗しました: ${error.message ?: error::class.java.simpleName}"
+                    if (!autoTriggered) {
+                        Toast.makeText(this, "data-check に失敗しました", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun renderCorrectingDataCheck(result: CorrectingDataCheckResult?) {
+        if (!isCorrectingApp) {
+            binding.dataCheckHeaderText.visibility = View.GONE
+            binding.dataCheckText.visibility = View.GONE
+            binding.dataCheckButton.visibility = View.GONE
+            return
+        }
+        binding.dataCheckHeaderText.visibility = View.VISIBLE
+        binding.dataCheckText.visibility = View.VISIBLE
+        binding.dataCheckButton.visibility = View.VISIBLE
+        binding.dataCheckText.text =
+            if (result == null) {
+                "記録停止後に同じ app 内で data-check を実行し、補正結果を確認できます。"
+            } else {
+                buildString {
+                    appendLine("data-check: ${result.sessionId}")
+                    appendLine("診断進行可: ${result.readyForDiagnose}")
+                    appendLine("modeling 着手可: ${result.readyForSpaceReconstruction}")
+                    appendLine("warning 付き続行可: ${result.allowModelingProceed}")
+                    appendLine("欠落入力: ${result.missingRequiredInputs.joinToString(", ").ifBlank { "なし" }}")
+                    appendLine("blocker: ${result.blockers.joinToString(", ").ifBlank { "なし" }}")
+                    appendLine("充足率: ${"%.2f".format(result.completenessScore)}")
+                    appendLine("pose 対応率: ${"%.2f".format(result.poseCoverageRatio)}")
+                    appendLine("補正指示: ${result.recommendedCorrections.joinToString(" / ")}")
+                    append("保存先: ${result.derivedDir.absolutePath}")
+                }
+            }
     }
 
     companion object {
