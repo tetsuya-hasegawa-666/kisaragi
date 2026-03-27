@@ -164,6 +164,15 @@ kisaragi-tree/
 - 更新情報は日時、文書名、標題、背景、目的、対処方法、対応内容、更新結果、新旧比較を持つ。
 - `AGENTS.md` の更新履歴は `AGENTSmd-RH.md` を参照する rule とし、この文書末尾には履歴本文を持たず参照だけを置く。
 
+## `AGENTS.md` と project 文書の境界
+
+- `AGENTS.md` は project 横断で共有される rule、directory、state、branch、文書運用、判定語、共通 hygiene だけを持つ。
+- project の目的、提供 UX、app 分割、artifact 名、外部 service route、package 設計、`MRL` / `INITL` の中身、個別判断は project 側正本に置く。
+- `AGENTS.md` に project path や project code を書く時は、共有構造の説明か例示に限る。
+- 特定 project の現時点判断、暫定 route、URL、workflow、platform 前提を `AGENTS.md` の rule として固定してはならない。
+- project ごとに変わりうる内容を見つけた時は、shared rule へ一般化できるものだけを `AGENTS.md` に残し、固有部分は project 文書へ戻す。
+- project 計画や truth に shared rule が混入していた時も同様に整理し、shared rule は `AGENTS.md`、project 固有 truth は project 文書へ分離する。
+
 ## 共有 directory 統制
 
 - `--` で始まる top category directory は shared structure とし、Codex 判断で新設してはならない。
@@ -195,16 +204,20 @@ kisaragi-tree/
 
 - terminal behavior は BDD を起点に確認する。
 - 到達段階は `MRL`、実行単位は `mRL` で管理する。
+- 機能の振る舞いではなく、その機能を使うための準備 UX、配布、install、bootstrap、実行環境整備は `INITL`、`mINITL` で管理する。
 - release 計画は `kisaragi-db/--devs/--plans/prj-kisaragi_****/` に置く。
 - 実装に着手する project は、原則として先に `b2t-plans-result.md` を計画書として作成または更新する。
 - `planned` は未着手または着手前提の計画状態、`active` は着手中、`pass` は `active` を経て完了した gate とする。
 - `MRL` または `mRL` が `pass` になったら `kisaragi-db/--devs/--evidence/prj-kisaragi_****/mrl-ux-valid.md` に記録する。
+- `INITL` または `mINITL` が `pass` になった時も、準備 UX と install / bootstrap 証跡を同じ `mrl-ux-valid.md` に記録する。
 - UX 検証成果は同 `mrl-ux-valid.md` に集約する。
 
 ### plan 文書の標準 2 点セット
 
-- 参照型は `prj-kisaragi_0002` の `b2t-plans-result.md` と `mrl-record.md` とする。
 - `b2t-plans-result.md` は、`current_state` 章、BDD 章、TDD 章を持つ。
+- `b2t-plans-result.md` の `current_state` 章の冒頭には `疑問点不整合一覧` を表で置き、列は少なくとも `id`、`論点`、`影響`、`現在の扱い`、`admin 状態`、`関連文書` を持つ。
+- `疑問点不整合一覧` の `admin 状態` は `big-open`、`small-open`、`close`、`no judge` を使う。
+- `big-open` は影響が大きい未解決、`small-open` は影響が小さい未解決、`close` は解決済み、`no judge` は問題かどうか未判定を表す。
 - `b2t-plans-result.md` は、局所 current state、target behavior、受け入れ基準、検証方針、到達したい小さい milestone をまとめて管理する正本計画書とする。
 - `resume-startup-plan.md` は任意の補助計画書とし、開発がいつ中断しても次回再開時に現在地と立ち上げ順を短く把握できるように保つ。
 - `resume-startup-plan.md` は、長期の正本を置き換えず、再開時の導線と初動確認項目を補助する目的で使う。
@@ -213,9 +226,11 @@ kisaragi-tree/
 - `受け入れ基準` は `s-id`、`b-id`、観点、受け入れ基準の表で持つ。
 - `MRL` 対応表は `MRL`、`mRL`、目的、関連 `s-id`、関連 `b-id`、現在 gate の表で持つ。
 - `MRL` 対応表の記載順は、`planned` から `pass` への時系列ではなく、既定で運用順 `correcting`、`modeling`、`reviewing` を優先する。
+- `INITL` 対応表は、`MRL` 対応表の直下に別 subsection として置き、`INITL`、`mINITL`、目的、関連 `MRL` または関連段階、現在 gate を少なくとも持つ。
+- `INITL-*` と `mINITL-*` は、package、install、bootstrap、実行環境、account 準備、remote 配置、配布導線など、準備 UX の計画を表す識別子とする。
+- `INITL` は機能 behavior そのものではないため、`Purpose Story` / `System Behaviors` へ無理に混ぜず、対応する `MRL` を滑らかに開始するための別 process として扱う。
 - BDD 章は、目的文、ノーススター、提供方針、`Purpose Story`、`System Behaviors`、受け入れ基準、`MRL` 対応表を持つ。
 - TDD 章は、目的文、TDD タスク表、実行方針、現在の見立てを持つ。
-- `b2t-plans-result.md` の記法見本は `kisaragi-db/--devs/--plans/prj-kisaragi_0002/b2t-plans-result.md` とする。
 - タスク表の列は `task_id`、`behavior_id`、`test_target`、`criterion`、`status`、`evidence` とし、1 task 1 責務を守る。
 - `behavior_id` は対応する BDD behavior を参照し、`criterion` は自動検証または明確な確認条件で書く。
 - `mrl-record.md` は gate closeout 記録文書とし、目的文、記録ルール、Entries を持つ。
@@ -276,12 +291,14 @@ kisaragi-tree/
 - 短命な推論はその task の短命な記録にとどめ、持続する真実だけを正本文書へ残す。
 - 投機的拡張より、現在制約下で実行可能な前進を優先する。
 - 人間への依頼は、小さく、拒否されても全体計画が崩れない単位で行う。
+- 複数指示を含む prompt を処理する時は、未完了指示を task 内の残件として保持し、理由説明なしに取りこぼしたまま入力待ちへ移ってはならない。
 
 ## 並行作業
 
 - 共有制御ファイル編集前に `current_state.md` で所有権を宣言する。
 - 重要変更は履歴用文書で追跡可能でなければならない。
 - 文書更新は対応する変更と同じ task で完了させる。
+- 文書更新を伴う task では、影響を受ける正本文書群を先に洗い出し、最低限の整合更新が完了するまで入力待ちへ入ってはならない。未更新を残す時は理由と残件を commentary で明示する。
 
 # 意思決定方針
 
@@ -322,6 +339,7 @@ kisaragi-tree/
 - 人が読む各プロジェクトの構築物の試用、使用、利用、運用手順は、内容ごとに整理した上で、`kisaragi-db/--devs/--evidence/prj-kisaragi_****/ux_check_manual.md` に集約する。
 - 非 text 資産の inventory 規則は、実装 code や chat だけに残さず正本文書へ反映する。
 - active task に必要な文書更新は、project 上の真実が変わった同じ task 単位で完了させる。
+- `疑問点不整合一覧` に `big-open` が 1 件以上ある project の文書を更新した時は、response で `big-open` の存在を必ず明示する。
 
 ## 共有制御ファイル
 

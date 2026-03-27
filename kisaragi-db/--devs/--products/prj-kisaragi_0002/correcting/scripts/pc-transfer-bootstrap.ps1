@@ -12,19 +12,51 @@ $udpClient = [System.Net.Sockets.UdpClient]::new($BootstrapPort)
 $udpClient.Client.ReceiveTimeout = 1000
 $lastActivity = Get-Date
 
+function Test-SameSubnet24 {
+    param(
+        [string]$Left,
+        [string]$Right
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Left) -or [string]::IsNullOrWhiteSpace($Right)) {
+        return $false
+    }
+
+    $leftParts = $Left.Split(".")
+    $rightParts = $Right.Split(".")
+    if ($leftParts.Count -ne 4 -or $rightParts.Count -ne 4) {
+        return $false
+    }
+    return $leftParts[0] -eq $rightParts[0] -and $leftParts[1] -eq $rightParts[1] -and $leftParts[2] -eq $rightParts[2]
+}
+
 function Get-LocalIpv4Address {
-    $addresses =
-        [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() |
-        Where-Object { $_.OperationalStatus -eq "Up" } |
-        ForEach-Object {
-            $_.GetIPProperties().UnicastAddresses |
-            Where-Object {
-                $_.Address.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork -and
-                -not $_.Address.IPAddressToString.StartsWith("169.254.")
-            } |
-            Select-Object -ExpandProperty Address
-        }
-    return ($addresses | Select-Object -First 1).IPAddressToString
+    param([string]$RemoteAddress)
+
+    $candidates =
+        Get-NetIPConfiguration |
+        Where-Object {
+            $null -ne $_.IPv4Address -and
+            $_.NetAdapter.Status -eq "Up" -and
+            -not $_.IPv4Address.IPAddress.StartsWith("169.254.") -and
+            $_.InterfaceAlias -notmatch "Bluetooth|Loopback" -and
+            $_.InterfaceDescription -notmatch "Tailscale|Hyper-V|Virtual|VMware|Wintun"
+        } |
+        Select-Object `
+            @{ Name = "InterfaceAlias"; Expression = { $_.InterfaceAlias } }, `
+            @{ Name = "InterfaceDescription"; Expression = { $_.InterfaceDescription } }, `
+            @{ Name = "IPAddress"; Expression = { $_.IPv4Address.IPAddress } }, `
+            @{ Name = "HasGateway"; Expression = { $null -ne $_.IPv4DefaultGateway } }
+
+    $ranked =
+        $candidates |
+        Sort-Object `
+            @{ Expression = { if (Test-SameSubnet24 $_.IPAddress $RemoteAddress) { 0 } else { 1 } } }, `
+            @{ Expression = { if ($_.InterfaceAlias -match "^Wi-Fi") { 0 } else { 1 } } }, `
+            @{ Expression = { if ($_.HasGateway) { 0 } else { 1 } } }, `
+            InterfaceAlias
+
+    return ($ranked | Select-Object -First 1).IPAddress
 }
 
 function Start-ReceiverIfNeeded {
@@ -59,7 +91,7 @@ try {
             $message = [System.Text.Encoding]::UTF8.GetString($bytes)
             if ($message.StartsWith("TRAJECTREVIEW_BOOTSTRAP|")) {
                 Start-ReceiverIfNeeded
-                $replyHost = Get-LocalIpv4Address
+                $replyHost = Get-LocalIpv4Address -RemoteAddress $remoteEndpoint.Address.IPAddressToString
                 if ([string]::IsNullOrWhiteSpace($replyHost)) {
                     $replyHost = $env:COMPUTERNAME
                 }

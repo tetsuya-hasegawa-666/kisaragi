@@ -93,6 +93,7 @@ class RecordingCoordinator(
     private val cameraExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+    private val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
 
     private val imuLogger = ImuLogger()
     private val gnssLogger = GnssLogger()
@@ -399,9 +400,34 @@ class RecordingCoordinator(
             .build()
             .also { it.surfaceProvider = previewView.surfaceProvider }
 
-        val recorder = Recorder.Builder()
-            .setQualitySelector(QualitySelector.from(Quality.FHD))
-            .build()
+        val recorder =
+            runCatching {
+                Recorder.Builder()
+                    .setQualitySelector(QualitySelector.from(Quality.FHD))
+                    .build()
+            }.recoverCatching { qualityError ->
+                Log.w(
+                    "isensorium-recording",
+                    "FHD recorder profile resolution failed. Falling back to default recorder.",
+                    qualityError,
+                )
+                Recorder.Builder().build()
+            }.getOrElse { recorderError ->
+                statusListener(
+                    SessionUiState(
+                        recording = false,
+                        session = currentSession,
+                        statusText = "録画の初期化に失敗しました。",
+                        issue = RecordingIssue(
+                            severity = RecordingIssueSeverity.ERROR,
+                            message = "この端末の録画設定を初期化できませんでした。",
+                            suggestedAction = "アプリを再起動し、設定を変更せずに再度開始してください。",
+                        ),
+                    ),
+                )
+                Log.e("isensorium-recording", "Recorder initialization failed.", recorderError)
+                return
+            }
 
         videoCapture = VideoCapture.withOutput(recorder)
         analysis = ImageAnalysis.Builder()
@@ -428,13 +454,30 @@ class RecordingCoordinator(
             }
 
         provider.unbindAll()
-        provider.bindToLifecycle(
-            lifecycleOwner,
-            cameraSelector,
-            preview,
-            videoCapture,
-            analysis,
-        )
+        runCatching {
+            provider.bindToLifecycle(
+                lifecycleOwner,
+                cameraSelector,
+                preview,
+                videoCapture,
+                analysis,
+            )
+        }.onFailure { bindError ->
+            statusListener(
+                SessionUiState(
+                    recording = false,
+                    session = currentSession,
+                    statusText = "カメラの初期化に失敗しました。",
+                    issue = RecordingIssue(
+                        severity = RecordingIssueSeverity.ERROR,
+                        message = "録画用 camera use case の構築に失敗しました。",
+                        suggestedAction = "アプリを再起動し、再度プレビューが見えることを確認してから開始してください。",
+                    ),
+                ),
+            )
+            Log.e("isensorium-recording", "Camera use case binding failed.", bindError)
+            return
+        }
 
         statusListener(SessionUiState(false, currentSession, "カメラの準備ができました。追加センサを含む記録を開始できます。"))
     }
@@ -449,6 +492,18 @@ class RecordingCoordinator(
             arCoreGlSurfaceView.setTag(arCoreGlSurfaceView.id, arCoreLogger)
         }
     }
+
+    private fun readBackCameraLensDistortion(): List<Float>? =
+        try {
+            val backCameraId =
+                cameraManager.cameraIdList.firstOrNull { cameraId ->
+                    cameraManager.getCameraCharacteristics(cameraId).get(CameraCharacteristics.LENS_FACING) ==
+                        CameraCharacteristics.LENS_FACING_BACK
+                } ?: return null
+            cameraManager.getCameraCharacteristics(backCameraId).get(CameraCharacteristics.LENS_DISTORTION)?.toList()
+        } catch (_: Exception) {
+            null
+        }
 
     private class ReplacementPreviewRenderer(
         private val imageView: ImageView,
@@ -866,11 +921,17 @@ class RecordingCoordinator(
                             sessionManager.appendArCorePose(
                                 recordingSession,
                                 ArCorePoseSample(
+                                    sessionId = recordingSession.sessionId,
+                                    recordIndex = recordingSession.arCoreSampleCount + 1L,
+                                    frameTimestampNs = frameTimestampNs,
+                                    captureTimestampNs = frameTimestampNs,
                                     elapsedRealtimeNanos = nowNs,
                                     wallTimeMillis = System.currentTimeMillis(),
                                     trackingState = trackingState,
                                     translation = translation.toList(),
                                     rotationQuaternion = rotationQuaternion.toList(),
+                                    lensDistortion = readBackCameraLensDistortion(),
+                                    lensDistortionModel = if (readBackCameraLensDistortion() != null) "android_lens_distortion" else null,
                                 ),
                             )
                             recordingSession.arCoreSampleCount += 1
@@ -1275,14 +1336,29 @@ class RecordingCoordinator(
                 }
                 val camera = frame.camera
                 val pose = camera.displayOrientedPose
+                val imageIntrinsics = camera.imageIntrinsics
+                val textureIntrinsics = camera.textureIntrinsics
+                val lensDistortion = readBackCameraLensDistortion()
                 sessionManager.appendArCorePose(
                     recordingSession,
                     ArCorePoseSample(
+                        sessionId = recordingSession.sessionId,
+                        recordIndex = recordingSession.arCoreSampleCount + 1L,
+                        frameTimestampNs = frame.timestamp,
+                        captureTimestampNs = frame.timestamp,
                         elapsedRealtimeNanos = nowNs,
                         wallTimeMillis = System.currentTimeMillis(),
                         trackingState = camera.trackingState.name,
                         translation = pose.translation.toList(),
                         rotationQuaternion = pose.rotationQuaternion.toList(),
+                        imageFocalLength = imageIntrinsics.focalLength.toList(),
+                        imagePrincipalPoint = imageIntrinsics.principalPoint.toList(),
+                        imageDimensions = imageIntrinsics.imageDimensions.toList(),
+                        textureFocalLength = textureIntrinsics.focalLength.toList(),
+                        texturePrincipalPoint = textureIntrinsics.principalPoint.toList(),
+                        textureDimensions = textureIntrinsics.imageDimensions.toList(),
+                        lensDistortion = lensDistortion,
+                        lensDistortionModel = if (lensDistortion != null) "android_lens_distortion" else null,
                     ),
                 )
                 recordingSession.arCoreSampleCount += 1
@@ -1477,11 +1553,24 @@ data class BleEvent(
 )
 
 data class ArCorePoseSample(
+    val sessionId: String,
+    val recordIndex: Long,
+    val frameTimestampNs: Long = 0L,
+    val captureTimestampNs: Long = 0L,
     val elapsedRealtimeNanos: Long,
     val wallTimeMillis: Long,
     val trackingState: String,
+    val trackingFailureReason: String? = null,
     val translation: List<Float>,
     val rotationQuaternion: List<Float>,
+    val imageFocalLength: List<Float> = emptyList(),
+    val imagePrincipalPoint: List<Float> = emptyList(),
+    val imageDimensions: List<Int> = emptyList(),
+    val textureFocalLength: List<Float> = emptyList(),
+    val texturePrincipalPoint: List<Float> = emptyList(),
+    val textureDimensions: List<Int> = emptyList(),
+    val lensDistortion: List<Float>? = null,
+    val lensDistortionModel: String? = null,
 )
 
 class SessionManager(
@@ -1656,11 +1745,51 @@ class SessionManager(
     fun appendArCorePose(session: RecordingSession, sample: ArCorePoseSample) {
         val writers = sessionWriters.getOrPut(session.sessionId) { SessionWriters.openFor(session) }
         val payload = JSONObject()
+            .put("sessionId", sample.sessionId)
+            .put("recordIndex", sample.recordIndex)
+            .put("frameTimestampNs", sample.frameTimestampNs)
+            .put("captureTimestampNs", sample.captureTimestampNs)
             .put("elapsedRealtimeNanos", sample.elapsedRealtimeNanos)
             .put("wallTimeMillis", sample.wallTimeMillis)
             .put("trackingState", sample.trackingState)
-            .put("translation", JSONArray(sample.translation))
-            .put("rotationQuaternion", JSONArray(sample.rotationQuaternion))
+            .put("trackingFailureReason", sample.trackingFailureReason ?: JSONObject.NULL)
+            .put(
+                "pose",
+                JSONObject()
+                    .put("tx", sample.translation.getOrNull(0) ?: JSONObject.NULL)
+                    .put("ty", sample.translation.getOrNull(1) ?: JSONObject.NULL)
+                    .put("tz", sample.translation.getOrNull(2) ?: JSONObject.NULL)
+                    .put("qx", sample.rotationQuaternion.getOrNull(0) ?: JSONObject.NULL)
+                    .put("qy", sample.rotationQuaternion.getOrNull(1) ?: JSONObject.NULL)
+                    .put("qz", sample.rotationQuaternion.getOrNull(2) ?: JSONObject.NULL)
+                    .put("qw", sample.rotationQuaternion.getOrNull(3) ?: JSONObject.NULL),
+            )
+            .put(
+                "imageIntrinsics",
+                JSONObject()
+                    .put("fx", sample.imageFocalLength.getOrNull(0) ?: JSONObject.NULL)
+                    .put("fy", sample.imageFocalLength.getOrNull(1) ?: JSONObject.NULL)
+                    .put("cx", sample.imagePrincipalPoint.getOrNull(0) ?: JSONObject.NULL)
+                    .put("cy", sample.imagePrincipalPoint.getOrNull(1) ?: JSONObject.NULL)
+                    .put("width", sample.imageDimensions.getOrNull(0) ?: JSONObject.NULL)
+                    .put("height", sample.imageDimensions.getOrNull(1) ?: JSONObject.NULL),
+            )
+            .put(
+                "textureIntrinsics",
+                JSONObject()
+                    .put("fx", sample.textureFocalLength.getOrNull(0) ?: JSONObject.NULL)
+                    .put("fy", sample.textureFocalLength.getOrNull(1) ?: JSONObject.NULL)
+                    .put("cx", sample.texturePrincipalPoint.getOrNull(0) ?: JSONObject.NULL)
+                    .put("cy", sample.texturePrincipalPoint.getOrNull(1) ?: JSONObject.NULL)
+                    .put("width", sample.textureDimensions.getOrNull(0) ?: JSONObject.NULL)
+                    .put("height", sample.textureDimensions.getOrNull(1) ?: JSONObject.NULL),
+            )
+            .put(
+                "lensDistortion",
+                JSONObject()
+                    .put("coefficients", sample.lensDistortion?.let(::JSONArray) ?: JSONObject.NULL)
+                    .put("model", sample.lensDistortionModel ?: JSONObject.NULL),
+            )
         synchronized(writers.arCoreWriter) {
             writers.arCoreWriter.append("${payload}\n")
         }

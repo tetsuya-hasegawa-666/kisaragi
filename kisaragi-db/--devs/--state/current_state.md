@@ -3,6 +3,8 @@
 ## 共有制御
 
 - この文書は project 横断の shared current state 正本とする。
+- 2026-03-28: Codex が `AGENTS.md` の shared / project 境界 rule、`INITL` / `mINITL` rule、`prj-kisaragi_0002` の `Colab all-in modeling` と package 準備計画の整合更新を担当する。
+- 2026-03-28: Codex が `prj-kisaragi_0002` の `correcting` 保存先 / 転送先 UX 分離と、`AGENTS.md` 再発防止 rule、`project-truth.md`、`b2t-plans-result.md`、`ux_check_manual.md`、`mrl-ux-valid.md` の整合更新を担当する。
 - 2026-03-26: Codex が `MRL` 記載順と `pass` 判定基準の是正のため、`current_state.md`、`decision_log.md`、`AGENTS.md`、`b2t-plans-result.md`、`mrl-record.md`、`mrl-ux-valid.md` の整合更新を担当する。
 - 2026-03-26: Codex が `prj-kisaragi_0002` の mock 完了誤認を是正するため、`b2t-plans-result.md`、`project-truth.md`、`mrl-record.md`、`mrl-ux-valid.md`、`AGENTS.md`、`AGENTSmd-RH.md` の整合更新を担当する。
 - 2026-03-25: Codex が `project code` 命名規則に合わせた `prj-kisaragi_****` rename と全参照整合を担当する。
@@ -29,7 +31,8 @@
 - 2026-03-26: 人間承認により、admin の `UX check` は 1 gate ずつに限らず、関連する複数 `MRL` / `mRL` を 1 回の batch でまとめて実施してよい。
 - 2026-03-26: Codex が `prj-kisaragi_0002` の admin batch `UX check` 雛形、`DA3Metric-Large` Colab notebook、remote result import helper、関連 test を整備する。
 - 2026-03-27: 人間承認により、`prj-kisaragi_0002` の `trajectreview-modeling` は `ARCore pose`、frame timestamp、camera intrinsics を保持した session bundle を前提に、`DA3Metric-Large` の metric depth と world projection を Colab で比較運用する。
-- 2026-03-27: Codex が `prj-kisaragi_0002` の `MRL-5D` として、`trajectreview-correcting` の `1 回以上 data-check -> 同一ネットワーク上の対象 PC 選択 -> wireless PC transfer` と、PC 側 `bootstrap / receiver` script を実装する。
+- 2026-03-27: Codex が `prj-kisaragi_0002` の `MRL-5D` として、`trajectreview-correcting` の `1 回以上 data-check -> Google Drive転送先選択 -> Google Drive転送` を実装する。
+- 2026-03-27: Codex が `prj-kisaragi_0002` の calibration export interface 一時要件を `MRL-5C`、`MRL-6`、`MRL-9A` の正本へ吸収し、`arcore_pose.jsonl`、`camera_calibration_summary.json`、`frame_pose_index.csv`、`images/` の接続を実装する。
 - 2026-03-27: Codex が top `README.md` を GitHub 向け repository overview として整備し、正本文書への入口を整理したうえで push を担当する。
 
 ## 人間確認待ち
@@ -45,7 +48,7 @@
 - `prj-kisaragi_0002` の `UX-only` gate と `本機能完成` gate を分離し、誤って `pass` を付けた `MRL` を是正する
 - `prj-kisaragi_0002` の `modeling` で、Colab notebook を実アカウント / GPU 上で起動し、`DA3Metric-Large` の metric depth 推定と point-cloud export の remote 実測を取る
 - `prj-kisaragi_0002` の `MRL-9A` として `DA3Metric-Large` metric depth と world projection の実行証跡を追加する
-- `prj-kisaragi_0002` の `MRL-5D` として `correcting` の wireless PC transfer を局所検証し、PC 側 bootstrap / receiver script の手順を evidence へ反映する
+- `prj-kisaragi_0002` の `MRL-5D` として `correcting` の `Google Drive` transfer を局所検証し、admin 手順を evidence へ反映する
 - `prj-kisaragi_0002` の `MRL-9B` として sampling / intrinsics route の remote 実測比較結果を `benchmark_summary.json` へ反映する
 - `prj-kisaragi_0002` の `MRL-9C` として remote result import 後の `SpacePackage` / `TrajectoryPackage` 更新を app 側へ接続する
 - `prj-kisaragi_0002` の `MRL` 表を `correcting -> modeling -> reviewing` 順へ再編し、admin `UX check` 未完の `pass` を `active` / `planned` へ戻す

@@ -14,35 +14,44 @@
 ## 操作手順
 
 1. Android 端末で app `trajectreview-correcting` を起動する。
-2. camera preview、記録モード、`保存先を選択` button、`現場撮影データ保存を開始` button が見えることを確認し、`保存先を選択` から同期先 folder を選べることを確認する。
-3. `guarded replacement route` が OFF で `ARCore 記録を有効化` が ON の時、`frozen route では録画安定性を優先し、記録中の ARCore 収集を停止します。` が見えることを確認する。
-4. `現場撮影データ保存を開始` を押し、preview が維持されたまま記録中表示へ切り替わることを確認する。
-5. 5 秒以上待っても録画が自動停止しないことを確認する。
-6. `現場撮影データ保存を停止` を押し、session summary が更新されることを確認する。
-7. `data-check` 欄に `診断進行可`、`modeling 着手可`、`欠落入力`、`blocker`、`補正指示` が出ることを確認する。
-8. `data-check を実行` を押し、同じ項目が再計算されることを確認する。
-9. `data-check` 欄に `camera intrinsics 対応率`、`lens distortion 対応率`、`calibration frame 数` が出ることを確認する。
-10. `PC 転送` 欄に `同一ネットワーク上の PC 候補を検索して選択してください` と、同一 `Wi-Fi` 上で PC 側 bootstrap script 待受が必要だと出ることを確認する。
-11. `PC 候補を検索` を押し、件数 message が更新されることを確認する。
-12. `対象 PC を選択` を押し、候補 dialog から同一ネットワーク上の対象 PC を選べることを確認する。
-13. `PC 転送を実行` を押し、PC 側所定 folder に session が保存されることを確認する。
-14. Android 端末で app `trajectreview-modeling` を起動する。
-15. `bundle を選択` を押し、統合 app などで作られた `trajectreview_export/<session_id>` folder を選ぶ。
-16. `軽量 model を実行` を押し、`spaceQuality`、`trajectoryQuality`、`colab_job_request.json` を含む出力一覧が見えることを確認する。
-17. PC browser で [Google Colab](https://colab.research.google.com/) を開き、Google account で sign in する。
-18. `ファイル` -> `ノートブックをアップロード` を選び、[trajectreview_da3metric_large_colab.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\trajectreview_da3metric_large_colab.ipynb) を開く。menu 名が違う時は `Upload notebook` 相当を探す。
-19. `ランタイム` -> `ランタイムのタイプを変更` で `GPU` を選ぶ。候補に `T4`、`L4`、`A100` などが見えた時は、その表示を記録する。
-20. notebook の `CONFIG` cell を開き、`session_root` と `result_root` を今回使う値へ置き換える。値の意味はこの文書の `CONFIG に入れる値` を参照する。
-21. `drive.mount('/content/drive')` の cell を実行し、Google Drive への access 許可画面が出たら許可する。
-22. `session_root/` に、`colab_job_request.json` で要求された file と frame / image 入力を置く。迷った時は、先に file 名だけを Codex へ伝える。
-23. install cell と `DA3Metric-Large` 実行 cell は、1 つずつ順に実行する。失敗したら、その cell の見出しと error message をそのまま控える。
-24. Android 端末で app `trajectreview-reviewing` を起動する。
-25. `結果 folder を選択` を押し、同じ `trajectreview_export/<session_id>` folder を選ぶ。
-26. `結果を読込` を押し、`verify` または `review` の状態、`Attention`、`same_time` が見えることを確認する。
-27. Android 端末で統合 app `trajectreview` を起動する。
-28. `取得元を選択` を押して同じ session folder を選び、`保存先を選択` で出力先 folder を選ぶ。
-29. `抽出を実行` の後に `軽量 model を実行` を押す。
-30. `Thin Status` と `Attention` が実データ由来に更新され、`前へ` と `次へ` で段階を追えることを確認する。
+2. `Correcting mode` の直下に、同じ文字サイズで `1. 転送準備 → 2. データ記録 → 3. 転送` が表示されることを確認する。
+3. 1 つ目の block の 1 行目が左右 2 分割で、左に `サンプリング条件`、右に `端末保存先` があることを確認する。
+4. `サンプリング条件` を押すと popup が出て、`ARCore撮影(ON)・ポケット計測(OFF)`、`BLE記録`、`ARCoreのtimestamp(ms)`、`ARCore`、`IMU`、`GNSS`、`BLE` を編集できることを確認する。
+5. `端末保存先` を押し、スマホ内の同期先 folder を選べることを確認する。下の表示は詳細 path ではなく、`保存先は設定済みです。` または `保存先は未設定です。` の一文になることを確認する。
+6. 1 つ目の block の次の行が左右 2 分割で、左に `送信データセット`、右に `データ名称変更` があることを確認する。
+7. `送信データセット` を押すと popup が出て、`撮影データ`、`センサ記録`、`data-check結果と後段受け渡し`、`frame画像群` を ON / OFF できることを確認する。
+8. `データ名称変更` を押すと popup に保存済み data 一覧が出て、各 data に `取得日時` と `長さ` が表示されることを確認する。
+9. `データ名称変更` popup で data 名を選ぶと、directory 名を変更できることを確認する。
+10. 2 つ目の block の 1 行目に `データ記録(撮影)開始` があり、押すと preview 直下の status card に開始状態が出て、preview が維持されたまま session 情報が表示され、同じ位置の button 表示が `撮影停止` に切り替わることを確認する。
+11. 5 秒以上待っても録画が自動停止しないことを確認する。
+12. 同じ位置の `撮影停止` button を押し、session summary が更新されることを確認する。
+13. 2 つ目の block の 2 行目が左右 2 分割で、左に `品質確認`、右に `転送データ選択` があることを確認する。
+14. `品質確認` を押し、結果がすぐ下に表示されることを確認する。
+15. `data-check` 欄に `診断進行可`、`modeling 着手可`、`欠落入力`、`blocker`、`補正指示`、`camera intrinsics 対応率`、`lens distortion 対応率`、`calibration frame 数` が出ることを確認する。
+16. `転送データ選択` を押すと popup が出て、保存済み data を複数選べることを確認する。warning または blocker がある data には先頭に `▲` が付くことを確認する。
+17. 3 つ目の block の 1 行目が左右 2 分割で、左に `転送先を選択`、右に `転送実行` があることを確認する。
+18. `転送先を選択` を押すと、`Google Drive` folder URL を入力できる popup が出ることを確認する。初期値が `https://drive.google.com/drive/u/2/folders/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_` であることを確認する。
+19. popup で URL を編集して `OK` を押すと URL が保存されることを確認する。
+20. 同じ popup の `保存先fileを設定する` を押すと対象 account / folder が開き、`Google Drive` 側で保存先 folder の確認や作成を継続できることを確認する。
+21. 続けて zip 保存先 file 名を選べることを確認する。選択後に下の表示が `転送先は設定済みです。` の一文になることを確認する。
+22. `転送実行` を押し、選択した `Google Drive` 保存場所に zip が保存され、ON にした group だけが zip 内に入ることを確認する。複数 data を選んだ時は zip 内に複数 session directory が入ることを確認する。
+22. Android 端末で app `trajectreview-modeling` を起動する。
+23. `bundle を選択` を押し、統合 app などで作られた `trajectreview_export/<session_id>` folder を選ぶ。
+24. `軽量 model を実行` を押し、`spaceQuality`、`trajectoryQuality`、`colab_job_request.json` を含む出力一覧が見えることを確認する。
+25. PC browser で [Google Colab](https://colab.research.google.com/) を開き、Google account で sign in する。
+26. `ファイル` -> `ノートブックをアップロード` を選び、[trajectreview_da3metric_large_colab.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\trajectreview_da3metric_large_colab.ipynb) を開く。menu 名が違う時は `Upload notebook` 相当を探す。
+27. `ランタイム` -> `ランタイムのタイプを変更` で `GPU` を選ぶ。候補に `T4`、`L4`、`A100` などが見えた時は、その表示を記録する。
+28. notebook の `CONFIG` cell を開き、`session_root` と `result_root` を今回使う値へ置き換える。値の意味はこの文書の `CONFIG に入れる値` を参照する。
+29. `drive.mount('/content/drive')` の cell を実行し、Google Drive への access 許可画面が出たら許可する。
+30. `session_root/` に、`colab_job_request.json` で要求された file と frame / image 入力を置く。迷った時は、先に file 名だけを Codex へ伝える。
+31. install cell と `DA3Metric-Large` 実行 cell は、1 つずつ順に実行する。失敗したら、その cell の見出しと error message をそのまま控える。
+32. Android 端末で app `trajectreview-reviewing` を起動する。
+33. `結果 folder を選択` を押し、同じ `trajectreview_export/<session_id>` folder を選ぶ。
+34. `結果を読込` を押し、`verify` または `review` の状態、`Attention`、`same_time` が見えることを確認する。
+35. Android 端末で統合 app `trajectreview` を起動する。
+36. `取得元を選択` を押して同じ session folder を選び、必要なら `端末保存先` で同期済み session を確認する。
+37. `抽出を実行` の後に `軽量 model を実行` を押す。
+38. `Thin Status` と `Attention` が実データ由来に更新され、`前へ` と `次へ` で段階を追えることを確認する。
 
 ## Colab へ入る時の考え方
 
@@ -55,8 +64,8 @@
 
 - 前提
   - `Colab` で使うには、`Google Drive` または PC 側で `session_root/` が見える状態にする必要がある。
-  - `trajectreview-correcting` の `PC 転送` が使える時は、その転送先を起点にしてよい。
-  - `PC 転送` が未実装または未使用の時は、user 自身が `Google Drive` または PC へ copy する。
+  - `trajectreview-correcting` の `Google Drive転送` が使える時は、その転送先を起点にしてよい。
+  - `Google Drive転送` を使わない時は、user 自身が `Google Drive` または PC へ copy する。
   - したがって notebook へ入れる主値は、`Google Drive` に置いた session folder の path になる。
 - `session_root`
   - 何を入れるか: 今回処理する session folder そのものの path。
@@ -79,7 +88,7 @@
 ## Colab に置く入力 data
 
 - 先に必要な作業
-  - Android app で export した `trajectreview_export/<session_id>/` を、PC 転送または手動 copy で PC から見える場所へ置く。
+- Android app で export した `trajectreview_export/<session_id>/` を、`Google Drive転送` または手動 copy で `Google Drive` から見える場所へ置く。
   - `Colab` で使う時は、通常 `Google Drive/MyDrive/...` 配下へ置く。
   - まだ `Google Drive` に無い時は、その時点では `CONFIG` を確定できない。
 - 最低限必要な file
@@ -134,8 +143,8 @@
 ## Android から PC / Drive へ渡す時の考え方
 
 - 現在は自動転送ではない。
-- `PC 転送` が使える時は、その機能で PC 側所定 folder へ渡す。
-- `PC 転送` が使えない時は、`保存先を選択` で選んだ folder に export された data を、user が次段へ渡す。
+- `Google Drive転送` が使える時は、その機能で選択済み `Google Drive` folder へ渡す。
+- `Google Drive転送` を使わない時は、`端末保存先` で選んだ folder に同期された data を、user が次段へ渡す。
 - 渡し方の例
   - Android の file app で `Google Drive` 配下へ copy する
   - USB 接続で PC へ copy し、その後 `Google Drive` へ upload する
@@ -167,12 +176,16 @@
 - pass:
   - 4 app が起動する。
   - `correcting` で camera preview と `現場撮影データ保存を開始` が出る。
-  - `correcting` で `保存先を選択` から同期先 folder を選べる。
+  - `correcting` で `端末保存先` から同期先 folder を選べる。
   - `correcting` で記録開始と停止ができ、session summary が更新される。
   - `guarded replacement route` が OFF でも、5 秒以上の録画で自動停止や途切れが起きない。
   - `correcting` で `data-check` が動き、`診断進行可`、`modeling 着手可`、`blocker`、`補正指示` が出る。
   - `correcting` で `camera intrinsics 対応率`、`lens distortion 対応率`、`calibration frame 数` が出る。
-  - `correcting` で同一ネットワーク上の対象 PC を選択し、PC 側所定 folder へ無線転送できる。
+  - `correcting` で保存済み data 一覧に取得日時と長さが出る。
+  - `correcting` で送信する data group を閲覧・選択できる。
+  - `correcting` で既存 data を選び直して再転送できる。
+  - `correcting` で data 名を変更できる。
+  - `correcting` で `転送先を選択` から `Google Drive` 保存場所と zip file 名を決め、選んだ場所へ zip を転送できる。
   - `modeling` で `colab_job_request.json` を含む modeling 結果が出る。
   - `Colab` で notebook を開き、`GPU` runtime を選び、`CONFIG` と入力 file の置き場を確認できる。
   - `reviewing` で `verify` または `review` 状態と `Attention` が出る。
@@ -185,7 +198,10 @@
   - `guarded replacement route` が OFF の時に 5 秒程度で録画が自動停止する。
   - `correcting` で `data-check` が更新されない、または補正指示が出ない。
   - `correcting` で calibration 数値が出ない。
-  - `correcting` で同一ネットワーク上の PC 候補が出ない、または対象 PC を選んでも転送できない。
+  - `correcting` で保存済み data の取得日時または長さが見えない。
+  - `correcting` で送信 group が見えない、または選択が反映されない。
+  - `correcting` で既存 data の選択や rename ができない。
+  - `correcting` で `転送先を選択` が開かない、または選んだ `Google Drive` 保存場所へ zip を転送できない。
   - `modeling` で `colab_job_request.json` を含む結果が出ない。
   - `Colab` で notebook を開けない、`GPU` runtime を選べない、入力 file の置き場が分からない。
   - `reviewing` で状態要約や `Attention` が出ない。

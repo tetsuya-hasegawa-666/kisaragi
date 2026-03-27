@@ -1,5 +1,7 @@
 package com.isensorium.app
 
+import android.content.Context
+import android.net.wifi.WifiManager
 import org.json.JSONObject
 import java.io.BufferedInputStream
 import java.io.BufferedReader
@@ -33,35 +35,48 @@ data class PcTransferTarget(
     val targetRoot: String,
 )
 
-class PcTransferService {
+class PcTransferService(
+    private val context: Context? = null,
+) {
 
     fun discoverTargets(
         bootstrapPort: Int = DEFAULT_BOOTSTRAP_PORT,
         timeoutMs: Int = DEFAULT_TIMEOUT_MS,
+        additionalProbeHosts: List<InetAddress> = emptyList(),
     ): List<PcTransferTarget> {
         val payload = "TRAJECTREVIEW_BOOTSTRAP|${DEFAULT_TRANSFER_PORT}".toByteArray(StandardCharsets.UTF_8)
         val responseBuffer = ByteArray(2048)
         val targets = linkedMapOf<String, PcTransferTarget>()
 
-        DatagramSocket().use { socket ->
-            socket.broadcast = true
-            socket.soTimeout = timeoutMs.coerceAtMost(1000)
-            broadcastAddresses().forEach { address ->
-                runCatching {
-                    socket.send(DatagramPacket(payload, payload.size, address, bootstrapPort))
+        withMulticastLock {
+            DatagramSocket().use { socket ->
+                socket.broadcast = true
+                socket.soTimeout = timeoutMs.coerceAtMost(1000)
+                val probeHosts =
+                    linkedSetOf<InetAddress>().apply {
+                        addAll(broadcastAddresses())
+                        addAll(subnetProbeHosts())
+                        addAll(additionalProbeHosts)
+                    }
+                repeat(2) {
+                    probeHosts.forEach { address ->
+                        runCatching {
+                            socket.send(DatagramPacket(payload, payload.size, address, bootstrapPort))
+                        }
+                    }
                 }
-            }
-            val deadline = System.currentTimeMillis() + timeoutMs
-            while (System.currentTimeMillis() < deadline) {
-                val packet = DatagramPacket(responseBuffer, responseBuffer.size)
-                try {
-                    socket.receive(packet)
-                } catch (_: SocketTimeoutException) {
-                    continue
-                }
-                val response = String(packet.data, 0, packet.length, StandardCharsets.UTF_8).trim()
-                parseDiscoveryResponse(response)?.let { target ->
-                    targets[target.displayName + "|" + target.host + "|" + target.port] = target
+                val deadline = System.currentTimeMillis() + timeoutMs
+                while (System.currentTimeMillis() < deadline) {
+                    val packet = DatagramPacket(responseBuffer, responseBuffer.size)
+                    try {
+                        socket.receive(packet)
+                    } catch (_: SocketTimeoutException) {
+                        continue
+                    }
+                    val response = String(packet.data, 0, packet.length, StandardCharsets.UTF_8).trim()
+                    parseDiscoveryResponse(response)?.let { target ->
+                        targets[target.displayName + "|" + target.host + "|" + target.port] = target
+                    }
                 }
             }
         }
@@ -199,6 +214,66 @@ class PcTransferService {
                 .forEach { addresses += it }
         }
         return addresses.toList()
+    }
+
+    private fun subnetProbeHosts(): List<InetAddress> {
+        val hosts = linkedSetOf<InetAddress>()
+        Collections.list(NetworkInterface.getNetworkInterfaces()).forEach { network ->
+            if (!network.isUp || network.isLoopback) {
+                return@forEach
+            }
+            network.interfaceAddresses.forEach { iface ->
+                val address = iface.address
+                val octets = address.address ?: return@forEach
+                if (octets.size != 4) {
+                    return@forEach
+                }
+                val first = octets[0].toInt() and 0xFF
+                val second = octets[1].toInt() and 0xFF
+                val isPrivate =
+                    first == 10 ||
+                        (first == 172 && second in 16..31) ||
+                        (first == 192 && second == 168)
+                if (!isPrivate) {
+                    return@forEach
+                }
+                val prefixLength = iface.networkPrefixLength.toInt()
+                val scan24 = prefixLength in 24..32
+                val hostRange = if (scan24) 1..254 else 1..32
+                hostRange.forEach { hostIndex ->
+                    val candidate =
+                        if (scan24) {
+                            byteArrayOf(octets[0], octets[1], octets[2], hostIndex.toByte())
+                        } else {
+                            byteArrayOf(octets[0], octets[1], hostIndex.toByte(), 1)
+                        }
+                    if (!candidate.contentEquals(octets)) {
+                        hosts += InetAddress.getByAddress(candidate)
+                    }
+                }
+            }
+        }
+        return hosts.toList()
+    }
+
+    private fun <T> withMulticastLock(block: () -> T): T {
+        val wifiManager = context?.applicationContext?.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+        val multicastLock =
+            wifiManager
+                ?.createMulticastLock("trajectreview-pc-discovery")
+                ?.apply {
+                    setReferenceCounted(false)
+                    runCatching { acquire() }
+                }
+        return try {
+            block()
+        } finally {
+            multicastLock?.let { lock ->
+                if (lock.isHeld) {
+                    runCatching { lock.release() }
+                }
+            }
+        }
     }
 
     internal fun parseDiscoveryResponse(response: String): PcTransferTarget? {

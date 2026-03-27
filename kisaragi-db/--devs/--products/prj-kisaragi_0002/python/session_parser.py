@@ -86,7 +86,7 @@ class SessionParser:
             for line in handle:
                 line = line.strip()
                 if line:
-                    rows.append(json.loads(line))
+                    rows.append(self._flatten_json(json.loads(line)))
         return rows
 
     def load_jsonl_aliases(self, *filenames: str) -> list[dict[str, Any]]:
@@ -186,6 +186,7 @@ class SessionParser:
                 "input_readiness.json": "必須入力、任意入力、診断進行可否の判定",
                 "sensor_quality.json": "stream ごとの品質低下と警告理由",
                 "frame_pose_index.csv": "frame と pose の対応表",
+                "camera_calibration_summary.json": "frame timestamp、camera intrinsics、lens distortion の要約",
                 "member_identity_map.json": "端末、主体、BT 識別子の対応表",
                 "session_package.json": "後段へ渡すための正規化済み SessionPackage 実体",
                 "space_handoff_manifest.json": "SpaceReconstruction 着手可否と blocker の要約",
@@ -198,6 +199,10 @@ class SessionParser:
         summary = self.load_summary()
         join_report = self.build_join_report()
         package_interface = self.build_session_package_interface()
+        calibration = self._camera_calibration_summary(self.load_pose_rows())
+        recording_config = self.manifest.get("recordingConfig", {})
+        arcore_enabled = bool(recording_config.get("arCoreEnabled", self.manifest.get("arCoreEnabled", True)))
+        arcore_interval_ms = int(recording_config.get("arCoreIntervalMs", self.manifest.get("arCoreIntervalMs", 2000)))
 
         return {
             "sessionId": summary.session_id,
@@ -212,14 +217,27 @@ class SessionParser:
             "collectorStatus": summary.collector_status,
             "scores": {
                 "completenessScore": self._completeness_score(package_interface.required_inputs),
-                "poseCoverageRatio": self._pose_coverage_ratio(summary.stream_counts),
+                "poseCoverageRatio": self._pose_coverage_ratio(
+                    frame_rows=self.load_frame_rows(),
+                    pose_rows=self.load_pose_rows(),
+                    arcore_enabled=arcore_enabled,
+                    arcore_interval_ms=arcore_interval_ms,
+                ),
+                "imageIntrinsicsCoverageRatio": calibration["imageIntrinsicsCoverageRatio"],
+                "lensDistortionCoverageRatio": calibration["lensDistortionCoverageRatio"],
             },
+            "cameraCalibration": calibration,
             "nearestDeltaNs": {
                 "imuNearestDeltaNs": join_report["imuNearestDeltaNs"],
                 "gnssNearestDeltaNs": join_report["gnssNearestDeltaNs"],
                 "btNearestDeltaNs": join_report["btNearestDeltaNs"],
                 "poseNearestDeltaNs": join_report["poseNearestDeltaNs"],
             },
+            "mainVideoPath": "video.mp4",
+            "imageDirectory": "trajectreview/images",
+            "framePoseIndexPath": "trajectreview/frame_pose_index.csv",
+            "cameraCalibrationSummaryPath": "trajectreview/camera_calibration_summary.json",
+            "arcorePosePath": self._first_existing_name("poses.jsonl", "arcore_pose.jsonl", "arcore_pose.csv"),
             "sourceFiles": {
                 "manifest": self.manifest_path.name if self.manifest_path is not None else None,
                 "video": "video.mp4" if (self.session_dir / "video.mp4").exists() else None,
@@ -229,6 +247,7 @@ class SessionParser:
                 "bt": self._first_existing_name("bt.jsonl", "ble_scan.jsonl", "bt_events.csv", "bt.csv"),
                 "poses": self._first_existing_name("poses.jsonl", "arcore_pose.jsonl", "arcore_pose.csv"),
                 "videoEvents": "video_events.jsonl" if (self.session_dir / "video_events.jsonl").exists() else None,
+                "cameraCalibrationSummary": "camera_calibration_summary.json",
             },
         }
 
@@ -245,20 +264,27 @@ class SessionParser:
             blockers.append("imu.csv が不足している")
         if not metadata["hasMonotonicSessionBase"]:
             blockers.append("sessionStartElapsedRealtimeNanos が不足している")
+        if not self.load_pose_rows():
+            blockers.append("arcore_pose.jsonl が不足している")
 
         return {
             "sessionId": package["sessionId"],
             "targetStage": "SpaceReconstruction",
             "readyForSpaceReconstruction": not blockers,
             "blockers": blockers,
-            "consumedArtifacts": [
+            "warnings": package["cameraCalibration"].get("warnings", []),
+            "requiredArtifacts": [
                 "session_package.json",
                 "input_readiness.json",
                 "sensor_quality.json",
                 "frame_pose_index.csv",
+                "camera_calibration_summary.json",
+                "arcore_pose.jsonl",
+                "images",
             ],
             "availableSourceFiles": package["sourceFiles"],
             "recommendedNextAction": "空間再構成を開始" if not blockers else "入力条件を見直す",
+            "allowModelingProceed": True,
         }
 
     def _range_from_rows(self, rows: list[dict[str, Any]], key: str) -> tuple[int, int] | None:
@@ -312,9 +338,116 @@ class SessionParser:
     def _completeness_score(self, required_inputs: dict[str, bool]) -> float:
         return sum(1 for present in required_inputs.values() if present) / len(required_inputs) if required_inputs else 0.0
 
-    def _pose_coverage_ratio(self, stream_counts: dict[str, int]) -> float:
-        frame_count = stream_counts.get("frames", 0)
-        pose_count = stream_counts.get("poses", 0)
-        if frame_count <= 0:
+    def _pose_coverage_ratio(
+        self,
+        frame_rows: list[dict[str, Any]],
+        pose_rows: list[dict[str, Any]],
+        arcore_enabled: bool,
+        arcore_interval_ms: int,
+    ) -> float:
+        if not arcore_enabled:
+            return 1.0
+        if not pose_rows:
             return 0.0
-        return min(1.0, pose_count / frame_count)
+        frame_times = [
+            int(float(row.get("elapsed_realtime_ns", row.get("timestamp_ns"))))
+            for row in frame_rows
+            if row.get("elapsed_realtime_ns", row.get("timestamp_ns")) not in (None, "")
+        ]
+        duration_ns = max(frame_times) - min(frame_times) if len(frame_times) >= 2 else 0
+        interval_ns = max(1, arcore_interval_ms) * 1_000_000
+        expected_pose_samples = max(1, duration_ns // interval_ns + 1)
+        return min(1.0, len(pose_rows) / expected_pose_samples)
+
+    def _camera_calibration_summary(self, pose_rows: list[dict[str, Any]]) -> dict[str, Any]:
+        calibration_frame_count = sum(
+            1 for row in pose_rows if self._row_has_any_value(row, "frameTimestampNs", "captureTimestampNs", "timestamp_ns")
+        )
+        valid_pose_count = sum(
+            1 for row in pose_rows if self._row_has_any_value(row, "pose.tx", "translation")
+        )
+        image_intrinsics_count = sum(
+            1 for row in pose_rows if self._row_has_any_value(row, "imageIntrinsics.fx", "imageFocalLength", "imagePrincipalPoint", "imageDimensions")
+        )
+        texture_intrinsics_count = sum(
+            1 for row in pose_rows if self._row_has_any_value(row, "textureIntrinsics.fx", "textureFocalLength", "texturePrincipalPoint", "textureDimensions")
+        )
+        lens_distortion_count = sum(
+            1 for row in pose_rows if self._row_has_any_value(row, "lensDistortion.coefficients", "lensDistortion")
+        )
+        total_pose_rows = len(pose_rows)
+        image_coverage = 0.0 if total_pose_rows == 0 else min(1.0, image_intrinsics_count / total_pose_rows)
+        texture_coverage = 0.0 if total_pose_rows == 0 else min(1.0, texture_intrinsics_count / total_pose_rows)
+        distortion_coverage = 0.0 if total_pose_rows == 0 else min(1.0, lens_distortion_count / total_pose_rows)
+        timestamps = [
+            int(float(row[key]))
+            for row in pose_rows
+            for key in ("frameTimestampNs", "captureTimestampNs", "timestamp_ns")
+            if row.get(key) not in (None, "", "null", "None")
+        ]
+        warnings: list[str] = []
+        if image_coverage < 1.0:
+            warnings.append("imageIntrinsicsCoverageRatio が 1.0 未満")
+        if distortion_coverage < 1.0:
+            warnings.append("lensDistortionCoverageRatio が 1.0 未満")
+        signatures = {
+            "|".join(
+                [
+                    str(row.get("imageIntrinsics.fx", row.get("imageFocalLength", ""))),
+                    str(row.get("imageIntrinsics.fy", "")),
+                    str(row.get("imageIntrinsics.cx", row.get("imagePrincipalPoint", ""))),
+                    str(row.get("imageIntrinsics.cy", "")),
+                    str(row.get("imageIntrinsics.width", row.get("imageDimensions", ""))),
+                    str(row.get("imageIntrinsics.height", "")),
+                ]
+            )
+            for row in pose_rows
+            if self._row_has_any_value(row, "imageIntrinsics.fx", "imageFocalLength")
+        }
+        intrinsics_mode = "unknown"
+        if image_intrinsics_count > 0:
+            intrinsics_mode = "per_frame" if len(signatures) > 1 else "session_fixed"
+        blockers: list[str] = []
+        if valid_pose_count == 0:
+            blockers.append("pose がほぼ 0 件")
+        if image_intrinsics_count == 0:
+            blockers.append("intrinsics がほぼ 0 件")
+        return {
+            "specVersion": "2026-03-27-calibration-export-v1",
+            "recordCount": total_pose_rows,
+            "validPoseCount": valid_pose_count,
+            "calibrationFrameCount": calibration_frame_count,
+            "imageIntrinsicsCount": image_intrinsics_count,
+            "textureIntrinsicsCount": texture_intrinsics_count,
+            "lensDistortionCount": lens_distortion_count,
+            "imageIntrinsicsCoverageRatio": image_coverage,
+            "textureIntrinsicsCoverageRatio": texture_coverage,
+            "lensDistortionCoverageRatio": distortion_coverage,
+            "timestampStartNs": min(timestamps) if timestamps else None,
+            "timestampEndNs": max(timestamps) if timestamps else None,
+            "intrinsicsModeCandidate": intrinsics_mode,
+            "intrinsicsChangedDuringRecording": intrinsics_mode == "per_frame",
+            "recommendedModelingRoutes": [
+                "route-da3metric-large-5fps-static-intrinsics",
+                "route-da3metric-large-10fps-static-intrinsics",
+                "route-da3metric-large-10fps-per-frame-intrinsics",
+            ],
+            "warnings": warnings,
+            "blockers": blockers,
+        }
+
+    def _row_has_any_value(self, row: dict[str, Any], *keys: str) -> bool:
+        return any(row.get(key) not in (None, "", "null", "None") for key in keys)
+
+    def _flatten_json(self, value: Any, prefix: str = "") -> dict[str, Any]:
+        if isinstance(value, dict):
+            flattened: dict[str, Any] = {}
+            for key, item in value.items():
+                next_prefix = f"{prefix}.{key}" if prefix else key
+                flattened.update(self._flatten_json(item, next_prefix))
+                if prefix == "":
+                    flattened[key] = item if not isinstance(item, (dict, list)) else json.dumps(item)
+            return flattened
+        if isinstance(value, list):
+            return {prefix: json.dumps(value)}
+        return {prefix: value}

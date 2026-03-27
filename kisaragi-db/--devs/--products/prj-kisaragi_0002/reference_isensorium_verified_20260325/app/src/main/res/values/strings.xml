@@ -1,13 +1,35 @@
 <resources>
     <string name="app_name">kisaragi-iSensorium</string>
+    <string name="correcting_mode_title">Correcting mode</string>
+    <string name="correcting_mode_flow">1. 転送準備 → 2. データ記録 → 3. 転送</string>
     <string name="start_recording">セッション開始</string>
     <string name="stop_recording">セッション停止</string>
     <string name="refresh_session">再読み込み</string>
     <string name="guarded_route_switch">guarded replacement route を使う</string>
     <string name="ble_switch">BLE 記録を有効化</string>
     <string name="arcore_switch">ARCore 記録を有効化</string>
+    <string name="capture_mode_switch">ARCore撮影(ON)・ポケット計測(OFF)</string>
     <string name="sampling_header">サンプリング間隔 (ms)</string>
-    <string name="video_interval_label">動画 timestamp 記録</string>
+    <string name="video_interval_label">ARCoreのtimestamp(ms)</string>
+    <string name="config_block_title">1. 記録設定</string>
+    <string name="record_block_title">2. データ記録</string>
+    <string name="data_check_block_title">data-check</string>
+    <string name="transfer_block_title">1. 転送準備</string>
+    <string name="transfer_execute_block_title">3. 転送</string>
+    <string name="record_start_button">データ記録(撮影)開始</string>
+    <string name="record_stop_button">撮影停止</string>
+    <string name="sampling_conditions_button">サンプリング条件</string>
+    <string name="transfer_select_drive_destination">端末保存先</string>
+    <string name="transfer_target_button">転送先を選択</string>
+    <string name="execute_transfer_button">転送実行</string>
+    <string name="transfer_capture_group">撮影データ</string>
+    <string name="transfer_sensor_group">センサ記録</string>
+    <string name="transfer_derived_group">data-check結果と後段受け渡し</string>
+    <string name="transfer_images_group">frame画像群</string>
+    <string name="select_transfer_groups_button">送信データセット</string>
+    <string name="select_transfer_session_button">転送データ選択</string>
+    <string name="manage_transfer_sessions_button">データ名称変更</string>
+    <string name="data_check_button">品質確認</string>
     <string name="imu_interval_label">IMU 記録</string>
     <string name="gnss_interval_label">GNSS 記録</string>
     <string name="ble_interval_label">BLE 記録</string>
@@ -16,4 +38,5 @@
     <string name="recording_mode_header">記録モード</string>
     <string name="recording_mode_standard">通常計測: 画面を見ながら操作する</string>
     <string name="recording_mode_pocket">ポケット収納計測: 収納状態で記録する</string>
+    <string name="save_destination_syncing">選択した保存先へ session を同期しています。</string>
 </resources>

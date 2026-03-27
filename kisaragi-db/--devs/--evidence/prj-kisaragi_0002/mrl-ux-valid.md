@@ -125,10 +125,15 @@
   - `mRL-5C.1` から `mRL-5C.3`
 - UX 観点:
   - `trajectreview-correcting` で `現場撮影データ保存を開始` と `現場撮影データ保存を停止` が動く
-  - `保存先を選択` から同期先 folder を選び、その保持状態を app 内で確認できる
+  - 1 つ目の block で `データ保存先ディレクトリ選択` から同期先 folder を選び、その保持状態を app 内で確認できる
+  - camera preview は上部固定で見え続け、下部 scroll で 4 block を順に操作できる
+  - 記録開始や停止などの状態文は preview 直下の status card に出て、下部操作 block を塞がない
   - 記録停止後に同じ app 内で `data-check` 欄へ `診断進行可`、`modeling 着手可`、`blocker`、`補正指示` が表示される
   - `data-check` 欄へ `camera intrinsics 対応率`、`lens distortion 対応率`、`calibration frame 数` が表示される
-  - `data-check を実行` により、最新 session から結果を再計算できる
+  - `arcore_pose.jsonl` は `sessionId`、`recordIndex`、`captureTimestampNs`、nested `pose` / `imageIntrinsics` / `textureIntrinsics` / `lensDistortion` を持つ
+  - `camera_calibration_summary.json` は `intrinsicsModeCandidate`、`recommendedModelingRoutes`、`warnings`、`blockers` を持つ
+  - `frame_pose_index.csv` は `image_file_name`、`pose_record_index`、`time_delta_ms` を持ち、`images/` と `arcore_pose.jsonl` を再リンクできる
+  - 3 つ目の block で `data-check` により、最新 session から結果を再計算できる
 - 実装 / test 観点:
   - JVM unit test:
     - `:correcting:testDebugUnitTest`
@@ -157,30 +162,33 @@
   - `MRL-5D`
   - `mRL-5D.1` から `mRL-5D.3`
 - UX 観点:
-  - `trajectreview-correcting` の `PC 転送` 欄に、同一ネットワーク要件と `現場撮影データ保存 -> data-check -> PC 転送` の順序が出る
-- `PC 候補を検索` により、同一 `Wi-Fi` 上の対象 PC 候補件数が表示され、`対象 PC を選択` dialog から smartphone 上で選択できる
-- `PC 転送を実行` は `data-check` 成功回数が 1 回以上の時だけ有効になる
+  - `Correcting mode` 直下に `1. 転送準備 -> 2. データ記録 -> 3. 転送` の手順 text が同じ文字サイズで置かれる
+  - 1 つ目の block は 1 行目が `サンプリング条件` / `端末保存先`、2 行目が保存先状態表示、3 行目が `送信データセット` / `データ名称変更` の 2 列になる
+  - 2 つ目の block は 1 行目が記録開始 / 停止 toggle、2 行目が `品質確認` / `転送データ選択` の 2 列になる
+  - 3 つ目の block は 1 行目の `転送先を選択` / `転送実行` の 2 列、その下の転送状態表示で構成される
+- `端末保存先` により、`Storage Access Framework` からスマホ内の同期先 folder を選べる
+- `送信データセット` popup で送信 group を選べる
+- `転送データ選択` popup で `data-check` 済み data を複数選べ、懸念がある data は `▲` 付きで見える
+- `データ名称変更` popup に保存済み data の取得日時と長さが出て、名称変更できる
+- `転送先を選択` popup で `Google Drive` URL を保持し、`保存先fileを設定する` から `Google Drive` を開いて保存場所と zip file 名を選べる
+- `転送実行` は `data-check` 済み data、`Google Drive` 転送先、送信 group がそろった時だけ有効になる
+- 既存の `data-check` 済み session を選んだ時は、その session を再転送できる
 - 記録停止後は `data-check` が自動実行され、新しい記録開始時には `data-check` 成功回数が `0` に戻る
 - `poseCoverageRatio` は `ARCore` の期待 sample 数基準で算出し、`video frame` 数に引きずられない
+- スマホ内保存先は選択した folder 直下の `<session_id>/` とし、`data-check` 後に同期する
+- `Google Drive` 転送先は選択した保存場所に zip を作成し、選択した group だけを zip に含める。複数 data を選んだ時は zip 内に複数 session directory を含める
 - 実装 / test 観点:
   - JVM unit test:
     - `:correcting:testDebugUnitTest`
   - build / install:
     - `:correcting:assembleDebug`
     - `:correcting:installDebug`
-  - script parse:
-    - `correcting/scripts/pc-transfer-bootstrap.ps1`
-    - `correcting/scripts/pc-transfer-receiver.ps1`
 - 制約:
-  - PC 側 script の完全 end-to-end runtime は、この session では shell policy が background 起動を拒否したため未確認である
-  - そのため `MRL-5D` は admin 実機 UX check と PC 側 runtime 確認前の `candidate evidence` として扱う
+  - `Google Drive` app または provider が端末上で選択可能である必要がある
+  - そのため `MRL-5D` は admin 実機 UX check 前の `candidate evidence` として扱う
 - 主要 evidence:
-  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/PcTransferService.kt`
-  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/scripts/pc-transfer-bootstrap.ps1`
-  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/scripts/pc-transfer-receiver.ps1`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/java/com/isensorium/app/MainActivity.kt`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/res/layout/activity_main.xml`
-  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/test/java/com/isensorium/app/PcTransferServiceTest.kt`
 
 ## 2026-03-25 candidate evidence
 

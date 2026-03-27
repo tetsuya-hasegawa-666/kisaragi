@@ -21,14 +21,19 @@
 
 ## 現在の到達認識
 
+- `trajectreview-correcting` は 3 block UI を持ち、`転送準備 -> データ記録 -> 転送` の順に上から読める
+- `trajectreview-correcting` は camera preview を上部固定で常時見せ、下部だけを scroll して 4 block を操作する
+- `trajectreview-correcting` は preview 直下に status card を持ち、記録開始や停止などの状態文は下部 toast ではなくここへ出す
 - `trajectreview-correcting` は `現場記録 -> 最新 session 再読込 -> data-check -> correction guidance` を 1 app 内で実行できる
-- `trajectreview-correcting` は `現場記録 -> data-check -> 同一ネットワーク上の対象 PC 選択 -> wireless PC transfer` を 1 app 内で閉じる方針を採る
+- `trajectreview-correcting` は `スマホ内保存先設定 -> 現場記録 -> data-check -> 転送対象 data 複数選択 / rename -> 送信 group 選択 -> Google Drive転送先選択 -> Google Drive転送` を 1 app 内で閉じる方針を採る
 - `trajectreview-correcting` は `Depth Anything v3 MetricLarge` 後段のために、同一 `ARCore` frame から pose、frame timestamp、image intrinsics、texture intrinsics、lens distortion を 1 record として残す
 - `frozen_camerax_arcore` route では録画安定性を優先し、記録中の `ARCore` 収集を停止する
 - `trajectreview-modeling` は `local sample before colab` と request 生成を持つが、実 `DA3Metric-Large` / point-cloud projection / trajectory reconstruction は未実装である
 - `trajectreview-modeling` は preflight として `experiment_manifest.json`、`da3_input_manifest.json`、`benchmark_summary.json`、`selected_route.json`、Colab notebook / import helper を生成できる
 - Colab notebook は `session_root` と `result_root` を最小入力とし、`session_package.json`、`selected_route.json`、`colab_job_request.json` から `session_id`、`route_id`、`sampling profile`、`intrinsics mode` を自動解決する
 - `trajectreview-modeling` は単一 route 固定で始めず、`DA3Metric-Large` の sampling / intrinsics handling を比較し、暫定採用 route を後から既定化する方針を採る
+- `trajectreview-modeling` の主実装 route は `Colab all-in` とし、PC 側は source、config、auto-install package、証跡の正本を保持する
+- `trajectreview-correcting` も Android app だけで完結する前提に固定せず、PC へ install 可能な package を別 process で設計する
 - `trajectreview-reviewing` は summary / stub 読込を持つが、実 `ReviewArtifact` viewer と操作系は未実装である
 - 統合 app は workflow 境界の理解には使えるが、現時点では本来機能を end-to-end で閉じていない
 
@@ -95,9 +100,18 @@
 
 ### 第 1 段階: `InputPackaging`
 
-- 責務: 取得元 app data から主カメラ動画、主カメラ `IMU`、人物側 `IMU` を抽出し、単一セッション入力へ正規化する
-- 主な処理: session folder 選択、raw file 抽出、frame 抽出、`ARCore` pose 整理、`IMU` 整理、`BT` 整理、時刻整列、品質フラグ付与
+- 責務: `trajectreview-correcting` を主実装として、現場記録、既存 session intake、端末内同期、`Google Drive` 転送を含む入力パッケージ化を行い、単一セッション入力へ正規化する
+- 主な処理: 現場記録、session folder intake、raw file 抽出、frame 抽出、`ARCore` pose 整理、`IMU` 整理、`BT` 整理、時刻整列、品質フラグ付与、端末内同期、`Google Drive` zip 転送
 - 出力: `SessionPackage`
+
+#### `InputPackaging` の要望変化と追従状況
+
+- 初期要望は `iSensorium` 由来 session folder を選んで抽出する入口を持つことだった
+- 現在の主要 UX は `trajectreview-correcting` 自身で現場記録し、その session を `data-check` と handoff artifact まで閉じる形へ移っている
+- 既存 session folder intake は互換 route として維持し、統合 app や既存 data 再利用時に使う
+- `InputPackaging` の運搬面は `端末保存先` と `Google Drive` 転送先に分かれ、前者は `<session_id>/`、後者は `<session_id>.zip` を正本とする
+- `correcting` の UI、artifact、手順書は上記の変化へ追従済みであり、未解決事項は `b2t-plans-result.md` の `疑問点不整合一覧` へ集約する
+- `Google Drive` zip の unzip / 配置正規化責務は `modeling` の `Colab bootstrap package` 側が担う
 
 ### 第 2 段階: `SpaceReconstruction`
 
@@ -125,13 +139,24 @@
 - 主責務: 現場記録、取得条件設定、source session 保存、入力補正の起点作成
 - 完成基準:
   - `trajectreview-correcting` 自体が camera / IMU / GNSS / BLE / ARCore 記録画面を持ち、source session を端末内へ保存する
-  - `保存先を選択` により、利用者が同期先 folder を app 内で明示的に選べる
+  - `データ保存先ディレクトリ選択` により、利用者が同期先 folder を app 内で明示的に選べる
   - 同じ app 内で session を intake し、`session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json` まで生成する
   - `ARCore` pose record には `frameTimestampNs`、`imageFocalLength`、`imagePrincipalPoint`、`imageDimensions`、`textureFocalLength`、`texturePrincipalPoint`、`textureDimensions`、`lensDistortion` を含める
   - `camera_calibration_summary.json` に calibration 対応率を出し、`DA3 MetricLarge` 前段の入力可否を判断できる
   - `data-check` が readiness、quality、blocker、recommended correction を返す
-  - `data-check` を 1 回以上通した後にだけ `PC 転送` を有効化し、同一ネットワーク上の対象 PC を app 内で選択できる
-  - 利用者が `現場撮影データ保存を開始` から wireless PC transfer 完了まで、別 app へ移らず進められる
+  - `Correcting mode` 直下に `1. 転送準備 -> 2. データ記録 -> 3. 転送` の手順 text を同じ文字サイズで置く
+  - 1 block は 1 行目を `サンプリング条件` / `端末保存先` の 2 列、2 行目を保存先状態表示、3 行目を `送信データセット` / `データ名称変更` の 2 列で構成する
+  - 1 block の `端末保存先` はスマホ内の同期先であり、`data-check` 完了後に `<session_id>/` 直下構成で自動同期する
+  - 2 block は 1 行目を記録開始 / 停止 toggle、2 行目を `品質確認` / `転送データ選択` の 2 列で構成する
+  - 3 block は 1 行目を `転送先を選択` / `転送実行` の 2 列とし、その下に転送状態表示を持つ
+  - `転送先を選択` は `Google Drive` の folder URL を入力 / 保存する画面を兼ね、`OK` で URL を保持し、`保存先fileを設定する` で `Google Drive` を開いて保存先 file 選択へ進める
+  - 3 block の `転送実行` は `data-check` artifact を持つ保存済み session が 1 件以上選ばれていれば有効化する
+  - `送信データセット` popup で送信する data group を選ぶ
+  - `転送データ選択` popup で保存済み session を複数選ぶ
+  - `転送データ選択` popup と `データ名称変更` popup では、warning または blocker を持つ data 名の先頭に `▲` を付け、取得日時と長さを確認できる
+  - `データ名称変更` popup で保存済み session の取得日時と長さを確認し、directory 名を rename できる
+  - `Google Drive` 転送先は app 内で選んだ保存場所に、1 件選択時は `<session_id>.zip`、複数件選択時は `trajectreview-correcting-export.zip` を作成する
+  - 利用者が `現場撮影データ保存を開始` から `Google Drive` への zip 転送完了まで、別 app へ移らず進められる
 
 ### `trajectreview-modeling`
 
@@ -139,10 +164,19 @@
 - 主責務: model 入力確認、実行 gate、進行把握、再構成 blocker 確認
 - 完成基準:
   - `session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json`、`camera_calibration_summary.json` を入力として、`DA3Metric-Large` の前処理入力、`Colab` upload 対象、job request を route 単位で生成する
+  - `Colab bootstrap package` が zip intake から `session_root/` を正規化し、runtime、dependency install、config、output path を再現可能に構築できる
   - `DA3Metric-Large` による metric depth 推定と `ARCore pose` / intrinsics による world projection を実行し、主要 quality 指標と failure reason を route 単位で記録する
   - 複数の sampling / intrinsics route を比較し、`benchmark_summary.json` と `selected_route.json` により暫定採用 route を固定する
   - remote 実行結果を受理し、`SpacePackage`、`TrajectoryPackage`、`space_quality.json`、`trajectory_quality.json`、`attention_seed.json` を更新する
   - `local sample before colab` は preflight 用補助 route とし、完成判定の代替に使わない
+
+## package / bootstrap 方針
+
+- `MRL` と別に、準備 UX、配布、install、bootstrap、実行環境整備は `INITL` / `mINITL` で管理する
+- `trajectreview-modeling` の package は `Colab all-in` を主 route とし、`Google Drive` から受け取る zip を unzip して `session_root/` を構成する `Colab bootstrap package` を持つ
+- PC 側は `Colab bootstrap package` の source、install script、config template、notebook template、version 固定情報、証跡を保持する
+- `trajectreview-correcting` は Android app を正本実行入口としつつ、PC install package も別 process で設計し、artifact 互換性、保存先構成、導線を固定する
+- package 設計の詳細、install 手順、runtime 準備は project 固有事項としてこの文書と `b2t-plans-result.md` に残し、shared rule へは上げない
 
 ## modeling route 方針
 
@@ -172,22 +206,24 @@
 
 ### 分担 1: `InputPackaging`
 
-- 担当: 現場記録、source session 生成、取得元入力の抽出、受理、整形、時刻整列、入力診断
+- 担当: `trajectreview-correcting` による現場記録、source session 生成、既存入力の抽出、受理、整形、時刻整列、入力診断、端末内同期、`Google Drive` 転送
 - 次段へ渡すもの:
   - `SessionPackage`
   - `input_readiness.json`
   - `sensor_quality.json`
   - `frame_pose_index.csv`
+  - `images/`
+  - `arcore_pose.jsonl`
   - `camera_calibration_summary.json`
   - `member_identity_map.json`
   - `session_package.json`
   - `space_handoff_manifest.json`
 - 受け渡し条件:
-  - `trajectreview-correcting` で source session が保存済みである
+  - `trajectreview-correcting` で source session が保存済み、または既存 session intake が完了している
   - 主カメラ動画、主カメラ `IMU`、人物側 `IMU` の充足が判定済みである
   - 主体、端末、時刻基準の対応が追える
   - 取得元 raw と `trajectreview` 派生出力が分離されている
-  - app 内で抽出元と抽出先が追える
+  - app 内で抽出元、端末保存先、`Google Drive` 転送先が追える
 
 ### 分担 2: `SpaceReconstruction`
 
@@ -199,6 +235,8 @@
   - `input_readiness.json`
   - `sensor_quality.json`
   - `frame_pose_index.csv`
+  - `images/`
+  - `arcore_pose.jsonl`
   - `camera_calibration_summary.json`
 - 次段へ渡すもの:
   - `SpacePackage`
@@ -342,13 +380,16 @@
 - `trajectreview/` には readiness、quality、frame-pose 対応、identity map、`session_package.json`、`space_handoff_manifest.json` を保持する
 - app UI は抽出元、抽出先、`ready_for_diagnose`、`ready_for_space_reconstruction`、欠落入力、主要数値を表示できる
 - app は session folder 直下だけでなく、manifest を持つ 1 段下の child directory も抽出対象として受理する
-- `trajectreview-correcting` の wireless PC transfer は、同一 `Wi-Fi` 上の PC を UDP bootstrap で検出し、Android 側では `multicast lock` と同一 subnet への追加 probe を使って候補探索し、PC 側 bootstrap は `Tailscale` や仮想 NIC よりも `Wi-Fi` の `192.168.*` address を優先して返す
+- `trajectreview-correcting` の転送は `Storage Access Framework` による `Google Drive` 保存場所選択を正規経路とし、`撮影データ`、`センサ記録`、`data-check結果と後段受け渡し`、`frame画像群` を group 単位で選択して zip 転送する
+- `Google Drive` 事前設定の既定対象 folder は `https://drive.google.com/drive/u/2/folders/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_` とし、app 内の `転送先を選択` dialog の初期値として保持する
+- network 経由の PC companion route は保留とし、現時点の正規 UX には含めない
 - `trajectreview-correcting` の `data-check` は記録停止後に自動実行し、新しい記録開始時には成功回数を `0` に戻す
+- `品質確認` 結果は data ごとに `trajectreview/` 配下 artifact として保持し、保存済み data 一覧で warning または blocker を `▲` 付きで可視化する
 - `poseCoverageRatio` は `pose数 / frame数` ではなく、session 長と `arCoreIntervalMs` から見積もった期待 pose sample 数に対する達成率で扱う
-- `trajectreview-correcting` は app 内の作業用 session を保持しつつ、user が選んだ保存先へ停止後と `data-check` 後に session 一式を同期する
+- `trajectreview-correcting` は app 内の作業用 session を保持しつつ、保存済み session を一覧表示し、選んだスマホ内保存先 folder の直下へ `<session_id>/` を同期する
 - `trajectreview-correcting` の `ARCore` 記録は `Session.update()` で得た同一 frame の pose、frame timestamp、image intrinsics、texture intrinsics、lens distortion を 1 record として `arcore_pose.jsonl` へ保存する
-- PC 側 companion script は `correcting/scripts/pc-transfer-bootstrap.ps1` と `correcting/scripts/pc-transfer-receiver.ps1` を正本とし、`receiver` は idle 後に自動終了する
-- PC 側既定保存先は `kisaragi-db/--exsams/prj-kisaragi_0002/pc-transfer-inbox/` とする
+- `Google Drive` 転送先は user が app 内で選んだ保存場所を正本とし、選択した data group を、選択 session の数に応じた zip 名で保存する
+- 旧 `trajectreview-correcting/<session_id>/` 形式のスマホ内保存先が見つかった時は、可能な範囲で保存先直下の `<session_id>/` 形式へ移行する
 
 ## `GNSS` なし前提の成立条件
 

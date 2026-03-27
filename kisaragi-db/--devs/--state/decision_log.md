@@ -6,6 +6,37 @@
 
 ## entries
 
+- 2026-03-28
+  - project: `shared`
+  - decision: `AGENTS.md` は shared rule のみを持ち、project ごとに変わりうる UX、artifact、route、package 設計、`MRL` / `INITL` の中身は project 文書へ分離する
+  - rationale: `prj-kisaragi_0002` の `Google Drive`、`Colab`、package 準備のような project 固有事項が shared rule と混ざると、他 project へ誤って波及しやすく、正本の境界が曖昧になるため
+  - consequence: 以後は `AGENTS.md` に shared governance だけを残し、project 側文書に shared rule が混入していた場合も併せて整理する
+- 2026-03-28
+  - project: `shared`
+  - decision: 機能 behavior ではない準備 UX、配布、install、bootstrap、実行環境整備は `INITL-*`、`mINITL-*` として `MRL` と別 process で管理する
+  - rationale: package 化、`Colab` 配置、account / config 準備は主要機能へ直結する一方、behavior-level の `MRL` と混ぜると close 条件が読みにくくなるため
+  - consequence: `b2t-plans-result.md` では `MRL` 対応表の直下に `INITL` 対応表を別 subsection として置き、準備 UX の gate を別管理する
+- 2026-03-28
+  - project: `prj-kisaragi_0002`
+  - decision: `trajectreview-modeling` は `Colab` 上へ modeling 一式を配置する all-in route を採り、PC 側は source、config、auto-install package、証跡の正本を保持する
+  - rationale: `3DGS` と周辺 file 操作を `Colab` 側へ寄せた方が route を単純化でき、同時に再現性のためには PC 側に配置設計、install 手順、config を詳細追跡する必要があるため
+  - consequence: `ISS-003` の unzip / 配置責務は `modeling` の `Colab bootstrap package` 側へ寄せ、`INITL` と `MRL-9*` の両方で計画追跡する
+- 2026-03-28
+  - project: `prj-kisaragi_0002`
+  - decision: `trajectreview-correcting` も PC へ install 可能な 1 app package として設計し、主要 `MRL` を補助する準備 UX は `INITL` で追跡する
+  - rationale: 現場側の Android app と、PC / remote 側の package 配置を切り分けておくと、導入、再現、手戻り分析を短時間化できるため
+  - consequence: `prj-kisaragi_0002` の truth と plan には、Android app の本機能 gate に加えて、PC install / `Colab` bootstrap の準備 gate を `INITL` として持たせる
+- 2026-03-28
+  - project: `shared`
+  - decision: 文書更新を伴う task は、影響を受ける正本文書群を先に洗い出し、最低限の整合更新が閉じるまで理由説明なしに入力待ちへ移らない
+  - rationale: `prj-kisaragi_0002` の UI / UX 調整中に、prompt 内の文書更新要求が取りこぼされ、正本群の同期遅れと認識ずれを生んだため
+  - consequence: 以後は複数指示 prompt の残件保持、影響文書群の先行洗い出し、未更新理由の commentary 明示を shared rule として適用する
+- 2026-03-28
+  - project: `prj-kisaragi_0002`
+  - decision: `trajectreview-correcting` の保存先は `スマホ内同期先` と `Google Drive 転送先` を分離し、前者は `<session_id>/` 同期、後者は `<session_id>.zip` 転送として扱う
+  - rationale: 上段 block の `保存先を選択` は端末内運用、3 block の `転送先を選択` は `Google Drive` 側保存場所確認という別 UX であり、1 つの保存先概念に混ぜると誤認を招くため
+  - consequence: `correcting` は `保存先を選択` と `転送先を選択` を別 state / 別 button で持ち、文書群も同じ UX flow で追えるように更新する
+
 - 2026-03-27
   - project: `prj-kisaragi_0002`
   - decision: `MRL-5D` として `trajectreview-correcting` に wireless PC transfer を追加し、同一ネットワーク上の対象 PC を smartphone 上で選択して転送する

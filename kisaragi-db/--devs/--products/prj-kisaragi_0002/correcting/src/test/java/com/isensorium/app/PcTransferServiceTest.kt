@@ -4,7 +4,12 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import java.net.DatagramPacket
+import java.net.DatagramSocket
+import java.net.InetAddress
 import java.nio.file.Files
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.zip.ZipFile
 
 class PcTransferServiceTest {
@@ -57,5 +62,42 @@ class PcTransferServiceTest {
         assertEquals("192.168.0.10", target.host)
         assertEquals(47111, target.port)
         assertEquals("C:/kisaragi-transfer", target.targetRoot)
+    }
+
+    @Test
+    fun discoverTargetsFindsLocalUdpResponder() {
+        val bootstrapPort = 47121
+        val responderReady = CountDownLatch(1)
+        val responder =
+            Thread {
+                DatagramSocket(bootstrapPort, InetAddress.getByName("127.0.0.1")).use { socket ->
+                    responderReady.countDown()
+                    val request = DatagramPacket(ByteArray(2048), 2048)
+                    socket.receive(request)
+                    val replyBytes =
+                        "READY|127.0.0.1|47111|TEST-PC|C:/kisaragi-transfer".toByteArray(Charsets.UTF_8)
+                    val reply =
+                        DatagramPacket(
+                            replyBytes,
+                            replyBytes.size,
+                            request.address,
+                            request.port,
+                        )
+                    socket.send(reply)
+                }
+            }
+        responder.isDaemon = true
+        responder.start()
+        assertTrue(responderReady.await(3, TimeUnit.SECONDS))
+
+        val targets =
+            service.discoverTargets(
+                bootstrapPort = bootstrapPort,
+                timeoutMs = 1500,
+                additionalProbeHosts = listOf(InetAddress.getByName("127.0.0.1")),
+            )
+
+        assertTrue(targets.any { it.displayName == "TEST-PC" && it.host == "127.0.0.1" })
+        responder.join(3000)
     }
 }

@@ -12,6 +12,48 @@
 
 ## 更新履歴
 
+### 2026-03-28 AGENTS.md shared / project 境界と `INITL` 導入
+
+- 日時: `2026-03-28`
+- 文書名: `AGENTS.md`
+- 標題: shared rule と project 固有 truth の分離、および `INITL` / `mINITL` 追加
+- 背景: `prj-kisaragi_0002` で `Colab all-in modeling`、package 化、install 導線のような準備 UX を計画へ入れる必要が生じた一方、`AGENTS.md` と project 文書の境界が曖昧なままだと、project 固有事項が shared rule へ混入しやすかった。
+- 目的: `AGENTS.md` には project 横断 rule だけを残し、project 固有 UX / route / package 設計は project 文書へ分離すること、そして機能 behavior と準備 UX を `MRL` と `INITL` で分けて追跡できるようにする。
+- 対処方法: `AGENTS.md` に `AGENTS.md と project 文書の境界` 節を追加し、`開発計画` と plan 文書標準へ `INITL` / `mINITL` rule を追記した。あわせて `prj-kisaragi_0002` 参照を shared rule の例示から外した。
+- 対応内容: shared / project の責務分離、`INITL` の用途、`mrl-ux-valid.md` への証跡集約、`b2t-plans-result.md` での `INITL` 対応表必須化を明文化した。
+- 更新結果: 今後は package、install、bootstrap、account 準備のような準備 UX を `INITL` として project ごとに管理でき、`AGENTS.md` へ project 固有事項を固定しにくくなった。
+- 新旧比較:
+  - 旧: `AGENTS.md` と project 文書の境界が暗黙で、特定 project を参照型にした rule も残っていた。準備 UX を `MRL` とどう分けるかも未定義だった。
+  - 新: `AGENTS.md` は shared rule のみ、project 固有 truth は project 文書へ分離し、準備 UX は `INITL` / `mINITL` で別管理する。
+
+### 2026-03-28 AGENTS.md 疑問点不整合一覧と `big-open` 明示 rule の追加
+
+- 日時: `2026-03-28`
+- 文書名: `AGENTS.md`
+- 標題: `current_state` 冒頭 table と `big-open` response 明示
+- 背景: `prj-kisaragi_0002` の `InputPackaging` と `correcting` の truth 追従を整理する中で、残問題の置き場が散在し、admin が一時引き取る検討項目を 1 箇所で読める必要が生じた。
+- 目的: project ごとの残問題を `b2t-plans-result.md` の `current_state` 冒頭 table に集約し、影響が大きい未解決項目 `big-open` を response 上でも見落とさない運用を固定する。
+- 対処方法: `開発計画` と `文書規則` に、`疑問点不整合一覧` table の必須化、`admin 状態` の 4 値、`big-open` がある時の response 明示 rule を追記した。
+- 対応内容: `current_state` 冒頭 table の列要件と status 値を定義し、文書更新 response に `big-open` 明示を要求した。
+- 更新結果: 今後は project 単位の open issue を 1 箇所で追え、影響が大きい未解決を response でも見逃しにくくなる。
+- 新旧比較:
+  - 旧: open issue は複数 section や chat に散りやすく、影響度も response で明示されないことがあった。
+  - 新: `疑問点不整合一覧` を `current_state` 冒頭へ集約し、`big-open` は response でも必ず明示する。
+
+### 2026-03-28 AGENTS.md 文書更新取りこぼしの再発防止
+
+- 日時: `2026-03-28`
+- 文書名: `AGENTS.md`
+- 標題: 文書更新 task の未完了取りこぼし防止
+- 背景: `prj-kisaragi_0002` の UI / UX 調整中に、文書更新が並行 task である前提を維持できず、理由説明のない入力待ちへ移ったため、正本整合の遅延と認識ずれが生じた。
+- 目的: 複数指示を含む prompt と文書更新 task を処理する時、未完了指示を取りこぼさず、最低限の正本整合を閉じるまで入力待ちへ移らない shared rule を固定する。
+- 対処方法: `協調原則` と `並行作業` に、未完了指示の保持、影響文書群の先行洗い出し、未更新理由の commentary 明示を追記した。
+- 対応内容: 文書更新が必要な task では、正本文書群を最初に洗い出し、同じ task 内で最低限の整合更新を完了させること、未更新を残す時は理由と残件を commentary で説明することを明文化した。
+- 更新結果: 今後は prompt 由来の文書更新要求を chat だけに残さず、取りこぼしや無説明の入力待ちを shared rule で防止できる。
+- 新旧比較:
+  - 旧: 文書更新は同 task 完了 rule があったが、複数指示 prompt の残件保持と、未更新理由の説明義務が明文化されていなかった。
+  - 新: 未完了指示の保持、影響文書群の先行洗い出し、未更新理由の commentary 明示を shared rule として追加した。
+
 ### 2026-03-26 AGENTS.md warning と blocker の役割分離
 
 - 日時: `2026-03-26`

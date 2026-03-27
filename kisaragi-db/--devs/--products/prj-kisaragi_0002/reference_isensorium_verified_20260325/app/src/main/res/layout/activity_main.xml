@@ -4,12 +4,19 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/previewBottomGuide"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_percent="0.34" />
+
     <androidx.camera.view.PreviewView
         android:id="@+id/previewView"
         android:layout_width="0dp"
         android:layout_height="0dp"
         app:implementationMode="performance"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/previewBottomGuide"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
@@ -21,7 +28,7 @@
         android:layout_height="0dp"
         android:scaleType="fitCenter"
         android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/previewBottomGuide"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -35,6 +42,41 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <com.google.android.material.card.MaterialCardView
+        android:id="@+id/statusCard"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="16dp"
+        app:cardUseCompatPadding="true"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/previewBottomGuide">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <TextView
+                android:id="@+id/statusText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
+
+            <TextView
+                android:id="@+id/issueText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                android:textColor="@android:color/holo_red_light"
+                android:visibility="gone" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <com.google.android.material.card.MaterialCardView
         android:id="@+id/controlsCard"
         android:layout_width="0dp"
         android:layout_height="0dp"
@@ -43,7 +85,7 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintTop_toBottomOf="@id/statusCard">
 
         <ScrollView
             android:layout_width="match_parent"
@@ -60,290 +102,439 @@
                 android:padding="16dp">
 
                 <TextView
-                    android:id="@+id/statusText"
+                    android:id="@+id/screenTitleText"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:textAppearance="@style/TextAppearance.Material3.TitleMedium" />
+                    android:text="@string/correcting_mode_title"
+                    android:textAppearance="@style/TextAppearance.Material3.TitleLarge" />
 
                 <TextView
-                    android:id="@+id/issueText"
+                    android:id="@+id/workflowGuideText"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:textAppearance="@style/TextAppearance.Material3.BodySmall"
-                    android:textColor="@android:color/holo_red_light"
-                    android:visibility="gone" />
+                    android:text="@string/correcting_mode_flow"
+                    android:textAppearance="@style/TextAppearance.Material3.TitleLarge" />
 
                 <TextView
                     android:id="@+id/recordingModeText"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:textAppearance="@style/TextAppearance.Material3.BodySmall" />
+                    android:visibility="gone" />
 
-                <TextView
-                    android:id="@+id/recordingModeHeaderText"
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/configBlock"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:text="@string/recording_mode_header"
-                    android:textAppearance="@style/TextAppearance.Material3.TitleSmall" />
+                    android:visibility="gone"
+                    app:cardUseCompatPadding="true">
 
-                <RadioGroup
-                    android:id="@+id/recordingModeGroup"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:orientation="vertical">
-
-                    <com.google.android.material.radiobutton.MaterialRadioButton
-                        android:id="@+id/standardModeRadio"
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:checked="true"
-                        android:text="@string/recording_mode_standard" />
+                        android:orientation="vertical"
+                        android:padding="16dp">
 
-                    <com.google.android.material.radiobutton.MaterialRadioButton
-                        android:id="@+id/pocketModeRadio"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/recording_mode_pocket" />
-                </RadioGroup>
+                        <TextView
+                            android:id="@+id/recordingModeHeaderText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/config_block_title"
+                            android:textAppearance="@style/TextAppearance.Material3.TitleSmall" />
 
-                <com.google.android.material.materialswitch.MaterialSwitch
-                    android:id="@+id/guardedRouteSwitch"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="@string/guarded_route_switch" />
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/captureModeSwitch"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:text="@string/capture_mode_switch" />
 
-                <com.google.android.material.materialswitch.MaterialSwitch
-                    android:id="@+id/bleSwitch"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:checked="true"
-                    android:text="@string/ble_switch" />
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/bleSwitch"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:checked="true"
+                            android:text="BLE記録" />
 
-                <com.google.android.material.materialswitch.MaterialSwitch
-                    android:id="@+id/arcoreSwitch"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:checked="true"
-                    android:text="@string/arcore_switch" />
+                        <RadioGroup
+                            android:id="@+id/recordingModeGroup"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:visibility="gone">
 
-                <TextView
-                    android:id="@+id/samplingHeaderText"
+                            <com.google.android.material.radiobutton.MaterialRadioButton
+                                android:id="@+id/standardModeRadio"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:checked="true"
+                                android:text="@string/recording_mode_standard" />
+
+                            <com.google.android.material.radiobutton.MaterialRadioButton
+                                android:id="@+id/pocketModeRadio"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/recording_mode_pocket" />
+                        </RadioGroup>
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/guardedRouteSwitch"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:visibility="gone"
+                            android:text="@string/guarded_route_switch" />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/arcoreSwitch"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:checked="true"
+                            android:text="@string/arcore_switch"
+                            android:visibility="gone" />
+
+                        <TextView
+                            android:id="@+id/samplingHeaderText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:visibility="gone"
+                            android:text="@string/sampling_header" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/video_interval_label" />
+
+                            <EditText
+                                android:id="@+id/videoIntervalInput"
+                                android:layout_width="96dp"
+                                android:layout_height="wrap_content"
+                                android:ems="5"
+                                android:inputType="number"
+                                android:text="100" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/arcore_interval_label" />
+
+                            <EditText
+                                android:id="@+id/arcoreIntervalInput"
+                                android:layout_width="96dp"
+                                android:layout_height="wrap_content"
+                                android:ems="5"
+                                android:inputType="number"
+                                android:text="2000" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/imu_interval_label" />
+
+                            <EditText
+                                android:id="@+id/imuIntervalInput"
+                                android:layout_width="96dp"
+                                android:layout_height="wrap_content"
+                                android:ems="5"
+                                android:inputType="number"
+                                android:text="20" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/gnss_interval_label" />
+
+                            <EditText
+                                android:id="@+id/gnssIntervalInput"
+                                android:layout_width="96dp"
+                                android:layout_height="wrap_content"
+                                android:ems="5"
+                                android:inputType="number"
+                                android:text="1000" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/ble_interval_label" />
+
+                            <EditText
+                                android:id="@+id/bleIntervalInput"
+                                android:layout_width="96dp"
+                                android:layout_height="wrap_content"
+                                android:ems="5"
+                                android:inputType="number"
+                                android:text="2000" />
+                        </LinearLayout>
+
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/transferBlock"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:text="@string/sampling_header"
-                    android:textAppearance="@style/TextAppearance.Material3.TitleSmall" />
+                    app:cardUseCompatPadding="true">
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="0dp"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/video_interval_label" />
+                        android:orientation="vertical"
+                        android:padding="16dp">
 
-                    <EditText
-                        android:id="@+id/videoIntervalInput"
-                        android:layout_width="96dp"
-                        android:layout_height="wrap_content"
-                        android:ems="5"
-                        android:inputType="number"
-                        android:text="100" />
-                </LinearLayout>
+                        <TextView
+                            android:id="@+id/transferHeaderText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/transfer_block_title"
+                            android:textAppearance="@style/TextAppearance.Material3.TitleSmall" />
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:orientation="horizontal">
 
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/imu_interval_label" />
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/samplingConditionsButton"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginEnd="6dp"
+                                android:layout_weight="1"
+                                android:text="@string/sampling_conditions_button" />
 
-                    <EditText
-                        android:id="@+id/imuIntervalInput"
-                        android:layout_width="96dp"
-                        android:layout_height="wrap_content"
-                        android:ems="5"
-                        android:inputType="number"
-                        android:text="20" />
-                </LinearLayout>
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/transferDiscoveryButton"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="6dp"
+                                android:layout_weight="1"
+                                android:text="@string/transfer_select_drive_destination" />
+                        </LinearLayout>
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                        <TextView
+                            android:id="@+id/transferDestinationText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:textAppearance="@style/TextAppearance.Material3.BodySmall" />
 
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/gnss_interval_label" />
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:orientation="horizontal">
 
-                    <EditText
-                        android:id="@+id/gnssIntervalInput"
-                        android:layout_width="96dp"
-                        android:layout_height="wrap_content"
-                        android:ems="5"
-                        android:inputType="number"
-                        android:text="1000" />
-                </LinearLayout>
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/selectTransferGroupsButton"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginEnd="6dp"
+                                android:layout_weight="1"
+                                android:text="@string/select_transfer_groups_button" />
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/manageTransferSessionsButton"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="6dp"
+                                android:layout_weight="1"
+                                android:text="@string/manage_transfer_sessions_button" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
 
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/ble_interval_label" />
-
-                    <EditText
-                        android:id="@+id/bleIntervalInput"
-                        android:layout_width="96dp"
-                        android:layout_height="wrap_content"
-                        android:ems="5"
-                        android:inputType="number"
-                        android:text="2000" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/arcore_interval_label" />
-
-                    <EditText
-                        android:id="@+id/arcoreIntervalInput"
-                        android:layout_width="96dp"
-                        android:layout_height="wrap_content"
-                        android:ems="5"
-                        android:inputType="number"
-                        android:text="2000" />
-                </LinearLayout>
-
-                <TextView
-                    android:id="@+id/sessionText"
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/recordBlock"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
+                    app:cardUseCompatPadding="true">
 
-                <TextView
-                    android:id="@+id/filesText"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:textAppearance="@style/TextAppearance.Material3.BodySmall" />
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
 
-                <TextView
-                    android:id="@+id/dataCheckHeaderText"
+                        <TextView
+                            android:id="@+id/recordHeaderText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/record_block_title"
+                            android:textAppearance="@style/TextAppearance.Material3.TitleSmall" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/recordButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:text="@string/record_start_button" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:orientation="horizontal">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/dataCheckButton"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginEnd="6dp"
+                                android:layout_weight="1"
+                                android:text="@string/data_check_button" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/selectTransferSessionButton"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="6dp"
+                                android:layout_weight="1"
+                                android:text="@string/select_transfer_session_button" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/sessionText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
+
+                        <TextView
+                            android:id="@+id/filesText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
+
+                        <TextView
+                            android:id="@+id/dataCheckText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/refreshButton"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:visibility="gone"
+                            android:text="@string/refresh_session" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/transferExecuteBlock"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
-                    android:text="correcting と data-check"
-                    android:textAppearance="@style/TextAppearance.Material3.TitleSmall" />
+                    app:cardUseCompatPadding="true">
 
-                <TextView
-                    android:id="@+id/dataCheckText"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
-
-                <TextView
-                    android:id="@+id/transferHeaderText"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:text="PC 転送"
-                    android:textAppearance="@style/TextAppearance.Material3.TitleSmall" />
-
-                <TextView
-                    android:id="@+id/transferText"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/transferDiscoveryButton"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:text="PC 候補を検索" />
-
-                <Spinner
-                    android:id="@+id/transferTargetSpinner"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp" />
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:orientation="vertical">
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/refreshButton"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/refresh_session" />
+                        android:orientation="vertical"
+                        android:padding="16dp">
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/recordButton"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:text="@string/start_recording" />
+                        <TextView
+                            android:id="@+id/transferExecuteHeaderText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/transfer_execute_block_title"
+                            android:textAppearance="@style/TextAppearance.Material3.TitleSmall" />
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/dataCheckButton"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:text="data-check を実行" />
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:orientation="horizontal">
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/transferButton"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:text="PC 転送を実行" />
-                </LinearLayout>
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/transferTargetButton"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginEnd="6dp"
+                                android:layout_weight="1"
+                                android:text="@string/transfer_target_button" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/transferButton"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="6dp"
+                                android:layout_weight="1"
+                                android:text="@string/execute_transfer_button" />
+                        </LinearLayout>
+
+                        <TextView
+                            android:id="@+id/transferTargetText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:textAppearance="@style/TextAppearance.Material3.BodySmall" />
+
+                        <TextView
+                            android:id="@+id/transferText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
         </ScrollView>
     </com.google.android.material.card.MaterialCardView>
@@ -352,35 +543,16 @@
         android:id="@+id/recordingOverlay"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        android:gravity="center_horizontal"
-        android:orientation="vertical"
         android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
-        <com.google.android.material.card.MaterialCardView
+        <TextView
+            android:id="@+id/recordingOverlayText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            app:cardBackgroundColor="#AA000000">
-
-            <TextView
-                android:id="@+id/recordingOverlayText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:paddingHorizontal="16dp"
-                android:paddingVertical="10dp"
-                android:textColor="@android:color/white"
-                android:textStyle="bold" />
-        </com.google.android.material.card.MaterialCardView>
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/overlayStopButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/stop_recording" />
+            android:text="@string/recording_overlay_default" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
