@@ -23,11 +23,12 @@
 
 - `trajectreview-correcting` は `現場記録 -> 最新 session 再読込 -> data-check -> correction guidance` を 1 app 内で実行できる
 - `trajectreview-correcting` は `現場記録 -> data-check -> 同一ネットワーク上の対象 PC 選択 -> wireless PC transfer` を 1 app 内で閉じる方針を採る
+- `trajectreview-correcting` は `Depth Anything v3 MetricLarge` 後段のために、同一 `ARCore` frame から pose、frame timestamp、image intrinsics、texture intrinsics、lens distortion を 1 record として残す
 - `frozen_camerax_arcore` route では録画安定性を優先し、記録中の `ARCore` 収集を停止する
-- `trajectreview-modeling` は `local sample before colab` と request 生成を持つが、実 `COLMAP 4.0.x` / `3DGS` / trajectory reconstruction は未実装である
-- `trajectreview-modeling` は preflight として `experiment_manifest.json`、`colmap_input_manifest.json`、`benchmark_summary.json`、`selected_route.json`、Colab notebook / import helper を生成できる
-- Colab notebook は `session_root` と `result_root` を最小入力とし、`session_package.json`、`selected_route.json`、`colab_job_request.json` から `session_id`、`route_id`、`mapper` を自動解決する
-- `trajectreview-modeling` は単一 route 固定で始めず、`COLMAP 4.0.x` を含む複数 route を比較し、暫定採用 route を後から既定化する方針を採る
+- `trajectreview-modeling` は `local sample before colab` と request 生成を持つが、実 `DA3Metric-Large` / point-cloud projection / trajectory reconstruction は未実装である
+- `trajectreview-modeling` は preflight として `experiment_manifest.json`、`da3_input_manifest.json`、`benchmark_summary.json`、`selected_route.json`、Colab notebook / import helper を生成できる
+- Colab notebook は `session_root` と `result_root` を最小入力とし、`session_package.json`、`selected_route.json`、`colab_job_request.json` から `session_id`、`route_id`、`sampling profile`、`intrinsics mode` を自動解決する
+- `trajectreview-modeling` は単一 route 固定で始めず、`DA3Metric-Large` の sampling / intrinsics handling を比較し、暫定採用 route を後から既定化する方針を採る
 - `trajectreview-reviewing` は summary / stub 読込を持つが、実 `ReviewArtifact` viewer と操作系は未実装である
 - 統合 app は workflow 境界の理解には使えるが、現時点では本来機能を end-to-end で閉じていない
 
@@ -101,7 +102,7 @@
 ### 第 2 段階: `SpaceReconstruction`
 
 - 責務: 主空間の基準座標と再構成成果物を作る
-- 主な処理: frame 選別、`COLMAP` 入力生成、主カメラ path 確定、`3DGS` 入力生成、空間品質集約
+- 主な処理: frame 選別、`DA3Metric-Large` 入力生成、metric depth 推定、`ARCore pose` による world projection、空間品質集約
 - 出力: `SpacePackage`
 
 ### 第 3 段階: `TrajectoryReconstruction`
@@ -124,7 +125,10 @@
 - 主責務: 現場記録、取得条件設定、source session 保存、入力補正の起点作成
 - 完成基準:
   - `trajectreview-correcting` 自体が camera / IMU / GNSS / BLE / ARCore 記録画面を持ち、source session を端末内へ保存する
+  - `保存先を選択` により、利用者が同期先 folder を app 内で明示的に選べる
   - 同じ app 内で session を intake し、`session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json` まで生成する
+  - `ARCore` pose record には `frameTimestampNs`、`imageFocalLength`、`imagePrincipalPoint`、`imageDimensions`、`textureFocalLength`、`texturePrincipalPoint`、`textureDimensions`、`lensDistortion` を含める
+  - `camera_calibration_summary.json` に calibration 対応率を出し、`DA3 MetricLarge` 前段の入力可否を判断できる
   - `data-check` が readiness、quality、blocker、recommended correction を返す
   - `data-check` を 1 回以上通した後にだけ `PC 転送` を有効化し、同一ネットワーク上の対象 PC を app 内で選択できる
   - 利用者が `現場撮影データ保存を開始` から wireless PC transfer 完了まで、別 app へ移らず進められる
@@ -134,17 +138,17 @@
 - 対象段階: `SpaceReconstruction`、`TrajectoryReconstruction`
 - 主責務: model 入力確認、実行 gate、進行把握、再構成 blocker 確認
 - 完成基準:
-  - `session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json` を入力として、`COLMAP 4.0.x` の前処理入力、`Colab` upload 対象、job request を route 単位で生成する
-  - `COLMAP 4.0.x` の image-only pose estimation と sparse reconstruction を実行し、主要 quality 指標と failure reason を route 単位で記録する
-  - 複数の pose / `3DGS` route を比較し、`benchmark_summary.json` と `selected_route.json` により暫定採用 route を固定する
+  - `session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json`、`camera_calibration_summary.json` を入力として、`DA3Metric-Large` の前処理入力、`Colab` upload 対象、job request を route 単位で生成する
+  - `DA3Metric-Large` による metric depth 推定と `ARCore pose` / intrinsics による world projection を実行し、主要 quality 指標と failure reason を route 単位で記録する
+  - 複数の sampling / intrinsics route を比較し、`benchmark_summary.json` と `selected_route.json` により暫定採用 route を固定する
   - remote 実行結果を受理し、`SpacePackage`、`TrajectoryPackage`、`space_quality.json`、`trajectory_quality.json`、`attention_seed.json` を更新する
   - `local sample before colab` は preflight 用補助 route とし、完成判定の代替に使わない
 
 ## modeling route 方針
 
-- `COLMAP 4.0.x` を first target の pose / sparse reconstruction 基盤とする
-- 最初から最終 route を固定せず、少なくとも `incremental mapper`、`hierarchical mapper`、`global_mapper` を比較候補として扱う
-- `3DGS` 側も単一路線で固定せず、quality、runtime、resource usage、failure rate を比較して暫定採用 route を決める
+- `DA3Metric-Large` を first target の metric depth 基盤とする
+- 最初から最終 route を固定せず、少なくとも `5fps`、`10fps`、`per-frame intrinsics` を比較候補として扱う
+- depth route は quality、runtime、resource usage、failure rate を比較して暫定採用 route を決める
 - route 比較は同一 session、同一 export contract、同一評価指標で行う
 - 暫定採用 route と research route は `selected_route.json` で分離し、既定 route の変更履歴を追えるようにする
 
@@ -174,6 +178,7 @@
   - `input_readiness.json`
   - `sensor_quality.json`
   - `frame_pose_index.csv`
+  - `camera_calibration_summary.json`
   - `member_identity_map.json`
   - `session_package.json`
   - `space_handoff_manifest.json`
@@ -194,13 +199,14 @@
   - `input_readiness.json`
   - `sensor_quality.json`
   - `frame_pose_index.csv`
+  - `camera_calibration_summary.json`
 - 次段へ渡すもの:
   - `SpacePackage`
   - `space_quality.json`
   - `coverage_report.json`
   - `main_camera_path.csv`
   - `trajectreview/modeling/experiment_manifest.json`
-  - `trajectreview/modeling/colmap_input_manifest.json`
+  - `trajectreview/modeling/da3_input_manifest.json`
   - `trajectreview/modeling/benchmark_summary.json`
   - `trajectreview/modeling/selected_route.json`
   - `trajectreview/modeling/local_model_summary.json`
@@ -208,7 +214,7 @@
   - `trajectreview/modeling/review_artifact_stub.json`
 - 受け渡し条件:
   - 主空間基準が一意に決まっている
-  - `COLMAP` から `3DGS` へ進める可否が判定済みである
+  - `ARCore pose` と intrinsics が `DA3Metric-Large` 入力として成立している
   - 比較対象 route の quality、runtime、resource usage、failure reason が同一指標で記録されている
   - 暫定採用 route と research route が分離されている
   - `Colab` account 未取得時も local sample 実行で logic 検証済みである
@@ -311,14 +317,15 @@
 - `input_readiness.json`: 必須入力、任意入力、次 action 判定
 - `sensor_quality.json`: stream ごとの品質低下と診断理由、時刻整列 delta、completeness score、pose coverage ratio
 - `frame_pose_index.csv`: frame と pose の対応表
+- `camera_calibration_summary.json`: `ARCore` frame timestamp、camera intrinsics、texture intrinsics、lens distortion の収集要約
 - `member_identity_map.json`: 端末、主体、`BT` の対応表
 - `session_package.json`: 後段へ渡すための正規化済み `SessionPackage` 実体
 - `space_handoff_manifest.json`: `SpaceReconstruction` 着手可否、blocker、利用 artifact の要約
 - `modeling/local_model_summary.json`: `Colab` 前の軽量 local sample model 結果
-- `modeling/experiment_manifest.json`: route ごとの前処理、mapper、`3DGS` backend、resource 制約、出力先の定義
-- `modeling/colmap_input_manifest.json`: `COLMAP 4.0.x` に渡す画像入力、feature / matcher、mapper 指定
-- `modeling/pose_estimation_report.json`: image-only pose estimation の主要指標と failure reason
-- `modeling/benchmark_summary.json`: pose / `3DGS` route ごとの比較結果
+- `modeling/experiment_manifest.json`: route ごとの frame sampling、intrinsics mode、depth projection、resource 制約、出力先の定義
+- `modeling/da3_input_manifest.json`: `DA3Metric-Large` に渡す画像入力、`ARCore` pose、intrinsics 指定
+- `modeling/depth_estimation_report.json`: metric depth 推定の主要指標と failure reason
+- `modeling/benchmark_summary.json`: sampling / intrinsics route ごとの比較結果
 - `modeling/selected_route.json`: 暫定採用 route、research route、不採用理由、再評価条件
 - `modeling/colab_job_request.json`: `Colab` remote 実行へ渡す request
 - `modeling/review_artifact_stub.json`: reviewing app と統合 app が読む review 用 stub
@@ -335,7 +342,11 @@
 - `trajectreview/` には readiness、quality、frame-pose 対応、identity map、`session_package.json`、`space_handoff_manifest.json` を保持する
 - app UI は抽出元、抽出先、`ready_for_diagnose`、`ready_for_space_reconstruction`、欠落入力、主要数値を表示できる
 - app は session folder 直下だけでなく、manifest を持つ 1 段下の child directory も抽出対象として受理する
-- `trajectreview-correcting` の wireless PC transfer は、同一ネットワーク上の PC を UDP bootstrap で検出し、選択した対象へ HTTP で session archive を送る
+- `trajectreview-correcting` の wireless PC transfer は、同一 `Wi-Fi` 上の PC を UDP bootstrap で検出し、Android 側では `multicast lock` と同一 subnet への追加 probe を使って候補探索し、PC 側 bootstrap は `Tailscale` や仮想 NIC よりも `Wi-Fi` の `192.168.*` address を優先して返す
+- `trajectreview-correcting` の `data-check` は記録停止後に自動実行し、新しい記録開始時には成功回数を `0` に戻す
+- `poseCoverageRatio` は `pose数 / frame数` ではなく、session 長と `arCoreIntervalMs` から見積もった期待 pose sample 数に対する達成率で扱う
+- `trajectreview-correcting` は app 内の作業用 session を保持しつつ、user が選んだ保存先へ停止後と `data-check` 後に session 一式を同期する
+- `trajectreview-correcting` の `ARCore` 記録は `Session.update()` で得た同一 frame の pose、frame timestamp、image intrinsics、texture intrinsics、lens distortion を 1 record として `arcore_pose.jsonl` へ保存する
 - PC 側 companion script は `correcting/scripts/pc-transfer-bootstrap.ps1` と `correcting/scripts/pc-transfer-receiver.ps1` を正本とし、`receiver` は idle 後に自動終了する
 - PC 側既定保存先は `kisaragi-db/--exsams/prj-kisaragi_0002/pc-transfer-inbox/` とする
 

@@ -35,7 +35,7 @@ class LocalModelingServiceTest {
         assertTrue(result.reviewReady)
         assertTrue(output.files.containsKey("modeling/colab_job_request.json"))
         assertTrue(output.files.containsKey("modeling/experiment_manifest.json"))
-        assertTrue(output.files.containsKey("modeling/colmap_input_manifest.json"))
+        assertTrue(output.files.containsKey("modeling/da3_input_manifest.json"))
         assertTrue(output.files.containsKey("modeling/benchmark_summary.json"))
         assertTrue(output.files.containsKey("modeling/selected_route.json"))
         assertTrue(output.files.containsKey("modeling/local_model_summary.json"))
@@ -43,8 +43,8 @@ class LocalModelingServiceTest {
         val colab = JSONObject(output.files.getValue("modeling/colab_job_request.json"))
         val experiment = JSONObject(output.files.getValue("modeling/experiment_manifest.json"))
         val selectedRoute = JSONObject(output.files.getValue("modeling/selected_route.json"))
-        assertEquals("colab_colmap4_nerfstudio_splatfacto", colab.getString("targetEngine"))
-        assertEquals("trajectreview-colmap40-splatfacto", colab.getString("recommendedNotebookId"))
+        assertEquals("colab_da3metric_large", colab.getString("targetEngine"))
+        assertEquals("trajectreview-da3metric-large", colab.getString("recommendedNotebookId"))
         assertEquals(3, experiment.getJSONArray("routes").length())
         assertEquals(selectedRoute.getString("selectedRouteId"), colab.getString("defaultRouteId"))
     }
@@ -64,12 +64,12 @@ class LocalModelingServiceTest {
 
         val result = service.run(input, output)
         val reviewStub = JSONObject(output.files.getValue("modeling/review_artifact_stub.json"))
-        val poseReport = JSONObject(output.files.getValue("modeling/pose_estimation_report.json"))
+        val depthReport = JSONObject(output.files.getValue("modeling/depth_estimation_report.json"))
 
         assertTrue(result.blockers.contains("video.mp4 が不足している"))
         assertTrue(!result.reviewReady)
         assertTrue(!reviewStub.getBoolean("reviewReady"))
-        assertEquals("blocked_before_remote_execution", poseReport.getJSONArray("routes").getJSONObject(0).getString("status"))
+        assertEquals("blocked_before_remote_execution", depthReport.getJSONArray("routes").getJSONObject(0).getString("status"))
     }
 
     private class InMemorySessionInput(

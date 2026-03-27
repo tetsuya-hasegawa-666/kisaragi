@@ -31,7 +31,7 @@ class ModelingColabToolTest(unittest.TestCase):
                 json.dumps(
                     {
                         "sessionId": "session-colab",
-                        "defaultRouteId": "route-colmap40-global-splatfacto",
+                        "defaultRouteId": "route-da3metric-large-10fps-per-frame-intrinsics",
                         "requiredUploadArtifacts": ["video.mp4", "session_package.json"],
                         "resultArtifacts": ["benchmark_summary.json", "space_quality.json"],
                     },
@@ -42,8 +42,8 @@ class ModelingColabToolTest(unittest.TestCase):
             selected_route.write_text(
                 json.dumps(
                     {
-                        "selectedRouteId": "route-colmap40-global-splatfacto",
-                        "selectedRoute": {"mapper": "global"},
+                        "selectedRouteId": "route-da3metric-large-10fps-per-frame-intrinsics",
+                        "selectedRoute": {"samplingProfile": "10fps", "intrinsicsMode": "per_frame"},
                     },
                     ensure_ascii=False,
                 ),
@@ -52,16 +52,17 @@ class ModelingColabToolTest(unittest.TestCase):
 
             written = build_notebook(job_request, selected_route, output_dir)
 
-            notebook_path = output_dir / "trajectreview_colmap4_splatfacto_colab.ipynb"
+            notebook_path = output_dir / "trajectreview_da3metric_large_colab.ipynb"
             upload_manifest_path = output_dir / "upload_manifest.json"
             self.assertEqual([notebook_path, upload_manifest_path], written)
             notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
             notebook_text = json.dumps(notebook, ensure_ascii=False)
             self.assertIn("session_root", notebook_text)
-            self.assertIn("global_mapper", notebook_text)
+            self.assertIn("da3", notebook_text)
+            self.assertIn("depth-anything/da3metric-large", notebook_text)
             self.assertIn("missing inputs", notebook_text)
-            self.assertIn("ns-train", notebook_text)
-            self.assertIn("splatfacto", notebook_text)
+            self.assertIn("sampling_profile", notebook_text)
+            self.assertIn("camera_calibration_summary.json", notebook_text)
             upload_manifest = json.loads(upload_manifest_path.read_text(encoding="utf-8"))
             self.assertIn("recommendedSessionRoot", upload_manifest)
 
@@ -75,7 +76,7 @@ class ModelingColabToolTest(unittest.TestCase):
                 json.dumps(
                     {
                         "sessionId": "session-colab",
-                        "routeId": "route-colmap40-global-splatfacto",
+                        "routeId": "route-da3metric-large-10fps-per-frame-intrinsics",
                         "status": "completed",
                     },
                     ensure_ascii=False,
@@ -102,7 +103,7 @@ class ModelingColabToolTest(unittest.TestCase):
             self.assertEqual(4, len(written))
             handoff = json.loads((output_dir / "modeling_handoff_manifest.json").read_text(encoding="utf-8"))
             self.assertTrue(handoff["readyForReviewing"])
-            self.assertEqual("route-colmap40-global-splatfacto", handoff["selectedRouteId"])
+            self.assertEqual("route-da3metric-large-10fps-per-frame-intrinsics", handoff["selectedRouteId"])
 
 
 if __name__ == "__main__":

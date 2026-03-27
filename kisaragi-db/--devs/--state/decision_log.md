@@ -21,19 +21,19 @@
   - decision: `MRL` / `mRL` の `pass` は admin の `UX check 完了` が明示されたものだけに限定し、複数 gate の batch UX check を許容する
   - rationale: test、contract、build、local sample だけでは admin 観点の運用完了を意味せず、また UX check は app の流れに沿ってまとめて確認した方が効率がよいため
   - consequence: 既存 `pass` も admin UX check 基準で再評価し、未確認 gate は `active` または `planned` へ戻す。`mrl-ux-valid.md` には batch check の対象範囲と結果を明記する
-- 2026-03-26
+- 2026-03-27
   - project: `prj-kisaragi_0002`
-  - decision: `trajectreview-modeling` は `COLMAP 4.0.x` を first target とし、single route 固定ではなく `MRL-9A` 比較基盤、`MRL-9B` 比較実験、`MRL-9C` 採用 route 運用化の 3 段で進める
-  - rationale: `3DGS` 前段の pose / sparse reconstruction は `COLMAP 4.0.x` が有力だが、project の目的は特定 engine 採用ではなく、同一 session で複数 route を比較して精度と運用性の高い方法を選ぶことにあるため
-  - consequence: `modeling` は `experiment_manifest.json`、`benchmark_summary.json`、`selected_route.json` を正本 artifact とし、比較可能性を維持したまま暫定採用 route を既定化する
+  - decision: `trajectreview-modeling` は `DA3Metric-Large` を first target とし、`ARCore pose`、frame timestamp、camera intrinsics を使う depth route 比較として `MRL-9A` 比較基盤、`MRL-9B` 比較実験、`MRL-9C` 採用 route 運用化の 3 段で進める
+  - rationale: 今回の入力条件では `ARCore pose + intrinsics + 時刻同期済み frame` が取れるため、`COLMAP` による image-only pose を前段に置くより、`DA3Metric-Large` の metric depth と world projection を比較運用した方が project の目的に近く、route 比較軸も sampling / intrinsics handling に整理できるため
+  - consequence: `modeling` は `experiment_manifest.json`、`da3_input_manifest.json`、`depth_estimation_report.json`、`benchmark_summary.json`、`selected_route.json` を正本 artifact とし、Colab notebook と helper は `DA3Metric-Large` 実行と remote result import を担う
 - 2026-03-26
   - project: `prj-kisaragi_0002`
   - decision: `trajectreview-modeling` の Colab 実行一式は、app が machine-readable な preflight artifact を生成し、Python helper が notebook 生成と remote result import を担う二段構成で進める
   - rationale: Android app 自身は session bundle から route 契約と handoff request を出す責務に留め、Colab 固有の notebook 生成と import 作業は PC 側 helper に分けた方が、app 実装と運用手順の境界が明確になるため
-  - consequence: `LocalModelingService` は `experiment_manifest.json`、`colmap_input_manifest.json`、`benchmark_summary.json`、`selected_route.json`、`colab_job_request.json` を生成し、`modeling_colab_tool.py` と Colab notebook template がそれを消費する
+  - consequence: `LocalModelingService` は `experiment_manifest.json`、`da3_input_manifest.json`、`benchmark_summary.json`、`selected_route.json`、`colab_job_request.json` を生成し、`modeling_colab_tool.py` と Colab notebook template がそれを消費する
 - 2026-03-27
   - project: `prj-kisaragi_0002`
-  - decision: Colab notebook の user 入力は `session_root` と `result_root` を最小単位とし、`session_id`、`route_id`、`mapper`、`input_root` は session bundle 内の artifact から自動解決する
+  - decision: Colab notebook の user 入力は `session_root` と `result_root` を最小単位とし、`session_id`、`route_id`、`sampling profile`、`intrinsics mode`、`input_root` は session bundle 内の artifact から自動解決する
   - rationale: `CONFIG` に個別値を多く手入力させると、Colab 未経験者が `session_id` と parent path を混同しやすく、実行前に止まりやすいため
   - consequence: notebook と helper は `session_package.json`、`selected_route.json`、`colab_job_request.json` を読んで値を補完し、manual も `session_root` 起点で説明する
 - 2026-03-27

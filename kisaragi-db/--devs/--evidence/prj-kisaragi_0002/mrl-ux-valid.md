@@ -72,7 +72,7 @@
   - `mRL-9C.1` から `mRL-9C.3`
 - admin 操作観点:
   - `trajectreview-modeling` で実 bundle を読み、`colab_job_request.json` を生成できる
-  - `COLMAP 4.0.x` と `nerfstudio splatfacto` の Colab route を起動できる
+- `DA3Metric-Large` の Colab route を起動できる
   - `benchmark_summary.json` と `selected_route.json` により route 比較と暫定採用が読める
   - remote result import 後に `SpacePackage`、`TrajectoryPackage`、`modeling_handoff_manifest.json` が更新される
 
@@ -125,7 +125,9 @@
   - `mRL-5C.1` から `mRL-5C.3`
 - UX 観点:
   - `trajectreview-correcting` で `現場撮影データ保存を開始` と `現場撮影データ保存を停止` が動く
+  - `保存先を選択` から同期先 folder を選び、その保持状態を app 内で確認できる
   - 記録停止後に同じ app 内で `data-check` 欄へ `診断進行可`、`modeling 着手可`、`blocker`、`補正指示` が表示される
+  - `data-check` 欄へ `camera intrinsics 対応率`、`lens distortion 対応率`、`calibration frame 数` が表示される
   - `data-check を実行` により、最新 session から結果を再計算できる
 - 実装 / test 観点:
   - JVM unit test:
@@ -140,6 +142,7 @@
   - `session_package.json`
   - `space_handoff_manifest.json`
   - `frame_pose_index.csv`
+  - `camera_calibration_summary.json`
   - `member_identity_map.json`
   - 不十分な収録では `video.mp4 が不足しています` のような blocker と correction guidance を返す
 - 主要 evidence:
@@ -155,8 +158,10 @@
   - `mRL-5D.1` から `mRL-5D.3`
 - UX 観点:
   - `trajectreview-correcting` の `PC 転送` 欄に、同一ネットワーク要件と `現場撮影データ保存 -> data-check -> PC 転送` の順序が出る
-  - `PC 候補を検索` により、同一ネットワーク上の対象 PC 候補を smartphone 上で選択できる
-  - `PC 転送を実行` は `data-check` 成功回数が 1 回以上の時だけ有効になる
+- `PC 候補を検索` により、同一 `Wi-Fi` 上の対象 PC 候補件数が表示され、`対象 PC を選択` dialog から smartphone 上で選択できる
+- `PC 転送を実行` は `data-check` 成功回数が 1 回以上の時だけ有効になる
+- 記録停止後は `data-check` が自動実行され、新しい記録開始時には `data-check` 成功回数が `0` に戻る
+- `poseCoverageRatio` は `ARCore` の期待 sample 数基準で算出し、`video frame` 数に引きずられない
 - 実装 / test 観点:
   - JVM unit test:
     - `:correcting:testDebugUnitTest`

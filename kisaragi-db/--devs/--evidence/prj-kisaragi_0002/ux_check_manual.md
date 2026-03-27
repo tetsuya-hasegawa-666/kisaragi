@@ -14,33 +14,35 @@
 ## 操作手順
 
 1. Android 端末で app `trajectreview-correcting` を起動する。
-2. camera preview、記録モード、`現場撮影データ保存を開始` button が見えることを確認する。
+2. camera preview、記録モード、`保存先を選択` button、`現場撮影データ保存を開始` button が見えることを確認し、`保存先を選択` から同期先 folder を選べることを確認する。
 3. `guarded replacement route` が OFF で `ARCore 記録を有効化` が ON の時、`frozen route では録画安定性を優先し、記録中の ARCore 収集を停止します。` が見えることを確認する。
 4. `現場撮影データ保存を開始` を押し、preview が維持されたまま記録中表示へ切り替わることを確認する。
 5. 5 秒以上待っても録画が自動停止しないことを確認する。
 6. `現場撮影データ保存を停止` を押し、session summary が更新されることを確認する。
 7. `data-check` 欄に `診断進行可`、`modeling 着手可`、`欠落入力`、`blocker`、`補正指示` が出ることを確認する。
 8. `data-check を実行` を押し、同じ項目が再計算されることを確認する。
-9. `PC 転送` 欄に `同一ネットワーク上の PC 候補を検索して選択してください` が出ることを確認する。
-10. `PC 候補を検索` を押し、同一ネットワーク上の対象 PC を選べることを確認する。
-11. `PC 転送を実行` を押し、PC 側所定 folder に session が保存されることを確認する。
-12. Android 端末で app `trajectreview-modeling` を起動する。
-13. `bundle を選択` を押し、統合 app などで作られた `trajectreview_export/<session_id>` folder を選ぶ。
-14. `軽量 model を実行` を押し、`spaceQuality`、`trajectoryQuality`、`colab_job_request.json` を含む出力一覧が見えることを確認する。
-15. PC browser で [Google Colab](https://colab.research.google.com/) を開き、Google account で sign in する。
-16. `ファイル` -> `ノートブックをアップロード` を選び、[trajectreview_colmap4_splatfacto_colab.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\trajectreview_colmap4_splatfacto_colab.ipynb) を開く。menu 名が違う時は `Upload notebook` 相当を探す。
-17. `ランタイム` -> `ランタイムのタイプを変更` で `GPU` を選ぶ。候補に `T4`、`L4`、`A100` などが見えた時は、その表示を記録する。
-18. notebook の `CONFIG` cell を開き、`session_root` と `result_root` を今回使う値へ置き換える。値の意味はこの文書の `CONFIG に入れる値` を参照する。
-19. `drive.mount('/content/drive')` の cell を実行し、Google Drive への access 許可画面が出たら許可する。
-20. `session_root/` に、`colab_job_request.json` で要求された file と frame / image 入力を置く。迷った時は、先に file 名だけを Codex へ伝える。
-21. install cell と `COLMAP` / `nerfstudio` 実行 cell は、1 つずつ順に実行する。失敗したら、その cell の見出しと error message をそのまま控える。
-22. Android 端末で app `trajectreview-reviewing` を起動する。
-23. `結果 folder を選択` を押し、同じ `trajectreview_export/<session_id>` folder を選ぶ。
-24. `結果を読込` を押し、`verify` または `review` の状態、`Attention`、`same_time` が見えることを確認する。
-25. Android 端末で統合 app `trajectreview` を起動する。
-26. `取得元を選択` を押して同じ session folder を選び、`保存先を選択` で出力先 folder を選ぶ。
-27. `抽出を実行` の後に `軽量 model を実行` を押す。
-28. `Thin Status` と `Attention` が実データ由来に更新され、`前へ` と `次へ` で段階を追えることを確認する。
+9. `data-check` 欄に `camera intrinsics 対応率`、`lens distortion 対応率`、`calibration frame 数` が出ることを確認する。
+10. `PC 転送` 欄に `同一ネットワーク上の PC 候補を検索して選択してください` と、同一 `Wi-Fi` 上で PC 側 bootstrap script 待受が必要だと出ることを確認する。
+11. `PC 候補を検索` を押し、件数 message が更新されることを確認する。
+12. `対象 PC を選択` を押し、候補 dialog から同一ネットワーク上の対象 PC を選べることを確認する。
+13. `PC 転送を実行` を押し、PC 側所定 folder に session が保存されることを確認する。
+14. Android 端末で app `trajectreview-modeling` を起動する。
+15. `bundle を選択` を押し、統合 app などで作られた `trajectreview_export/<session_id>` folder を選ぶ。
+16. `軽量 model を実行` を押し、`spaceQuality`、`trajectoryQuality`、`colab_job_request.json` を含む出力一覧が見えることを確認する。
+17. PC browser で [Google Colab](https://colab.research.google.com/) を開き、Google account で sign in する。
+18. `ファイル` -> `ノートブックをアップロード` を選び、[trajectreview_da3metric_large_colab.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\trajectreview_da3metric_large_colab.ipynb) を開く。menu 名が違う時は `Upload notebook` 相当を探す。
+19. `ランタイム` -> `ランタイムのタイプを変更` で `GPU` を選ぶ。候補に `T4`、`L4`、`A100` などが見えた時は、その表示を記録する。
+20. notebook の `CONFIG` cell を開き、`session_root` と `result_root` を今回使う値へ置き換える。値の意味はこの文書の `CONFIG に入れる値` を参照する。
+21. `drive.mount('/content/drive')` の cell を実行し、Google Drive への access 許可画面が出たら許可する。
+22. `session_root/` に、`colab_job_request.json` で要求された file と frame / image 入力を置く。迷った時は、先に file 名だけを Codex へ伝える。
+23. install cell と `DA3Metric-Large` 実行 cell は、1 つずつ順に実行する。失敗したら、その cell の見出しと error message をそのまま控える。
+24. Android 端末で app `trajectreview-reviewing` を起動する。
+25. `結果 folder を選択` を押し、同じ `trajectreview_export/<session_id>` folder を選ぶ。
+26. `結果を読込` を押し、`verify` または `review` の状態、`Attention`、`same_time` が見えることを確認する。
+27. Android 端末で統合 app `trajectreview` を起動する。
+28. `取得元を選択` を押して同じ session folder を選び、`保存先を選択` で出力先 folder を選ぶ。
+29. `抽出を実行` の後に `軽量 model を実行` を押す。
+30. `Thin Status` と `Attention` が実データ由来に更新され、`前へ` と `次へ` で段階を追えることを確認する。
 
 ## Colab へ入る時の考え方
 
@@ -68,7 +70,7 @@
   - 間違えやすい点: 出力先の親 folder を入れる。`session_id` や `route_id` は入れない。
 - `route_id`
   - 基本方針: notebook が `selected_route.json` または `colab_job_request.json` から自動取得する。
-  - 手動既定値: `route-colmap40-global-splatfacto`
+  - 手動既定値: `route-da3metric-large-10fps-per-frame-intrinsics`
 - `session_id`
   - 基本方針: notebook が `session_package.json` の `sessionId` から自動取得する。
 - `input_root`
@@ -84,13 +86,14 @@
   - `video.mp4`
   - `session_package.json`
   - `frame_pose_index.csv`
+  - `camera_calibration_summary.json`
   - `sensor_quality.json`
   - `space_handoff_manifest.json`
 - route 判断に使う file
   - `colab_job_request.json`
   - `selected_route.json`
   - `experiment_manifest.json`
-  - `colmap_input_manifest.json`
+  - `da3_input_manifest.json`
 - 画像入力
   - notebook の現在仕様では `session_root/images/` に画像群がある前提で進む。
   - もし手元に動画しかない時は、そのままでは足りない。`video.mp4` に加えて、Colab へ渡す frame 画像群を `images/` に置く必要がある。
@@ -99,6 +102,7 @@
   - `session_root/video.mp4`
   - `session_root/session_package.json`
   - `session_root/frame_pose_index.csv`
+  - `session_root/camera_calibration_summary.json`
   - `session_root/sensor_quality.json`
   - `session_root/space_handoff_manifest.json`
   - `session_root/images/<frame image files>`
@@ -124,7 +128,7 @@
   - `ランタイム` または `Runtime` menu から `ランタイムのタイプを変更` を探す。
   - 無ければ、今見えている menu 名と画面名を Codex へ伝える。
 - `images/` が無い時
-  - `COLMAP` は画像入力が必要なので、その時点で止めてよい。
+  - `DA3Metric-Large` は画像入力が必要なので、その時点で止めてよい。
   - `video.mp4` しか無い、または frame 切り出し場所が分からない、という状態を Codex へ伝える。
 
 ## Android から PC / Drive へ渡す時の考え方
@@ -146,6 +150,7 @@
 - `CONFIG` に入れた `session_root`、`result_root`。
 - `CONFIG` に入れた値が、どの file や folder を根拠に決めたか。
 - upload または Drive 配置した file 名。少なくとも `video.mp4`、`session_package.json`、`frame_pose_index.csv`、`sensor_quality.json`、`space_handoff_manifest.json` の有無。
+- `camera_calibration_summary.json` の有無と、`imageIntrinsicsCoverageRatio`、`lensDistortionCoverageRatio` の値。
 - `images/` folder の有無。ある時は画像枚数の概数。
 - 失敗した cell の見出し、実行順、error message 全文。
 - 実行後に出た output path と生成 file 名。
@@ -162,9 +167,11 @@
 - pass:
   - 4 app が起動する。
   - `correcting` で camera preview と `現場撮影データ保存を開始` が出る。
+  - `correcting` で `保存先を選択` から同期先 folder を選べる。
   - `correcting` で記録開始と停止ができ、session summary が更新される。
   - `guarded replacement route` が OFF でも、5 秒以上の録画で自動停止や途切れが起きない。
   - `correcting` で `data-check` が動き、`診断進行可`、`modeling 着手可`、`blocker`、`補正指示` が出る。
+  - `correcting` で `camera intrinsics 対応率`、`lens distortion 対応率`、`calibration frame 数` が出る。
   - `correcting` で同一ネットワーク上の対象 PC を選択し、PC 側所定 folder へ無線転送できる。
   - `modeling` で `colab_job_request.json` を含む modeling 結果が出る。
   - `Colab` で notebook を開き、`GPU` runtime を選び、`CONFIG` と入力 file の置き場を確認できる。
@@ -173,9 +180,11 @@
 - fail:
   - いずれかの app が起動しない。
   - `correcting` で camera preview や記録開始 button が出ない。
+  - `correcting` で保存先選択が出ない、または選んだ保存先が保持されない。
   - `correcting` で記録開始または停止ができない。
   - `guarded replacement route` が OFF の時に 5 秒程度で録画が自動停止する。
   - `correcting` で `data-check` が更新されない、または補正指示が出ない。
+  - `correcting` で calibration 数値が出ない。
   - `correcting` で同一ネットワーク上の PC 候補が出ない、または対象 PC を選んでも転送できない。
   - `modeling` で `colab_job_request.json` を含む結果が出ない。
   - `Colab` で notebook を開けない、`GPU` runtime を選べない、入力 file の置き場が分からない。

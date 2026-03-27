@@ -21,12 +21,11 @@ def build_notebook_document(job_request: dict[str, Any], selected_route: dict[st
     notebook_cells = [
         markdown_cell(
             "# trajectreview modeling notebook\n"
-            "この notebook は `COLMAP 4.0.x` と `nerfstudio splatfacto` による `trajectreview-modeling` の baseline route を実行する。"
+            "この notebook は `DA3Metric-Large` による metric depth 推定と、`ARCore pose` / intrinsics による world projection を行う。"
         ),
         code_cell(
             "CONFIG = {\n"
             f"    'session_root': '/content/drive/MyDrive/trajectreview/input/{session_id}',\n"
-            "    'input_root': '/content/drive/MyDrive/trajectreview/input',\n"
             "    'work_root': '/content/trajectreview',\n"
             "    'result_root': '/content/drive/MyDrive/trajectreview/results',\n"
             "}\n"
@@ -42,15 +41,19 @@ def build_notebook_document(job_request: dict[str, Any], selected_route: dict[st
             "\n"
             "session_root = Path(CONFIG['session_root'])\n"
             "session_package = json.loads((session_root / 'session_package.json').read_text(encoding='utf-8'))\n"
+            "camera_calibration = json.loads((session_root / 'camera_calibration_summary.json').read_text(encoding='utf-8'))\n"
             "session_id = session_package['sessionId']\n"
             "selected_route_path = session_root / 'selected_route.json'\n"
             "job_request_path = session_root / 'colab_job_request.json'\n"
             f"route_id = '{route_id}'\n"
-            f"mapper = '{selected['mapper']}'\n"
+            f"sampling_profile = '{selected['samplingProfile']}'\n"
+            f"intrinsics_mode = '{selected['intrinsicsMode']}'\n"
             "if selected_route_path.exists():\n"
             "    selected_route = json.loads(selected_route_path.read_text(encoding='utf-8'))\n"
             "    route_id = selected_route.get('selectedRouteId', route_id)\n"
-            "    mapper = selected_route.get('selectedRoute', {}).get('mapper', mapper)\n"
+            "    selected_payload = selected_route.get('selectedRoute', {})\n"
+            "    sampling_profile = selected_payload.get('samplingProfile', sampling_profile)\n"
+            "    intrinsics_mode = selected_payload.get('intrinsicsMode', intrinsics_mode)\n"
             "elif job_request_path.exists():\n"
             "    job_request = json.loads(job_request_path.read_text(encoding='utf-8'))\n"
             "    route_id = job_request.get('defaultRouteId', route_id)\n"
@@ -59,6 +62,7 @@ def build_notebook_document(job_request: dict[str, Any], selected_route: dict[st
             "    session_root / 'video.mp4',\n"
             "    session_root / 'session_package.json',\n"
             "    session_root / 'frame_pose_index.csv',\n"
+            "    session_root / 'camera_calibration_summary.json',\n"
             "    session_root / 'sensor_quality.json',\n"
             "    session_root / 'space_handoff_manifest.json',\n"
             "    images_source,\n"
@@ -66,7 +70,8 @@ def build_notebook_document(job_request: dict[str, Any], selected_route: dict[st
             "missing = [str(path) for path in required if not path.exists()]\n"
             "if missing:\n"
             "    raise FileNotFoundError(f'missing inputs: {missing}')\n"
-            "session_root, session_id, route_id, mapper"
+            "camera_calibration.get('imageIntrinsicsCoverageRatio'), camera_calibration.get('lensDistortionCoverageRatio')\n"
+            "session_root, session_id, route_id, sampling_profile, intrinsics_mode"
         ),
         code_cell(
             "import subprocess\n"
@@ -76,19 +81,18 @@ def build_notebook_document(job_request: dict[str, Any], selected_route: dict[st
             "    subprocess.run(cmd, check=True)\n"
             "\n"
             "run(['bash', '-lc', 'apt-get update'])\n"
-            "run(['bash', '-lc', 'apt-get install -y colmap ffmpeg'])\n"
+            "run(['bash', '-lc', 'apt-get install -y ffmpeg git'])\n"
             "run(['python', '-m', 'pip', 'install', '--upgrade', 'pip'])\n"
-            "run(['python', '-m', 'pip', 'install', 'nerfstudio'])"
+            "run(['git', 'clone', 'https://github.com/ByteDance-Seed/depth-anything-3.git'])\n"
+            "run(['python', '-m', 'pip', 'install', '-e', './depth-anything-3'])"
         ),
         code_cell(
             "from pathlib import Path\n"
             "work_root = Path(CONFIG['work_root'])\n"
             "images_dir = work_root / 'images'\n"
-            "db_path = work_root / 'colmap.db'\n"
-            "sparse_dir = work_root / 'sparse'\n"
-            "processed_dir = work_root / 'processed'\n"
+            "da3_export_dir = work_root / 'da3_output'\n"
             "export_dir = Path(CONFIG['result_root']) / session_id / route_id\n"
-            "for directory in [work_root, images_dir, sparse_dir, processed_dir, export_dir]:\n"
+            "for directory in [work_root, images_dir, da3_export_dir, export_dir]:\n"
             "    directory.mkdir(parents=True, exist_ok=True)"
         ),
         code_cell(
@@ -99,37 +103,28 @@ def build_notebook_document(job_request: dict[str, Any], selected_route: dict[st
             "print({'copied_images': len(list(images_dir.iterdir()))})"
         ),
         code_cell(
-            "run([\n"
-            "    'colmap', 'feature_extractor',\n"
-            "    '--database_path', str(db_path),\n"
-            "    '--image_path', str(images_dir),\n"
-            "    '--ImageReader.single_camera', '1',\n"
-            "])\n"
-            "run(['colmap', 'exhaustive_matcher', '--database_path', str(db_path)])\n"
-            "mapper_command = {\n"
-            "    'incremental': ['colmap', 'mapper', '--database_path', str(db_path), '--image_path', str(images_dir), '--output_path', str(sparse_dir)],\n"
-            "    'hierarchical': ['colmap', 'hierarchical_mapper', '--database_path', str(db_path), '--image_path', str(images_dir), '--output_path', str(sparse_dir)],\n"
-            "    'global': ['colmap', 'global_mapper', '--database_path', str(db_path), '--image_path', str(images_dir), '--output_path', str(sparse_dir)],\n"
-            "}[mapper]\n"
-            "run(mapper_command)"
+            "stride = 2 if sampling_profile == '5fps' else 1\n"
+            "sampled_dir = work_root / 'sampled_images'\n"
+            "sampled_dir.mkdir(parents=True, exist_ok=True)\n"
+            "for index, image_path in enumerate(sorted(images_dir.iterdir())):\n"
+            "    if image_path.is_file() and index % stride == 0:\n"
+            "        shutil.copy2(image_path, sampled_dir / image_path.name)\n"
+            "print({'sampled_images': len(list(sampled_dir.iterdir())), 'sampling_profile': sampling_profile})"
         ),
         code_cell(
             "run([\n"
-            "    'ns-process-data', 'images',\n"
-            "    '--data', str(images_dir),\n"
-            "    '--output-dir', str(processed_dir),\n"
-            "])\n"
-            "run([\n"
-            "    'ns-train', 'splatfacto',\n"
-            "    '--data', str(processed_dir),\n"
-            "    '--output-dir', str(export_dir),\n"
+            "    'da3', 'auto', str(sampled_dir),\n"
+            "    '--export-format', 'ply',\n"
+            "    '--export-dir', str(da3_export_dir),\n"
+            "    '--model-dir', 'depth-anything/da3metric-large',\n"
             "])"
         ),
         code_cell(
             "summary = {\n"
             "    'sessionId': session_id,\n"
             "    'routeId': route_id,\n"
-            "    'mapper': mapper,\n"
+            "    'samplingProfile': sampling_profile,\n"
+            "    'intrinsicsMode': intrinsics_mode,\n"
             "    'status': 'completed',\n"
             "}\n"
             "(export_dir / 'remote_summary.json').write_text(__import__('json').dumps(summary, ensure_ascii=False, indent=2), encoding='utf-8')"
@@ -172,7 +167,7 @@ def build_notebook(job_request_path: Path, selected_route_path: Path, output_dir
     job_request = load_json(job_request_path)
     selected_route = load_json(selected_route_path)
     notebook = build_notebook_document(job_request, selected_route)
-    notebook_path = output_dir / "trajectreview_colmap4_splatfacto_colab.ipynb"
+    notebook_path = output_dir / "trajectreview_da3metric_large_colab.ipynb"
     upload_manifest_path = output_dir / "upload_manifest.json"
     notebook_path.write_text(json.dumps(notebook, ensure_ascii=False, indent=2), encoding="utf-8")
     upload_manifest = {
