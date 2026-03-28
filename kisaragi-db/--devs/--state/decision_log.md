@@ -8,6 +8,11 @@
 
 - 2026-03-28
   - project: `prj-kisaragi_0002`
+  - decision: `isensorium_xperia5iii_intake_spec.md` の `Xperia 5 III` intake 詳細は `project-truth.md` の末尾へ統合して保持する
+  - rationale: `iSensorium` intake 仕様を別 file だけで持つと、`project-truth.md` 単体では入口条件と外部連携境界を読み切れず、再開時の参照点が増えるため
+  - consequence: `project-truth.md` の `外部連携境界` 末尾に `Xperia 5 III` の権限、recording mode、raw file、timebase、sample count、intake 判断材料を統合し、重複は merge で吸収する
+- 2026-03-28
+  - project: `prj-kisaragi_0002`
   - decision: `project-truth.md` から現在状態を外し、恒久事項だけを保持する。現在状態、open issue、優先度、`MRL` / `INITL` 進行は `b2t-plans-result.md` へ集約する
   - rationale: `truth` に時間変化する情報と UX の細部変更履歴が混ざると、正本としての可読性と境界が崩れ、同じ内容が `b2t` と二重管理になっていたため
   - consequence: `project-truth.md` は目的、入口方針、UX 原則、段階構造、app 責務、artifact 契約、外部連携境界だけを正本とし、現況は `b2t-plans-result.md` と evidence 側へ寄せる

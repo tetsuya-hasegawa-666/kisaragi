@@ -212,6 +212,69 @@
 - `iSensorium` 由来の入力正本は `session_manifest.json` または `manifest.json`、`video_frame_timestamps.csv` または `frames.csv`、`imu.csv`、`gnss.csv`、`bt.jsonl` または `ble_scan.jsonl` または `bt_events.csv` または `bt.csv`、`poses.jsonl` または `arcore_pose.jsonl` とする。
 - legacy alias として `bt_events.csv`、`arcore_pose.csv` も受理対象に含める。
 
+### `Xperia 5 III` intake detail
+
+- 対象端末は `Xperia 5 III`、確認済み機種名は `SO-53B` とする。
+- source 実装参照元は `C:\Users\tetsuya\sandbox\codev-db` だが、`trajectreview` は `kisaragi` 側へ吸収した仕様と verified mirror を正として扱う。
+
+#### 端末設定
+
+- 必須権限は `CAMERA`、`RECORD_AUDIO`、`ACCESS_FINE_LOCATION`、`ACCESS_COARSE_LOCATION`、`BLUETOOTH_SCAN`、`BLUETOOTH_CONNECT` とする。
+- 位置情報は `ON` を前提とする。`GNSS` を使わない運用でも、実装上は location permission を前提にする。
+- `Bluetooth` は `ON` を前提とする。`BLE` を無効設定で運用する場合でも、再設定可能な状態を保つ。
+- `Google Play Services for AR` が利用可能であることを前提にする。`ARCore` 自体は任意だが、有効時はこの依存がある。
+- `video.mp4` を含む session directory を作れる空き容量を確保する。
+
+#### 記録モード
+
+- `STANDARD_HANDHELD` の既定値は `videoFrameLogIntervalMs = 100`、`imuIntervalMs = 20`、`gnssIntervalMs = 1000`、`bleIntervalMs = 2000`、`arCoreIntervalMs = 2000`、`bleEnabled = true`、`arCoreEnabled = true` とする。
+- `POCKET_RECORDING` では `videoFrameLogIntervalMs` の最小を `250 ms`、`bleIntervalMs` の最小を `5000 ms`、`arCoreIntervalMs` の最小を `5000 ms` とし、`動画・IMU・GNSS` を主軸、`BLE / ARCore` を低頻度確認として扱う。
+
+#### session directory と raw file
+
+- 1 session ごとに `session-YYYYMMDD-HHMMSS` 形式の directory を作る。
+- raw file は少なくとも `session_manifest.json`、`video.mp4`、`video_frame_timestamps.csv`、`imu.csv`、`gnss.csv`、`ble_scan.jsonl`、`arcore_pose.jsonl`、`video_events.jsonl` を持つ。
+- `session_manifest.json` は session 全体 metadata、timebase、config、sample count、collector 状態を保持する。
+
+#### 時刻整列
+
+- すべての stream の整列基準は `elapsedRealtimeNanos` と session 単位の monotonic origin とする。
+- `session_manifest.json` の `timebase` は `sessionStartWallTimeMs` と `sessionStartElapsedRealtimeNanos` を持つ。
+- `video_frame_timestamps.csv` は `sensorTimestampNs`、`elapsedRealtimeNanos`、`wallTimeMillis`、`rotationDegrees`、`sessionElapsed` を出力する。
+- `ble_scan.jsonl`、`arcore_pose.jsonl`、`video_events.jsonl` は各 record に `elapsedRealtimeNanos` を持つ。
+- `imu.csv` と `gnss.csv` は parser 側で `elapsed_realtime_ns` を参照して join できる前提で扱う。
+
+#### 数量確認
+
+- 動画本体は `video.mp4` 1 file とする。
+- frame 数は `video_frame_timestamps.csv` の行数を正とする。
+- `IMU`、`GNSS`、`BLE`、`ARCore` の数量は、それぞれ `imu.csv`、`gnss.csv`、`ble_scan.jsonl`、`arcore_pose.jsonl` の行数と `session_manifest.json` の sample count の両方で確認する。
+- `session_manifest.json` は finalize 時に `imuSampleCount`、`gnssSampleCount`、`bleSampleCount`、`arCoreSampleCount`、`collectorStatus`、`files` を持つ。
+- `files` には各 output file の name と size を入れられる前提とする。
+
+#### 名目取得間隔
+
+- frame timeline は `100 ms`、`POCKET_RECORDING` では最小 `250 ms` とする。
+- `IMU` は `20 ms`、約 `50 Hz` 相当とする。
+- `GNSS` は `1000 ms`、約 `1 Hz` 相当とする。
+- `BLE` は `2000 ms`、`POCKET_RECORDING` では最小 `5000 ms` とする。
+- `ARCore` は `2000 ms`、`POCKET_RECORDING` では最小 `5000 ms` とする。
+- 実際の件数は端末状態、権限、tracking 状態、OS 制約で増減するため、`trajectreview` 側では名目値ではなく manifest の sample count と実 file 行数を正として intake する。
+
+#### intake 判断材料
+
+- manifest では `sessionId`、`status`、`deviceModel`、`recordingMode`、`recordingConfig`、`modeBehavior`、`timebase`、`collectorStatus` を読む。
+- file presence では `video.mp4`、`video_frame_timestamps.csv`、`imu.csv`、`gnss.csv`、`ble_scan.jsonl`、`arcore_pose.jsonl`、`video_events.jsonl` を確認する。
+- 数量では `imuSampleCount`、`gnssSampleCount`、`bleSampleCount`、`arCoreSampleCount`、frame 行数を確認する。
+- 時刻整列では `sessionStartElapsedRealtimeNanos` と各 stream の `elapsedRealtimeNanos` または `elapsed_realtime_ns` を確認する。
+
+#### intake 上の扱い
+
+- `GNSS` は source 実装では標準出力だが、`trajectreview` では任意入力として扱う。
+- `BLE` と `ARCore` は欠落しても session 自体は存在し得るため、必須入力と optional input を分けて intake する。
+- `Xperia 5 III` 実装では `deviceModel` が manifest に入るため、target hardware 妥当性確認に使える。
+- 数量確認は sample count と file 行数の両方で行い、片側だけを真実とみなさない。
+
 ### bundle layout と transfer
 
 - app 抽出結果は `session_id/isensorium/` と `session_id/trajectreview/` に分離する。
