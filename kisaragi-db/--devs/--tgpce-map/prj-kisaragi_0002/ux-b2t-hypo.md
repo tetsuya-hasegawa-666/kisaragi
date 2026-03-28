@@ -1,4 +1,4 @@
-# B2T-Plans-Results
+# ux_b2t-hypo.md
 
 ## 文書の役割
 
@@ -19,12 +19,12 @@
 
 | id | 論点 | 影響 | 現在の扱い | admin 状態 | 関連文書 |
 | --- | --- | --- | --- | --- | --- |
-| `ISS-001` | `InputPackaging` の入口を `correcting` 中心へ寄せた後、統合 app / legacy intake をどこまで同格に扱うか | `InputPackaging` の UX、truth、後段説明 | admin 判断により、開発中から実使用まで全入口を開けたまま併存させ、説明順だけを運用上の既定に留める | `close` | `project-truth.md`, `ux_check_manual.md` |
-| `ISS-002` | `Google Drive` 転送先の document grant を持続前提にするか | `MRL-7` の実運用可否 | admin 判断により grant 持続前提を捨て、`転送先を選択` を毎回必須にする | `close` | `project-truth.md`, `mrl-ux-valid.md` |
-| `ISS-003` | `Google Drive` 側は zip、端末側は `<session_id>/` であり、どの段階で unzip を正規化するか | handoff 運用、admin 手順、実装分担 | `modeling` の `Colab bootstrap package` が unzip と配置正規化を担う方針へ決定した | `close` | `project-truth.md`, `ux_check_manual.md` |
-| `ISS-005` | `Colab all-in modeling` package と `correcting` の PC install package の配布形式をどこまで共通化するか | `INITRL` の粒度、導入 UX | `INITRL` を分離導入し、package 構成は `0002` 内で設計を開始する | `small-open` | `project-truth.md`, `b2t-plans-result.md` |
-| `ISS-004` | `疑問点不整合一覧` の粒度を `MRL` closeout と同じ粒度まで細かくするか | 文書運用コスト | 現在は admin 判断が要るものと Codex の小疑問だけを集約する | `no judge` | `AGENTS.md`, `b2t-plans-result.md` |
-| `ISS-006` | Android 標準保存画面で `Google Drive` provider へ切り替える操作が初見 user に分かりにくい | 多人数展開時の導入 UX | 現時点は手順明記のみ。利用者が増えたら help 導線を追加する | `small-open` | `ux_check_manual.md`, `project-truth.md` |
+| `ISS-001` | `InputPackaging` の入口を `correcting` 中心へ寄せた後、統合 app / legacy intake をどこまで同格に扱うか | `InputPackaging` の UX、truth、後段説明 | admin 判断により、開発中から実使用まで全入口を開けたまま併存させ、説明順だけを運用上の既定に留める | `close` | `project-truth.md`, `admin-mrl-test-method.md` |
+| `ISS-002` | `Google Drive` 転送先の document grant を持続前提にするか | `MRL-7` の実運用可否 | admin 判断により grant 持続前提を捨て、`転送先を選択` を毎回必須にする | `close` | `project-truth.md`, `admin-mrl-test-evidence.md` |
+| `ISS-003` | `Google Drive` 側は zip、端末側は `<session_id>/` であり、どの段階で unzip を正規化するか | handoff 運用、admin 手順、実装分担 | `modeling` の `Colab bootstrap package` が unzip と配置正規化を担う方針へ決定した | `close` | `project-truth.md`, `admin-mrl-test-method.md` |
+| `ISS-005` | `Colab all-in modeling` package と `correcting` の PC install package の配布形式をどこまで共通化するか | `INITRL` の粒度、導入 UX | `INITRL` を分離導入し、package 構成は `0002` 内で設計を開始する | `small-open` | `project-truth.md`, `ux-b2t-hypo.md` |
+| `ISS-004` | `疑問点不整合一覧` の粒度を `MRL` closeout と同じ粒度まで細かくするか | 文書運用コスト | 現在は admin 判断が要るものと Codex の小疑問だけを集約する | `no judge` | `AGENTS.md`, `ux-b2t-hypo.md` |
+| `ISS-006` | Android 標準保存画面で `Google Drive` provider へ切り替える操作が初見利用者に分かりにくい | 多人数展開時の導入 UX | 現時点は手順明記のみ。利用者が増えたら help 導線を追加する | `small-open` | `admin-mrl-test-method.md`, `project-truth.md` |
 
 ### 現在の重点
 
@@ -32,7 +32,7 @@
 - `MRL-5` と `MRL-8` は、入力契約と handoff artifact の整備までは進んだが、`correcting` から `modeling` への end-to-end handoff は未完である
 - `MRL-6` を `trajectreview-correcting` 専用 gate とし、現場記録後に同じ app 内で `data-check` と correction guidance を返せる実装までは進んだが、`pass` は admin `UX check` 待ちである
 - `MRL-7` を `trajectreview-correcting` 専用 gate とし、`1 回以上 data-check` の後に `Google Drive` 保存場所へ zip 転送する実装を追加する
-- `MRL-7` と `MRL-8` は、4 app の骨格、build、install、実 bundle 読込、`local sample` による局所 logic 確認まで進んだが、本来機能の完成 gate としては `active` に巻き戻す
+- `MRL-9` と `MRL-10` は、4 app の骨格、build、install、実 bundle 読込、`local sample` による局所 logic 確認まで進んだが、本来機能の完成 gate としては `active` に巻き戻す
 - `trajectreview-correcting` の現在 focus は、収録停止後の待ち時間短縮と、`品質確認` / 一覧更新 / 転送 UX の安定化である
 - `品質確認` は lightweight 判定を先に返し、`frame画像群` は転送要求時だけ生成する構成へ切り替えた
 - 保存済み data 一覧の `▲` は lightweight `品質確認` 再実行で更新し、軽微な項目や `images/` 未生成だけでは付けない運用へ切り替えた
@@ -77,7 +77,7 @@
 
 ### 作業所有権
 
-- Codex が `project-truth.md`、`b2t-plans-result.md`、`mrl-record.md` の再開基線整備、`MRL-5` 抽出統合作業、以後の `MRL` 継続作業を担当する
+- Codex が `project-truth.md`、`ux-b2t-hypo.md`、admin test 関連文書の再開基線整備、`MRL-5` 抽出統合作業、以後の `MRL` 継続作業を担当する
 
 ## BDD
 
@@ -112,7 +112,7 @@
 - `su7`: 利用者は、必要な入力がそろっているかを受理時点で把握できる
 - `su8`: 利用者は、人物の映り込みが十分かどうかを、不足入力や品質低下とあわせて診断で読める
 - `su9`: 利用者は、空間再構成と人物経路再構成に必要な条件を満たした時だけ `処理を開始` を受け取れる
-- `su10`: 利用者は、実行中に今どの段階を処理しているかが、思考コストmin.で把握できる必要がある
+- `su10`: 利用者は、実行中に今どの段階を処理しているかを、思考コスト最小で把握できる
 - `su11`: 利用者は、空間再構成が成立しにくそうな時に、データの再取得を検討できる
 - `su12`: 利用者は、モデル生成の入口だけで remote 実行 request の作成、upload 対象確認、result 受理まで進められる
 - `su13`: 利用者は、主空間の見え方と主カメラ経路を確認できる
@@ -272,7 +272,7 @@
 | `td18` | `bd17` | sampling route benchmark aggregation | 同一 session に対して複数の sampling route を比較し、quality、runtime、resource usage、failure reason を `benchmark_summary.json` に集約できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/LocalModelingService.kt` |
 | `td19` | `bd17` | intrinsics route benchmark aggregation | 少なくとも 2 つの intrinsics / projection route の結果を同一比較表へ集約できる | planned | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
 | `td20` | `bd18` | selected route decision artifact | 暫定採用 route、不採用理由、research route、再評価条件を `selected_route.json` に保存できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/LocalModelingService.kt` |
-| `td21` | `bd19` | gate classification rule trace | `UX-only`、contract、sample、本機能の区別が `b2t`、`mrl-record`、`mrl-ux-valid` で矛盾なく追える | planned | `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/` |
+| `td21` | `bd19` | gate classification rule trace | `UX-only`、contract、sample、本機能の区別が `ux-b2t-hypo.md`、`admin-mrl-test-method.md`、`admin-mrl-test-evidence.md` で矛盾なく追える | planned | `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/` |
 
 ### 実行方針
 - `MRL-1` では `td1`、`td4`、`td5`、`tu15`、`tu16`、`tu17` を優先し、入口と実行可否 gate を固めた
