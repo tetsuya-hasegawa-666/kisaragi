@@ -6,8 +6,10 @@
 
 - source origin: `C:\Users\tetsuya\sandbox\codev-db\--process\--products\prj-isensorium`
 - source revision: `45e5517`
-- mirrored product path: `C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\reference_isensorium_verified_20260325`
-- mirrored test path: `C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--testcode\prj-kisaragi_0002\reference_isensorium_verified_20260325`
+- historical absorbed product path: `C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\reference_isensorium_verified_20260325`
+- historical absorbed test path: `C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--testcode\prj-kisaragi_0002\reference_isensorium_verified_20260325`
+- current canonical product path: `C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\correcting`
+- current canonical test path: `C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--testcode\prj-kisaragi_0002\correcting-test`
 
 ## mirror scope
 
@@ -30,6 +32,7 @@
 - `kisaragi` 内で自己完結して Python test できるよう、mirror 側 `test_session_parser.py` は mirror 済み `python/session_parser.py` を参照する
 - source logic の本体は mirror 作成時点の `iSensorium` product code を維持する
 - 2026-03-25 時点で mirror app は比較用 install のため `applicationId = com.kisaragi.isensorium`、表示名 `kisaragi-iSensorium` とする
+- 2026-03-28 時点で `reference_isensorium_verified_20260325` 配下の recording 実装は `correcting` 正規配置へ吸収し、以後の開発は吸収後の path を使う
 
 ## verification
 

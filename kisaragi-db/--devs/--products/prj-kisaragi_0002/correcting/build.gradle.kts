@@ -45,12 +45,11 @@ android {
     sourceSets {
         getByName("main") {
             manifest.srcFile("src/main/AndroidManifest.xml")
-            java.srcDirs("src/main/java", "../reference_isensorium_verified_20260325/app/src/main/java")
-            res.srcDirs("src/main/res", "../reference_isensorium_verified_20260325/app/src/main/res")
+            java.srcDirs("src/main/java")
+            res.srcDirs("src/main/res")
         }
         getByName("test") {
             java.srcDirs(
-                "../../../../--testcode/prj-kisaragi_0002/reference_isensorium_verified_20260325/android-test/java",
                 "../../../../--testcode/prj-kisaragi_0002/correcting-test/java",
             )
         }

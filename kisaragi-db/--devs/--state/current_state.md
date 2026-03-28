@@ -11,6 +11,7 @@
 - 2026-03-28: Codex が `prj-kisaragi_0002` の `Google Drive` 転送 zip 名を `session-*` suffix 必須規則へ揃え、将来の help 必要性を `ISS-006` として記録する。
 - 2026-03-28: Codex が `prj-kisaragi_0002` の `project-truth.md` から現在状態を外し、`b2t-plans-result.md` と evidence への役割分離、および `ISS-001` close の文書整合を担当する。
 - 2026-03-28: Codex が `prj-kisaragi_0002` の `isensorium_xperia5iii_intake_spec.md` を `project-truth.md` の末尾へ統合し、`Xperia 5 III` intake 詳細を truth 単体でも読めるようにする。
+- 2026-03-28: Codex が `prj-kisaragi_0002` の `reference_isensorium_verified_20260325` 配下を吸収し、`correcting` / `python` / `correcting/scripts` / `correcting-test` を現行正規配置へ整理する。
 - 2026-03-26: Codex が `MRL` 記載順と `pass` 判定基準の是正のため、`current_state.md`、`decision_log.md`、`AGENTS.md`、`b2t-plans-result.md`、`mrl-record.md`、`mrl-ux-valid.md` の整合更新を担当する。
 - 2026-03-26: Codex が `prj-kisaragi_0002` の mock 完了誤認を是正するため、`b2t-plans-result.md`、`project-truth.md`、`mrl-record.md`、`mrl-ux-valid.md`、`AGENTS.md`、`AGENTSmd-RH.md` の整合更新を担当する。
 - 2026-03-25: Codex が `project code` 命名規則に合わせた `prj-kisaragi_****` rename と全参照整合を担当する。

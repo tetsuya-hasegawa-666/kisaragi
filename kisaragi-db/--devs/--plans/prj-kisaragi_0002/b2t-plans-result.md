@@ -165,6 +165,8 @@
 - `b32`: `trajectreview-reviewing` は `ReviewArtifact` 実体を読み、viewer 操作、same-time highlight、`attention point` jump を返す
 - `b33`: `MRL` / `mRL` の `pass` は admin `UX check 完了` と本来機能の実行証跡を要件とし、`UX-only`、contract、sample、build / install は補助 gate として別記する
 
+
+
 ### 受け入れ基準
 
 | s-id | b-id | 観点 | 受け入れ基準 |
@@ -287,6 +289,9 @@
 | `INITL-2` | `mINITL-2.1` | `correcting` の PC package 構成、install 導線、保存先構成の仕様化 | `MRL-5C`,`MRL-5D` | `planned` | `ready` | `未収載` | `未収載` |
 | `INITL-2` | `mINITL-2.2` | PC package と Android app の artifact 互換性と証跡配置の固定 | `MRL-6` | `planned` | `ready` | `未収載` | `未収載` |
 
+
+
+
 ## TDD
 
 ### 目的文
@@ -326,16 +331,16 @@
 | `T27` | `b27` | extracted bundle snapshot loader | app が `session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json`、`member_identity_map.json` を読んで実データ state を再構成できる | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/WorkflowBundleServiceTest.kt` |
 | `T28` | `b28` | local sample modeling output | `modeling` app が `local_model_summary.json`、`colab_job_request.json`、`review_artifact_stub.json` を生成できる | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/LocalModelingServiceTest.kt` |
 | `T29` | `b29` | reviewing actual bundle state | `reviewing` app と統合 app が modeling 結果を読み、verify / review 状態へ反映できる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/MainActivity.kt` |
-| `T30` | `b30` | correcting end-to-end recording export | `trajectreview-correcting` で現場記録開始、停止、session 保存、input export までを 1 app 内で完了できる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/java/com/isensorium/app/MainActivity.kt` |
+| `T30` | `b30` | correcting end-to-end recording export | `trajectreview-correcting` で現場記録開始、停止、session 保存、input export までを 1 app 内で完了できる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/MainActivity.kt` |
 | `T30a` | `b30a` | correcting data-check service | 最新 session から `sensor_quality.json`、`session_package.json`、`space_handoff_manifest.json`、recommended correction を生成できる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/CorrectingDataCheckService.kt` |
-| `T30b` | `b30a` | correcting data-check UI | 記録停止後に app 内で readiness、quality、blocker、recommended correction を確認できる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/res/layout/activity_main.xml` |
-| `T30aa` | `b30d` | correcting camera calibration capture | `ARCore` record に `sessionId`、`recordIndex`、`captureTimestampNs`、nested `pose` / `imageIntrinsics` / `textureIntrinsics` / `lensDistortion` を含め、`camera_calibration_summary.json` と `frame_pose_index.csv` を生成できる。`images/` は転送で要求された時だけ生成する | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/java/com/isensorium/app/RecordingCoordinator.kt` |
+| `T30b` | `b30a` | correcting data-check UI | 記録停止後に app 内で readiness、quality、blocker、recommended correction を確認できる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/res/layout/activity_main.xml` |
+| `T30aa` | `b30d` | correcting camera calibration capture | `ARCore` record に `sessionId`、`recordIndex`、`captureTimestampNs`、nested `pose` / `imageIntrinsics` / `textureIntrinsics` / `lensDistortion` を含め、`camera_calibration_summary.json` と `frame_pose_index.csv` を生成できる。`images/` は転送で要求された時だけ生成する | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/RecordingCoordinator.kt` |
 | `T30ab` | `b30d`,`b33` | correcting calibration diagnostic separation | `camera_calibration_summary.json` が `読取試行あり成功 0 件`、`calibration export 実装前 data の可能性`、`coverage 低下` を区別して示せる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/CorrectingDataCheckService.kt` |
-| `T30ac` | `b30d`,`b33` | shared camera intrinsics acquisition | `corecamera_shared_camera_trial` route の `arcore_pose.jsonl` で `captureDiagnostics.*.requested=true` が出て、intrinsics 未取得なら `request failure` として診断できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/java/com/isensorium/app/CoreCameraTrialRuntime.kt` |
-| `T30c` | `b30b` | correcting Drive transfer gate | `data-check` 済み artifact を持つ selected session が 1 件以上あり、かつ転送先が選択済みなら `転送実行` を許可し、画面直下のコメントで設定済み / 未設定を示せる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/java/com/isensorium/app/MainActivity.kt` |
-| `T30d` | `b30b`,`b30c` | Google Drive zip transfer | selected `Google Drive` 保存場所へ、1 件選択時は `<session_id>.zip`、複数件選択時は複数 session を含む zip を作成し、選択した data group だけを zip に含めて保存できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/java/com/isensorium/app/MainActivity.kt` |
-| `T30f` | `b30e` | correcting stored session manager | 保存済み session 一覧に取得日時と長さが出て、selected session の再転送と rename ができる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/java/com/isensorium/app/MainActivity.kt` |
-| `T30e` | `b30c` | SAF transfer contract | `CreateDocument` で選んだ `Google Drive` 保存場所へ write でき、転送先状態を app 内で設定済み / 未設定として確認できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/java/com/isensorium/app/MainActivity.kt` |
+| `T30ac` | `b30d`,`b33` | shared camera intrinsics acquisition | `corecamera_shared_camera_trial` route の `arcore_pose.jsonl` で `captureDiagnostics.*.requested=true` が出て、intrinsics 未取得なら `request failure` として診断できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/CoreCameraTrialRuntime.kt` |
+| `T30c` | `b30b` | correcting Drive transfer gate | `data-check` 済み artifact を持つ selected session が 1 件以上あり、かつ転送先が選択済みなら `転送実行` を許可し、画面直下のコメントで設定済み / 未設定を示せる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/MainActivity.kt` |
+| `T30d` | `b30b`,`b30c` | Google Drive zip transfer | selected `Google Drive` 保存場所へ、1 件選択時は `<session_id>.zip`、複数件選択時は複数 session を含む zip を作成し、選択した data group だけを zip に含めて保存できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/MainActivity.kt` |
+| `T30f` | `b30e` | correcting stored session manager | 保存済み session 一覧に取得日時と長さが出て、selected session の再転送と rename ができる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/MainActivity.kt` |
+| `T30e` | `b30c` | SAF transfer contract | `CreateDocument` で選んだ `Google Drive` 保存場所へ write でき、転送先状態を app 内で設定済み / 未設定として確認できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/MainActivity.kt` |
 | `T31` | `b31a` | `DA3Metric-Large` input manifest | `modeling` app が frame sampling、intrinsics mode、projection option を route 単位で `experiment_manifest.json` と `da3_input_manifest.json` に出力できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/LocalModelingService.kt` |
 | `T32` | `b31a` | metric depth runner | `DA3Metric-Large` の少なくとも 1 route を `Colab` で実行し、depth と world projection 用の出力を保存できる | planned | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
 | `T33` | `b31a` | depth estimation report | `metric scale confidence`、`depth continuity`、`point count estimate`、failure reason を `depth_estimation_report.json` に正規化できる | planned | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |

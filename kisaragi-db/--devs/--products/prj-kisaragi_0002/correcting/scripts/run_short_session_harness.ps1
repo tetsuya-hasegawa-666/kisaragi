@@ -4,7 +4,7 @@ param(
     [int]$RecordSeconds = 6,
     [int]$TapX = 806,
     [int]$TapY = 2230,
-    [string]$PackageName = "com.isensorium.app",
+    [string]$PackageName = "com.reviework.correcting",
     [string]$ActivityName = ".MainActivity"
 )
 

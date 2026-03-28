@@ -152,8 +152,8 @@
   - 不十分な収録では `video.mp4 が不足しています` のような blocker と correction guidance を返す
 - 主要 evidence:
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/CorrectingDataCheckService.kt`
-  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/java/com/isensorium/app/MainActivity.kt`
-  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/res/layout/activity_main.xml`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/MainActivity.kt`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/res/layout/activity_main.xml`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/test/java/com/isensorium/app/CorrectingDataCheckServiceSmokeTest.java`
 
 ## 2026-03-27 `MRL-5D` candidate evidence
@@ -207,8 +207,8 @@
   - `Google Drive` app または provider が端末上で選択可能である必要がある
   - そのため `MRL-5D` は admin 実機 UX check 前の `candidate evidence` として扱う
 - 主要 evidence:
-  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/java/com/isensorium/app/MainActivity.kt`
-  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/res/layout/activity_main.xml`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/MainActivity.kt`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/res/layout/activity_main.xml`
 
 ## 2026-03-25 candidate evidence
 

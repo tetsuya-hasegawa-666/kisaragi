@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">kisaragi-iSensorium</string>
+    <string name="app_name">trajectreview-correcting</string>
     <string name="correcting_mode_title">現場の風景と経路を記録します。1. 条件設定⇒2. 収録⇒3. 転送</string>
     <string name="start_recording">セッション開始</string>
     <string name="stop_recording">セッション停止</string>

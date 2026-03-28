@@ -208,14 +208,14 @@
 ### `iSensorium` と intake source
 
 - `Xperia 5 III` の設定条件、recording mode、raw output、時刻整列、sample count の詳細は `isensorium_xperia5iii_intake_spec.md` を正本とする。
-- `iSensorium` source code、Python parser、script、gradle wrapper の verified 参照実体は `--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/` に置き、確認結果は `--evidence/prj-kisaragi_0002/isensorium_verified_reference_snapshot.md` を正本とする。
+- `iSensorium` 由来で吸収した recording / parser / script の実装は、`--products/prj-kisaragi_0002/correcting/`、`--products/prj-kisaragi_0002/python/`、`--products/prj-kisaragi_0002/correcting/scripts/` を現行正規とし、吸収履歴は `--evidence/prj-kisaragi_0002/isensorium_verified_reference_snapshot.md` を参照する。
 - `iSensorium` 由来の入力正本は `session_manifest.json` または `manifest.json`、`video_frame_timestamps.csv` または `frames.csv`、`imu.csv`、`gnss.csv`、`bt.jsonl` または `ble_scan.jsonl` または `bt_events.csv` または `bt.csv`、`poses.jsonl` または `arcore_pose.jsonl` とする。
 - legacy alias として `bt_events.csv`、`arcore_pose.csv` も受理対象に含める。
 
 ### `Xperia 5 III` intake detail
 
 - 対象端末は `Xperia 5 III`、確認済み機種名は `SO-53B` とする。
-- source 実装参照元は `C:\Users\tetsuya\sandbox\codev-db` だが、`trajectreview` は `kisaragi` 側へ吸収した仕様と verified mirror を正として扱う。
+- source 実装参照元は `C:\Users\tetsuya\sandbox\codev-db` だが、`trajectreview` は `kisaragi` 側へ吸収した仕様と現行正規配置を正として扱う。
 
 #### 端末設定
 

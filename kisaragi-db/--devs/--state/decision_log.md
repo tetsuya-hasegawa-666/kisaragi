@@ -8,6 +8,11 @@
 
 - 2026-03-28
   - project: `prj-kisaragi_0002`
+  - decision: `reference_isensorium_verified_20260325` 配下の recording 実装は歴史的参照ではなく、吸収後の `correcting` / `python` / `correcting/scripts` を現行正規として扱う
+  - rationale: `iSensorium` 由来実装は既に `trajectreview-correcting` 前提へ大きく改変されており、参照配下と親配下に同名 directory が並ぶ状態は source of truth を曖昧にするため
+  - consequence: `correcting` は参照 directory への sourceSets 依存をやめ、必要 file を親側へ正規配置する。旧参照 directory は削除可能な状態まで整理する
+- 2026-03-28
+  - project: `prj-kisaragi_0002`
   - decision: `isensorium_xperia5iii_intake_spec.md` の `Xperia 5 III` intake 詳細は `project-truth.md` の末尾へ統合して保持する
   - rationale: `iSensorium` intake 仕様を別 file だけで持つと、`project-truth.md` 単体では入口条件と外部連携境界を読み切れず、再開時の参照点が増えるため
   - consequence: `project-truth.md` の `外部連携境界` 末尾に `Xperia 5 III` の権限、recording mode、raw file、timebase、sample count、intake 判断材料を統合し、重複は merge で吸収する
