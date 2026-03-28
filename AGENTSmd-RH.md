@@ -12,6 +12,20 @@
 
 ## 更新履歴
 
+### 2026-03-28 AGENTS.md `--tgpce-map` 運用の `kisaragi_****` 一般化
+
+- 日時: `2026-03-28`
+- 文書名: `AGENTS.md`
+- 標題: `0002` 固有運用の shared rule 化
+- 背景: `prj-kisaragi_0002` で固めた `--tgpce-map`、統合計画書、admin 手順 / 証跡、Codex closeout の運用を、他 project にも同じ format で展開する前提が生まれた。
+- 目的: `AGENTS.md` に残る `0002` 固有の開発運用表現を `prj-kisaragi_****` 共通 rule へ置き換え、shared rule と project 固有事項の境界を明確にする。
+- 対処方法: `AGENTS.md` と `--devs/agents.md` の `0002` 固有表現を、`--tgpce-map/` 採用 project 共通の file 名と運用 rule に一般化した。
+- 対応内容: `ux-b2t-hypo.md`、`codex-mrl-test-evidence.md`、`admin-mrl-test-method.md`、`admin-mrl-test-evidence.md` を `prj-kisaragi_****` 共通の正式名称として定義し、旧 `0002` 固有運用文言を shared rule から外した。
+- 更新結果: `AGENTS.md` は project code 対応表を除き、`0002` 固有運用に依存せず、今後の `--tgpce-map` 展開にそのまま使える状態になった。
+- 新旧比較:
+  - 旧: `0002` 固有の file 名と運用が shared rule に混在していた。
+  - 新: `--tgpce-map/` 採用 `prj-kisaragi_****` 共通の rule と file 名に一般化し、固有運用は project 文書へ戻した。
+
 ### 2026-03-28 AGENTS.md 一時調査出力の `--exsams` 集約
 
 - 日時: `2026-03-28`

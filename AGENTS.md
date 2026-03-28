@@ -3,15 +3,13 @@
 <order>
 
 ## 目的
-
-- admin が Codex を senior software / UX engineer として活用し、有益な software を速く社会実装する。
+- admin が Codex を senior software / UX engineer として活用し、有益な software を速く社会実装することを目的としている。
 
 </order>
 
 <order>
 
 ## 大前提
-
 - `<order>` と `</order>` の間は admin 指示とし、最優先で守る。Codex は無断で書き換えてはならない。
 - この配下の配置規則は本書に従う。
 - 本文は日本語を基本とし、識別子、command、path、API 名、service 名、英字略語は必要時のみ原文を使う。
@@ -25,24 +23,37 @@
 <order>
 
 ## 文書の位置づけ
-
 - `kisaragi/` 直下から対象文書の階層までにある `AGENTS.md` と `agents.md` を上位から読み、規則に従って把握・編集する。
 - 最上位 shared control file は `AGENTS.md` とする。
 - `AGENTS.md`や 各 directory の `agents.md` は、その配下全体に効く directory rule とする。
-- 各プロジェクトの内容は、`project-truth.md` `B2T-plans-results.md`を最初に参照すること。この文書が目的と計画の根幹を示している。
+- 各 project の内容は、`project-truth.md` と統合計画書を最初に参照すること。この 2 文書が目的と計画の根幹を示している。
 
 </order>
 
 <order>
 
+## project名称のルール
+- project名と関連ディレクトリやデータ名称に用いる固有名称のルールを規定する
+- project名は、その project の機能を示す名称とし、後で変更してよい。
+- project ごとに、発生順が分かる半角英数記号の code name を与える。code name は付与後の変更を禁止し、変更不要で運用する。
+- code name と project 名の対応は、以下の対応表だけで定義する。
+- `kisaragi/` 配下の data に project 固有名称を与える時は、project 名ではなく project code を使う。
+- project directory 名は `prj-kisaragi_****` 形式とし、project 名を directory 名へ使わない。
+```text
+<凡例> project-code : project-name
+No.1 | prj-kisaragi_0001 : prj-direview
+No.2 | prj-kisaragi_0002 : prj-trajectreview
+
+```
+</order>
+
+<order>
+
 ## ディレクトリ構造と保管内容
-
 ### `kisaragi/` (TOPディレクトリ)
-
 - `kisaragi/` の最上位運用正本は `AGENTS.md` とする。
 - top の `README.md` は、GitHub 公開時に repository 全体の構成と正本文書への入口を示す用途に限って許容する。
 - workspace 管理に必要な最小 file は、top 構造の例外として許容する。
-
 ```text
 kisaragi/
   kisaragi-db/
@@ -55,7 +66,6 @@ kisaragi/
 ```
 
 ### `kisaragi-db/`
-
 - project で発生する方針、構想、経過、成果物は原則ここに置く。
 - `prj-kisaragi_****` 以外の directory 名は `--` で始める。
 - `--` directory は親階層の情報区分であり、新設・削除は user 了解なしでは行わない。
@@ -63,7 +73,6 @@ kisaragi/
 - `--` directory 配下に `prj-kisaragi_****` がある場合、その直下へ別の `--` directory を並置しない。
 - `prj-kisaragi_****` 直下に `agents.md` は置かない。
 - `--exsams/` 配下は、性質上 Codex による自由な書き換えを許容する。
-
 ```text
 kisaragi-db/
   --devs/
@@ -72,9 +81,7 @@ kisaragi-db/
 ```
 
 ### `kisaragi-skills/`
-
 - skills の唯一の正本とする。
-
 ```text
 kisaragi-skills/
   ...
@@ -82,11 +89,9 @@ kisaragi-skills/
 ```
 
 ### `kisaragi-tree/`
-
 - `kisaragi-tree/` 配下は junction によって構成し、実データ copy は持たない。
 - 直接編集せず、更新は常に `kisaragi-db/` 正本側で行う。
 - data の追加削除時は tree sync 実行物で追従させ、閲覧 UI が対応できる状態を保つ。
-
 ```text
 kisaragi-tree/
   ...
@@ -94,14 +99,12 @@ kisaragi-tree/
 ```
 
 ### `--devs/`
-
 - 計画、状態、証跡、test code、product 実装物、および trace として有益な test 記録を置く。
 - `--testlogs/` には記録、要約、manifest などを置き、それ以外の生成物は `--exsams/` に置く。
 - `--tgpce-map/` は `truth, goal, plan, current, evidence-map` を束ねる統合文書置き場とする。
-- `--tgpce-map/` への統合は承認済み project から段階的に行う。現時点の正式運用対象は `prj-kisaragi_0002` のみとする。
-- `prj-kisaragi_0002` では project 固有の `current_state` と `decision` も `ux-b2t-hypo.md` を中心に集約し、旧 category の同 project 文書は `--tgpce-map/` 側へ移す。
+- `--tgpce-map/` への統合は承認済み `prj-kisaragi_****` から段階的に行う。
+- `--tgpce-map/` 採用済み `prj-kisaragi_****` では、project 固有の `current_state` と `decision` も統合計画書を中心に集約し、旧 category の同 project 文書は `--tgpce-map/` 側へ移す。
 - 移行が必要な場合は、`--plans/`、`--evidence/`、`--project-truth/`、`--state/` は直ちに全廃するのではなく、承認済み project から順に `--tgpce-map/` へ吸収し、空になった project path から削除する。
-
 ```text
 --devs/
   --tgpce-map/
@@ -119,7 +122,6 @@ kisaragi-tree/
 ```
 
 ### `--exsams/`
-
 - 開発中 test の raw 生成物はすべてここに置く。
 - 直下は `prj-kisaragi_****/` とする。
 - `device dump`、画面構造 dump、実機調査 XML、screen capture、tmp など、正本でない一時調査出力も `--exsams/` 配下だけに置く。
@@ -128,33 +130,12 @@ kisaragi-tree/
 </order>
 
 
-<order>
-
-## project名と関連ディレクトリやデータ名称に用いる固有名称のルール
-- project名は、その project の機能を示す名称とし、後で変更してよい。
-- project ごとに、発生順が分かる半角英数記号の code name を与える。code name は付与後の変更を禁止し、変更不要で運用する。
-- code name と project 名の対応は、以下の対応表だけで定義する。
-- `kisaragi/` 配下の data に project 固有名称を与える時は、project 名ではなく project code を使う。
-- project directory 名は `prj-kisaragi_****` 形式とし、project 名を directory 名へ使わない。
-
-```text
-<凡例> project-code : project-name
-No.1 | prj-kisaragi_0001 : prj-direview
-No.2 | prj-kisaragi_0002 : prj-trajectreview
-
-
-```
-</order>
-
-
 ## 更新規則
-
 - 共通 rule を追加した時は、この文書末尾の更新情報に記録する。
 - 更新情報は日時、文書名、標題、背景、目的、対処方法、対応内容、更新結果、新旧比較を持つ。
 - `AGENTS.md` の更新履歴は `AGENTSmd-RH.md` を参照する rule とし、この文書末尾には履歴本文を置かず、参照だけを置く。
 
 ## `AGENTS.md` と project 文書の境界
-
 - `AGENTS.md` は、project 横断で共有する rule、directory、state、branch、文書運用、判定語、共通 hygiene だけを持つ。
 - project の目的、提供 UX、app 分割、artifact 名、外部 service route、package 設計、`MRL` / `INITL` の中身、個別判断は project 側正本に置く。
 - `AGENTS.md` に project path や project code を書く時は、共有構造の説明か例示に限る。
@@ -163,22 +144,19 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 - project 計画や truth に shared rule が混入していた時も同様に整理し、shared rule は `AGENTS.md`、project 固有 truth は project 文書へ分離する。
 - `--tgpce-map/` を使う project では、project 固有の `truth`、`goal`、`plan`、`current`、`evidence-map` を同一 project directory に集約してよい。
 - `--tgpce-map/` を使う project でも、shared governance、shared directory rule、shared branch rule、shared 判定語、shared hygiene は `AGENTS.md` に残す。
-- `prj-kisaragi_0002` の正式名称は、統合計画書を `ux-b2t-hypo.md`、Codex 側 gate closeout を `codex-mrl-test-evidence.md`、admin 手順を `admin-mrl-test-method.md`、admin 証跡を `admin-mrl-test-evidence.md` とする。
+- `--tgpce-map/` を使う `prj-kisaragi_****` の正式名称は、統合計画書を `ux-b2t-hypo.md`、Codex 側 gate closeout を `codex-mrl-test-evidence.md`、admin 手順を `admin-mrl-test-method.md`、admin 証跡を `admin-mrl-test-evidence.md` とする。
 
 ## 共有 directory 統制
-
 - `--` で始まる top category directory は shared structure とし、Codex 判断で新設してはならない。
 - 生成物出力先を rule 外の `--trial-data` のような新規 `--` directory で迂回してはならず、許可済み category のみを使う。
 - 生成物や cache の出力先を変更する時は、既存 shared rule に適合する path へ修正し、rule 外 path を残さない。
 
 ## workspace 外 access 制限
-
 - `C:\Users\tetsuya\kisaragi` を workspace として作業している時は、`kisaragi/` 配下以外の directory に対する access は `READ` のみ許可する。
 - `kisaragi/` 配下以外の directory に対して、作成、編集、移動、削除、rename、生成物出力、cache 出力、install 元配置などの `READ` 以外の access を行ってはならない。
 - 外部 directory の情報が必要な時は、参照後に `kisaragi/` 配下の正本へ吸収し、外部 directory 自体は変更しない。
 
 ## 実装原則
-
 - terminal behavior は BDD で定義し、user / operator から観測可能な振る舞いで書く。
 - 自動検証できる変更は TDD を基本とし、fail する test を先に置く。
 - green 後の refactor は visible behavior を壊さない範囲で行う。
@@ -193,21 +171,19 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 - 後続処理を停止してよいのは、file 不在、contract 不成立、実行時例外などで対象処理そのものが物理的または論理的に実行不能な場合だけとし、`warning` と `blocker` を混同してはならない。
 
 ## 開発計画
-
 - terminal behavior は BDD を起点に確認する。
 - 到達段階は `MRL`、実行単位は `mRL` で管理する。
 - 機能の振る舞いではなく、その機能を使うための準備 UX、配布、install、bootstrap、実行環境整備は `INITL`、`mINITL` で管理する。
 - release 計画は `kisaragi-db/--devs/--plans/prj-kisaragi_****/` に置く。
 - `--tgpce-map/` 適用済み project では、release 計画、truth、evidence-map は `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_****/` に置く。
-- 実装に着手する project は、原則として先に `b2t-plans-result.md` を計画書として作成または更新する。
+- 実装に着手する project は、原則として先に統合計画書を作成または更新する。`--tgpce-map/` 採用 project は `ux-b2t-hypo.md` を使う。
 - `planned` は未着手または着手前提の計画状態、`active` は着手中、`pass` は `active` を経て完了した gate とする。
-- `MRL` または `mRL` が `pass` になったら、その project の admin 証跡正本に記録する。`prj-kisaragi_0002` は `admin-mrl-test-evidence.md` を使う。
+- `MRL` または `mRL` が `pass` になったら、その project の admin 証跡正本に記録する。`--tgpce-map/` 採用 project は `admin-mrl-test-evidence.md` を使う。
 - `INITL` または `mINITL` が `pass` になった時も、準備 UX と install / bootstrap 証跡を同じ admin 証跡正本に記録する。
 - UX 検証成果は同じ admin 証跡正本に集約する。
 
 ### plan 文書の標準 2 点セット
-
-- 統合計画書は、`current_state` 章、BDD 章、TDD 章を持つ。`prj-kisaragi_0002` は `ux-b2t-hypo.md` を使う。
+- 統合計画書は、`current_state` 章、BDD 章、TDD 章を持つ。`--tgpce-map/` 採用 project は `ux-b2t-hypo.md` を使う。
 - 統合計画書の `current_state` 章の冒頭には `疑問点不整合一覧` を表で置き、列は少なくとも `id`、`論点`、`影響`、`現在の扱い`、`admin 状態`、`関連文書` を持つ。
 - `疑問点不整合一覧` の `admin 状態` は `big-open`、`small-open`、`close`、`no judge` を使う。
 - `big-open` は影響が大きい未解決、`small-open` は影響が小さい未解決、`close` は解決済み、`no judge` は問題かどうか未判定を表す。
@@ -226,7 +202,7 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 - TDD 章は、目的文、TDD タスク表、実行方針、現在の見立てを持つ。
 - タスク表の列は `task_id`、`behavior_id`、`test_target`、`criterion`、`status`、`evidence` とし、1 task 1 責務を守る。
 - `behavior_id` は対応する BDD behavior を参照し、`criterion` は自動検証または明確な確認条件で書く。
-- Codex 側 gate closeout 記録文書は、目的文、記録ルール、Entries を持つ。`prj-kisaragi_0002` は `codex-mrl-test-evidence.md` を使う。
+- Codex 側 gate closeout 記録文書は、目的文、記録ルール、Entries を持つ。`--tgpce-map/` 採用 project は `codex-mrl-test-evidence.md` を使う。
 - 各 entry は `record date`、`target MRL`、`target mRL`、`gate change`、`issue`、`cause`、`resolution`、`recurrence prevention`、`remaining work`、`evidence path` を持つ。
 - project ごとの局所 current state は、原則として統合計画書の `current_state` 章で管理する。
 - project ごとの局所 decision も、`--tgpce-map/` 適用済み project では統合計画書の `current_state` 章へ要約して持たせてよい。
@@ -234,7 +210,6 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 - `MRL` と `mRL` の内容は、原則として統合計画書に吸収し、closeout が必要になった時点で Codex 側 gate closeout 記録文書を追加または移行する。
 
 ## ブランチ規則
-
 - branch 運用の authoritative section はこの節とする。
 - 人間向け基準 branch は `dev`、Codex 向け基準 branch は `codex/dev` とする。
 - Codex の通常 push 先は `codex/dev` とする。
@@ -247,7 +222,6 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 - push 後は `git status` で working tree が空であることを確認する。
 
 ## 文字コードと commit / push hygiene
-
 - text file は UTF-8 を使う。
 - 調査、検索、確認 command は UTF-8 入出力前提で実行する。
 - PowerShell では必要に応じて `$OutputEncoding = [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)` を先に設定する。
@@ -257,29 +231,23 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 - stage は原則として明示 path で行う。
 
 ## Guard
-
 - project から移した内部情報は、根拠なく削減しない。
 - 構造や rule を変える時は、対応する正本と pointer の両方を確認する。
 - user の明示指示がない限り、未整理データや未解決項目を消さない。
 - 迷いがある場合は `kisaragi-ruling/` を確認し、`issue-note.md` が実在する時だけ補助メモとして参照または更新する。
 
 # 協調規則
-
 ## 役割
-
 ### AI
-
 - 調査、仮説生成、設計提案、実装支援、文書更新、影響確認を行う。
 - 正本文書変更前に既存文脈を読む。
 - 重要判断は `decision_log` 候補として抽出する。
 
 ### 人間
-
 - 価値判断、優先順位付け、不可逆な選択、最終承認を担う。
 - 実運用上のリスク許容度と現実検証の境界を決める。
 
 ## 協調原則
-
 - 新しい運用規則を chat だけに残さない。
 - 人間承認事項は、shared rule なら `AGENTS.md` と `AGENTSmd-RH.md`、project 固有事項なら該当 project の正本文書へ直接記録する。
 - 短命な推論はその task の短命な記録にとどめ、持続する真実だけを正本文書へ残す。
@@ -288,29 +256,24 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 - 複数指示を含む prompt を処理する時は、未完了指示を task 内の残件として保持し、理由説明なしに取りこぼしたまま入力待ちへ移ってはならない。
 
 ## 並行作業
-
 - 共有制御ファイル編集時は、同じ task で `AGENTS.md` と `AGENTSmd-RH.md` を更新し、変更理由を追跡可能にする。
 - 重要変更は履歴用文書で追跡可能でなければならない。
 - 文書更新は対応する変更と同じ task で完了させる。
 - 文書更新を伴う task では、影響を受ける正本文書群を先に洗い出し、最低限の整合更新が完了するまで入力待ちへ入ってはならない。未更新を残す時は、理由と残件を commentary で明示する。
 
 # 意思決定方針
-
 ## 原則
-
 - 可逆な意思決定は、承認済み方向性の範囲で AI が進めてよい。
 - 不可逆な意思決定には人間の明示承認が必要である。
 - 重要な意思決定は、決まった時点で記録する。
 
 ## 可逆な意思決定
-
 - 文言整理
 - 局所的 refactor
 - test 追加
 - project 価値、governance、運用境界を変えない明確化
 
 ## 不可逆な意思決定
-
 - 大きな architecture 転換
 - project 目的または成功条件の変更
 - 文書構造または正本方針の変更
@@ -318,14 +281,11 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 - データ保持方針の変更
 
 ## ゲート
-
 - 承認依頼には文脈、選択肢、採用案、予想される帰結を含める。
 - 承認待ちは、shared governance なら `AGENTS.md` の該当節、project 固有事項なら該当 project の正本文書へ列挙する。
 
 # 文書規則
-
 ## 中核規則
-
 - 文書体系は最小かつ安定に保つ。
 - 新しい永続文書を増やすより既存正本文書の更新を優先する。
 - shared rule の重要な意思決定は `AGENTS.md` に反映し、変更履歴は `AGENTSmd-RH.md` に置く。
@@ -336,16 +296,14 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 - `疑問点不整合一覧` に `big-open` が 1 件以上ある project の文書を更新した時は、response で `big-open` の存在を必ず明示する。
 
 ## 文書の役割境界
-
 - `project-truth.md` は、目的、完成判定、利用入口、UX 原則、段階構造、app 責務、artifact 契約、外部連携境界のような恒久事項だけを持つ。
 - `project-truth.md` には、現在状態、未完 gate、優先度、open issue、進行中、admin 確認待ちのような時間変化する情報を書かない。
 - 統合計画書は、`current_state`、BDD、TDD、`MRL` / `mRL` / `INITL` の進行管理を持つ。
 - 統合計画書の `current_state` は、現在状態、優先順位、未完 gate、疑問点不整合一覧、project 固有 decision 要約の正本とする。
-- admin 手順正本は、人が実際に操作する時の手順と pass / fail 判断を持つ。`prj-kisaragi_0002` は `admin-mrl-test-method.md` を使う。
-- admin 証跡正本は、admin `UX check`、実行証跡、candidate evidence、gate close の根拠を集約する。`prj-kisaragi_0002` は `admin-mrl-test-evidence.md` を使う。
+- admin 手順正本は、人が実際に操作する時の手順と pass / fail 判断を持つ。`--tgpce-map/` 採用 project は `admin-mrl-test-method.md` を使う。
+- admin 証跡正本は、admin `UX check`、実行証跡、candidate evidence、gate close の根拠を集約する。`--tgpce-map/` 採用 project は `admin-mrl-test-evidence.md` を使う。
 
 ## 共有制御ファイル
-
 - 最上位 shared control file は `AGENTS.md` とする。
 - directory 単位の shared control file は各階層の `agents.md` とする。
 - `agents.md` は配下全体に効く directory rule を持つ。
@@ -354,7 +312,6 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 - 大きな構造変更には人間承認が必要である。
 
 ## 記述と整合
-
 - 本文は日本語を既定とする。
 - 固有名詞、API 名、file 名、command 名、固定技術用語など、原文でないと意味を損なうものだけ英語または原文を許可する。
 - 一文一意を基本とし、数値目標には単位を含める。
@@ -363,9 +320,7 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 - 上位文書同士が衝突した場合は停止し、`人間確認待ち` に記録する。
 
 # 研究方法
-
 ## codexの研究スタンス
-
 - AI は人間の取得能力を無制限と仮定しない。
 - 新しい取得依頼の前に、目的、予想時間、成功条件、未実施時の代替を示す。
 - 人間に依頼する実験単位は、既定で一度に小さな 1 件とする。
@@ -379,7 +334,6 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 - 矛盾が見つかった場合は、作業継続しながら、該当する shared 正本または project 正本を更新する
 
 ## 実行ルール
-
 - adminが後で見たり、対話で理解しやすいよう、特定した文書の記録を確実にとること
 - 仮説は採用まで短命な作業痕跡にとどめる。
 - 採用した設計変更は MRL 文書に反映し、shared rule 変更なら `AGENTS.md` と `AGENTSmd-RH.md`、project 固有判断なら project 正本文書にも記録する。
@@ -388,36 +342,29 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 - 実際の検証ステップへ近づく最短経路を優先する
 
 ## 自律アーキテクト既定
-
 - 自律継続は現在の project 範囲内に限って許可する。
 - 新しい idea が出ただけで新規恒久文書を作らず、まず既存正本文書を更新する。
 - 新しい文書 category が必要に見える場合は停止し、人間承認を求める。
 
 # Windows 運用マニュアル
-
 ## 目的
-
 - 実行可能な入口がある時、この repository 向けの簡潔で再現可能な Windows 手順を提供する。
 - Windows 前提の操作の単一正本とする。
 
 ## 規則
-
 - Windows ベースの再現可能手順を追加したら、chat に散在させずここへ記録する。
 
 ## tree sync 実行
-
 - `kisaragi-tree/` の同期は `kisaragi-tree/tree-sync.cmd` または `kisaragi-tree/tree-sync.ps1` を使う。
 - PowerShell からは `powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\kisaragi-tree\tree-sync.ps1` を用いる。
 - 実行後は `kisaragi-tree/prj-kisaragi_****/` 配下に category ごとの junction が生成または更新されることを確認する。
 - `kisaragi-tree/` 配下に実データ copy を追加してはならない。
 
 ## tree sync 実行物の再生成
-
 - 配布用実行物は `kisaragi-tree/kisaragi-tree-sync.exe` とする。
 - 再生成時の正本は `kisaragi-tree/tree-sync.ps1` と `kisaragi-tree/tree-sync-build.sed` とする。
 - Windows 標準の IExpress で `tree-sync-build.sed` を読み込み、`kisaragi-tree-sync.exe` を再生成する。
 - 再生成後は `tree-sync.ps1` を直接実行して同期結果を確認し、その後 `kisaragi-tree-sync.exe` でも起動確認する。
 
 # 更新情報
-
 - `AGENTS.md` の更新履歴は `C:\Users\tetsuya\kisaragi\AGENTSmd-RH.md` を参照する。
