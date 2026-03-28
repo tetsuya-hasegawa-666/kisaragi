@@ -1,4 +1,4 @@
-# B2T-Plans-Result
+# B2T-Plans-Results
 
 ## 文書の役割
 
@@ -10,12 +10,13 @@
 
 - `prj-kisaragi_0002` は、主空間再構成と経路レビューを 4 段階一括処理で扱う project とする
 - `Next Action + Thin Status` を中核 UX とし、`SessionPackage`、`SpacePackage`、`TrajectoryPackage`、`ReviewArtifact` の契約で進める
+- 恒久仕様、入口方針、app 責務、artifact 契約は `project-truth.md` を正本とし、この章では現在状態、未完 gate、優先順位、未解決論点だけを扱う
 
 ### 疑問点不整合一覧
 
 | id | 論点 | 影響 | 現在の扱い | admin 状態 | 関連文書 |
 | --- | --- | --- | --- | --- | --- |
-| `ISS-001` | `InputPackaging` の primary route を `correcting` 現場記録中心へ寄せた後、統合 app / legacy intake をどこまで同格に扱うか | `InputPackaging` の UX、truth、後段説明 | truth では `correcting` primary、既存 session intake secondary として記述済み | `small-open` | `project-truth.md`, `ux_check_manual.md` |
+| `ISS-001` | `InputPackaging` の入口を `correcting` 中心へ寄せた後、統合 app / legacy intake をどこまで同格に扱うか | `InputPackaging` の UX、truth、後段説明 | admin 判断により、開発中から実使用まで全入口を開けたまま併存させ、説明順だけを運用上の既定に留める | `close` | `project-truth.md`, `ux_check_manual.md` |
 | `ISS-002` | `Google Drive` 転送先の document grant を持続前提にするか | `MRL-5D` の実運用可否 | admin 判断により grant 持続前提を捨て、`転送先を選択` を毎回必須にする | `close` | `project-truth.md`, `mrl-ux-valid.md` |
 | `ISS-003` | `Google Drive` 側は zip、端末側は `<session_id>/` であり、どの段階で unzip を正規化するか | handoff 運用、admin 手順、実装分担 | `modeling` の `Colab bootstrap package` が unzip と配置正規化を担う方針へ決定した | `close` | `project-truth.md`, `ux_check_manual.md` |
 | `ISS-005` | `Colab all-in modeling` package と `correcting` の PC install package の配布形式をどこまで共通化するか | `INITL` の粒度、導入 UX | `INITL` を分離導入し、package 構成は `0002` 内で設計を開始する | `small-open` | `project-truth.md`, `b2t-plans-result.md` |
@@ -25,44 +26,19 @@
 ### 現在の重点
 
 - `T1` から `T16` は contract 実装、test、routing 実行で成立したが、admin `UX check` 未完のため対応 `MRL` / `mRL` は `active` として扱う
-- 4 分担作業のための段階間インターフェースと追加出力を正本文書へ明示した
-- Kotlin controller と Python parser により、受理、gate、空間品質、人物経路、同時刻ハイライト、成果物境界の契約を固定した
-- `GNSS` は任意入力とし、既定は `GNSS` なしでも成立する設計を維持する
 - `MRL-5` と `MRL-6` は、入力契約と handoff artifact の整備までは進んだが、`correcting` から `modeling` への end-to-end handoff は未完である
 - `MRL-5C` を `trajectreview-correcting` 専用 gate とし、現場記録後に同じ app 内で `data-check` と correction guidance を返せる実装までは進んだが、`pass` は admin `UX check` 待ちである
 - `MRL-5D` を `trajectreview-correcting` 専用 gate とし、`1 回以上 data-check` の後に `Google Drive` 保存場所へ zip 転送する実装を追加する
 - `MRL-7` と `MRL-8` は、4 app の骨格、build、install、実 bundle 読込、`local sample` による局所 logic 確認まで進んだが、本来機能の完成 gate としては `active` に巻き戻す
-- `trajectreview-correcting` は 3 block UI で、preview 直下の状態表示に `現場の風景と経路を記録します。1. 条件設定⇒2. 収録⇒3. 転送` を置く。1 block は `1. 条件設定` とし、1 行目を `Sampling条件` / `端末保存先`、2 行目を保存先状態表示、3 行目を `送信Dataset` / `Data名称変更` の 2 列構成にする
-- `端末保存先` が未設定の間は `Data収録開始` を非活性とし、`端末保存先：未設定` を表示する。設定後は未設定表示を消して開始 button を活性化する
-- `trajectreview-correcting` の post-recording pipeline は `raw 保存 -> 品質確認 -> derived 同期` とし、収録停止直後は raw session を先に `端末保存先` へ保存する
-- `転送先を選択` 直下の小さい補助表示は出さず、転送条件は `転送実行` 直下の comment に集約する
-- `Data名称変更` popup はメイン画面寄りの button 一覧で data を見分けられるようにし、rename 後も親 popup に残す。最上段に `戻る` button、次行に `OFF：名称変更、ON：削除モード` toggle を置き、ON かつ選択済み時だけ `削除実行` を活性化する
-- `端末保存先` はスマホ内保存先を指し、収録停止後に raw session を `<session_id>/` へ保存し、品質確認後は `trajectreview/` の derived artifact のみを追記同期する。`転送` block は `転送先を選択` と `転送実行` を持つ
-- `収録` block は 1 行目に記録開始 / 停止 toggle、2 行目に `品質確認` / `転送Data選択` を置き、`転送` block は 1 行目の `転送先を選択` / `転送実行` と、その下の設定状態表示で構成する。`転送先を選択` は URL 設定と、`保存先fileを設定する` による Android 標準保存画面経由の zip 保存先選択を兼ねる
-- Android 標準保存画面では端末 storage が先に見える場合があるため、`Google Drive` を使う時は左上メニューなどから provider を `Google Drive` へ切り替える
-- `Google Drive` 転送先 file は毎回 user が `転送先を選択` で指定する。app 再起動後や前回転送後の grant 再利用は前提にしない
-- `Google Drive` 転送 zip の既定名は、名称未指定なら `trajectreview-correcting-session-YYYYMMDD-HHMMSS.zip` とする。名称指定がある場合も `<custom-name>-session-YYYYMMDD-HHMMSS.zip` の形で `session-*` suffix を保持する
-- `Data収録開始` 直下には、処理中だけ `何をしているか` を示す短文と ring / bar と、`次の収録は待機推奨か` を示す 1 文を表示する。詳細説明は従来どおり下部に残す
-- `品質確認` の詳細は popup へ寄せ、メイン画面には閾値未満の項目名だけを残して、見たい時だけ詳細を見る UX とする
-- `端末保存先` 同期中は session 詳細を縮退し、`Session: <session_id>` と `品質確認OK` だけを残す
-- `品質確認` は軽量判定を優先し、`frame画像群` 生成は含めない。`frame画像群` は転送で実際に要求された時だけ生成する
-- `転送実行` 中の comment と waiting ring は `転送実行` button 直下に表示し、recording 側 indicator と混在させない
-- `MRL-5C` の性能面では、shared camera route の `ARCore` sampling を `arCoreIntervalMs` に追従させ、画像抽出を pose 対応 frame 優先へ絞って待ち時間を抑える
-- `trackingState` warning は 1 frame 単位では出さず、初期 warmup を許容したうえで non-tracking 率が高い時だけ `▲` とし、その時だけ user へ収録時間や動きの案内を返す
-- `転送Data選択` と `Data名称変更` の一覧表示前には、保存済み session の `品質確認` を再実行して `▲` を再計算する
-- 一覧表示前の `品質確認` 再実行は full export ではなく lightweight inspect とし、既存 data の batch refresh を数秒単位で終えられる設計を保つ
-- `転送Data選択` popup は `Data名称変更` popup と同系統の button 一覧 UI に揃え、取得日時、長さ、`▲` を button 外の小テキストで読めるようにする
-- `▲` は blocker または閾値超え warning がある時だけ付ける。軽微な `coverage < 1.0` や `images/` 未生成だけでは `▲` にしない
-- `camera intrinsics` / `texture intrinsics` / `lens distortion` の warning は、実運用閾値を下回る時だけ `▲` 原因として扱う
-- 保存済み data 一覧の lightweight `品質確認` では `images/` 未生成を `▲` 原因に含めない
-- `trajectreview-correcting` は preview 直下の status card に状態文を出し、下部操作 block の妨げにならないようにする
-- `trajectreview-correcting` は `iSensorium` 由来の記録画面に加え、最新 session の `data-check` と correction guidance を app 内で返せる
+- `trajectreview-correcting` の現在 focus は、収録停止後の待ち時間短縮と、`品質確認` / 一覧更新 / 転送 UX の安定化である
+- `品質確認` は lightweight 判定を先に返し、`frame画像群` は転送要求時だけ生成する構成へ切り替えた
+- 保存済み data 一覧の `▲` は lightweight `品質確認` 再実行で更新し、軽微な項目や `images/` 未生成だけでは付けない運用へ切り替えた
+- `Google Drive` 転送は都度 `転送先を選択` 前提へ切り替え、転送 UX は成立したが、多人数向け help は未着手である
 - `MRL-5C` の範囲では、`trajectreview-correcting` 単体で source session を保存し、`sensor_quality.json`、`session_package.json`、`space_handoff_manifest.json` を生成し、修正指示を返せる実装がある
 - `MRL-5C` の calibration export interface は、一時要件を吸収し、`arcore_pose.jsonl` nested schema、`camera_calibration_summary.json`、`frame_pose_index.csv`、`images/`、path pointer を含む handoff へ更新した
 - `MRL-5C` には `mRL-5C.4` を追加し、`intrinsics` 不足が `実取得失敗`、`集計上の見え方`、`calibration export 実装前 data` のどれかを切り分ける診断を追跡する
 - `MRL-5C` には `mRL-5C.5` を追加し、`corecamera_shared_camera_trial` route でも `OffscreenArCorePoseSampler` から image / texture intrinsics を実取得し、`captureDiagnostics` を実データで検証する
 - `MRL-5D` の範囲では、`trajectreview-correcting` 単体で `サンプリング条件設定 / スマホ内保存先選択 / 転送対象準備 -> 現場撮影データ保存 + data-check -> 品質確認済み data の複数選択 -> Google Drive 転送先選択 + 転送実行` を閉じる
-- `trajectreview-correcting` は `data-check` と端末保存先同期の自動処理中に待機文言を出し、button が非活性でも処理中か未設定かを区別できるようにする
 - `trajectreview-modeling` は `Colab all-in` を主 route とし、PC 側は source、config、auto-install package、証跡の正本を保持する
 - `trajectreview-modeling` は preflight artifact として `experiment_manifest.json`、`da3_input_manifest.json`、`benchmark_summary.json`、`selected_route.json`、Colab notebook / import helper / bootstrap package を持つ
 - Colab notebook の `CONFIG` は `session_root` と `result_root` を最小入力とし、残りの route 情報は session bundle 内の artifact から自動で補完する

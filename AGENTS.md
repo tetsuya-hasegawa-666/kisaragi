@@ -24,25 +24,20 @@
 
 <order>
 
-## 読み順
+## 文書の位置づけ
 
 - `kisaragi/` 直下から対象文書の階層までにある `AGENTS.md` と `agents.md` を上位から読み、規則に従って把握・編集する。
-
-</order>
-
-<order>
-
-## 共有制御ファイルの読み方
-
 - 最上位 shared control file は `AGENTS.md` とする。
-- 各 directory の `agents.md` は、その配下全体に効く directory rule とする。
-- shared control file と個別 file が衝突した場合は、上位の shared control file を優先する。
+- `AGENTS.md`や 各 directory の `agents.md` は、その配下全体に効く directory rule とする。
+- 各プロジェクトの内容は、`project-truth.md` `B2T-plans-results.md`を最初に参照すること。この文書が目的と計画の根幹を示している。
 
 </order>
 
 <order>
 
-## top 構造
+## ディレクトリ構造と保管内容
+
+### `kisaragi/` (TOPディレクトリ)
 
 - `kisaragi/` の最上位運用正本は `AGENTS.md` とする。
 - top の `README.md` は、GitHub 公開時に repository 全体の構成と正本文書への入口を示す用途に限って許容する。
@@ -58,11 +53,7 @@ kisaragi/
   README.md
 ```
 
-</order>
-
-<order>
-
-## `kisaragi-db/`
+### `kisaragi-db/`
 
 - project で発生する方針、構想、経過、成果物は原則ここに置く。
 - `prj-kisaragi_****` 以外の directory 名は `--` で始める。
@@ -78,6 +69,56 @@ kisaragi-db/
   --exsams/
   agents.md
 ```
+
+### `kisaragi-skills/`
+
+- skills の唯一の正本とする。
+
+```text
+kisaragi-skills/
+  ...
+  agents.md
+```
+
+### `kisaragi-tree/`
+
+- `kisaragi-tree/` 配下は junction によって構成し、実データ copy は持たない。
+- 直接編集せず、更新は常に `kisaragi-db/` 正本側で行う。
+- data の追加削除時は tree sync 実行物で追従させ、閲覧 UI が対応できる状態を保つ。
+
+```text
+kisaragi-tree/
+  ...
+  agents.md
+```
+
+### `--devs/`
+
+- 計画、状態、証跡、test code、product 実装物、および trace として有益な test 記録を置く。
+- `--testlogs/` には記録、要約、manifest などを置き、それ以外の生成物は `--exsams/` に置く。
+
+```text
+--devs/
+  --evidence/
+  --plans/
+  --products/
+  --project-truth/
+  --state/
+  --testcode/
+  --testlogs/
+  agents.md
+```
+
+## `--exsams/`
+
+- 開発中 test の raw 生成物はすべてここに置く。
+- 直下は `prj-kisaragi_****/` とする。
+
+</order>
+
+<order>
+
+
 </order>
 
 <order>
@@ -100,61 +141,17 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 
 <order>
 
-## `kisaragi-skills/`
+</order>
 
-- skills の唯一の正本とする。
-
-```text
-kisaragi-skills/
-  ...
-  agents.md
-```
+<order>
 
 </order>
 
 <order>
 
-## `kisaragi-tree/`
-
-- `kisaragi-tree/` 配下は junction によって構成し、実データ copy は持たない。
-- 直接編集せず、更新は常に `kisaragi-db/` 正本側で行う。
-- data の追加削除時は tree sync 実行物で追従させ、閲覧 UI が対応できる状態を保つ。
-
-```text
-kisaragi-tree/
-  ...
-  agents.md
-```
-
 </order>
 
 <order>
-
-## `--devs/`
-
-- 計画、状態、証跡、test code、product 実装物、および trace として有益な test 記録を置く。
-- `--testlogs/` には記録、要約、manifest などを置き、それ以外の生成物は `--exsams/` に置く。
-
-```text
---devs/
-  --evidence/
-  --plans/
-  --products/
-  --project-truth/
-  --state/
-  --testcode/
-  --testlogs/
-  agents.md
-```
-
-</order>
-
-<order>
-
-## `--exsams/`
-
-- 開発中 test の raw 生成物はすべてここに置く。
-- 直下は `prj-kisaragi_****/` とする。
 
 </order>
 
@@ -340,6 +337,15 @@ kisaragi-tree/
 - 非 text 資産の inventory 規則は、実装 code や chat だけに残さず正本文書へ反映する。
 - active task に必要な文書更新は、project 上の真実が変わった同じ task 単位で完了させる。
 - `疑問点不整合一覧` に `big-open` が 1 件以上ある project の文書を更新した時は、response で `big-open` の存在を必ず明示する。
+
+## 文書の役割境界
+
+- `project-truth.md` は、目的、完成判定、利用入口、UX 原則、段階構造、app 責務、artifact 契約、外部連携境界のような恒久事項だけを持つ。
+- `project-truth.md` には、現在状態、未完 gate、優先度、open issue、進行中、admin 確認待ちのような時間変化する情報を書かない。
+- `b2t-plans-result.md` は、`current_state`、BDD、TDD、`MRL` / `mRL` / `INITL` の進行管理を持つ。
+- `b2t-plans-result.md` の `current_state` は、現在状態、優先順位、未完 gate、疑問点不整合一覧の正本とする。
+- `ux_check_manual.md` は、人が実際に操作する時の手順と pass / fail 判断の正本とする。
+- `mrl-ux-valid.md` は、admin `UX check`、実行証跡、candidate evidence、gate close の根拠を集約する。
 
 ## 共有制御ファイル
 

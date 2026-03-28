@@ -12,6 +12,20 @@
 
 ## 更新履歴
 
+### 2026-03-28 AGENTS.md project-truth と b2t の文書境界固定
+
+- 日時: `2026-03-28`
+- 文書名: `AGENTS.md`
+- 標題: `project-truth.md`、`b2t-plans-result.md`、evidence 文書の役割境界固定
+- 背景: `prj-kisaragi_0002` の整理で、`project-truth.md` に現在状態や UX の進行中情報が混在し、`b2t-plans-result.md` と役割が重なって読みにくくなっていた。
+- 目的: shared rule として、`truth`、`b2t`、`ux_check_manual`、`mrl-ux-valid` の責務を明確に分け、同じ情報の二重管理を防ぐ。
+- 対処方法: `文書規則` に `文書の役割境界` 節を追加し、各文書に書くべき内容と書かない内容を明文化した。
+- 対応内容: `project-truth.md` は恒久事項のみ、`b2t-plans-result.md` は current state と gate 管理、`ux_check_manual.md` は操作手順、`mrl-ux-valid.md` は UX 証跡と close 根拠を持つ rule を追加した。
+- 更新結果: 今後は `project-truth.md` から現在状態を除去しやすくなり、project 文書の境界を shared rule で再利用できる。
+- 新旧比較:
+  - 旧: 文書境界は project 内の局所判断に近く、shared rule としては固定されていなかった。
+  - 新: `truth`、`b2t`、evidence 文書の責務を `AGENTS.md` で共有 rule 化した。
+
 ### 2026-03-28 AGENTS.md 表現圧縮と可読性調整
 
 - 日時: `2026-03-28`

@@ -9,6 +9,7 @@
 - 2026-03-28: Codex が `prj-kisaragi_0002` の `correcting` を `raw 保存 -> 品質確認 -> derived 同期` の順へ組み替え、`frame画像群` を転送時生成へ寄せる実装と文書整合を担当する。
 - 2026-03-28: Codex が `prj-kisaragi_0002` の `Google Drive` 転送先を都度入力前提へ切り替え、`ISS-002` close のための実装と文書整合を担当する。
 - 2026-03-28: Codex が `prj-kisaragi_0002` の `Google Drive` 転送 zip 名を `session-*` suffix 必須規則へ揃え、将来の help 必要性を `ISS-006` として記録する。
+- 2026-03-28: Codex が `prj-kisaragi_0002` の `project-truth.md` から現在状態を外し、`b2t-plans-result.md` と evidence への役割分離、および `ISS-001` close の文書整合を担当する。
 - 2026-03-26: Codex が `MRL` 記載順と `pass` 判定基準の是正のため、`current_state.md`、`decision_log.md`、`AGENTS.md`、`b2t-plans-result.md`、`mrl-record.md`、`mrl-ux-valid.md` の整合更新を担当する。
 - 2026-03-26: Codex が `prj-kisaragi_0002` の mock 完了誤認を是正するため、`b2t-plans-result.md`、`project-truth.md`、`mrl-record.md`、`mrl-ux-valid.md`、`AGENTS.md`、`AGENTSmd-RH.md` の整合更新を担当する。
 - 2026-03-25: Codex が `project code` 命名規則に合わせた `prj-kisaragi_****` rename と全参照整合を担当する。

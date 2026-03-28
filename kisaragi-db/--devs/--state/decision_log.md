@@ -7,6 +7,16 @@
 ## entries
 
 - 2026-03-28
+  - project: `prj-kisaragi_0002`
+  - decision: `project-truth.md` から現在状態を外し、恒久事項だけを保持する。現在状態、open issue、優先度、`MRL` / `INITL` 進行は `b2t-plans-result.md` へ集約する
+  - rationale: `truth` に時間変化する情報と UX の細部変更履歴が混ざると、正本としての可読性と境界が崩れ、同じ内容が `b2t` と二重管理になっていたため
+  - consequence: `project-truth.md` は目的、入口方針、UX 原則、段階構造、app 責務、artifact 契約、外部連携境界だけを正本とし、現況は `b2t-plans-result.md` と evidence 側へ寄せる
+- 2026-03-28
+  - project: `prj-kisaragi_0002`
+  - decision: `InputPackaging` の入口は `correcting`、統合 app、legacy intake を開発中から実使用まで閉じずに併存させる
+  - rationale: admin 判断として、入口を主従で閉じずに残したまま、説明順や実装優先順だけを運用上の既定にしたい方針が明確になったため
+  - consequence: `ISS-001` は close とし、`project-truth.md` では全入口併存を恒久方針として記述し、`b2t-plans-result.md` では current issue から外す
+- 2026-03-28
   - project: `shared`
   - decision: `AGENTS.md` は shared rule のみを持ち、project ごとに変わりうる UX、artifact、route、package 設計、`MRL` / `INITL` の中身は project 文書へ分離する
   - rationale: `prj-kisaragi_0002` の `Google Drive`、`Colab`、package 準備のような project 固有事項が shared rule と混ざると、他 project へ誤って波及しやすく、正本の境界が曖昧になるため
