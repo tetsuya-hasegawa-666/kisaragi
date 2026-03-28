@@ -43,6 +43,8 @@
 <凡例> project-code : project-name
 No.1 | prj-kisaragi_0001 : prj-direview
 No.2 | prj-kisaragi_0002 : prj-trajectreview
+No.3 | prj-kisaragi_0003 : remote-pwsh
+
 
 ```
 </order>
@@ -290,7 +292,7 @@ kisaragi-tree/
 - 新しい永続文書を増やすより既存正本文書の更新を優先する。
 - shared rule の重要な意思決定は `AGENTS.md` に反映し、変更履歴は `AGENTSmd-RH.md` に置く。
 - project 固有の重要な意思決定、人間確認事項、次 action は該当 project の正本文書に置く。
-- 人が読む各 project の構築物の試用、使用、利用、運用手順は、内容ごとに整理した上で `kisaragi-db/--devs/--evidence/prj-kisaragi_****/ux_check_manual.md` に集約する。
+- 人が読む各 project の構築物の試用、使用、利用、運用手順は、内容ごとに整理した上で admin 手順正本へ集約する。`--tgpce-map/` 採用 project は `admin-mrl-test-method.md` を使う。
 - 非 text 資産の inventory 規則は、実装 code や chat だけに残さず正本文書へ反映する。
 - active task に必要な文書更新は、project 上の真実が変わった同じ task 単位で完了させる。
 - `疑問点不整合一覧` に `big-open` が 1 件以上ある project の文書を更新した時は、response で `big-open` の存在を必ず明示する。

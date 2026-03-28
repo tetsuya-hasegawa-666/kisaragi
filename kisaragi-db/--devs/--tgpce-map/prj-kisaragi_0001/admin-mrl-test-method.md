@@ -1,4 +1,4 @@
-# ux_check_manual
+# admin-mrl-test-method
 
 ## 文書の目的
 

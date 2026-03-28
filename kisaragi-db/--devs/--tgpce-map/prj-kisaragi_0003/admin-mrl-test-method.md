@@ -1,8 +1,8 @@
-# ux_check_manual
+# admin-mrl-test-method
 
 ## 文書の目的
 
-- `prj-remote-pwsh` の構築物を人が試用、使用、運用する時の手順を整理して保持する。
+- `prj-kisaragi_0003` の構築物を人が試用、使用、運用する時の手順を整理して保持する。
 
 ## 対象
 

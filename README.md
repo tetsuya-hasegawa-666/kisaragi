@@ -16,9 +16,9 @@
 
 | project code | project 名 | 概要 | 主な入口 |
 | --- | --- | --- | --- |
-| `prj-kisaragi_0001` | `prj-direview` | release / behavior / test matrix を持つ project | [`project-core.md`](./kisaragi-db/--devs/--project-truth/prj-kisaragi_0001/project-core.md) |
+| `prj-kisaragi_0001` | `prj-direview` | read-only dual-pane viewer project | [`project-truth.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0001/project-truth.md) |
 | `prj-kisaragi_0002` | `prj-trajectreview` | `correcting`、`modeling`、`reviewing` の 4 app 構成で `3DGS` と trajectory review を進める project | [`project-truth.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/project-truth.md) |
-| `prj-remote-pwsh` | remote PowerShell tooling | remote recovery と architecture の参照 project | [`north_star.md`](./kisaragi-db/--devs/--project-truth/prj-remote-pwsh/north_star.md) |
+| `prj-kisaragi_0003` | `remote-pwsh` | remote recovery と smartphone fallback の project | [`project-truth.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0003/project-truth.md) |
 
 ## `prj-kisaragi_0002` の入口
 
@@ -30,11 +30,20 @@
 
 ## `prj-kisaragi_0001` の入口
 
-- project core: [`project-core.md`](./kisaragi-db/--devs/--project-truth/prj-kisaragi_0001/project-core.md)
-- BDD compass: [`bdd-release-compass.md`](./kisaragi-db/--devs/--plans/prj-kisaragi_0001/bdd-release-compass.md)
-- TDD matrix: [`tdd-test-matrix.md`](./kisaragi-db/--devs/--plans/prj-kisaragi_0001/tdd-test-matrix.md)
-- release line: [`market_release_lines.md`](./kisaragi-db/--devs/--plans/prj-kisaragi_0001/market_release_lines.md)
-- UX manual: [`ux_check_manual.md`](./kisaragi-db/--devs/--evidence/prj-kisaragi_0001/ux_check_manual.md)
+- project truth: [`project-truth.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0001/project-truth.md)
+- 統合計画書: [`ux-b2t-hypo.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0001/ux-b2t-hypo.md)
+- Codex gate 記録: [`codex-mrl-test-evidence.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0001/codex-mrl-test-evidence.md)
+- admin 手順: [`admin-mrl-test-method.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0001/admin-mrl-test-method.md)
+- admin 証跡: [`admin-mrl-test-evidence.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0001/admin-mrl-test-evidence.md)
+- 参考 release line: [`market_release_lines.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0001/market_release_lines.md)
+
+## `prj-kisaragi_0003` の入口
+
+- project truth: [`project-truth.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0003/project-truth.md)
+- 統合計画書: [`ux-b2t-hypo.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0003/ux-b2t-hypo.md)
+- Codex gate 記録: [`codex-mrl-test-evidence.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0003/codex-mrl-test-evidence.md)
+- admin 手順: [`admin-mrl-test-method.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0003/admin-mrl-test-method.md)
+- admin 証跡: [`admin-mrl-test-evidence.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0003/admin-mrl-test-evidence.md)
 
 ## 読み始め方
 

@@ -12,6 +12,20 @@
 
 ## 更新履歴
 
+### 2026-03-28 AGENTS.md `0001` と `0003` の新文書ルール展開
+
+- 日時: `2026-03-28`
+- 文書名: `AGENTS.md`
+- 標題: `--tgpce-map` 正式構成の他 project 展開
+- 背景: `prj-kisaragi_0002` で先行していた `--tgpce-map` と新文書名の運用を、`prj-kisaragi_0001` と `prj-kisaragi_0003` にも適用する必要が生じた。
+- 目的: `prj-kisaragi_0001`、`prj-kisaragi_0002`、`prj-kisaragi_0003` が同じ正本構造と file 名で運用できるようにし、以後の project 展開時に rule の差分を減らす。
+- 対処方法: `AGENTS.md` の shared rule を `kisaragi_****` 共通の表現へ保ちつつ、admin 手順正本の記載も `--tgpce-map` 採用 project 基準へそろえた。
+- 対応内容: admin 手順の共有記述を `admin-mrl-test-method.md` 基準へ更新し、`0001` / `0003` 側の移行に追従できる shared rule に整えた。
+- 更新結果: `0001`、`0002`、`0003` は同じ `--tgpce-map` 正式構成で読める前提になり、個別 project ごとの差は project 文書側で管理できる。
+- 新旧比較:
+  - 旧: admin 手順の shared 記述が旧 `ux_check_manual.md` path 前提のままだった。
+  - 新: `--tgpce-map` 採用 project では `admin-mrl-test-method.md` を正本に使う前提で統一した。
+
 ### 2026-03-28 AGENTS.md `--tgpce-map` 運用の `kisaragi_****` 一般化
 
 - 日時: `2026-03-28`

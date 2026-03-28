@@ -10,7 +10,7 @@ function Get-DefaultEvidenceRoot {
         $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
     }
 
-    return [System.IO.Path]::GetFullPath((Join-Path $ScriptRoot "..\..\..\--testlogs\prj-remote-pwsh"))
+    return [System.IO.Path]::GetFullPath((Join-Path $ScriptRoot "..\..\..\--testlogs\prj-kisaragi_0003"))
 }
 
 function New-RemoteRecoverySession {
