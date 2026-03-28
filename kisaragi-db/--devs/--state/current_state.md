@@ -3,8 +3,12 @@
 ## 共有制御
 
 - この文書は project 横断の shared current state 正本とする。
+- 2026-03-28: Codex が `AGENTS.md` の全体方針に合わせた表現圧縮と、`AGENTSmd-RH.md` を含む関連文書の整合更新を担当する。
 - 2026-03-28: Codex が `AGENTS.md` の shared / project 境界 rule、`INITL` / `mINITL` rule、`prj-kisaragi_0002` の `Colab all-in modeling` と package 準備計画の整合更新を担当する。
 - 2026-03-28: Codex が `prj-kisaragi_0002` の `correcting` 保存先 / 転送先 UX 分離と、`AGENTS.md` 再発防止 rule、`project-truth.md`、`b2t-plans-result.md`、`ux_check_manual.md`、`mrl-ux-valid.md` の整合更新を担当する。
+- 2026-03-28: Codex が `prj-kisaragi_0002` の `correcting` を `raw 保存 -> 品質確認 -> derived 同期` の順へ組み替え、`frame画像群` を転送時生成へ寄せる実装と文書整合を担当する。
+- 2026-03-28: Codex が `prj-kisaragi_0002` の `Google Drive` 転送先を都度入力前提へ切り替え、`ISS-002` close のための実装と文書整合を担当する。
+- 2026-03-28: Codex が `prj-kisaragi_0002` の `Google Drive` 転送 zip 名を `session-*` suffix 必須規則へ揃え、将来の help 必要性を `ISS-006` として記録する。
 - 2026-03-26: Codex が `MRL` 記載順と `pass` 判定基準の是正のため、`current_state.md`、`decision_log.md`、`AGENTS.md`、`b2t-plans-result.md`、`mrl-record.md`、`mrl-ux-valid.md` の整合更新を担当する。
 - 2026-03-26: Codex が `prj-kisaragi_0002` の mock 完了誤認を是正するため、`b2t-plans-result.md`、`project-truth.md`、`mrl-record.md`、`mrl-ux-valid.md`、`AGENTS.md`、`AGENTSmd-RH.md` の整合更新を担当する。
 - 2026-03-25: Codex が `project code` 命名規則に合わせた `prj-kisaragi_****` rename と全参照整合を担当する。
@@ -48,9 +52,10 @@
 - `prj-kisaragi_0002` の `UX-only` gate と `本機能完成` gate を分離し、誤って `pass` を付けた `MRL` を是正する
 - `prj-kisaragi_0002` の `modeling` で、Colab notebook を実アカウント / GPU 上で起動し、`DA3Metric-Large` の metric depth 推定と point-cloud export の remote 実測を取る
 - `prj-kisaragi_0002` の `MRL-9A` として `DA3Metric-Large` metric depth と world projection の実行証跡を追加する
-- `prj-kisaragi_0002` の `MRL-5D` として `correcting` の `Google Drive` transfer を局所検証し、admin 手順を evidence へ反映する
+- `prj-kisaragi_0002` の `MRL-5D` として `correcting` の `Google Drive` transfer を都度入力前提で局所検証し、admin 手順を evidence へ反映する
 - `prj-kisaragi_0002` の `MRL-9B` として sampling / intrinsics route の remote 実測比較結果を `benchmark_summary.json` へ反映する
 - `prj-kisaragi_0002` の `MRL-9C` として remote result import 後の `SpacePackage` / `TrajectoryPackage` 更新を app 側へ接続する
+- `prj-kisaragi_0002` の `correcting` で、60 秒収録に対して `品質確認` が数秒級で終わることを実機で再確認し、必要なら `Storage Access Framework` 同期のさらなる短縮策を入れる
 - `prj-kisaragi_0002` の `MRL` 表を `correcting -> modeling -> reviewing` 順へ再編し、admin `UX check` 未完の `pass` を `active` / `planned` へ戻す
 - `prj-kisaragi_0001` と `prj-kisaragi_0002` rename 後の stale 参照と test routing を確認する
 - `AGENTS.md` の branch 規則と state / decision path 規則の整合を維持する

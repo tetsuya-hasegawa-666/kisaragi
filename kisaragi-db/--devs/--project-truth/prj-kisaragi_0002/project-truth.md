@@ -27,6 +27,7 @@
 - `trajectreview-correcting` は `現場記録 -> 最新 session 再読込 -> data-check -> correction guidance` を 1 app 内で実行できる
 - `trajectreview-correcting` は `スマホ内保存先設定 -> 現場記録 -> data-check -> 転送対象 data 複数選択 / rename -> 送信 group 選択 -> Google Drive転送先選択 -> Google Drive転送` を 1 app 内で閉じる方針を採る
 - `trajectreview-correcting` は `Depth Anything v3 MetricLarge` 後段のために、同一 `ARCore` frame から pose、frame timestamp、image intrinsics、texture intrinsics、lens distortion を 1 record として残す
+- `corecamera_shared_camera_trial` route では `OffscreenArCorePoseSampler` から intrinsics を取る追加実装が必要であり、`captureDiagnostics` の実データ確認を進行中とする
 - `frozen_camerax_arcore` route では録画安定性を優先し、記録中の `ARCore` 収集を停止する
 - `trajectreview-modeling` は `local sample before colab` と request 生成を持つが、実 `DA3Metric-Large` / point-cloud projection / trajectory reconstruction は未実装である
 - `trajectreview-modeling` は preflight として `experiment_manifest.json`、`da3_input_manifest.json`、`benchmark_summary.json`、`selected_route.json`、Colab notebook / import helper を生成できる
@@ -110,6 +111,7 @@
 - 現在の主要 UX は `trajectreview-correcting` 自身で現場記録し、その session を `data-check` と handoff artifact まで閉じる形へ移っている
 - 既存 session folder intake は互換 route として維持し、統合 app や既存 data 再利用時に使う
 - `InputPackaging` の運搬面は `端末保存先` と `Google Drive` 転送先に分かれ、前者は `<session_id>/`、後者は `<session_id>.zip` を正本とする
+- `InputPackaging` の post-recording 処理順は `raw 保存 -> 品質確認 -> derived 同期` を正とし、品質確認より前に raw session を `端末保存先` へ保存する
 - `correcting` の UI、artifact、手順書は上記の変化へ追従済みであり、未解決事項は `b2t-plans-result.md` の `疑問点不整合一覧` へ集約する
 - `Google Drive` zip の unzip / 配置正規化責務は `modeling` の `Colab bootstrap package` 側が担う
 
@@ -144,17 +146,33 @@
   - `ARCore` pose record には `frameTimestampNs`、`imageFocalLength`、`imagePrincipalPoint`、`imageDimensions`、`textureFocalLength`、`texturePrincipalPoint`、`textureDimensions`、`lensDistortion` を含める
   - `camera_calibration_summary.json` に calibration 対応率を出し、`DA3 MetricLarge` 前段の入力可否を判断できる
   - `data-check` が readiness、quality、blocker、recommended correction を返す
-  - `Correcting mode` 直下に `1. 転送準備 -> 2. データ記録 -> 3. 転送` の手順 text を同じ文字サイズで置く
-  - 1 block は 1 行目を `サンプリング条件` / `端末保存先` の 2 列、2 行目を保存先状態表示、3 行目を `送信データセット` / `データ名称変更` の 2 列で構成する
-  - 1 block の `端末保存先` はスマホ内の同期先であり、`data-check` 完了後に `<session_id>/` 直下構成で自動同期する
-  - 2 block は 1 行目を記録開始 / 停止 toggle、2 行目を `品質確認` / `転送データ選択` の 2 列で構成する
+  - preview 直下の状態表示には `現場の風景と経路を記録します。1. 条件設定⇒2. 収録⇒3. 転送` を置き、独立した最上段見出しや `Correcting mode` は置かない
+  - `Data収録開始` は `端末保存先` が未設定の間は非活性とし、未設定時だけ `端末保存先：未設定` を表示する。設定後は開始 button を活性化し、未設定表示は消す
+  - `転送先を選択` 直下の小さい補助表示は置かず、転送条件は `転送実行` 直下のコメントだけで示す
+  - 1 block は見出しを `1. 条件設定` とし、1 行目を `Sampling条件` / `端末保存先` の 2 列、2 行目を保存先状態表示、3 行目を `送信Dataset` / `Data名称変更` の 2 列で構成する
+  - 1 block の `端末保存先` はスマホ内の同期先であり、収録停止後に raw session を先に `<session_id>/` 直下へ保存する
+  - 2 block は見出しを `2. 収録` とし、1 行目を記録開始 / 停止 toggle、2 行目を `品質確認` / `転送Data選択` の 2 列で構成する
+  - `品質確認` の詳細結果は popup で表示し、メイン画面には閾値未満の項目名だけを短く表示して冗長化を避ける
+  - `端末保存先` 同期中は session 詳細を縮退し、`Session: <session_id>` と `品質確認OK` だけを見せる
+- 収録停止後は、まず `端末保存先へ保存中です` を表示して raw session を同期し、その後に `自動で品質確認を実行中です` を表示する
+- 品質確認後の `端末保存先` 同期は `trajectreview/` の derived artifact のみに限定し、raw video や sensor file を二重 copy しない
+- `転送実行` 中の待機表示と ring は `転送実行` button の直下に表示し、`Data収録開始` 直下には出さない
+- `転送実行` button の見た目は `Data収録開始` button と同系統の filled button に揃える
+  - 待機文言は `Data収録開始` 直下に置き、`何をしているか` の短文、ring / bar、`次の収録は待機推奨か` の 1 文だけを見せる。詳細は下部の session / data-check 表示へ残す
   - 3 block は 1 行目を `転送先を選択` / `転送実行` の 2 列とし、その下に転送状態表示を持つ
-  - `転送先を選択` は `Google Drive` の folder URL を入力 / 保存する画面を兼ね、`OK` で URL を保持し、`保存先fileを設定する` で `Google Drive` を開いて保存先 file 選択へ進める
+- `転送先を選択` は `Google Drive` の folder URL を入力 / 保存する画面を兼ね、`OK` で URL を保持し、`保存先fileを設定する` で Android の標準保存画面を開いて保存先 zip file を選ぶ。その選択結果を app への転送先宣言とする
+- Android の標準保存画面は端末 storage が先に見えることがあるため、`Google Drive` を使う時は左上メニューなどから provider を `Google Drive` へ切り替える
+- `Google Drive` の転送先 file は毎回 `転送先を選択` で指定する。前回転送の document grant を app 再起動後や次回転送へ持ち越す前提にはしない
+- `Google Drive` 転送 zip の既定名は、名称未指定なら `trajectreview-correcting-session-YYYYMMDD-HHMMSS.zip` とする。data 名を使う時も `<data-name>-session-YYYYMMDD-HHMMSS.zip` の形で `session-*` suffix を保持する
+- Android 標準保存画面の provider 切替は初見 user に分かりにくいため、多人数展開時は help 導線の追加を検討対象として残す
   - 3 block の `転送実行` は `data-check` artifact を持つ保存済み session が 1 件以上選ばれていれば有効化する
-  - `送信データセット` popup で送信する data group を選ぶ
-  - `転送データ選択` popup で保存済み session を複数選ぶ
-  - `転送データ選択` popup と `データ名称変更` popup では、warning または blocker を持つ data 名の先頭に `▲` を付け、取得日時と長さを確認できる
-  - `データ名称変更` popup で保存済み session の取得日時と長さを確認し、directory 名を rename できる
+  - `送信Dataset` popup で送信する data group を選ぶ
+  - `転送Data選択` popup で保存済み session を複数選ぶ
+- `転送Data選択` popup と `Data名称変更` popup では、warning または blocker を持つ data 名の先頭に `▲` を付け、取得日時と長さを確認できる
+- `転送Data選択` popup は `Data名称変更` popup と同系統の button 一覧 UI とし、最上段に `戻る`、一覧下部に `OK` を持つ
+  - `Data名称変更` popup の一覧はメイン画面系の button 表示とし、rename 実行後や child popup の cancel 後も親 popup に残る
+  - `Data名称変更` popup の最上段には `戻る` button、次行には `OFF：名称変更、ON：削除モード` toggle を置く。OFF を既定とし、ON かつ file 選択済みの時だけ下部 `削除実行` button を活性化する
+  - calibration 診断は `intrinsics` 不足を 1 つの意味で扱わず、`読取試行あり成功 0 件`、`coverage 低下`、`calibration export 実装前の data の可能性` を区別して `camera_calibration_summary.json` と `data-check` warning に出す
   - `Google Drive` 転送先は app 内で選んだ保存場所に、1 件選択時は `<session_id>.zip`、複数件選択時は `trajectreview-correcting-export.zip` を作成する
   - 利用者が `現場撮影データ保存を開始` から `Google Drive` への zip 転送完了まで、別 app へ移らず進められる
 
@@ -385,9 +403,18 @@
 - network 経由の PC companion route は保留とし、現時点の正規 UX には含めない
 - `trajectreview-correcting` の `data-check` は記録停止後に自動実行し、新しい記録開始時には成功回数を `0` に戻す
 - `品質確認` 結果は data ごとに `trajectreview/` 配下 artifact として保持し、保存済み data 一覧で warning または blocker を `▲` 付きで可視化する
+- `転送Data選択` と `Data名称変更` の一覧を開く時は、保存済み session の軽量 `品質確認` を再実行してから `▲` 判定を更新し、古い summary を残さない
+- `▲` は `blocker` または再撮影 / 再確認を要する閾値超え warning がある時だけ付ける。軽微な `coverage < 1.0` や `images/` 未生成だけでは `▲` を付けない
+- 保存済み data 一覧の lightweight `品質確認` では `images/` 未生成を懸念扱いにしない。`images/` は `frame画像群` を要求した転送時にだけ評価対象へ入る
 - `poseCoverageRatio` は `pose数 / frame数` ではなく、session 長と `arCoreIntervalMs` から見積もった期待 pose sample 数に対する達成率で扱う
 - `trajectreview-correcting` は app 内の作業用 session を保持しつつ、保存済み session を一覧表示し、選んだスマホ内保存先 folder の直下へ `<session_id>/` を同期する
 - `trajectreview-correcting` の `ARCore` 記録は `Session.update()` で得た同一 frame の pose、frame timestamp、image intrinsics、texture intrinsics、lens distortion を 1 record として `arcore_pose.jsonl` へ保存する
+- `corecamera_shared_camera_trial` route でも `OffscreenArCorePoseSampler` の callback から image intrinsics、texture intrinsics、capture diagnostics を `arcore_pose.jsonl` へ保存し、`frozen` route 固有の停止仕様と混同しない
+- `corecamera_shared_camera_trial` route の `ARCore` sampling は `arCoreIntervalMs` に追従し、高頻度固定 sampling をしない
+- `images/` は `品質確認` では生成せず、`frame画像群` が実際に必要になった転送時だけ生成する
+- `images/` 生成時は全 frame ではなく pose に対応する代表 frame を優先抽出し、転送待ち時間を抑える
+- `trackingState` warning は `TRACKING` 以外を 1 frame 含むだけでは出さず、初期 warmup の少数 frame を許容する。warning は non-tracking frame が一定割合を超える時だけ出し、その時にだけ収録時間、移動速度、特徴点不足への案内を返す
+- `camera intrinsics` / `texture intrinsics` / `lens distortion` の warning は、対応率が実運用閾値を下回る時にだけ出す
 - `Google Drive` 転送先は user が app 内で選んだ保存場所を正本とし、選択した data group を、選択 session の数に応じた zip 名で保存する
 - 旧 `trajectreview-correcting/<session_id>/` 形式のスマホ内保存先が見つかった時は、可能な範囲で保存先直下の `<session_id>/` 形式へ移行する
 

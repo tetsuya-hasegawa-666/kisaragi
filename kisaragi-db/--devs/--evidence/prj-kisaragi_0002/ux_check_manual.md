@@ -14,44 +14,53 @@
 ## 操作手順
 
 1. Android 端末で app `trajectreview-correcting` を起動する。
-2. `Correcting mode` の直下に、同じ文字サイズで `1. 転送準備 → 2. データ記録 → 3. 転送` が表示されることを確認する。
-3. 1 つ目の block の 1 行目が左右 2 分割で、左に `サンプリング条件`、右に `端末保存先` があることを確認する。
-4. `サンプリング条件` を押すと popup が出て、`ARCore撮影(ON)・ポケット計測(OFF)`、`BLE記録`、`ARCoreのtimestamp(ms)`、`ARCore`、`IMU`、`GNSS`、`BLE` を編集できることを確認する。
-5. `端末保存先` を押し、スマホ内の同期先 folder を選べることを確認する。下の表示は詳細 path ではなく、`保存先は設定済みです。` または `保存先は未設定です。` の一文になることを確認する。
-6. 1 つ目の block の次の行が左右 2 分割で、左に `送信データセット`、右に `データ名称変更` があることを確認する。
-7. `送信データセット` を押すと popup が出て、`撮影データ`、`センサ記録`、`data-check結果と後段受け渡し`、`frame画像群` を ON / OFF できることを確認する。
-8. `データ名称変更` を押すと popup に保存済み data 一覧が出て、各 data に `取得日時` と `長さ` が表示されることを確認する。
-9. `データ名称変更` popup で data 名を選ぶと、directory 名を変更できることを確認する。
-10. 2 つ目の block の 1 行目に `データ記録(撮影)開始` があり、押すと preview 直下の status card に開始状態が出て、preview が維持されたまま session 情報が表示され、同じ位置の button 表示が `撮影停止` に切り替わることを確認する。
-11. 5 秒以上待っても録画が自動停止しないことを確認する。
-12. 同じ位置の `撮影停止` button を押し、session summary が更新されることを確認する。
-13. 2 つ目の block の 2 行目が左右 2 分割で、左に `品質確認`、右に `転送データ選択` があることを確認する。
-14. `品質確認` を押し、結果がすぐ下に表示されることを確認する。
-15. `data-check` 欄に `診断進行可`、`modeling 着手可`、`欠落入力`、`blocker`、`補正指示`、`camera intrinsics 対応率`、`lens distortion 対応率`、`calibration frame 数` が出ることを確認する。
-16. `転送データ選択` を押すと popup が出て、保存済み data を複数選べることを確認する。warning または blocker がある data には先頭に `▲` が付くことを確認する。
-17. 3 つ目の block の 1 行目が左右 2 分割で、左に `転送先を選択`、右に `転送実行` があることを確認する。
-18. `転送先を選択` を押すと、`Google Drive` folder URL を入力できる popup が出ることを確認する。初期値が `https://drive.google.com/drive/u/2/folders/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_` であることを確認する。
-19. popup で URL を編集して `OK` を押すと URL が保存されることを確認する。
-20. 同じ popup の `保存先fileを設定する` を押すと対象 account / folder が開き、`Google Drive` 側で保存先 folder の確認や作成を継続できることを確認する。
-21. 続けて zip 保存先 file 名を選べることを確認する。選択後に下の表示が `転送先は設定済みです。` の一文になることを確認する。
-22. `転送実行` を押し、選択した `Google Drive` 保存場所に zip が保存され、ON にした group だけが zip 内に入ることを確認する。複数 data を選んだ時は zip 内に複数 session directory が入ることを確認する。
-22. Android 端末で app `trajectreview-modeling` を起動する。
-23. `bundle を選択` を押し、統合 app などで作られた `trajectreview_export/<session_id>` folder を選ぶ。
-24. `軽量 model を実行` を押し、`spaceQuality`、`trajectoryQuality`、`colab_job_request.json` を含む出力一覧が見えることを確認する。
-25. PC browser で [Google Colab](https://colab.research.google.com/) を開き、Google account で sign in する。
-26. `ファイル` -> `ノートブックをアップロード` を選び、[trajectreview_da3metric_large_colab.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\trajectreview_da3metric_large_colab.ipynb) を開く。menu 名が違う時は `Upload notebook` 相当を探す。
-27. `ランタイム` -> `ランタイムのタイプを変更` で `GPU` を選ぶ。候補に `T4`、`L4`、`A100` などが見えた時は、その表示を記録する。
-28. notebook の `CONFIG` cell を開き、`session_root` と `result_root` を今回使う値へ置き換える。値の意味はこの文書の `CONFIG に入れる値` を参照する。
-29. `drive.mount('/content/drive')` の cell を実行し、Google Drive への access 許可画面が出たら許可する。
-30. `session_root/` に、`colab_job_request.json` で要求された file と frame / image 入力を置く。迷った時は、先に file 名だけを Codex へ伝える。
-31. install cell と `DA3Metric-Large` 実行 cell は、1 つずつ順に実行する。失敗したら、その cell の見出しと error message をそのまま控える。
-32. Android 端末で app `trajectreview-reviewing` を起動する。
-33. `結果 folder を選択` を押し、同じ `trajectreview_export/<session_id>` folder を選ぶ。
-34. `結果を読込` を押し、`verify` または `review` の状態、`Attention`、`same_time` が見えることを確認する。
-35. Android 端末で統合 app `trajectreview` を起動する。
-36. `取得元を選択` を押して同じ session folder を選び、必要なら `端末保存先` で同期済み session を確認する。
-37. `抽出を実行` の後に `軽量 model を実行` を押す。
-38. `Thin Status` と `Attention` が実データ由来に更新され、`前へ` と `次へ` で段階を追えることを確認する。
+2. preview 直下の状態表示に `現場の風景と経路を記録します。1. 条件設定⇒2. 収録⇒3. 転送` が表示され、独立した最上段見出しや `Correcting mode` が出ていないことを確認する。
+3. 1 つ目の block の見出しが `1. 条件設定` で、1 行目が左右 2 分割で、左に `Sampling条件`、右に `端末保存先` があることを確認する。
+4. `Sampling条件` を押すと popup が出て、`ARCore撮影(ON)・ポケット計測(OFF)`、`BLE記録`、`ARCoreのtimestamp(ms)`、`ARCore`、`IMU`、`GNSS`、`BLE` を編集できることを確認する。
+5. `端末保存先` を押し、スマホ内の同期先 folder を選べることを確認する。未設定時だけ直下に `端末保存先：未設定` が表示され、設定後はその表示が消えることを確認する。
+6. 1 つ目の block の次の行が左右 2 分割で、左に `送信Dataset`、右に `Data名称変更` があることを確認する。
+7. `送信Dataset` を押すと popup が出て、`撮影データ`、`センサ記録`、`data-check結果と後段受け渡し`、`frame画像群` を ON / OFF できることを確認する。
+8. `Data名称変更` を押すと popup の最上段に `戻る` button、次行に `OFF：名称変更、ON：削除モード` toggle が出て、一覧はメイン画面系の button 形式で表示されることを確認する。
+9. toggle が OFF の時に data button を押すと名称変更 popup が出て、変更完了後や cancel 後も親 popup に戻ることを確認する。
+10. toggle を ON にすると削除 mode に切り替わり、複数 data を選べることを確認する。選択前は `削除実行` が非活性、選択後は活性になり、押すと端末内 data が実際に削除されることを確認する。
+11. 2 つ目の block の見出しが `2. 収録` で、`端末保存先` が未設定の間は `Data収録開始` が非活性であることを確認する。保存先を設定すると活性になり、押すと preview 直下の status card に開始状態が出て、preview が維持されたまま session 情報が表示され、同じ位置の button 表示が `撮影停止` に切り替わることを確認する。
+12. `撮影停止` の後は、`Data収録開始` 直下に ring / bar と `何をしているか` の短文、さらに `次の収録は待機推奨か` の 1 文が表示され、処理中と未設定が区別できることを確認する。
+13. 収録停止後は、まず `端末保存先へ保存中です。` が表示され、raw session が先に保存されることを確認する。
+14. その後に `自動で品質確認を実行中です。` が表示されることを確認する。
+15. `端末保存先` 同期中は session 詳細が縮退し、`Session: <session_id>` と `品質確認OK` だけが残ることを確認する。
+16. 5 秒以上待っても録画が自動停止しないことを確認する。
+17. 同じ位置の `撮影停止` button を押し、session summary が更新されることを確認する。
+18. 2 つ目の block の 2 行目が左右 2 分割で、左に `品質確認`、右に `転送Data選択` があることを確認する。
+19. `品質確認` を押すと popup で詳細結果が表示されることを確認する。メイン画面には閾値未満の項目名だけが短く残ることを確認する。`corecamera_shared_camera_trial` route では `camera intrinsics 対応率` と `captureDiagnostics` の整合を見る。
+20. `trackingState` は初期 warmup の少数 frame だけでは `▲` にならないことを確認する。`▲` が出る場合だけ、収録時間を少し長くする、急な動きを避ける、特徴点が少ない面を避ける案内が返ることを確認する。
+21. `転送Data選択` または `Data名称変更` を開く時に保存済み data の軽量 `品質確認` が更新され、その結果で `▲` が付き直ることを確認する。
+22. `転送Data選択` を押すと、`Data名称変更` と同系統の popup が出ることを確認する。最上段に `戻る`、下部に `OK` があり、保存済み data を button 一覧から複数選べることを確認する。
+23. 取得日時、長さ、`▲` は button 外の小テキストで読めることを確認する。`▲` は blocker または閾値超え warning がある data にだけ付くことを確認する。軽微な `coverage < 1.0` や一覧時点の `images/` 未生成だけでは `▲` が付かないことを確認する。
+24. 3 つ目の block の 1 行目が左右 2 分割で、左に `転送先を選択`、右に `転送実行` があることを確認する。
+25. `転送先を選択` を押すと、`Google Drive` folder URL を入力できる popup が出ることを確認する。初期値が `https://drive.google.com/drive/u/2/folders/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_` であることを確認する。
+26. popup で URL を編集して `OK` を押すと URL が保存されることを確認する。
+27. 同じ popup の `保存先fileを設定する` を押すと Android の標準保存画面が開くことを確認する。端末 storage が先に見える場合は、左上メニューなどから `Google Drive` を選べることを確認する。そこで選んだ zip 保存先 file が app の転送先設定になることを確認する。
+28. 続けて zip 保存先 file 名を選べることを確認する。転送先直下の小さい補助表示は出ず、下のコメントだけで `転送Data` と `転送先` の設定済み / 未設定が分かることを確認する。転送先 file は毎回選び直す前提であることを確認する。
+29. zip 保存先 file 名の既定値が、名称未指定なら `trajectreview-correcting-session-YYYYMMDD-HHMMSS.zip` 形式で入ることを確認する。data 名を使う時も `<data-name>-session-YYYYMMDD-HHMMSS.zip` の形で `session-*` suffix が付くことを確認する。
+30. `転送実行` は `転送Data` と `転送先` が設定済みなら活性になり、選択した `Google Drive` 保存場所に zip が保存され、ON にした group だけが zip 内に入ることを確認する。`frame画像群` を ON にした時だけ `images/` が生成されることを確認する。転送完了後は次回のために再度 `転送先を選択` が必要になることを確認する。
+31. `転送実行` 中の comment と waiting ring は `転送実行` button の直下に出ることを確認する。`Data収録開始` の直下には出ないことを確認する。
+24. Android 端末で app `trajectreview-modeling` を起動する。
+25. `bundle を選択` を押し、統合 app などで作られた `trajectreview_export/<session_id>` folder を選ぶ。
+26. `軽量 model を実行` を押し、`spaceQuality`、`trajectoryQuality`、`colab_job_request.json` を含む出力一覧が見えることを確認する。
+27. PC browser で [Google Colab](https://colab.research.google.com/) を開き、Google account で sign in する。
+28. `ファイル` -> `ノートブックをアップロード` を選び、[trajectreview_da3metric_large_colab.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\trajectreview_da3metric_large_colab.ipynb) を開く。menu 名が違う時は `Upload notebook` 相当を探す。
+29. `ランタイム` -> `ランタイムのタイプを変更` で `GPU` を選ぶ。候補に `T4`、`L4`、`A100` などが見えた時は、その表示を記録する。
+30. notebook の `CONFIG` cell を開き、`session_root` と `result_root` を今回使う値へ置き換える。値の意味はこの文書の `CONFIG に入れる値` を参照する。
+31. `drive.mount('/content/drive')` の cell を実行し、Google Drive への access 許可画面が出たら許可する。
+32. `session_root/` に、`colab_job_request.json` で要求された file と frame / image 入力を置く。迷った時は、先に file 名だけを Codex へ伝える。
+33. install cell と `DA3Metric-Large` 実行 cell は、1 つずつ順に実行する。失敗したら、その cell の見出しと error message をそのまま控える。
+34. Android 端末で app `trajectreview-reviewing` を起動する。
+35. `結果 folder を選択` を押し、同じ `trajectreview_export/<session_id>` folder を選ぶ。
+36. `結果を読込` を押し、`verify` または `review` の状態、`Attention`、`same_time` が見えることを確認する。
+37. Android 端末で統合 app `trajectreview` を起動する。
+38. `取得元を選択` を押して同じ session folder を選び、必要なら `端末保存先` で同期済み session を確認する。
+39. `抽出を実行` の後に `軽量 model を実行` を押す。
+40. `Thin Status` と `Attention` が実データ由来に更新され、`前へ` と `次へ` で段階を追えることを確認する。
 
 ## Colab へ入る時の考え方
 
@@ -105,7 +114,8 @@
   - `da3_input_manifest.json`
 - 画像入力
   - notebook の現在仕様では `session_root/images/` に画像群がある前提で進む。
-  - もし手元に動画しかない時は、そのままでは足りない。`video.mp4` に加えて、Colab へ渡す frame 画像群を `images/` に置く必要がある。
+  - `correcting` は `品質確認` では `images/` を生成しない。`送信Dataset` で `frame画像群` を ON にして転送した時だけ生成する。
+  - もし手元に動画しか無い時は、そのままでは足りない。`video.mp4` に加えて、Colab へ渡す frame 画像群を `images/` に置く必要がある。
   - 画像 file 名の例: `frame_000001.png`、`frame_000002.png`
 - 置き場の完成形
   - `session_root/video.mp4`
@@ -137,7 +147,8 @@
   - `ランタイム` または `Runtime` menu から `ランタイムのタイプを変更` を探す。
   - 無ければ、今見えている menu 名と画面名を Codex へ伝える。
 - `images/` が無い時
-  - `DA3Metric-Large` は画像入力が必要なので、その時点で止めてよい。
+  - まず `correcting` の `送信Dataset` で `frame画像群` を ON にして再転送する。
+  - それでも無い時は、その時点で止めてよい。
   - `video.mp4` しか無い、または frame 切り出し場所が分からない、という状態を Codex へ伝える。
 
 ## Android から PC / Drive へ渡す時の考え方

@@ -147,6 +147,21 @@
   - decision: `trajectreview` は 1 repository 内で `trajectreview-correcting`、`trajectreview-modeling`、`trajectreview-reviewing`、統合 app の 4 app 構成を採る
   - rationale: 開発主体は admin と Codex の 2 名でも、作業境界を app 単位へ切ることで手戻り時の原因分析、担当範囲の明確化、再作業時間の短縮を狙えるため
   - consequence: 以後の Android 実装は共通 source を保ちながら app role ごとの UX と build 導線を分ける
+- 2026-03-28
+  - project: `prj-kisaragi_0002`
+  - decision: `trajectreview-correcting` の post-recording pipeline は `raw 保存 -> 品質確認 -> derived 同期` とし、`品質確認` では `frame画像群` を生成しない
+  - rationale: 従来は `品質確認 -> raw + derived 全量同期` になっており、`MediaMetadataRetriever` による画像切り出しと `Storage Access Framework` 経由の全量 copy が UX 上の待ち時間を引き延ばしていたため
+  - consequence: 以後 `品質確認` は calibration と completeness の軽量判定に集中し、`frame画像群` は `送信Dataset` で要求された転送時だけ生成する
+- 2026-03-28
+  - project: `prj-kisaragi_0002`
+  - decision: `Google Drive` 転送先 file の document grant は持続前提にせず、毎回 `転送先を選択` を必須にする
+  - rationale: provider / app 再起動後の grant 安定性を追うより、都度入力 UX に固定した方が運用誤認を減らせるため
+  - consequence: `ISS-002` は close とし、転送完了後の次回転送では再度 zip 保存先 file を選ぶ
+- 2026-03-28
+  - project: `prj-kisaragi_0002`
+  - decision: `Google Drive` 転送 zip の既定名は `session-*` suffix を必須にし、名称未指定時は `trajectreview-correcting-session-YYYYMMDD-HHMMSS.zip` を使う
+  - rationale: zip 名から対象 session を即座に特定できるようにし、custom name を使う場合も source session との対応を失わないため
+  - consequence: data 名を使う場合も `<data-name>-session-YYYYMMDD-HHMMSS.zip` の規則へ揃える
 - 2026-03-26
   - project: `prj-kisaragi_0002`
   - decision: 4 app は mock 固定ではなく、共通 bundle 契約を読み直して実データ UX を確認できる構成にし、`modeling` は `Colab` account 未取得の間 `local sample before colab` を正本 route とする

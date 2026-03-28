@@ -16,10 +16,11 @@
 | id | 論点 | 影響 | 現在の扱い | admin 状態 | 関連文書 |
 | --- | --- | --- | --- | --- | --- |
 | `ISS-001` | `InputPackaging` の primary route を `correcting` 現場記録中心へ寄せた後、統合 app / legacy intake をどこまで同格に扱うか | `InputPackaging` の UX、truth、後段説明 | truth では `correcting` primary、既存 session intake secondary として記述済み | `small-open` | `project-truth.md`, `ux_check_manual.md` |
-| `ISS-002` | `Google Drive` 転送先の document grant が provider / app 再起動後も安定するか | `MRL-5D` の実運用可否 | 現在は `転送先を選択` を明示操作とし、必要時の再選択を許容する実装 | `big-open` | `project-truth.md`, `mrl-ux-valid.md` |
+| `ISS-002` | `Google Drive` 転送先の document grant を持続前提にするか | `MRL-5D` の実運用可否 | admin 判断により grant 持続前提を捨て、`転送先を選択` を毎回必須にする | `close` | `project-truth.md`, `mrl-ux-valid.md` |
 | `ISS-003` | `Google Drive` 側は zip、端末側は `<session_id>/` であり、どの段階で unzip を正規化するか | handoff 運用、admin 手順、実装分担 | `modeling` の `Colab bootstrap package` が unzip と配置正規化を担う方針へ決定した | `close` | `project-truth.md`, `ux_check_manual.md` |
 | `ISS-005` | `Colab all-in modeling` package と `correcting` の PC install package の配布形式をどこまで共通化するか | `INITL` の粒度、導入 UX | `INITL` を分離導入し、package 構成は `0002` 内で設計を開始する | `small-open` | `project-truth.md`, `b2t-plans-result.md` |
 | `ISS-004` | `疑問点不整合一覧` の粒度を `MRL` closeout と同じ粒度まで細かくするか | 文書運用コスト | 現在は admin 判断が要るものと Codex の小疑問だけを集約する | `no judge` | `AGENTS.md`, `b2t-plans-result.md` |
+| `ISS-006` | Android 標準保存画面で `Google Drive` provider へ切り替える操作が初見 user に分かりにくい | 多人数展開時の導入 UX | 現時点は手順明記のみ。利用者が増えたら help 導線を追加する | `small-open` | `ux_check_manual.md`, `project-truth.md` |
 
 ### 現在の重点
 
@@ -31,14 +32,37 @@
 - `MRL-5C` を `trajectreview-correcting` 専用 gate とし、現場記録後に同じ app 内で `data-check` と correction guidance を返せる実装までは進んだが、`pass` は admin `UX check` 待ちである
 - `MRL-5D` を `trajectreview-correcting` 専用 gate とし、`1 回以上 data-check` の後に `Google Drive` 保存場所へ zip 転送する実装を追加する
 - `MRL-7` と `MRL-8` は、4 app の骨格、build、install、実 bundle 読込、`local sample` による局所 logic 確認まで進んだが、本来機能の完成 gate としては `active` に巻き戻す
-- `trajectreview-correcting` は 3 block UI で、`転送準備 -> データ記録 -> 転送` の順に操作を並べる。`Correcting mode` 直下には同順の手順 text を置き、転送準備 block は 1 行目を `サンプリング条件` / `端末保存先`、2 行目を保存先状態表示、3 行目を `送信データセット` / `データ名称変更` の 2 列構成にする
-- `端末保存先` はスマホ内保存先を指し、`data-check` 完了後に `<session_id>/` を同期する。`転送` block は `転送先を選択` と `転送実行` を持つ
-- `データ記録` block は 1 行目に記録開始 / 停止 toggle、2 行目に `品質確認` / `転送データ選択` を置き、`転送` block は 1 行目の `転送先を選択` / `転送実行` と、その下の転送状態表示で構成する。`転送先を選択` は URL 設定、`保存先fileを設定する` による Drive 起動、保存先 file 選択を兼ねる
+- `trajectreview-correcting` は 3 block UI で、preview 直下の状態表示に `現場の風景と経路を記録します。1. 条件設定⇒2. 収録⇒3. 転送` を置く。1 block は `1. 条件設定` とし、1 行目を `Sampling条件` / `端末保存先`、2 行目を保存先状態表示、3 行目を `送信Dataset` / `Data名称変更` の 2 列構成にする
+- `端末保存先` が未設定の間は `Data収録開始` を非活性とし、`端末保存先：未設定` を表示する。設定後は未設定表示を消して開始 button を活性化する
+- `trajectreview-correcting` の post-recording pipeline は `raw 保存 -> 品質確認 -> derived 同期` とし、収録停止直後は raw session を先に `端末保存先` へ保存する
+- `転送先を選択` 直下の小さい補助表示は出さず、転送条件は `転送実行` 直下の comment に集約する
+- `Data名称変更` popup はメイン画面寄りの button 一覧で data を見分けられるようにし、rename 後も親 popup に残す。最上段に `戻る` button、次行に `OFF：名称変更、ON：削除モード` toggle を置き、ON かつ選択済み時だけ `削除実行` を活性化する
+- `端末保存先` はスマホ内保存先を指し、収録停止後に raw session を `<session_id>/` へ保存し、品質確認後は `trajectreview/` の derived artifact のみを追記同期する。`転送` block は `転送先を選択` と `転送実行` を持つ
+- `収録` block は 1 行目に記録開始 / 停止 toggle、2 行目に `品質確認` / `転送Data選択` を置き、`転送` block は 1 行目の `転送先を選択` / `転送実行` と、その下の設定状態表示で構成する。`転送先を選択` は URL 設定と、`保存先fileを設定する` による Android 標準保存画面経由の zip 保存先選択を兼ねる
+- Android 標準保存画面では端末 storage が先に見える場合があるため、`Google Drive` を使う時は左上メニューなどから provider を `Google Drive` へ切り替える
+- `Google Drive` 転送先 file は毎回 user が `転送先を選択` で指定する。app 再起動後や前回転送後の grant 再利用は前提にしない
+- `Google Drive` 転送 zip の既定名は、名称未指定なら `trajectreview-correcting-session-YYYYMMDD-HHMMSS.zip` とする。名称指定がある場合も `<custom-name>-session-YYYYMMDD-HHMMSS.zip` の形で `session-*` suffix を保持する
+- `Data収録開始` 直下には、処理中だけ `何をしているか` を示す短文と ring / bar と、`次の収録は待機推奨か` を示す 1 文を表示する。詳細説明は従来どおり下部に残す
+- `品質確認` の詳細は popup へ寄せ、メイン画面には閾値未満の項目名だけを残して、見たい時だけ詳細を見る UX とする
+- `端末保存先` 同期中は session 詳細を縮退し、`Session: <session_id>` と `品質確認OK` だけを残す
+- `品質確認` は軽量判定を優先し、`frame画像群` 生成は含めない。`frame画像群` は転送で実際に要求された時だけ生成する
+- `転送実行` 中の comment と waiting ring は `転送実行` button 直下に表示し、recording 側 indicator と混在させない
+- `MRL-5C` の性能面では、shared camera route の `ARCore` sampling を `arCoreIntervalMs` に追従させ、画像抽出を pose 対応 frame 優先へ絞って待ち時間を抑える
+- `trackingState` warning は 1 frame 単位では出さず、初期 warmup を許容したうえで non-tracking 率が高い時だけ `▲` とし、その時だけ user へ収録時間や動きの案内を返す
+- `転送Data選択` と `Data名称変更` の一覧表示前には、保存済み session の `品質確認` を再実行して `▲` を再計算する
+- 一覧表示前の `品質確認` 再実行は full export ではなく lightweight inspect とし、既存 data の batch refresh を数秒単位で終えられる設計を保つ
+- `転送Data選択` popup は `Data名称変更` popup と同系統の button 一覧 UI に揃え、取得日時、長さ、`▲` を button 外の小テキストで読めるようにする
+- `▲` は blocker または閾値超え warning がある時だけ付ける。軽微な `coverage < 1.0` や `images/` 未生成だけでは `▲` にしない
+- `camera intrinsics` / `texture intrinsics` / `lens distortion` の warning は、実運用閾値を下回る時だけ `▲` 原因として扱う
+- 保存済み data 一覧の lightweight `品質確認` では `images/` 未生成を `▲` 原因に含めない
 - `trajectreview-correcting` は preview 直下の status card に状態文を出し、下部操作 block の妨げにならないようにする
 - `trajectreview-correcting` は `iSensorium` 由来の記録画面に加え、最新 session の `data-check` と correction guidance を app 内で返せる
 - `MRL-5C` の範囲では、`trajectreview-correcting` 単体で source session を保存し、`sensor_quality.json`、`session_package.json`、`space_handoff_manifest.json` を生成し、修正指示を返せる実装がある
 - `MRL-5C` の calibration export interface は、一時要件を吸収し、`arcore_pose.jsonl` nested schema、`camera_calibration_summary.json`、`frame_pose_index.csv`、`images/`、path pointer を含む handoff へ更新した
+- `MRL-5C` には `mRL-5C.4` を追加し、`intrinsics` 不足が `実取得失敗`、`集計上の見え方`、`calibration export 実装前 data` のどれかを切り分ける診断を追跡する
+- `MRL-5C` には `mRL-5C.5` を追加し、`corecamera_shared_camera_trial` route でも `OffscreenArCorePoseSampler` から image / texture intrinsics を実取得し、`captureDiagnostics` を実データで検証する
 - `MRL-5D` の範囲では、`trajectreview-correcting` 単体で `サンプリング条件設定 / スマホ内保存先選択 / 転送対象準備 -> 現場撮影データ保存 + data-check -> 品質確認済み data の複数選択 -> Google Drive 転送先選択 + 転送実行` を閉じる
+- `trajectreview-correcting` は `data-check` と端末保存先同期の自動処理中に待機文言を出し、button が非活性でも処理中か未設定かを区別できるようにする
 - `trajectreview-modeling` は `Colab all-in` を主 route とし、PC 側は source、config、auto-install package、証跡の正本を保持する
 - `trajectreview-modeling` は preflight artifact として `experiment_manifest.json`、`da3_input_manifest.json`、`benchmark_summary.json`、`selected_route.json`、Colab notebook / import helper / bootstrap package を持つ
 - Colab notebook の `CONFIG` は `session_root` と `result_root` を最小入力とし、残りの route 情報は session bundle 内の artifact から自動で補完する
@@ -191,7 +215,7 @@
 | `s20` | `b28`,`b29` | local sample modeling | `Colab` account 未取得でも local sample model と handoff request を生成し、reviewing へ渡せる |
 | `s21` | `b30` | correcting 本機能 | `trajectreview-correcting` だけで現場記録開始、停止、session 保存、input export まで進められる |
 | `s21a` | `b30a` | correcting data-check | `trajectreview-correcting` が同じ app 内で `data-check` 結果、blocker、recommended correction を返す |
-| `s21b` | `b30b`,`b30c`,`b30e` | Google Drive transfer | `trajectreview-correcting` が `data-check` 済み session を 1 件以上選び、送信データセット popup と data 一覧 popup を使って転送対象を確定し、懸念がある data を `▲` 表示したうえで、選択した `Google Drive` 保存場所へ zip を保存できる |
+| `s21b` | `b30b`,`b30c`,`b30e` | Google Drive transfer | `trajectreview-correcting` が `data-check` 済み session を 1 件以上選び、`送信Dataset` popup と data 一覧 popup を使って転送対象を確定し、懸念がある data を `▲` 表示したうえで、選択した `Google Drive` 保存場所へ zip を保存できる |
 | `s21c` | `b30d` | `DA3` 前段 calibration | `trajectreview-correcting` が `ARCore` frame ごとの camera intrinsics、texture intrinsics、lens distortion、frame timestamp を保存し、後段 `DA3 MetricLarge` へ渡せる |
 | `s22` | `b31` | modeling 本機能 | `trajectreview-modeling` だけで `Colab` request、upload 対象、remote result 受理後の package 更新を行える |
 | `s22a` | `b31a` | `DA3` depth 基盤 | `DA3Metric-Large` により metric depth 推定と `ARCore pose` / intrinsics 統合の成否、主要指標、失敗理由を route 単位で確認できる |
@@ -238,6 +262,8 @@
 | `MRL-5C` | `mRL-5C.1` | 記録停止後の最新 session 再読込 | `s21` | `b30` | `active` | `need` | `操作手順 4-6` | `2026-03-26 \`MRL-5C\` candidate evidence` |
 | `MRL-5C` | `mRL-5C.2` | app 内 `data-check` artifact 生成 | `s21`,`s21a`,`s21c` | `b30`,`b30a`,`b30d` | `active` | `need` | `操作手順 7-8` | `2026-03-26 \`MRL-5C\` candidate evidence` |
 | `MRL-5C` | `mRL-5C.3` | recommended correction 表示 | `s21a` | `b30a` | `active` | `need` | `操作手順 7-8` | `2026-03-26 \`MRL-5C\` candidate evidence` |
+| `MRL-5C` | `mRL-5C.4` | calibration capture 診断の切り分け | `s21c`,`s24` | `b30d`,`b33` | `active` | `ready` | `未収載` | `2026-03-28 calibration diagnostic candidate evidence` |
+| `MRL-5C` | `mRL-5C.5` | shared camera route の intrinsics 実収集検証 | `s21c`,`s24` | `b30d`,`b33` | `active` | `ready` | `操作手順 11-15, pass の判断` | `2026-03-28 calibration diagnostic candidate evidence` |
 | `MRL-5D` | `-` | `trajectreview-correcting` の Google Drive転送を成立させる | `s21b`,`s24` | `b30b`,`b30c`,`b33` | `active` | `need` | `操作手順 10-15, pass の判断, fail の判断` | `correcting batch 定義`, `2026-03-27 \`MRL-5D\` candidate evidence` |
 | `MRL-5D` | `mRL-5D.1` | `1 回以上 data-check` 後の転送 gate | `s21b` | `b30b` | `active` | `need` | `操作手順 8-13` | `2026-03-27 \`MRL-5D\` candidate evidence` |
 | `MRL-5D` | `mRL-5D.2` | Google Drive への session 転送 | `s21b` | `b30b` | `active` | `need` | `操作手順 10-13` | `2026-03-27 \`MRL-5D\` candidate evidence` |
@@ -327,8 +353,10 @@
 | `T30` | `b30` | correcting end-to-end recording export | `trajectreview-correcting` で現場記録開始、停止、session 保存、input export までを 1 app 内で完了できる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/java/com/isensorium/app/MainActivity.kt` |
 | `T30a` | `b30a` | correcting data-check service | 最新 session から `sensor_quality.json`、`session_package.json`、`space_handoff_manifest.json`、recommended correction を生成できる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/CorrectingDataCheckService.kt` |
 | `T30b` | `b30a` | correcting data-check UI | 記録停止後に app 内で readiness、quality、blocker、recommended correction を確認できる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/res/layout/activity_main.xml` |
-| `T30aa` | `b30d` | correcting camera calibration capture | `ARCore` record に `sessionId`、`recordIndex`、`captureTimestampNs`、nested `pose` / `imageIntrinsics` / `textureIntrinsics` / `lensDistortion` を含め、`camera_calibration_summary.json`、`frame_pose_index.csv`、`images/` を生成できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/java/com/isensorium/app/RecordingCoordinator.kt` |
-| `T30c` | `b30b` | correcting Drive transfer gate | `data-check` 済み artifact を持つ selected session が 1 件以上ある時に `転送実行` を許可し、転送先未選択や送信データセット未選択時は、どうすれば転送可能になるかを画面上に示す | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/java/com/isensorium/app/MainActivity.kt` |
+| `T30aa` | `b30d` | correcting camera calibration capture | `ARCore` record に `sessionId`、`recordIndex`、`captureTimestampNs`、nested `pose` / `imageIntrinsics` / `textureIntrinsics` / `lensDistortion` を含め、`camera_calibration_summary.json` と `frame_pose_index.csv` を生成できる。`images/` は転送で要求された時だけ生成する | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/java/com/isensorium/app/RecordingCoordinator.kt` |
+| `T30ab` | `b30d`,`b33` | correcting calibration diagnostic separation | `camera_calibration_summary.json` が `読取試行あり成功 0 件`、`calibration export 実装前 data の可能性`、`coverage 低下` を区別して示せる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/CorrectingDataCheckService.kt` |
+| `T30ac` | `b30d`,`b33` | shared camera intrinsics acquisition | `corecamera_shared_camera_trial` route の `arcore_pose.jsonl` で `captureDiagnostics.*.requested=true` が出て、intrinsics 未取得なら `request failure` として診断できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/java/com/isensorium/app/CoreCameraTrialRuntime.kt` |
+| `T30c` | `b30b` | correcting Drive transfer gate | `data-check` 済み artifact を持つ selected session が 1 件以上あり、かつ転送先が選択済みなら `転送実行` を許可し、画面直下のコメントで設定済み / 未設定を示せる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/java/com/isensorium/app/MainActivity.kt` |
 | `T30d` | `b30b`,`b30c` | Google Drive zip transfer | selected `Google Drive` 保存場所へ、1 件選択時は `<session_id>.zip`、複数件選択時は複数 session を含む zip を作成し、選択した data group だけを zip に含めて保存できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/java/com/isensorium/app/MainActivity.kt` |
 | `T30f` | `b30e` | correcting stored session manager | 保存済み session 一覧に取得日時と長さが出て、selected session の再転送と rename ができる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/java/com/isensorium/app/MainActivity.kt` |
 | `T30e` | `b30c` | SAF transfer contract | `CreateDocument` で選んだ `Google Drive` 保存場所へ write でき、転送先状態を app 内で設定済み / 未設定として確認できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reference_isensorium_verified_20260325/app/src/main/java/com/isensorium/app/MainActivity.kt` |
@@ -351,7 +379,7 @@
 - `MRL-3` では `T8` から `T11` で人物経路、relink、不確実性、同時刻ハイライト、`attention point` を固めた
 - `MRL-4` では `T12` から `T14` で成果物境界と運用 hygiene を固めた
 - `MRL-5` では `T17` から `T20` で入力セッション抽出統合、legacy alias intake、bundle 分離、quality 数値表示を固める
-- `MRL-5C` では `T30`、`T30a`、`T30b` で `correcting` 単体の記録 + data-check 実装を固めた
+- `MRL-5C` では `T30`、`T30a`、`T30b`、`T30aa`、`T30ab`、`T30ac` で `correcting` 単体の記録 + data-check と calibration 診断を固める
 - `MRL-5D` では `T30c`、`T30d`、`T30e` で `correcting` 単体の `Google Drive` transfer を固める
 - `MRL-6` では `T21` から `T23` で raw video 維持、`SessionPackage` 正規化、`SpaceReconstruction` handoff gate を固める
 - `MRL-7` では `T24` から `T26` で 4 app 骨格、role-specific UX、統合 app overview を固める

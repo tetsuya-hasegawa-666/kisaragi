@@ -11,7 +11,12 @@ import android.os.SystemClock
 import android.provider.OpenableColumns
 import android.text.InputType
 import android.view.View
+import android.view.ViewGroup
+import android.widget.Button
 import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.ScrollView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -19,6 +24,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraSelector
 import androidx.core.content.ContextCompat
 import androidx.documentfile.provider.DocumentFile
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.isensorium.app.databinding.ActivityMainBinding
 import org.json.JSONObject
@@ -51,6 +57,7 @@ class MainActivity : AppCompatActivity() {
     private var saveDestinationSyncInProgress: Boolean = false
     private var saveDestinationStatusMessage: String? = null
     private var transferDestinationStatusMessage: String? = null
+    private var transferDestinationUri: Uri? = null
     private var captureModeSyncInProgress: Boolean = false
     private val selectedTransferSessionIds: MutableSet<String> = linkedSetOf()
     private val selectedTransferGroupsState: MutableSet<TransferGroup> =
@@ -103,7 +110,7 @@ class MainActivity : AppCompatActivity() {
                 return@registerForActivityResult
             }
             runCatching {
-                preferences.edit().putString(PREF_TRANSFER_DESTINATION_URI, uri.toString()).apply()
+                transferDestinationUri = uri
                 transferDestinationStatusMessage = null
                 renderTransferDestinationState("転送先を更新しました。")
                 renderTransferState("転送先を更新しました。")
@@ -134,7 +141,11 @@ class MainActivity : AppCompatActivity() {
             refreshLatestSessionDetails()
         }
         binding.dataCheckButton.setOnClickListener {
-            currentSession?.let { runCorrectingDataCheck(it, false) }
+            if (latestDataCheckResult != null && !dataCheckInProgress) {
+                showDataCheckDialog(latestDataCheckResult!!)
+            } else {
+                currentSession?.let { runCorrectingDataCheck(it, false, syncDerivedToLocalDestination = true) }
+            }
                 ?: Toast.makeText(this, "先に現場撮影データ保存を実行してください", Toast.LENGTH_SHORT).show()
         }
         binding.transferButton.setOnClickListener {
@@ -211,6 +222,8 @@ class MainActivity : AppCompatActivity() {
         renderTransferState(null)
         renderSaveDestinationState(null)
         renderTransferDestinationState(null)
+        refreshRecordButtonState()
+        renderBusyIndicator()
         updateBlockVisibility(recording = false)
     }
 
@@ -318,10 +331,12 @@ class MainActivity : AppCompatActivity() {
             renderState(state.statusText)
             refreshDisplayedIssue()
             refreshSessionDetails(state.session)
+            refreshRecordButtonState()
+            renderBusyIndicator()
             if (!state.recording) {
                 refreshConfigurationState()
                 if (isCorrectingApp && state.session != null) {
-                    runCorrectingDataCheck(state.session, true)
+                    runPostRecordingPipeline(state.session)
                 }
             }
         }
@@ -356,6 +371,7 @@ class MainActivity : AppCompatActivity() {
             } else {
                 startRecordingButtonText()
             }
+        refreshRecordButtonState()
         updateBlockVisibility(recording)
     }
 
@@ -437,7 +453,7 @@ class MainActivity : AppCompatActivity() {
                 Toast.LENGTH_SHORT,
             ).show()
             if (isCorrectingApp && currentSession != null) {
-                runCorrectingDataCheck(currentSession!!, false)
+                runCorrectingDataCheck(currentSession!!, false, syncDerivedToLocalDestination = true)
             }
         }.onFailure { error ->
             runtimeIssue = mainScreenController.buildRefreshExecutionIssue(error)
@@ -467,10 +483,10 @@ class MainActivity : AppCompatActivity() {
         binding.transferButton.isEnabled =
             !transferInProgress &&
             transferSessions.isNotEmpty() &&
-            selectedTransferDestinationUri() != null &&
-            selectedTransferGroups().isNotEmpty()
+            selectedTransferDestinationUri() != null
         renderSaveDestinationState(null)
         renderTransferDestinationState(null)
+        refreshRecordButtonState()
         updateBlockVisibility(recordingCoordinator.isRecording())
     }
 
@@ -480,29 +496,62 @@ class MainActivity : AppCompatActivity() {
         successfulDataCheckCount = 0
         selectedTransferSessionIds.clear()
         renderCorrectingDataCheck(null)
-        renderTransferState("未選択")
+        renderTransferState("収録後に転送Dataを選択できます。")
     }
 
-    private fun runCorrectingDataCheck(session: RecordingSession, autoTriggered: Boolean) {
+    private fun runPostRecordingPipeline(session: RecordingSession) {
+        val rawGroups = setOf(TransferGroup.CAPTURE, TransferGroup.SENSORS)
+        syncSessionToSelectedLocalDestinationIfNeeded(
+            session = session,
+            groups = rawGroups,
+            inProgressMessage = "端末保存先へ保存中です。",
+            successMessage = "保存先へ保存しました。品質確認を開始します。",
+            failureMessagePrefix = "保存先への保存に失敗しました",
+        ) {
+            runCorrectingDataCheck(session, autoTriggered = true, syncDerivedToLocalDestination = true)
+        }
+    }
+
+    private fun runCorrectingDataCheck(
+        session: RecordingSession,
+        autoTriggered: Boolean,
+        syncDerivedToLocalDestination: Boolean,
+    ) {
         if (!isCorrectingApp || dataCheckInProgress) {
             return
         }
         dataCheckInProgress = true
         binding.dataCheckButton.isEnabled = false
-        binding.dataCheckText.text = "data-check を実行中です。"
+        binding.dataCheckText.text =
+            if (autoTriggered) {
+                "収録を保存しました。自動で品質確認を実行中です。"
+            } else {
+                "品質確認を実行中です。"
+            }
+        renderBusyIndicator()
         thread {
             val result = runCatching { correctingDataCheckService.run(session.sessionDir) }
             runOnUiThread {
                 dataCheckInProgress = false
                 binding.dataCheckButton.isEnabled = true
+                renderBusyIndicator()
                 result.onSuccess {
                     checkedSessionId = session.sessionId
                     latestDataCheckResult = it
                     successfulDataCheckCount += 1
                     renderCorrectingDataCheck(it)
                     renderTransferState(null)
-                    syncSessionToSelectedLocalDestinationIfNeeded(session)
+                    if (syncDerivedToLocalDestination) {
+                        syncSessionToSelectedLocalDestinationIfNeeded(
+                            session = session,
+                            groups = setOf(TransferGroup.DERIVED),
+                            inProgressMessage = "品質確認結果を端末保存先へ同期中です。",
+                            successMessage = "品質確認結果を保存先へ同期しました。",
+                            failureMessagePrefix = "品質確認結果の同期に失敗しました",
+                        )
+                    }
                     if (!autoTriggered) {
+                        showDataCheckDialog(it)
                         Toast.makeText(this, "data-check を更新しました", Toast.LENGTH_SHORT).show()
                     }
                 }.onFailure { error ->
@@ -522,24 +571,75 @@ class MainActivity : AppCompatActivity() {
         }
         binding.dataCheckText.text =
             if (result == null) {
-                "未実行"
+                "収録後に品質確認できます。"
             } else {
-                buildString {
-                    appendLine("data-check: ${result.sessionId}")
-                    appendLine("診断進行可: ${result.readyForDiagnose}")
-                    appendLine("modeling 着手可: ${result.readyForSpaceReconstruction}")
-                    appendLine("warning 付き続行可: ${result.allowModelingProceed}")
-                    appendLine("欠落入力: ${result.missingRequiredInputs.joinToString(", ").ifBlank { "なし" }}")
-                    appendLine("blocker: ${result.blockers.joinToString(", ").ifBlank { "なし" }}")
-                    appendLine("充足率: ${"%.2f".format(result.completenessScore)}")
-                    appendLine("pose 対応率: ${"%.2f".format(result.poseCoverageRatio)}")
-                    appendLine("camera intrinsics 対応率: ${"%.2f".format(result.imageIntrinsicsCoverageRatio)}")
-                    appendLine("lens distortion 対応率: ${"%.2f".format(result.lensDistortionCoverageRatio)}")
-                    appendLine("calibration frame 数: ${result.calibrationFrameCount}")
-                    appendLine("補正指示: ${result.recommendedCorrections.joinToString(" / ")}")
-                    append("保存先: ${result.derivedDir.absolutePath}")
-                }
+                summarizeDataCheckIssues(result)
             }
+    }
+
+    private fun renderSyncMinimalSessionState(session: RecordingSession) {
+        binding.sessionText.text = "Session: ${session.sessionId}"
+        binding.filesText.text = ""
+        binding.dataCheckText.text = "品質確認OK"
+    }
+
+    private fun summarizeDataCheckIssues(result: CorrectingDataCheckResult): String {
+        val issues =
+            buildList {
+                addAll(result.missingRequiredInputs.map { "$it 不足" })
+                addAll(result.blockers.map(::summarizeIssueLabel))
+                addAll(result.warnings.map(::summarizeIssueLabel))
+            }.filter { it.isNotBlank() }
+                .distinct()
+        return if (issues.isEmpty()) {
+            "品質確認OK"
+        } else {
+            issues.joinToString(" / ")
+        }
+    }
+
+    private fun summarizeIssueLabel(issue: String): String =
+        when {
+            issue.contains("video.mp4") -> "主動画不足"
+            issue.contains("video_frame_timestamps") -> "frame timeline 不足"
+            issue.contains("imu.csv") -> "IMU 不足"
+            issue.contains("BLE") || issue.contains("bt") -> "BLE 不足"
+            issue.contains("arcore_pose") -> "pose 不足"
+            issue.contains("pose がほぼ 0") -> "pose 不足"
+            issue.contains("intrinsics がほぼ 0") -> "camera intrinsics 不足"
+            issue.contains("camera intrinsics 対応率") -> "camera intrinsics 対応率"
+            issue.contains("texture intrinsics 対応率") -> "texture intrinsics 対応率"
+            issue.contains("lens distortion 対応率") -> "lens distortion 対応率"
+            issue.contains("tracking が不安定") -> "tracking 不安定"
+            issue.contains("time_delta_ms") -> "time delta"
+            issue.contains("calibration export 実装前") -> "旧形式 data"
+            issue.contains("読取試行") -> "calibration 読取失敗"
+            issue.contains("sessionStartElapsedRealtimeNanos") -> "timebase 不足"
+            else -> issue
+        }
+
+    private fun showDataCheckDialog(result: CorrectingDataCheckResult) {
+        val detail =
+            buildString {
+                appendLine("data-check: ${result.sessionId}")
+                appendLine("診断進行可: ${result.readyForDiagnose}")
+                appendLine("modeling 着手可: ${result.readyForSpaceReconstruction}")
+                appendLine("warning 付き続行可: ${result.allowModelingProceed}")
+                appendLine("欠落入力: ${result.missingRequiredInputs.joinToString(", ").ifBlank { "なし" }}")
+                appendLine("blocker: ${result.blockers.joinToString(", ").ifBlank { "なし" }}")
+                appendLine("充足率: ${"%.2f".format(result.completenessScore)}")
+                appendLine("pose 対応率: ${"%.2f".format(result.poseCoverageRatio)}")
+                appendLine("camera intrinsics 対応率: ${"%.2f".format(result.imageIntrinsicsCoverageRatio)}")
+                appendLine("lens distortion 対応率: ${"%.2f".format(result.lensDistortionCoverageRatio)}")
+                appendLine("calibration frame 数: ${result.calibrationFrameCount}")
+                appendLine("補正指示: ${result.recommendedCorrections.joinToString(" / ")}")
+                append("保存先: ${result.derivedDir.absolutePath}")
+            }
+        AlertDialog.Builder(this)
+            .setTitle("品質確認")
+            .setMessage(detail)
+            .setPositiveButton("閉じる", null)
+            .show()
     }
 
     private fun runDriveTransfer() {
@@ -565,15 +665,19 @@ class MainActivity : AppCompatActivity() {
             return
         }
         if (selectedTransferGroups().isEmpty()) {
-            renderTransferState("送信データセットの選択で 1 つ以上の group を選ぶと転送できます。")
+            renderTransferState("送信Dataset を 1 つ以上選ぶと転送できます。")
             return
         }
         transferInProgress = true
         binding.transferButton.isEnabled = false
         renderTransferState("Google Drive 転送を開始しています。")
+        renderBusyIndicator()
         thread {
             val result =
                 runCatching {
+                    if (selectedTransferGroups().contains(TransferGroup.IMAGES)) {
+                        sessions.forEach { correctingDataCheckService.exportImages(it.sessionDir) }
+                    }
                     syncSessionToSelectedDestination(
                         sessions = sessions,
                         selectedGroups = selectedTransferGroups(),
@@ -582,11 +686,12 @@ class MainActivity : AppCompatActivity() {
                 }
             runOnUiThread {
                 transferInProgress = false
+                renderBusyIndicator()
                 binding.transferButton.isEnabled =
                     selectedTransferSessions().isNotEmpty() &&
-                    selectedTransferDestinationUri() != null &&
-                    selectedTransferGroups().isNotEmpty()
+                    selectedTransferDestinationUri() != null
                 result.onSuccess {
+                    transferDestinationUri = null
                     renderTransferState(it)
                     renderTransferDestinationState(null)
                     Toast.makeText(this, "Google Drive 転送が完了しました", Toast.LENGTH_SHORT).show()
@@ -612,10 +717,6 @@ class MainActivity : AppCompatActivity() {
         binding.transferBlock.visibility =
             if (!recordingCoordinator.isRecording() && (currentSession != null || hasStoredSessions)) View.VISIBLE else View.GONE
         val selectedSessions = selectedTransferSessions()
-        val selectedSessionLabels =
-            selectedSessions.joinToString(", ") { session ->
-                sessionSummaryById(session.sessionId)?.displayLabel() ?: session.sessionId
-            }.ifBlank { "未選択" }
         binding.selectTransferSessionButton.isEnabled = !recordingCoordinator.isRecording()
         binding.manageTransferSessionsButton.isEnabled = !recordingCoordinator.isRecording() && hasStoredSessions
         binding.selectTransferGroupsButton.isEnabled = !recordingCoordinator.isRecording()
@@ -624,15 +725,9 @@ class MainActivity : AppCompatActivity() {
         binding.transferButton.isEnabled =
             !transferInProgress &&
             selectedSessions.isNotEmpty() &&
-            selectedTransferDestinationUri() != null &&
-            selectedTransferGroups().isNotEmpty()
+            selectedTransferDestinationUri() != null
         binding.transferText.text =
-            message ?: buildString {
-                appendLine("事前設定: 1. 転送先を選択 2. URL を確認 3. 保存先fileを設定する")
-                appendLine("転送対象: $selectedSessionLabels")
-                appendLine("送信データセット: ${selectedTransferGroups().joinToString(", ") { it.label }.ifBlank { "未選択" }}")
-                append(sessionTransferGuidance(selectedSessions))
-            }
+            message ?: transferRequirementSummary(selectedSessions)
     }
 
     private fun renderSaveDestinationState(statusMessage: String?) {
@@ -645,13 +740,23 @@ class MainActivity : AppCompatActivity() {
         if (statusMessage != null) {
             saveDestinationStatusMessage = statusMessage
         }
+        if (saveDestinationSyncInProgress) {
+            binding.transferDestinationText.visibility = View.VISIBLE
+            binding.transferDestinationText.text = "端末保存先へ同期中です。"
+            refreshRecordButtonState()
+            renderBusyIndicator()
+            return
+        }
         val selectedUri = selectedLocalSaveDestinationUri()
-        binding.transferDestinationText.text =
-            when {
-                selectedUri == null -> "保存先は未設定です。"
-                saveDestinationStatusMessage != null -> "${saveDestinationStatusMessage}\n保存先は設定済みです。"
-                else -> "保存先は設定済みです。"
-            }
+        if (selectedUri == null) {
+            binding.transferDestinationText.visibility = View.VISIBLE
+            binding.transferDestinationText.text = "端末保存先：未設定"
+        } else {
+            binding.transferDestinationText.visibility = View.GONE
+            binding.transferDestinationText.text = ""
+        }
+        refreshRecordButtonState()
+        renderBusyIndicator()
     }
 
     private fun renderTransferDestinationState(statusMessage: String?) {
@@ -659,17 +764,59 @@ class MainActivity : AppCompatActivity() {
             binding.transferTargetText.visibility = View.GONE
             return
         }
-        binding.transferTargetText.visibility = View.VISIBLE
         binding.transferTargetButton.isEnabled = !recordingCoordinator.isRecording() && !transferInProgress
         if (statusMessage != null) {
             transferDestinationStatusMessage = statusMessage
         }
-        val selectedUri = selectedTransferDestinationUri()
-        binding.transferTargetText.text =
+        binding.transferTargetText.visibility = View.GONE
+        binding.transferTargetText.text = ""
+        renderBusyIndicator()
+    }
+
+    private fun refreshRecordButtonState() {
+        binding.recordButton.isEnabled =
+            recordingCoordinator.isRecording() || selectedLocalSaveDestinationUri() != null
+    }
+
+    private fun renderBusyIndicator() {
+        if (!isCorrectingApp) {
+            binding.processingIndicatorLayout.visibility = View.GONE
+            binding.transferProcessingIndicatorLayout.visibility = View.GONE
+            return
+        }
+        val recordBusyState =
             when {
-                selectedUri == null -> "転送先は未設定です。"
-                else -> "転送先は設定済みです。"
+                saveDestinationSyncInProgress ->
+                    "端末保存先へ同期中です。" to "次の収録はできますが、同期完了まで待機を推奨します。"
+                dataCheckInProgress ->
+                    "品質確認を実行中です。" to "次の収録はできますが、品質確認完了まで待機を推奨します。"
+                else -> null
             }
+        if (recordBusyState == null) {
+            binding.processingIndicatorLayout.visibility = View.GONE
+            binding.processingStatusText.text = ""
+            binding.processingRecommendationText.text = ""
+        } else {
+            binding.processingIndicatorLayout.visibility = View.VISIBLE
+            binding.processingStatusText.text = recordBusyState.first
+            binding.processingRecommendationText.text = recordBusyState.second
+        }
+
+        val transferBusyState =
+            if (transferInProgress) {
+                "転送を実行中です。" to "転送完了まで待機してください。"
+            } else {
+                null
+            }
+        if (transferBusyState == null) {
+            binding.transferProcessingIndicatorLayout.visibility = View.GONE
+            binding.transferProcessingStatusText.text = ""
+            binding.transferProcessingRecommendationText.text = ""
+        } else {
+            binding.transferProcessingIndicatorLayout.visibility = View.VISIBLE
+            binding.transferProcessingStatusText.text = transferBusyState.first
+            binding.transferProcessingRecommendationText.text = transferBusyState.second
+        }
     }
 
     private fun showTransferTargetDialog() {
@@ -678,12 +825,21 @@ class MainActivity : AppCompatActivity() {
         input.setText(selectedTransferTargetUrl())
         AlertDialog.Builder(this)
             .setTitle("転送先を選択")
-            .setMessage("アドレスを入力してください")
+            .setMessage(
+                "アドレスを入力してください。\n" +
+                    "保存先を app へ設定する時は、下の「保存先fileを設定する」を押してください。\n" +
+                    "Android 標準の保存画面が開くので、左上メニューなどから Google Drive を選び、zip 保存先 file を指定してください。",
+            )
             .setView(input)
             .setNeutralButton("保存先fileを設定する") { _, _ ->
                 val url = normalizeTransferTargetUrl(input.text?.toString().orEmpty())
                 saveTransferTargetUrl(url)
-                openTransferTargetUrl(url)
+                transferDestinationLauncher.launch(defaultTransferArchiveName())
+                renderTransferState(
+                    "Android の保存画面で zip 保存先 file を選択してください。" +
+                        "\nGoogle Drive を使う時は、左上メニューなどから Google Drive を選んでください。" +
+                        "\n選択が完了すると app に戻って転送先が設定されます。",
+                )
             }
             .setPositiveButton("OK") { _, _ ->
                 val url = normalizeTransferTargetUrl(input.text?.toString().orEmpty())
@@ -701,23 +857,6 @@ class MainActivity : AppCompatActivity() {
         transferDestinationStatusMessage = null
         renderTransferDestinationState("転送先URLを更新しました。")
         renderTransferState("転送先URLを更新しました。")
-    }
-
-    private fun openTransferTargetUrl(url: String) {
-        val intent =
-            Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
-                addCategory(Intent.CATEGORY_BROWSABLE)
-            }
-        runCatching {
-            startActivity(intent)
-            transferDestinationLauncher.launch(defaultTransferArchiveName())
-            renderTransferState("Google Drive を開きました。保存先 folder を確認または作成し、続けて保存先 file を選んでください。")
-        }.onFailure { error ->
-            renderTransferState(
-                "Google Drive URL を開けませんでした: ${error.message ?: error::class.java.simpleName}\n" +
-                    "URL: $url",
-            )
-        }
     }
 
     private fun showSamplingConditionsDialog() {
@@ -790,96 +929,400 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showTransferSessionPicker() {
-        val summaries = loadStoredSessions()
-        if (summaries.isEmpty()) {
-            Toast.makeText(this, "転送できる data がまだありません", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val labels =
-            summaries.map { summary ->
+        loadStoredSessionsWithFreshDataCheck("転送Data 一覧を更新中です。") { summaries ->
+            if (summaries.isEmpty()) {
+                Toast.makeText(this, "転送できる data がまだありません", Toast.LENGTH_SHORT).show()
+                return@loadStoredSessionsWithFreshDataCheck
+            }
+            val root =
+                LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(dp(20), dp(16), dp(20), dp(8))
+                }
+            val backButton =
+                MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+                    text = "戻る"
+                    layoutParams =
+                        LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                        )
+                }
+            val headerText =
+                TextView(this).apply {
+                    text = "転送する data を複数選択できます"
+                    textAlignment = View.TEXT_ALIGNMENT_VIEW_START
+                    layoutParams =
+                        LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                        ).apply {
+                            topMargin = dp(12)
+                        }
+                }
+            val listContainer =
+                LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                }
+            val scrollView =
+                ScrollView(this).apply {
+                    addView(
+                        listContainer,
+                        ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ),
+                    )
+                }
+            val footerButton =
+                MaterialButton(this).apply {
+                    text = "OK"
+                    layoutParams =
+                        LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                        ).apply {
+                            topMargin = dp(12)
+                        }
+                }
+            root.addView(backButton)
+            root.addView(headerText)
+            root.addView(
+                scrollView,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(420),
+                ).apply {
+                    topMargin = dp(12)
+                },
+            )
+            root.addView(footerButton)
+
+            val dialog =
+                AlertDialog.Builder(this)
+                    .setTitle("転送Data選択")
+                    .setView(root)
+                    .create()
+
+            fun buildSummaryText(summary: StoredSessionSummary): String =
                 buildString {
+                    if (selectedTransferSessionIds.contains(summary.sessionId)) {
+                        append("選択中\n")
+                    }
                     append(summary.displayLabel())
-                    append("\n")
-                    append("取得日時: ${summary.startedAtLabel} | 長さ: ${summary.durationLabel}")
+                    append("\n取得日時: ${summary.startedAtLabel}")
+                    append("\n長さ: ${summary.durationLabel}")
+                }
+
+            fun renderButtons() {
+                listContainer.removeAllViews()
+                summaries.forEach { summary ->
+                    val button =
+                        MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+                            text = buildSummaryText(summary)
+                            textAlignment = View.TEXT_ALIGNMENT_VIEW_START
+                            layoutParams =
+                                LinearLayout.LayoutParams(
+                                    LinearLayout.LayoutParams.MATCH_PARENT,
+                                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                                ).apply {
+                                    bottomMargin = dp(8)
+                                }
+                            setOnClickListener {
+                                if (!selectedTransferSessionIds.add(summary.sessionId)) {
+                                    selectedTransferSessionIds.remove(summary.sessionId)
+                                }
+                                renderButtons()
+                            }
+                        }
+                    listContainer.addView(button)
                     if (summary.hasConcerns) {
-                        append("\n")
-                        append(summary.concernLine())
+                        val concernText =
+                            TextView(this).apply {
+                                text = summary.concernLine()
+                                textAlignment = View.TEXT_ALIGNMENT_VIEW_START
+                                layoutParams =
+                                    LinearLayout.LayoutParams(
+                                        LinearLayout.LayoutParams.MATCH_PARENT,
+                                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                                    ).apply {
+                                        bottomMargin = dp(8)
+                                        marginStart = dp(8)
+                                    }
+                            }
+                        listContainer.addView(concernText)
                     }
                 }
-            }.toTypedArray()
-        val checkedItems = summaries.map { selectedTransferSessionIds.contains(it.sessionId) }.toBooleanArray()
-        AlertDialog.Builder(this)
-            .setTitle("転送する data を選択")
-            .setMultiChoiceItems(labels, checkedItems) { _, which, isChecked ->
-                val sessionId = summaries[which].sessionId
-                if (isChecked) {
-                    selectedTransferSessionIds.add(sessionId)
-                } else {
-                    selectedTransferSessionIds.remove(sessionId)
-                }
             }
-            .setPositiveButton("OK") { _, _ -> renderTransferState(null) }
-            .setNegativeButton("閉じる", null)
-            .show()
+
+            backButton.setOnClickListener { dialog.dismiss() }
+            footerButton.setOnClickListener {
+                renderTransferState(null)
+                dialog.dismiss()
+            }
+            renderButtons()
+            dialog.show()
+        }
     }
 
     private fun showManageStoredSessionsDialog() {
-        val summaries = loadStoredSessions()
-        if (summaries.isEmpty()) {
-            Toast.makeText(this, "保存済み data がまだありません", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val labels =
-            summaries.map {
+        loadStoredSessionsWithFreshDataCheck("保存済み Data 一覧を更新中です。") { initialSummaries ->
+            if (initialSummaries.isEmpty()) {
+                Toast.makeText(this, "保存済み data がまだありません", Toast.LENGTH_SHORT).show()
+                return@loadStoredSessionsWithFreshDataCheck
+            }
+            val summaries = initialSummaries.toMutableList()
+            val deleteTargets = linkedSetOf<String>()
+            var deleteMode = false
+
+            val root =
+                LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(dp(20), dp(16), dp(20), dp(8))
+                }
+            val backButton =
+                MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+                    text = "戻る"
+                    layoutParams =
+                        LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                        )
+                }
+            val modeSwitch =
+                MaterialSwitch(this).apply {
+                    text = "OFF：名称変更、ON：削除モード"
+                    isChecked = false
+                    layoutParams =
+                        LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                        ).apply {
+                            topMargin = dp(12)
+                        }
+                }
+
+            val listContainer =
+                LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                }
+            val scrollView =
+                ScrollView(this).apply {
+                    addView(
+                        listContainer,
+                        ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ),
+                    )
+                }
+
+            val footerRow =
+                LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    setPadding(0, dp(12), 0, 0)
+                }
+            val deleteButton =
+                MaterialButton(this).apply {
+                    text = "削除実行"
+                    isEnabled = false
+                    layoutParams =
+                        LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                        )
+                }
+            footerRow.addView(deleteButton)
+
+            root.addView(backButton)
+            root.addView(modeSwitch)
+            root.addView(
+                scrollView,
+                LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    dp(420),
+                ).apply {
+                    topMargin = dp(12)
+                },
+            )
+            root.addView(footerRow)
+
+            val dialog =
+                AlertDialog.Builder(this)
+                    .setTitle("Data一覧＋名称変更")
+                    .setView(root)
+                    .create()
+
+            fun refreshState() {
+                deleteButton.isEnabled = deleteMode && deleteTargets.isNotEmpty()
+                modeSwitch.isChecked = deleteMode
+            }
+
+            fun buildSummaryText(summary: StoredSessionSummary): String =
                 buildString {
-                    append(it.displayLabel())
-                    append("\n取得日時: ${it.startedAtLabel}\n長さ: ${it.durationLabel}")
-                    if (it.hasConcerns) {
-                        append("\n")
-                        append(it.concernLine())
+                    if (deleteMode && deleteTargets.contains(summary.sessionId)) {
+                        append("削除対象\n")
+                    }
+                    append(summary.displayLabel())
+                    append("\n取得日時: ${summary.startedAtLabel}")
+                    append("\n長さ: ${summary.durationLabel}")
+                    if (summary.hasConcerns) {
+                        append("\n${summary.concernLine()}")
                     }
                 }
-            }.toTypedArray()
-        AlertDialog.Builder(this)
-            .setTitle("データ一覧＋名称変更")
-            .setItems(labels) { _, which ->
-                showRenameTransferSessionDialog(summaries[which])
+
+            fun refreshSummaries(): Boolean {
+                summaries.clear()
+                summaries.addAll(loadStoredSessions())
+                deleteTargets.retainAll(summaries.map { it.sessionId }.toSet())
+                if (summaries.isEmpty()) {
+                    dialog.dismiss()
+                    Toast.makeText(this, "保存済み data がなくなりました", Toast.LENGTH_SHORT).show()
+                    refreshSessionDetails(currentSession)
+                    renderTransferState(null)
+                    return false
+                }
+                return true
             }
-            .setNegativeButton("閉じる", null)
-            .show()
+
+            fun renderButtons() {
+                listContainer.removeAllViews()
+                summaries.forEach { summary ->
+                    val button =
+                        MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+                            text = buildSummaryText(summary)
+                            textAlignment = View.TEXT_ALIGNMENT_VIEW_START
+                            layoutParams =
+                                LinearLayout.LayoutParams(
+                                    LinearLayout.LayoutParams.MATCH_PARENT,
+                                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                                ).apply {
+                                    bottomMargin = dp(8)
+                                }
+                            setOnClickListener {
+                                if (deleteMode) {
+                                    if (!deleteTargets.add(summary.sessionId)) {
+                                        deleteTargets.remove(summary.sessionId)
+                                    }
+                                    refreshState()
+                                    renderButtons()
+                                } else {
+                                    showRenameTransferSessionDialog(summary) {
+                                        if (refreshSummaries()) {
+                                            refreshState()
+                                            renderButtons()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    listContainer.addView(button)
+                    if (deleteMode && deleteTargets.contains(summary.sessionId)) {
+                        val cautionText =
+                            TextView(this).apply {
+                                text = "削除対象です"
+                                textAlignment = View.TEXT_ALIGNMENT_VIEW_START
+                                layoutParams =
+                                    LinearLayout.LayoutParams(
+                                        LinearLayout.LayoutParams.MATCH_PARENT,
+                                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                                    ).apply {
+                                        bottomMargin = dp(8)
+                                        marginStart = dp(8)
+                                    }
+                            }
+                        listContainer.addView(cautionText)
+                    }
+                }
+            }
+
+            modeSwitch.setOnCheckedChangeListener { _, isChecked ->
+                deleteMode = isChecked
+                if (!deleteMode) {
+                    deleteTargets.clear()
+                }
+                refreshState()
+                renderButtons()
+            }
+            backButton.setOnClickListener { dialog.dismiss() }
+            deleteButton.setOnClickListener {
+                val targetIds = deleteTargets.toSet()
+                if (targetIds.isEmpty()) {
+                    return@setOnClickListener
+                }
+                deleteStoredSessions(targetIds)
+                if (refreshSummaries()) {
+                    refreshState()
+                    renderButtons()
+                }
+            }
+
+            refreshState()
+            renderButtons()
+            dialog.show()
+        }
     }
 
-    private fun showRenameTransferSessionDialog(summary: StoredSessionSummary) {
+    private fun loadStoredSessionsWithFreshDataCheck(
+        progressMessage: String,
+        onLoaded: (List<StoredSessionSummary>) -> Unit,
+    ) {
+        renderTransferState(progressMessage)
+        thread {
+            val sessionsRoot = File(getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "sessions")
+            val dirs = sessionsRoot.listFiles { file -> file.isDirectory }?.sortedByDescending { it.lastModified() } ?: emptyList()
+            val freshResults =
+                dirs.associate { dir ->
+                    dir.name to runCatching { correctingDataCheckService.inspect(dir) }.getOrNull()
+                }.filterValues { it != null }
+                    .mapValues { it.value!! }
+            val refreshed = loadStoredSessions(freshResults)
+            runOnUiThread {
+                renderTransferState(null)
+                onLoaded(refreshed)
+            }
+        }
+    }
+
+    private fun showRenameTransferSessionDialog(summary: StoredSessionSummary, onUpdated: () -> Unit) {
         val input = EditText(this)
         input.setText(summary.sessionId)
-        AlertDialog.Builder(this)
-            .setTitle("データ名を変更")
-            .setView(input)
-            .setPositiveButton("変更") { _, _ ->
+        val dialog =
+            AlertDialog.Builder(this)
+                .setTitle("Data名を変更")
+                .setView(input)
+                .setPositiveButton("変更", null)
+                .setNegativeButton("キャンセル", null)
+                .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                 val newName = input.text?.toString()?.trim().orEmpty()
-                renameStoredSession(summary, newName)
+                if (renameStoredSession(summary, newName)) {
+                    onUpdated()
+                    dialog.dismiss()
+                }
             }
-            .setNegativeButton("キャンセル", null)
-            .show()
+        }
+        dialog.show()
     }
 
-    private fun renameStoredSession(summary: StoredSessionSummary, newName: String) {
+    private fun renameStoredSession(summary: StoredSessionSummary, newName: String): Boolean {
         if (newName.isBlank()) {
             Toast.makeText(this, "データ名を入力してください", Toast.LENGTH_SHORT).show()
-            return
+            return false
         }
         if (!Regex("^[A-Za-z0-9._-]+$").matches(newName)) {
             Toast.makeText(this, "半角英数字と . _ - のみ使えます", Toast.LENGTH_SHORT).show()
-            return
+            return false
         }
         val targetDir = File(summary.sessionDir.parentFile, newName)
         if (targetDir.exists()) {
             Toast.makeText(this, "同名 directory が既にあります", Toast.LENGTH_SHORT).show()
-            return
+            return false
         }
         if (!summary.sessionDir.renameTo(targetDir)) {
             Toast.makeText(this, "データ名の変更に失敗しました", Toast.LENGTH_SHORT).show()
-            return
+            return false
         }
         if (selectedTransferSessionIds.remove(summary.sessionId)) {
             selectedTransferSessionIds.add(newName)
@@ -889,19 +1332,56 @@ class MainActivity : AppCompatActivity() {
         }
         renderTransferState("データ名を変更しました。")
         refreshSessionDetails(currentSession)
+        return true
     }
 
-    private fun loadStoredSessions(): List<StoredSessionSummary> {
+    private fun deleteStoredSessions(sessionIds: Set<String>) {
+        if (sessionIds.isEmpty()) {
+            return
+        }
+        var deletedCount = 0
+        sessionIds.forEach { sessionId ->
+            val summary = loadStoredSessions().firstOrNull { it.sessionId == sessionId } ?: return@forEach
+            if (summary.sessionDir.deleteRecursively()) {
+                deletedCount += 1
+                selectedTransferSessionIds.remove(sessionId)
+                if (checkedSessionId == sessionId) {
+                    checkedSessionId = null
+                    latestDataCheckResult = null
+                    successfulDataCheckCount = 0
+                    renderCorrectingDataCheck(null)
+                }
+                if (currentSession?.sessionId == sessionId) {
+                    currentSession = loadStoredSessions().firstOrNull()?.recordingSession
+                }
+            }
+        }
+        renderTransferState(
+            if (deletedCount > 0) {
+                "$deletedCount 件の data を削除しました。"
+            } else {
+                "削除できる data がありませんでした。"
+            },
+        )
+        refreshSessionDetails(currentSession)
+    }
+
+    private fun dp(value: Int): Int =
+        (value * resources.displayMetrics.density).toInt()
+
+    private fun loadStoredSessions(
+        freshResults: Map<String, CorrectingDataCheckResult> = emptyMap(),
+    ): List<StoredSessionSummary> {
         val sessionsRoot = File(getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS), "sessions")
         return sessionsRoot.listFiles { file -> file.isDirectory }?.mapNotNull { dir ->
-            buildStoredSessionSummary(dir)
+            buildStoredSessionSummary(dir, freshResults[dir.name])
         }?.sortedByDescending { it.startedAtMillis } ?: emptyList()
     }
 
-    private fun sessionSummaryById(sessionId: String): StoredSessionSummary? =
-        loadStoredSessions().firstOrNull { it.sessionId == sessionId }
-
-    private fun buildStoredSessionSummary(sessionDir: File): StoredSessionSummary? {
+    private fun buildStoredSessionSummary(
+        sessionDir: File,
+        freshResult: CorrectingDataCheckResult? = null,
+    ): StoredSessionSummary? {
         val recordingSession = buildRecordingSessionFromDir(sessionDir) ?: return null
         val manifest =
             recordingSession.manifestFile.takeIf { it.exists() }?.readText()?.let(::JSONObject)
@@ -909,8 +1389,8 @@ class MainActivity : AppCompatActivity() {
         val durationMillis = readDurationMillis(recordingSession.videoEventsFile)
         val sensorQualityFile = File(sessionDir, "trajectreview/sensor_quality.json")
         val sensorQuality = sensorQualityFile.takeIf { it.exists() }?.readText()?.let(::JSONObject)
-        val warnings = sensorQuality?.optJSONArray("warnings")?.toStringList() ?: emptyList()
-        val blockers = sensorQuality?.optJSONArray("blockers")?.toStringList() ?: emptyList()
+        val warnings = freshResult?.warnings ?: (sensorQuality?.optJSONArray("warnings")?.toStringList() ?: emptyList())
+        val blockers = freshResult?.blockers ?: (sensorQuality?.optJSONArray("blockers")?.toStringList() ?: emptyList())
         return StoredSessionSummary(
             sessionId = recordingSession.sessionId,
             sessionDir = sessionDir,
@@ -985,17 +1465,21 @@ class MainActivity : AppCompatActivity() {
     private fun selectedTransferGroups(): Set<TransferGroup> =
         selectedTransferGroupsState.toSet()
 
-    private fun sessionTransferGuidance(sessions: List<RecordingSession>): String =
-        when {
-            sessions.isEmpty() -> "手順: 1. 送信データセットを選択 2. 転送するデータを選択 3. 転送先を選択 4. 転送実行"
-            sessions.any { !canTransferSelectedSession(it) } -> "選択した data の中に品質確認結果が不足したものがあります。品質確認済みの data のみ選んでください。"
-            selectedTransferTargetUrl().isBlank() ->
-                "転送先を選択して Google Drive URL を設定すると転送できます。"
-            selectedTransferDestinationUri() == null ->
-                "転送先URLは設定済みです。`転送先を選択` から `保存先fileを設定する` を押すと転送できます。"
-            selectedTransferGroups().isEmpty() -> "送信データセットの選択で 1 つ以上の group を選ぶと転送できます。"
-            else -> "転送実行できます。選んだ Google Drive 保存場所に zip を作成します。"
-        }
+    private fun transferRequirementSummary(sessions: List<RecordingSession>): String {
+        val dataStatus =
+            when {
+                sessions.isEmpty() -> "転送Data: 収録後に選択可"
+                sessions.any { !canTransferSelectedSession(it) } -> "転送Data: 要品質確認"
+                else -> "転送Data: 設定済み"
+            }
+        val destinationStatus =
+            if (selectedTransferDestinationUri() == null) {
+                "転送先: 未設定"
+            } else {
+                "転送先: 設定済み"
+            }
+        return "$dataStatus / $destinationStatus\n転送実行には、転送Dataの選択と転送先の選択が必要です。"
+    }
 
     private fun initializeCaptureModeControls() {
         captureModeSyncInProgress = true
@@ -1047,7 +1531,7 @@ class MainActivity : AppCompatActivity() {
         preferences.getString(PREF_SAVE_DESTINATION_TREE_URI, null)?.let(Uri::parse)
 
     private fun selectedTransferDestinationUri(): Uri? =
-        preferences.getString(PREF_TRANSFER_DESTINATION_URI, null)?.let(Uri::parse)
+        transferDestinationUri
 
     private fun selectedTransferTargetUrl(): String =
         preferences.getString(PREF_TRANSFER_TARGET_URL, DEFAULT_TARGET_DRIVE_FOLDER_URL)?.trim().orEmpty()
@@ -1084,12 +1568,28 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun syncSessionToSelectedLocalDestinationIfNeeded(session: RecordingSession) {
-        val destinationUri = selectedLocalSaveDestinationUri() ?: return
+    private fun syncSessionToSelectedLocalDestinationIfNeeded(
+        session: RecordingSession,
+        groups: Set<TransferGroup>,
+        inProgressMessage: String,
+        successMessage: String,
+        failureMessagePrefix: String,
+        onFinished: (() -> Unit)? = null,
+    ) {
+        val destinationUri = selectedLocalSaveDestinationUri()
+        if (destinationUri == null) {
+            onFinished?.invoke()
+            return
+        }
         if (saveDestinationSyncInProgress) {
             return
         }
         saveDestinationSyncInProgress = true
+        runOnUiThread {
+            renderSyncMinimalSessionState(session)
+            binding.dataCheckText.text = inProgressMessage
+            renderBusyIndicator()
+        }
         thread {
             val result =
                 runCatching {
@@ -1097,16 +1597,31 @@ class MainActivity : AppCompatActivity() {
                         DocumentFile.fromTreeUri(this, destinationUri)
                             ?: error("保存先 directory にアクセスできません。")
                     migrateLegacyTransferLayoutIfNeeded(rootTree)
-                    val sessionRoot = recreateDirectory(rootTree, session.sessionId)
-                    copySelectedSessionContents(session.sessionDir, sessionRoot, TransferGroup.values().toSet())
+                    val sessionRoot =
+                        if (groups.containsAll(setOf(TransferGroup.CAPTURE, TransferGroup.SENSORS)) && !groups.contains(TransferGroup.DERIVED)) {
+                            recreateDirectory(rootTree, session.sessionId)
+                        } else {
+                            ensureDirectory(rootTree, session.sessionId)
+                        }
+                    if (groups.contains(TransferGroup.IMAGES)) {
+                        correctingDataCheckService.exportImages(session.sessionDir)
+                    }
+                    copySelectedSessionContents(session.sessionDir, sessionRoot, groups)
                     sessionRoot.uri.toString()
                 }
             runOnUiThread {
                 saveDestinationSyncInProgress = false
+                renderBusyIndicator()
                 result.onSuccess {
-                    renderSaveDestinationState("保存先へ同期しました。")
+                    renderSaveDestinationState(successMessage)
+                    refreshSessionDetails(currentSession)
+                    latestDataCheckResult?.let(::renderCorrectingDataCheck)
+                    onFinished?.invoke()
                 }.onFailure { error ->
-                    renderSaveDestinationState("保存先への同期に失敗しました: ${error.message ?: error::class.java.simpleName}")
+                    renderSaveDestinationState("$failureMessagePrefix: ${error.message ?: error::class.java.simpleName}")
+                    refreshSessionDetails(currentSession)
+                    latestDataCheckResult?.let(::renderCorrectingDataCheck)
+                    onFinished?.invoke()
                 }
             }
         }
@@ -1301,10 +1816,43 @@ class MainActivity : AppCompatActivity() {
 
     private fun defaultTransferArchiveName(): String {
         val sessions = selectedTransferSessions()
-        return if (sessions.size == 1) {
-            "${sessions.first().sessionId}.zip"
-        } else {
-            "trajectreview-correcting-export.zip"
+        if (sessions.isEmpty()) {
+            return "trajectreview-correcting-session-${transferTimestampFormat.format(Date()).replace("-", "").replace(":", "").replace(" ", "-")}.zip"
+        }
+        if (sessions.size == 1) {
+            val session = sessions.first()
+            val suffix = canonicalSessionSuffix(session)
+            val customBase =
+                if (session.sessionId == suffix || session.sessionId.startsWith("session-")) {
+                    "trajectreview-correcting"
+                } else {
+                    session.sessionId
+                }
+            val base =
+                if (customBase.endsWith("-$suffix")) {
+                    customBase
+                } else {
+                    "$customBase-$suffix"
+                }
+            return "$base.zip"
+        }
+        val suffix = canonicalSessionSuffix(sessions.first())
+        return "trajectreview-correcting-$suffix.zip"
+    }
+
+    private fun canonicalSessionSuffix(session: RecordingSession): String {
+        val manifestSessionId =
+            runCatching {
+                if (session.manifestFile.exists()) {
+                    JSONObject(session.manifestFile.readText()).optString("sessionId")
+                } else {
+                    ""
+                }
+            }.getOrDefault("")
+        return when {
+            manifestSessionId.startsWith("session-") -> manifestSessionId
+            session.sessionId.startsWith("session-") -> session.sessionId
+            else -> "session-${SimpleDateFormat("yyyyMMdd-HHmmss", Locale.JAPAN).format(Date(session.timebase.sessionStartWallTimeMs))}"
         }
     }
 

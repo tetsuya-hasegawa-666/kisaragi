@@ -21,6 +21,7 @@ data class CorrectingDataCheckResult(
     val imageIntrinsicsCoverageRatio: Double,
     val lensDistortionCoverageRatio: Double,
     val calibrationFrameCount: Int,
+    val warnings: List<String>,
     val blockers: List<String>,
     val recommendedCorrections: List<String>,
 )
@@ -30,25 +31,9 @@ class CorrectingDataCheckService {
     fun run(sessionDir: File): CorrectingDataCheckResult {
         val parsed = parse(sessionDir)
         val derivedDir = File(sessionDir, ARTIFACT_DERIVED_DIR).apply { mkdirs() }
-        val imagesDir = File(derivedDir, ARTIFACT_IMAGES_DIR).apply { mkdirs() }
-        extractImages(parsed, imagesDir)
+        val imagesDir = File(derivedDir, ARTIFACT_IMAGES_DIR)
         val validatedParsed =
-            parsed.copy(
-                spaceReconstructionBlockers =
-                    buildList {
-                        addAll(parsed.spaceReconstructionBlockers)
-                        if ((imagesDir.listFiles()?.count { it.isFile } ?: 0) == 0) {
-                            add("images/ が不足しています")
-                        }
-                    }.distinct(),
-                warnings =
-                    buildList {
-                        addAll(parsed.warnings)
-                        if ((imagesDir.listFiles()?.count { it.isFile } ?: 0) < parsed.frameRows.size && parsed.frameRows.isNotEmpty()) {
-                            add("images/ の一部 frame 抽出に失敗しています")
-                        }
-                    }.distinct(),
-            )
+            parsed
 
         File(derivedDir, ARTIFACT_INPUT_READINESS).writeText(buildInputReadinessJson(validatedParsed))
         File(derivedDir, ARTIFACT_SENSOR_QUALITY).writeText(buildSensorQualityJson(validatedParsed))
@@ -70,6 +55,37 @@ class CorrectingDataCheckService {
             imageIntrinsicsCoverageRatio = validatedParsed.imageIntrinsicsCoverageRatio,
             lensDistortionCoverageRatio = validatedParsed.lensDistortionCoverageRatio,
             calibrationFrameCount = validatedParsed.calibrationFrameCount,
+            warnings = validatedParsed.warnings,
+            blockers = validatedParsed.spaceReconstructionBlockers,
+            recommendedCorrections = validatedParsed.recommendedCorrections,
+        )
+    }
+
+    fun exportImages(sessionDir: File): File {
+        val parsed = parse(sessionDir)
+        val imagesDir = File(sessionDir, "$ARTIFACT_DERIVED_DIR/$ARTIFACT_IMAGES_DIR").apply { mkdirs() }
+        extractImages(parsed, imagesDir)
+        return imagesDir
+    }
+
+    fun inspect(sessionDir: File): CorrectingDataCheckResult {
+        val parsed = parse(sessionDir)
+        val derivedDir = File(sessionDir, ARTIFACT_DERIVED_DIR)
+        val validatedParsed = parsed
+
+        return CorrectingDataCheckResult(
+            sessionId = validatedParsed.sessionId,
+            derivedDir = derivedDir,
+            readyForDiagnose = validatedParsed.missingRequiredInputs.isEmpty(),
+            readyForSpaceReconstruction = validatedParsed.spaceReconstructionBlockers.isEmpty(),
+            allowModelingProceed = true,
+            missingRequiredInputs = validatedParsed.missingRequiredInputs,
+            completenessScore = validatedParsed.completenessScore,
+            poseCoverageRatio = validatedParsed.poseCoverageRatio,
+            imageIntrinsicsCoverageRatio = validatedParsed.imageIntrinsicsCoverageRatio,
+            lensDistortionCoverageRatio = validatedParsed.lensDistortionCoverageRatio,
+            calibrationFrameCount = validatedParsed.calibrationFrameCount,
+            warnings = validatedParsed.warnings,
             blockers = validatedParsed.spaceReconstructionBlockers,
             recommendedCorrections = validatedParsed.recommendedCorrections,
         )
@@ -149,9 +165,31 @@ class CorrectingDataCheckService {
                     hasAnyValue(it, listOf("textureIntrinsics.fx", "textureFocalLength", "texturePrincipalPoint", "textureDimensions"))
             }
         val validPoseCount = poseRows.count { hasAnyValue(it, listOf("pose.tx", "translation", "rotationQuaternion")) }
+        val trackingFrameCount = poseRows.count { stringValue(it, listOf("trackingState")) == "TRACKING" }
+        val nonTrackingFrameCount = poseRows.count { stringValue(it, listOf("trackingState")) !in listOf(null, "", "TRACKING") }
+        val nonTrackingCoverageRatio =
+            if (poseRows.isEmpty()) 0.0 else nonTrackingFrameCount.toDouble() / poseRows.size.toDouble()
+        val trackingWarningThreshold =
+            maxOf(10, kotlin.math.ceil(poseRows.size * 0.15).toInt())
+        val hasTrackingQualityWarning = nonTrackingFrameCount >= trackingWarningThreshold
         val imageIntrinsicsCount = poseRows.count { hasAnyValue(it, listOf("imageIntrinsics.fx", "imageFocalLength", "imagePrincipalPoint", "imageDimensions")) }
         val textureIntrinsicsCount = poseRows.count { hasAnyValue(it, listOf("textureIntrinsics.fx", "textureFocalLength", "texturePrincipalPoint", "textureDimensions")) }
         val lensDistortionCount = poseRows.count { hasAnyValue(it, listOf("lensDistortion.coefficients", "lensDistortion")) }
+        val imageIntrinsicsAttemptCount = poseRows.count { stringValue(it, listOf("captureDiagnostics.imageIntrinsics.requested")) == "true" }
+        val imageIntrinsicsSuccessCount = poseRows.count { stringValue(it, listOf("captureDiagnostics.imageIntrinsics.succeeded")) == "true" }
+        val textureIntrinsicsAttemptCount = poseRows.count { stringValue(it, listOf("captureDiagnostics.textureIntrinsics.requested")) == "true" }
+        val textureIntrinsicsSuccessCount = poseRows.count { stringValue(it, listOf("captureDiagnostics.textureIntrinsics.succeeded")) == "true" }
+        val lensDistortionAttemptCount = poseRows.count { stringValue(it, listOf("captureDiagnostics.lensDistortion.requested")) == "true" }
+        val lensDistortionSuccessCount = poseRows.count { stringValue(it, listOf("captureDiagnostics.lensDistortion.succeeded")) == "true" }
+        val hasCaptureDiagnostics = imageIntrinsicsAttemptCount > 0 || textureIntrinsicsAttemptCount > 0 || lensDistortionAttemptCount > 0
+        val captureFailureReasons =
+            poseRows.mapNotNull {
+                firstNonBlank(
+                    stringValue(it, listOf("captureDiagnostics.imageIntrinsics.failureReason")),
+                    stringValue(it, listOf("captureDiagnostics.textureIntrinsics.failureReason")),
+                    stringValue(it, listOf("captureDiagnostics.lensDistortion.failureReason")),
+                )
+            }.distinct()
         val imageIntrinsicsCoverageRatio =
             if (poseRows.isEmpty()) 0.0 else min(1.0, imageIntrinsicsCount.toDouble() / poseRows.size.toDouble())
         val textureIntrinsicsCoverageRatio =
@@ -175,6 +213,8 @@ class CorrectingDataCheckService {
             }
         val legacySessionWithoutCalibration =
             poseRows.isNotEmpty() && imageIntrinsicsCount == 0 && textureIntrinsicsCount == 0 && lensDistortionCount == 0
+        val possiblePreCalibrationImplementationData =
+            poseRows.isNotEmpty() && !hasCaptureDiagnostics && legacySessionWithoutCalibration
         val qualityFlags =
             linkedMapOf(
                 "hasMonotonicSessionBase" to timebase.has("sessionStartElapsedRealtimeNanos"),
@@ -187,16 +227,30 @@ class CorrectingDataCheckService {
                 "hasImageIntrinsicsTimeline" to (imageIntrinsicsCount > 0),
                 "hasTextureIntrinsicsTimeline" to (textureIntrinsicsCount > 0),
                 "hasLensDistortionTimeline" to (lensDistortionCount > 0),
+                "hasCalibrationCaptureDiagnostics" to hasCaptureDiagnostics,
                 "hasCollectorStatus" to manifest.has("collectorStatus"),
             )
 
+        val imageIntrinsicsWarningThreshold = 0.80
+        val textureIntrinsicsWarningThreshold = 0.80
+        val lensDistortionWarningThreshold = 0.50
         val warnings =
             buildList {
-                if (imageIntrinsicsCoverageRatio < 1.0) add("imageIntrinsicsCoverageRatio が 1.0 未満です")
-                if (textureIntrinsicsCoverageRatio < 1.0) add("textureIntrinsicsCoverageRatio が 1.0 未満です")
-                if (lensDistortionCoverageRatio < 1.0) add("lensDistortionCoverageRatio が 1.0 未満です")
-                if (poseRows.any { row -> stringValue(row, listOf("trackingState")) !in listOf(null, "", "TRACKING") }) {
-                    add("trackingState が TRACKING 以外の frame を含みます")
+                if (imageIntrinsicsCount > 0 && imageIntrinsicsCoverageRatio < imageIntrinsicsWarningThreshold) {
+                    add("camera intrinsics 対応率が不足しています")
+                }
+                if (textureIntrinsicsCount > 0 && textureIntrinsicsCoverageRatio < textureIntrinsicsWarningThreshold) {
+                    add("texture intrinsics 対応率が不足しています")
+                }
+                if (lensDistortionCount > 0 && lensDistortionCoverageRatio < lensDistortionWarningThreshold) {
+                    add("lens distortion 対応率が不足しています")
+                }
+                if (imageIntrinsicsAttemptCount > 0 && imageIntrinsicsSuccessCount == 0) add("imageIntrinsics の読取試行はあるが成功 0 件です")
+                if (textureIntrinsicsAttemptCount > 0 && textureIntrinsicsSuccessCount == 0) add("textureIntrinsics の読取試行はあるが成功 0 件です")
+                if (lensDistortionAttemptCount > 0 && lensDistortionSuccessCount == 0) add("lensDistortion の読取試行はあるが成功 0 件です")
+                if (possiblePreCalibrationImplementationData) add("この session は calibration export 実装前に取得された可能性があります")
+                if (hasTrackingQualityWarning) {
+                    add("tracking が不安定な frame が多いです")
                 }
                 if ((nearestDeltas["poseNearestDeltaNs"] ?: 0L) > 150_000_000L) {
                     add("time_delta_ms が大きい frame が混在します")
@@ -212,6 +266,7 @@ class CorrectingDataCheckService {
                 if (poseRows.isEmpty()) add("arcore_pose.jsonl が不足しています")
                 if (validPoseCount == 0) add("pose がほぼ 0 件です")
                 if (imageIntrinsicsCount == 0) add("intrinsics がほぼ 0 件です")
+                if (imageIntrinsicsAttemptCount > 0 && imageIntrinsicsSuccessCount == 0) add("intrinsics_request_failed")
                 if (legacySessionWithoutCalibration) add("legacy_session_without_calibration")
             }
         val recommendedCorrections =
@@ -229,6 +284,15 @@ class CorrectingDataCheckService {
                 }
                 if (imageIntrinsicsCount == 0) {
                     add("camera intrinsics が不足しています。ARCore が有効な状態で再撮影してください。")
+                }
+                if (possiblePreCalibrationImplementationData) {
+                    add("この session は calibration export 実装前の data の可能性があります。新しい build で再収録した session と比較してください。")
+                }
+                if (imageIntrinsicsAttemptCount > 0 && imageIntrinsicsSuccessCount == 0) {
+                    add("camera intrinsics の読取試行はありますが成功していません。ARCore route 実装と端末挙動を確認してください。")
+                }
+                if (hasTrackingQualityWarning) {
+                    add("tracking が不安定です。収録時間を少し長くし、急な動きを避け、特徴点が少ない面だけを映し続けないようにしてください。")
                 }
                 if (lensDistortionCount == 0) {
                     add("lens distortion が不足しています。対応 frame を増やして再撮影してください。")
@@ -272,6 +336,9 @@ class CorrectingDataCheckService {
             completenessScore = completenessScore,
             poseCoverageRatio = poseCoverageRatio,
             validPoseCount = validPoseCount,
+            trackingFrameCount = trackingFrameCount,
+            nonTrackingFrameCount = nonTrackingFrameCount,
+            nonTrackingCoverageRatio = nonTrackingCoverageRatio,
             calibrationFrameCount = calibrationFrameCount,
             imageIntrinsicsCount = imageIntrinsicsCount,
             textureIntrinsicsCount = textureIntrinsicsCount,
@@ -284,11 +351,19 @@ class CorrectingDataCheckService {
             intrinsicsModeCandidate = intrinsicsModeCandidate,
             intrinsicsChangedDuringRecording = intrinsicsChangedDuringRecording,
             legacySessionWithoutCalibration = legacySessionWithoutCalibration,
+            possiblePreCalibrationImplementationData = possiblePreCalibrationImplementationData,
             qualityFlags = qualityFlags,
             warnings = warnings,
             spaceReconstructionBlockers = blockers,
             recommendedCorrections = recommendedCorrections,
             recommendedModelingRoutes = recommendedModelingRoutes,
+            imageIntrinsicsAttemptCount = imageIntrinsicsAttemptCount,
+            imageIntrinsicsSuccessCount = imageIntrinsicsSuccessCount,
+            textureIntrinsicsAttemptCount = textureIntrinsicsAttemptCount,
+            textureIntrinsicsSuccessCount = textureIntrinsicsSuccessCount,
+            lensDistortionAttemptCount = lensDistortionAttemptCount,
+            lensDistortionSuccessCount = lensDistortionSuccessCount,
+            captureFailureReasons = captureFailureReasons,
         )
     }
 
@@ -326,8 +401,9 @@ class CorrectingDataCheckService {
                 "trackingQualitySummary",
                 JSONObject()
                     .put("validPoseCount", parsed.validPoseCount)
-                    .put("trackingFrameCount", parsed.poseRows.count { stringValue(it, listOf("trackingState")) == "TRACKING" })
-                    .put("nonTrackingFrameCount", parsed.poseRows.count { stringValue(it, listOf("trackingState")) !in listOf(null, "", "TRACKING") }),
+                    .put("trackingFrameCount", parsed.trackingFrameCount)
+                    .put("nonTrackingFrameCount", parsed.nonTrackingFrameCount)
+                    .put("nonTrackingCoverageRatio", parsed.nonTrackingCoverageRatio),
             )
             .put("qualityFlags", JSONObject(parsed.qualityFlags))
             .put("warnings", JSONArray(parsed.warnings))
@@ -353,6 +429,18 @@ class CorrectingDataCheckService {
             .put("intrinsicsModeCandidate", parsed.intrinsicsModeCandidate)
             .put("intrinsicsChangedDuringRecording", parsed.intrinsicsChangedDuringRecording)
             .put("legacySessionWithoutCalibration", parsed.legacySessionWithoutCalibration)
+            .put("possiblePreCalibrationImplementationData", parsed.possiblePreCalibrationImplementationData)
+            .put(
+                "captureDiagnostics",
+                JSONObject()
+                    .put("imageIntrinsicsAttemptCount", parsed.imageIntrinsicsAttemptCount)
+                    .put("imageIntrinsicsSuccessCount", parsed.imageIntrinsicsSuccessCount)
+                    .put("textureIntrinsicsAttemptCount", parsed.textureIntrinsicsAttemptCount)
+                    .put("textureIntrinsicsSuccessCount", parsed.textureIntrinsicsSuccessCount)
+                    .put("lensDistortionAttemptCount", parsed.lensDistortionAttemptCount)
+                    .put("lensDistortionSuccessCount", parsed.lensDistortionSuccessCount)
+                    .put("failureReasons", JSONArray(parsed.captureFailureReasons)),
+            )
             .put("recommendedModelingRoutes", JSONArray(parsed.recommendedModelingRoutes))
             .put("warnings", JSONArray(parsed.warnings))
             .put("blockers", JSONArray(parsed.spaceReconstructionBlockers))
@@ -476,7 +564,7 @@ class CorrectingDataCheckService {
             )
             .put("nearestDeltaNs", JSONObject().apply { parsed.nearestDeltas.forEach { (k, v) -> put(k, v) } })
             .put("mainVideoPath", "video.mp4")
-            .put("imageDirectory", "${ARTIFACT_DERIVED_DIR}/${ARTIFACT_IMAGES_DIR}")
+            .put("imageDirectory", if ((imagesDir.listFiles()?.count { it.isFile } ?: 0) > 0) "${ARTIFACT_DERIVED_DIR}/${ARTIFACT_IMAGES_DIR}" else JSONObject.NULL)
             .put("framePoseIndexPath", "${ARTIFACT_DERIVED_DIR}/${ARTIFACT_FRAME_POSE_INDEX}")
             .put("cameraCalibrationSummaryPath", "${ARTIFACT_DERIVED_DIR}/${ARTIFACT_CAMERA_CALIBRATION_SUMMARY}")
             .put("arcorePosePath", parsed.poseFilename ?: JSONObject.NULL)
@@ -492,7 +580,7 @@ class CorrectingDataCheckService {
                     .put("poses", parsed.poseFilename ?: JSONObject.NULL)
                     .put("videoEvents", if (File(parsed.sessionDir, "video_events.jsonl").exists()) "video_events.jsonl" else JSONObject.NULL)
                     .put("cameraCalibrationSummary", ARTIFACT_CAMERA_CALIBRATION_SUMMARY)
-                    .put("images", if (imagesDir.exists()) "${ARTIFACT_DERIVED_DIR}/${ARTIFACT_IMAGES_DIR}" else JSONObject.NULL),
+                    .put("images", if ((imagesDir.listFiles()?.count { it.isFile } ?: 0) > 0) "${ARTIFACT_DERIVED_DIR}/${ARTIFACT_IMAGES_DIR}" else JSONObject.NULL),
             )
             .put("rawBundleRoot", parsed.sessionDir.absolutePath)
             .put("derivedBundleRoot", File(parsed.sessionDir, ARTIFACT_DERIVED_DIR).absolutePath)
@@ -517,16 +605,16 @@ class CorrectingDataCheckService {
                         ARTIFACT_FRAME_POSE_INDEX,
                         ARTIFACT_CAMERA_CALIBRATION_SUMMARY,
                         ARTIFACT_ARCORE_POSE,
-                        ARTIFACT_IMAGES_DIR,
                     ),
                 ),
             )
+            .put("optionalArtifacts", JSONArray(listOf(ARTIFACT_IMAGES_DIR)))
             .put(
                 "recommendedNextAction",
                 if (parsed.spaceReconstructionBlockers.isEmpty()) {
-                    "modeling へ進める"
+                    "modeling へ進める。frame画像群が必要なら転送前に生成する"
                 } else {
-                    "warning を確認したうえで modeling へ進める"
+                    "warning を確認したうえで modeling へ進める。frame画像群が必要なら転送前に生成する"
                 },
             )
             .toString(2)
@@ -563,9 +651,13 @@ class CorrectingDataCheckService {
                 parsed.frameRows.firstNotNullOfOrNull { row ->
                     longValue(row, listOf("elapsed_realtime_ns", "timestamp_ns"))
                 } ?: 0L
+            val selectedFrameIndexes = selectedImageFrameIndexes(parsed)
             val retriever = MediaMetadataRetriever()
             retriever.setDataSource(videoFile.absolutePath)
             parsed.frameRows.forEachIndexed { index, row ->
+                if (index !in selectedFrameIndexes) {
+                    return@forEachIndexed
+                }
                 val elapsedRealtimeNs = longValue(row, listOf("elapsed_realtime_ns", "timestamp_ns")) ?: return@forEachIndexed
                 val relativeUs = ((elapsedRealtimeNs - firstElapsedRealtimeNs).coerceAtLeast(0L)) / 1_000L
                 val bitmap = retriever.getFrameAtTime(relativeUs, MediaMetadataRetriever.OPTION_CLOSEST) ?: return@forEachIndexed
@@ -578,6 +670,27 @@ class CorrectingDataCheckService {
         }.onFailure {
             // image extraction failure is reflected later as missing images blocker/warning via file checks
         }
+    }
+
+    private fun selectedImageFrameIndexes(parsed: ParsedSession): Set<Int> {
+        if (parsed.frameRows.isEmpty()) {
+            return emptySet()
+        }
+        val frameTimes =
+            parsed.frameRows.mapIndexedNotNull { index, row ->
+                longValue(row, listOf("elapsed_realtime_ns", "timestamp_ns"))?.let { index to it }
+            }
+        if (frameTimes.isEmpty()) {
+            return setOf(0)
+        }
+        if (parsed.poseRows.isEmpty()) {
+            return setOf(frameTimes.first().first)
+        }
+        return parsed.poseRows.mapNotNull { poseRow ->
+            val poseTime = longValue(poseRow, listOf("elapsedRealtimeNanos", "frameTimestampNs", "captureTimestampNs", "timestamp_ns"))
+                ?: return@mapNotNull null
+            frameTimes.minByOrNull { (_, frameTime) -> abs(frameTime - poseTime) }?.first
+        }.toSet()
     }
 
     private fun firstExistingFile(sessionDir: File, candidates: List<String>): File? =
@@ -761,6 +874,9 @@ class CorrectingDataCheckService {
         val completenessScore: Double,
         val poseCoverageRatio: Double,
         val validPoseCount: Int,
+        val trackingFrameCount: Int,
+        val nonTrackingFrameCount: Int,
+        val nonTrackingCoverageRatio: Double,
         val calibrationFrameCount: Int,
         val imageIntrinsicsCount: Int,
         val textureIntrinsicsCount: Int,
@@ -773,11 +889,19 @@ class CorrectingDataCheckService {
         val intrinsicsModeCandidate: String,
         val intrinsicsChangedDuringRecording: Boolean,
         val legacySessionWithoutCalibration: Boolean,
+        val possiblePreCalibrationImplementationData: Boolean,
         val qualityFlags: Map<String, Boolean>,
         val warnings: List<String>,
         val spaceReconstructionBlockers: List<String>,
         val recommendedCorrections: List<String>,
         val recommendedModelingRoutes: List<String>,
+        val imageIntrinsicsAttemptCount: Int,
+        val imageIntrinsicsSuccessCount: Int,
+        val textureIntrinsicsAttemptCount: Int,
+        val textureIntrinsicsSuccessCount: Int,
+        val lensDistortionAttemptCount: Int,
+        val lensDistortionSuccessCount: Int,
+        val captureFailureReasons: List<String>,
     )
 
     companion object {

@@ -162,16 +162,36 @@
   - `MRL-5D`
   - `mRL-5D.1` から `mRL-5D.3`
 - UX 観点:
-  - `Correcting mode` 直下に `1. 転送準備 -> 2. データ記録 -> 3. 転送` の手順 text が同じ文字サイズで置かれる
-  - 1 つ目の block は 1 行目が `サンプリング条件` / `端末保存先`、2 行目が保存先状態表示、3 行目が `送信データセット` / `データ名称変更` の 2 列になる
-  - 2 つ目の block は 1 行目が記録開始 / 停止 toggle、2 行目が `品質確認` / `転送データ選択` の 2 列になる
+  - preview 直下の状態表示には `現場の風景と経路を記録します。1. 条件設定⇒2. 収録⇒3. 転送` が表示される
+  - `端末保存先` が未設定の間は `Data収録開始` が非活性で、`端末保存先：未設定` が表示される
+  - `転送先を選択` 直下の小さい補助表示は出ず、転送条件は `転送実行` 直下の comment に集約される
+  - 1 つ目の block は見出しが `1. 条件設定` で、1 行目が `Sampling条件` / `端末保存先`、2 行目が保存先状態表示、3 行目が `送信Dataset` / `Data名称変更` の 2 列になる
+  - 2 つ目の block は見出しが `2. 収録` で、1 行目が記録開始 / 停止 toggle、2 行目が `品質確認` / `転送Data選択` の 2 列になる
   - 3 つ目の block は 1 行目の `転送先を選択` / `転送実行` の 2 列、その下の転送状態表示で構成される
 - `端末保存先` により、`Storage Access Framework` からスマホ内の同期先 folder を選べる
-- `送信データセット` popup で送信 group を選べる
-- `転送データ選択` popup で `data-check` 済み data を複数選べ、懸念がある data は `▲` 付きで見える
-- `データ名称変更` popup に保存済み data の取得日時と長さが出て、名称変更できる
-- `転送先を選択` popup で `Google Drive` URL を保持し、`保存先fileを設定する` から `Google Drive` を開いて保存場所と zip file 名を選べる
-- `転送実行` は `data-check` 済み data、`Google Drive` 転送先、送信 group がそろった時だけ有効になる
+- 収録停止後は、まず raw session を `端末保存先` へ保存し、その後に `data-check` を走らせる
+- 収録停止後の自動 `data-check` と端末保存先同期では、待機文言を出して非活性理由を明示する
+- 待機表示は `Data収録開始` 直下へ寄せ、短文 + ring / bar + 次の収録可否の 1 文で示す
+- `品質確認` の詳細は popup へ寄せ、メイン画面には閾値未満の項目名だけを残す
+- `端末保存先` 同期中は session 詳細を縮退し、`Session: <session_id>` と `品質確認OK` のみを残す
+- shared camera route の `ARCore` sampling は `arCoreIntervalMs` に従い、画像抽出は pose 対応 frame 優先に絞る
+- `品質確認` は lightweight 判定を優先し、`frame画像群` は転送で実際に要求された時だけ生成する
+- `転送実行` 中の comment と waiting ring は `転送実行` button 直下に表示し、recording 側 indicator と分離する
+- `trackingState` warning は初期 warmup の少数 frame を許容し、non-tracking 率が高い時だけ `▲` と案内文を返す
+- `転送Data選択` と `Data名称変更` の一覧表示前には保存済み data の lightweight `品質確認` を再実行し、`▲` を更新する
+- `▲` は blocker または閾値超え warning がある時だけ付け、軽微な `coverage < 1.0` や `images/` 未生成だけでは付けない
+- 保存済み data 一覧の lightweight `品質確認` では `images/` 未生成を `▲` 原因に含めない
+- `corecamera_shared_camera_trial` route の calibration 診断は、`captureDiagnostics` が実データで立つことを追加確認対象にする
+- `送信Dataset` popup で送信 group を選べる
+- `転送Data選択` popup で `data-check` 済み data を複数選べ、懸念がある data は `▲` 付きで見える
+- `転送Data選択` popup は `Data名称変更` popup と同系統の button 一覧 UI へ揃え、取得日時、長さ、`▲` を button 外の小テキストで確認できる
+- `Data名称変更` popup に保存済み data の取得日時と長さが出て、名称変更できる
+- `Data名称変更` popup はメイン画面寄りの button 一覧で区切りが見え、rename 後も親 popup に残る
+- popup 最上段に `戻る`、次行に `OFF：名称変更、ON：削除モード` toggle があり、ON かつ選択済み時だけ `削除実行` が活性になる
+- `転送先を選択` popup で `Google Drive` URL を保持し、`保存先fileを設定する` から Android 標準保存画面経由で保存場所と zip file 名を選べる。端末 storage が先に見える時は user が provider を `Google Drive` へ切り替える
+- `転送実行` は `転送Data` と `Google Drive` 転送先がそろうと有効になり、直下コメントで設定済み / 未設定を読める
+- `Google Drive` 転送先 file は毎回 user が選び直す前提とし、前回転送の document grant を再利用しない
+- zip 保存先 file 名の既定値は、名称未指定なら `trajectreview-correcting-session-YYYYMMDD-HHMMSS.zip`、data 名を使う時は `<data-name>-session-YYYYMMDD-HHMMSS.zip` とする
 - 既存の `data-check` 済み session を選んだ時は、その session を再転送できる
 - 記録停止後は `data-check` が自動実行され、新しい記録開始時には `data-check` 成功回数が `0` に戻る
 - `poseCoverageRatio` は `ARCore` の期待 sample 数基準で算出し、`video frame` 数に引きずられない

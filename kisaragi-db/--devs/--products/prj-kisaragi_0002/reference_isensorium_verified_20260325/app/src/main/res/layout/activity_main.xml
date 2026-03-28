@@ -102,20 +102,6 @@
                 android:padding="16dp">
 
                 <TextView
-                    android:id="@+id/screenTitleText"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/correcting_mode_title"
-                    android:textAppearance="@style/TextAppearance.Material3.TitleLarge" />
-
-                <TextView
-                    android:id="@+id/workflowGuideText"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/correcting_mode_flow"
-                    android:textAppearance="@style/TextAppearance.Material3.TitleLarge" />
-
-                <TextView
                     android:id="@+id/recordingModeText"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -420,6 +406,45 @@
                             android:text="@string/record_start_button" />
 
                         <LinearLayout
+                            android:id="@+id/processingIndicatorLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:gravity="center_vertical"
+                            android:orientation="vertical"
+                            android:visibility="gone">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <ProgressBar
+                                    android:id="@+id/processingIndicator"
+                                    style="?android:attr/progressBarStyleSmall"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:indeterminate="true" />
+
+                                <TextView
+                                    android:id="@+id/processingStatusText"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="10dp"
+                                    android:layout_weight="1"
+                                    android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:id="@+id/processingRecommendationText"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="6dp"
+                                android:textAppearance="@style/TextAppearance.Material3.BodySmall" />
+                        </LinearLayout>
+
+                        <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="12dp"
@@ -512,12 +537,50 @@
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/transferButton"
-                                style="@style/Widget.Material3.Button.OutlinedButton"
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_marginStart="6dp"
                                 android:layout_weight="1"
                                 android:text="@string/execute_transfer_button" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/transferProcessingIndicatorLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="10dp"
+                            android:gravity="center_vertical"
+                            android:orientation="vertical"
+                            android:visibility="gone">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <ProgressBar
+                                    android:id="@+id/transferProcessingIndicator"
+                                    style="?android:attr/progressBarStyleSmall"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:indeterminate="true" />
+
+                                <TextView
+                                    android:id="@+id/transferProcessingStatusText"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="10dp"
+                                    android:layout_weight="1"
+                                    android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:id="@+id/transferProcessingRecommendationText"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="6dp"
+                                android:textAppearance="@style/TextAppearance.Material3.BodySmall" />
                         </LinearLayout>
 
                         <TextView
