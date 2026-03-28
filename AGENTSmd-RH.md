@@ -12,6 +12,20 @@
 
 ## 更新履歴
 
+### 2026-03-28 AGENTS.md 旧 category directory の全廃
+
+- 日時: `2026-03-28`
+- 文書名: `AGENTS.md`
+- 標題: `--plans`、`--evidence`、`--project-truth`、`--state` の削除
+- 背景: `prj-kisaragi_0001`、`prj-kisaragi_0002`、`prj-kisaragi_0003` の正本文書が `--tgpce-map/` にそろい、旧 category directory は空になった。
+- 目的: 実体を持たない旧 category を削除し、`--devs` 構造を現行正本に合わせて簡潔化する。
+- 対処方法: `AGENTS.md` と `--devs/agents.md` の構造説明から旧 category を外し、旧 category は吸収完了後に削除する rule へ更新した。
+- 対応内容: `--plans/`、`--evidence/`、`--project-truth/`、`--state/` の directory 実体を削除した。
+- 更新結果: `--devs/` は `--tgpce-map/`、`--products/`、`--testcode/`、`--testlogs/` の現行構成だけを持つ。
+- 新旧比較:
+  - 旧: `--plans`、`--evidence`、`--project-truth`、`--state` の空 directory が残っていた。
+  - 新: 旧 category は削除し、正本構造は `--tgpce-map` 中心に整理された。
+
 ### 2026-03-28 AGENTS.md `0001` と `0003` の新文書ルール展開
 
 - 日時: `2026-03-28`

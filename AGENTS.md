@@ -106,7 +106,7 @@ kisaragi-tree/
 - `--tgpce-map/` は `truth, goal, plan, current, evidence-map` を束ねる統合文書置き場とする。
 - `--tgpce-map/` への統合は承認済み `prj-kisaragi_****` から段階的に行う。
 - `--tgpce-map/` 採用済み `prj-kisaragi_****` では、project 固有の `current_state` と `decision` も統合計画書を中心に集約し、旧 category の同 project 文書は `--tgpce-map/` 側へ移す。
-- 移行が必要な場合は、`--plans/`、`--evidence/`、`--project-truth/`、`--state/` は直ちに全廃するのではなく、承認済み project から順に `--tgpce-map/` へ吸収し、空になった project path から削除する。
+- `--plans/`、`--evidence/`、`--project-truth/`、`--state/` は旧 category とし、`--tgpce-map/` へ吸収し終えたら directory 実体ごと削除する。
 ```text
 --devs/
   --tgpce-map/
@@ -176,8 +176,7 @@ kisaragi-tree/
 - terminal behavior は BDD を起点に確認する。
 - 到達段階は `MRL`、実行単位は `mRL` で管理する。
 - 機能の振る舞いではなく、その機能を使うための準備 UX、配布、install、bootstrap、実行環境整備は `INITL`、`mINITL` で管理する。
-- release 計画は `kisaragi-db/--devs/--plans/prj-kisaragi_****/` に置く。
-- `--tgpce-map/` 適用済み project では、release 計画、truth、evidence-map は `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_****/` に置く。
+- release 計画、truth、evidence-map は `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_****/` に置く。
 - 実装に着手する project は、原則として先に統合計画書を作成または更新する。`--tgpce-map/` 採用 project は `ux-b2t-hypo.md` を使う。
 - `planned` は未着手または着手前提の計画状態、`active` は着手中、`pass` は `active` を経て完了した gate とする。
 - `MRL` または `mRL` が `pass` になったら、その project の admin 証跡正本に記録する。`--tgpce-map/` 採用 project は `admin-mrl-test-evidence.md` を使う。
