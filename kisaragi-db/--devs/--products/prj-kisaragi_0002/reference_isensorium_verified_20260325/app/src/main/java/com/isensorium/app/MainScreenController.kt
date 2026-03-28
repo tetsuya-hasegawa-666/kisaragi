@@ -157,7 +157,7 @@ class MainScreenController {
         return SessionPresentation(summaryText = summaryText, filesText = filesText)
     }
 
-    fun buildInitialStatus(): String = "カメラの準備中です。記録モードを確認してセッションを開始してください。"
+    fun buildInitialStatus(): String = "現場の風景と経路を記録します。1. 条件設定⇒2. 収録⇒3. 転送"
 
     fun buildRefreshStatus(hasSession: Boolean, refreshedAtMillis: Long): String =
         if (hasSession) {

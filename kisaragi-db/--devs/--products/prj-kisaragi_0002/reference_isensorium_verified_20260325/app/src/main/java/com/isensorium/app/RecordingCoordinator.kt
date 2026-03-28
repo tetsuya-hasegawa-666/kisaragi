@@ -479,7 +479,7 @@ class RecordingCoordinator(
             return
         }
 
-        statusListener(SessionUiState(false, currentSession, "カメラの準備ができました。追加センサを含む記録を開始できます。"))
+        statusListener(SessionUiState(false, currentSession, "現場の風景と経路を記録します。1. 条件設定⇒2. 収録⇒3. 転送"))
     }
 
     private fun initializeArCoreGlSurfaceView() {
@@ -916,22 +916,41 @@ class RecordingCoordinator(
                     sessionManager.appendCollectorStatus(recordingSession, "arcore", "resumed")
                     poseSampler?.stop()
                     poseSampler =
-                        OffscreenArCorePoseSampler(cameraHandler) { frameTimestampNs, trackingState, translation, rotationQuaternion ->
+                        OffscreenArCorePoseSampler(
+                            cameraHandler,
+                            recordingSession.recordingConfig.arCoreIntervalMs,
+                        ) { poseFrame ->
                             val nowNs = SystemClock.elapsedRealtimeNanos()
+                            val lensDistortion = readBackCameraLensDistortion()
                             sessionManager.appendArCorePose(
                                 recordingSession,
                                 ArCorePoseSample(
                                     sessionId = recordingSession.sessionId,
                                     recordIndex = recordingSession.arCoreSampleCount + 1L,
-                                    frameTimestampNs = frameTimestampNs,
-                                    captureTimestampNs = frameTimestampNs,
+                                    frameTimestampNs = poseFrame.frameTimestampNs,
+                                    captureTimestampNs = poseFrame.frameTimestampNs,
                                     elapsedRealtimeNanos = nowNs,
                                     wallTimeMillis = System.currentTimeMillis(),
-                                    trackingState = trackingState,
-                                    translation = translation.toList(),
-                                    rotationQuaternion = rotationQuaternion.toList(),
-                                    lensDistortion = readBackCameraLensDistortion(),
-                                    lensDistortionModel = if (readBackCameraLensDistortion() != null) "android_lens_distortion" else null,
+                                    trackingState = poseFrame.trackingState,
+                                    translation = poseFrame.translation.toList(),
+                                    rotationQuaternion = poseFrame.rotationQuaternion.toList(),
+                                    imageFocalLength = poseFrame.imageFocalLength,
+                                    imagePrincipalPoint = poseFrame.imagePrincipalPoint,
+                                    imageDimensions = poseFrame.imageDimensions,
+                                    textureFocalLength = poseFrame.textureFocalLength,
+                                    texturePrincipalPoint = poseFrame.texturePrincipalPoint,
+                                    textureDimensions = poseFrame.textureDimensions,
+                                    imageIntrinsicsRequested = poseFrame.imageIntrinsicsRequested,
+                                    imageIntrinsicsSucceeded = poseFrame.imageIntrinsicsSucceeded,
+                                    imageIntrinsicsFailureReason = poseFrame.imageIntrinsicsFailureReason,
+                                    textureIntrinsicsRequested = poseFrame.textureIntrinsicsRequested,
+                                    textureIntrinsicsSucceeded = poseFrame.textureIntrinsicsSucceeded,
+                                    textureIntrinsicsFailureReason = poseFrame.textureIntrinsicsFailureReason,
+                                    lensDistortionRequested = true,
+                                    lensDistortionSucceeded = lensDistortion != null,
+                                    lensDistortionFailureReason = null,
+                                    lensDistortion = lensDistortion,
+                                    lensDistortionModel = if (lensDistortion != null) "android_lens_distortion" else null,
                                 ),
                             )
                             recordingSession.arCoreSampleCount += 1
@@ -940,7 +959,7 @@ class RecordingCoordinator(
                             sessionManager.appendFrameTimestamp(
                                 recordingSession,
                                 FrameTimestamp(
-                                    sensorTimestampNs = frameTimestampNs,
+                                    sensorTimestampNs = poseFrame.frameTimestampNs,
                                     elapsedRealtimeNanos = nowNs,
                                     wallTimeMillis = System.currentTimeMillis(),
                                     rotationDegrees = 0,
@@ -1336,9 +1355,12 @@ class RecordingCoordinator(
                 }
                 val camera = frame.camera
                 val pose = camera.displayOrientedPose
-                val imageIntrinsics = camera.imageIntrinsics
-                val textureIntrinsics = camera.textureIntrinsics
-                val lensDistortion = readBackCameraLensDistortion()
+                val imageIntrinsicsResult = runCatching { camera.imageIntrinsics }
+                val textureIntrinsicsResult = runCatching { camera.textureIntrinsics }
+                val lensDistortionResult = runCatching { readBackCameraLensDistortion() }
+                val imageIntrinsics = imageIntrinsicsResult.getOrNull()
+                val textureIntrinsics = textureIntrinsicsResult.getOrNull()
+                val lensDistortion = lensDistortionResult.getOrNull()
                 sessionManager.appendArCorePose(
                     recordingSession,
                     ArCorePoseSample(
@@ -1351,12 +1373,21 @@ class RecordingCoordinator(
                         trackingState = camera.trackingState.name,
                         translation = pose.translation.toList(),
                         rotationQuaternion = pose.rotationQuaternion.toList(),
-                        imageFocalLength = imageIntrinsics.focalLength.toList(),
-                        imagePrincipalPoint = imageIntrinsics.principalPoint.toList(),
-                        imageDimensions = imageIntrinsics.imageDimensions.toList(),
-                        textureFocalLength = textureIntrinsics.focalLength.toList(),
-                        texturePrincipalPoint = textureIntrinsics.principalPoint.toList(),
-                        textureDimensions = textureIntrinsics.imageDimensions.toList(),
+                        imageFocalLength = imageIntrinsics?.focalLength?.toList() ?: emptyList(),
+                        imagePrincipalPoint = imageIntrinsics?.principalPoint?.toList() ?: emptyList(),
+                        imageDimensions = imageIntrinsics?.imageDimensions?.toList() ?: emptyList(),
+                        textureFocalLength = textureIntrinsics?.focalLength?.toList() ?: emptyList(),
+                        texturePrincipalPoint = textureIntrinsics?.principalPoint?.toList() ?: emptyList(),
+                        textureDimensions = textureIntrinsics?.imageDimensions?.toList() ?: emptyList(),
+                        imageIntrinsicsRequested = true,
+                        imageIntrinsicsSucceeded = imageIntrinsics != null,
+                        imageIntrinsicsFailureReason = imageIntrinsicsResult.exceptionOrNull()?.javaClass?.simpleName,
+                        textureIntrinsicsRequested = true,
+                        textureIntrinsicsSucceeded = textureIntrinsics != null,
+                        textureIntrinsicsFailureReason = textureIntrinsicsResult.exceptionOrNull()?.javaClass?.simpleName,
+                        lensDistortionRequested = true,
+                        lensDistortionSucceeded = lensDistortion != null,
+                        lensDistortionFailureReason = lensDistortionResult.exceptionOrNull()?.javaClass?.simpleName,
                         lensDistortion = lensDistortion,
                         lensDistortionModel = if (lensDistortion != null) "android_lens_distortion" else null,
                     ),
@@ -1569,6 +1600,15 @@ data class ArCorePoseSample(
     val textureFocalLength: List<Float> = emptyList(),
     val texturePrincipalPoint: List<Float> = emptyList(),
     val textureDimensions: List<Int> = emptyList(),
+    val imageIntrinsicsRequested: Boolean = false,
+    val imageIntrinsicsSucceeded: Boolean = false,
+    val imageIntrinsicsFailureReason: String? = null,
+    val textureIntrinsicsRequested: Boolean = false,
+    val textureIntrinsicsSucceeded: Boolean = false,
+    val textureIntrinsicsFailureReason: String? = null,
+    val lensDistortionRequested: Boolean = false,
+    val lensDistortionSucceeded: Boolean = false,
+    val lensDistortionFailureReason: String? = null,
     val lensDistortion: List<Float>? = null,
     val lensDistortionModel: String? = null,
 )
@@ -1783,6 +1823,31 @@ class SessionManager(
                     .put("cy", sample.texturePrincipalPoint.getOrNull(1) ?: JSONObject.NULL)
                     .put("width", sample.textureDimensions.getOrNull(0) ?: JSONObject.NULL)
                     .put("height", sample.textureDimensions.getOrNull(1) ?: JSONObject.NULL),
+            )
+            .put(
+                "captureDiagnostics",
+                JSONObject()
+                    .put(
+                        "imageIntrinsics",
+                        JSONObject()
+                            .put("requested", sample.imageIntrinsicsRequested)
+                            .put("succeeded", sample.imageIntrinsicsSucceeded)
+                            .put("failureReason", sample.imageIntrinsicsFailureReason ?: JSONObject.NULL),
+                    )
+                    .put(
+                        "textureIntrinsics",
+                        JSONObject()
+                            .put("requested", sample.textureIntrinsicsRequested)
+                            .put("succeeded", sample.textureIntrinsicsSucceeded)
+                            .put("failureReason", sample.textureIntrinsicsFailureReason ?: JSONObject.NULL),
+                    )
+                    .put(
+                        "lensDistortion",
+                        JSONObject()
+                            .put("requested", sample.lensDistortionRequested)
+                            .put("succeeded", sample.lensDistortionSucceeded)
+                            .put("failureReason", sample.lensDistortionFailureReason ?: JSONObject.NULL),
+                    ),
             )
             .put(
                 "lensDistortion",

@@ -4,7 +4,7 @@
 
 ## 目的
 
-- admin が Codex を senior software / UX engineer として活用し、有益な software を速く社会実装することを目的とする。
+- admin が Codex を senior software / UX engineer として活用し、有益な software を速く社会実装する。
 
 </order>
 
@@ -12,12 +12,12 @@
 
 ## 大前提
 
-- `<order>` と `</order>` の間は admin 指示であり、最優先で守る。Codex は無断で書き換えてはならない。
+- `<order>` と `</order>` の間は admin 指示とし、最優先で守る。Codex は無断で書き換えてはならない。
 - この配下の配置規則は本書に従う。
-- 本文言語は日本語とし、識別子、command、path、API 名、service 名、英字略語は必要に応じて原文を使う。
+- 本文は日本語を基本とし、識別子、command、path、API 名、service 名、英字略語は必要時のみ原文を使う。
 - file 名は半角英数字と、各 program で混乱しにくい半角記号のみを使う。
 - 日本語文書は UTF-8 前提で扱う。
-- `README.md` と `index.md` は原則禁止とし、必要時のみ `AGENTS.md` または各階層の `agents.md` 冒頭で用途を明示して使う。
+- `README.md` と `index.md` は原則禁止とし、必要時だけ `AGENTS.md` または各階層の `agents.md` 冒頭で用途を明示して使う。
 - すべての文書は、人が読みやすく、文字数当たりの情報量が最大になるように書く。
 
 </order>
@@ -26,7 +26,7 @@
 
 ## 読み順
 
-- `kisaragi/` 直下から対象文書の階層までにある `AGENTS.md` と `agents.md` を上位から読み、その規則に従って把握・編集する。
+- `kisaragi/` 直下から対象文書の階層までにある `AGENTS.md` と `agents.md` を上位から読み、規則に従って把握・編集する。
 
 </order>
 
@@ -36,7 +36,7 @@
 
 - 最上位 shared control file は `AGENTS.md` とする。
 - 各 directory の `agents.md` は、その配下全体に効く directory rule とする。
-- shared control file と個別 file が衝突した場合は、上位 shared control file を優先する。
+- shared control file と個別 file が衝突した場合は、上位の shared control file を優先する。
 
 </order>
 
@@ -45,7 +45,7 @@
 ## top 構造
 
 - `kisaragi/` の最上位運用正本は `AGENTS.md` とする。
-- top の `README.md` は GitHub 公開時に repository 全体の構成と正本文書への入口を示す用途に限って許容する。
+- top の `README.md` は、GitHub 公開時に repository 全体の構成と正本文書への入口を示す用途に限って許容する。
 - workspace 管理に必要な最小 file は、top 構造の例外として許容する。
 
 ```text
@@ -68,9 +68,9 @@ kisaragi/
 - `prj-kisaragi_****` 以外の directory 名は `--` で始める。
 - `--` directory は親階層の情報区分であり、新設・削除は user 了解なしでは行わない。
 - `--` directory 直下には `agents.md` 以外を置かない。
-- `--` directory 配下に `prj-kisaragi_****` がある場合、その直下に別の `--` directory を並置しない。
+- `--` directory 配下に `prj-kisaragi_****` がある場合、その直下へ別の `--` directory を並置しない。
 - `prj-kisaragi_****` 直下に `agents.md` は置かない。
-- `--exsams/` 配下は、その性質上 Codex による自由な書き換えを許容する。
+- `--exsams/` 配下は、性質上 Codex による自由な書き換えを許容する。
 
 ```text
 kisaragi-db/
@@ -83,10 +83,10 @@ kisaragi-db/
 <order>
 
 ## project名と関連ディレクトリやデータ名称に用いる固有名称のルール
-- project名は、そのシステムがどのような機能なのかを示す名称を与えるが、この名称はのちに変更する場合がある。
-- projectごとに、半角英数記号によるコードネームが与えられ、発生順がわかる名称である。この名前は付与された後の変更は厳禁扱いとし、かつコードネームの変更が必要にならないように運用することとする。
-- コードネームとproject名のつながりは以下の対応表で唯一定義されるものとする。
-- kisaragi/配下で使われるデータのうち、project固有名称を与えたい場合には、projectコードネームを利用し、project名を与えないこと。
+- project名は、その project の機能を示す名称とし、後で変更してよい。
+- project ごとに、発生順が分かる半角英数記号の code name を与える。code name は付与後の変更を禁止し、変更不要で運用する。
+- code name と project 名の対応は、以下の対応表だけで定義する。
+- `kisaragi/` 配下の data に project 固有名称を与える時は、project 名ではなく project code を使う。
 - project directory 名は `prj-kisaragi_****` 形式とし、project 名を directory 名へ使わない。
 
 ```text
@@ -118,7 +118,7 @@ kisaragi-skills/
 
 - `kisaragi-tree/` 配下は junction によって構成し、実データ copy は持たない。
 - 直接編集せず、更新は常に `kisaragi-db/` 正本側で行う。
-- data 追加削除時は tree sync 実行物で追従させ、閲覧 UI が対応できる状態を保つ。
+- data の追加削除時は tree sync 実行物で追従させ、閲覧 UI が対応できる状態を保つ。
 
 ```text
 kisaragi-tree/
@@ -133,7 +133,7 @@ kisaragi-tree/
 ## `--devs/`
 
 - 計画、状態、証跡、test code、product 実装物、および trace として有益な test 記録を置く。
-- `--testlogs/` には記録、要約、manifest などを置き、それ以外の生成物は `--exsams/` を使う。
+- `--testlogs/` には記録、要約、manifest などを置き、それ以外の生成物は `--exsams/` に置く。
 
 ```text
 --devs/
@@ -160,13 +160,13 @@ kisaragi-tree/
 
 ## 更新規則
 
-- 共通 rule を追加する時は、この文書末尾の更新情報に記録する。
+- 共通 rule を追加した時は、この文書末尾の更新情報に記録する。
 - 更新情報は日時、文書名、標題、背景、目的、対処方法、対応内容、更新結果、新旧比較を持つ。
-- `AGENTS.md` の更新履歴は `AGENTSmd-RH.md` を参照する rule とし、この文書末尾には履歴本文を持たず参照だけを置く。
+- `AGENTS.md` の更新履歴は `AGENTSmd-RH.md` を参照する rule とし、この文書末尾には履歴本文を置かず、参照だけを置く。
 
 ## `AGENTS.md` と project 文書の境界
 
-- `AGENTS.md` は project 横断で共有される rule、directory、state、branch、文書運用、判定語、共通 hygiene だけを持つ。
+- `AGENTS.md` は、project 横断で共有する rule、directory、state、branch、文書運用、判定語、共通 hygiene だけを持つ。
 - project の目的、提供 UX、app 分割、artifact 名、外部 service route、package 設計、`MRL` / `INITL` の中身、個別判断は project 側正本に置く。
 - `AGENTS.md` に project path や project code を書く時は、共有構造の説明か例示に限る。
 - 特定 project の現時点判断、暫定 route、URL、workflow、platform 前提を `AGENTS.md` の rule として固定してはならない。
@@ -183,7 +183,7 @@ kisaragi-tree/
 
 - `C:\Users\tetsuya\kisaragi` を workspace として作業している時は、`kisaragi/` 配下以外の directory に対する access は `READ` のみ許可する。
 - `kisaragi/` 配下以外の directory に対して、作成、編集、移動、削除、rename、生成物出力、cache 出力、install 元配置などの `READ` 以外の access を行ってはならない。
-- 外部 directory の情報が必要な時は、参照後に `kisaragi/` 配下の正本へ吸収し、外部 directory 自体を変更しない。
+- 外部 directory の情報が必要な時は、参照後に `kisaragi/` 配下の正本へ吸収し、外部 directory 自体は変更しない。
 
 ## 実装原則
 
@@ -191,7 +191,7 @@ kisaragi-tree/
 - 自動検証できる変更は TDD を基本とし、fail する test を先に置く。
 - green 後の refactor は visible behavior を壊さない範囲で行う。
 - MVC を採る project では、View は表示と入力、Controller は状態遷移と orchestration、Model は contract と record structure を担当する。
-- 完了した挙動は docs、plan、evidence のいずれかに trace を残す。
+- 完了した挙動は docs、plan、evidence のいずれかへ trace を残す。
 - `UX 確認済み`、`contract 固定済み`、`build / install 済み`、`local sample 済み` は、それぞれ `本来機能が実行できる` ことと同義に扱ってはならない。
 - mock、stub、sample、代替 route、説明用 UI、表示だけの接続で確認した内容は、対応する本機能 `MRL` / `mRL` を `pass` にしてはならず、必要なら `UX-only` または `補助 gate` と明記した別 gate で管理する。
 - 本機能 gate の `pass` には、対象 app 自身で本来の入出力を扱い、後段が消費する実生成物を出し、主要 blocker が plan 上で解消済みであり、かつ admin の `UX check 完了` が明示記録されていることを要件とする。
@@ -218,7 +218,7 @@ kisaragi-tree/
 - `b2t-plans-result.md` の `current_state` 章の冒頭には `疑問点不整合一覧` を表で置き、列は少なくとも `id`、`論点`、`影響`、`現在の扱い`、`admin 状態`、`関連文書` を持つ。
 - `疑問点不整合一覧` の `admin 状態` は `big-open`、`small-open`、`close`、`no judge` を使う。
 - `big-open` は影響が大きい未解決、`small-open` は影響が小さい未解決、`close` は解決済み、`no judge` は問題かどうか未判定を表す。
-- `b2t-plans-result.md` は、局所 current state、target behavior、受け入れ基準、検証方針、到達したい小さい milestone をまとめて管理する正本計画書とする。
+- `b2t-plans-result.md` は、局所 current state、target behavior、受け入れ基準、検証方針、到達したい小さい milestone をまとめる正本計画書とする。
 - `resume-startup-plan.md` は任意の補助計画書とし、開発がいつ中断しても次回再開時に現在地と立ち上げ順を短く把握できるように保つ。
 - `resume-startup-plan.md` は、長期の正本を置き換えず、再開時の導線と初動確認項目を補助する目的で使う。
 - `Purpose Story` は `s1` 形式の識別子で、project の目的に直結する利用価値の流れとして記述する。
@@ -227,8 +227,8 @@ kisaragi-tree/
 - `MRL` 対応表は `MRL`、`mRL`、目的、関連 `s-id`、関連 `b-id`、現在 gate の表で持つ。
 - `MRL` 対応表の記載順は、`planned` から `pass` への時系列ではなく、既定で運用順 `correcting`、`modeling`、`reviewing` を優先する。
 - `INITL` 対応表は、`MRL` 対応表の直下に別 subsection として置き、`INITL`、`mINITL`、目的、関連 `MRL` または関連段階、現在 gate を少なくとも持つ。
-- `INITL-*` と `mINITL-*` は、package、install、bootstrap、実行環境、account 準備、remote 配置、配布導線など、準備 UX の計画を表す識別子とする。
-- `INITL` は機能 behavior そのものではないため、`Purpose Story` / `System Behaviors` へ無理に混ぜず、対応する `MRL` を滑らかに開始するための別 process として扱う。
+- `INITL-*` と `mINITL-*` は、package、install、bootstrap、実行環境、account 準備、remote 配置、配布導線などの準備 UX を表す識別子とする。
+- `INITL` は機能 behavior そのものではないため、`Purpose Story` / `System Behaviors` へ無理に混ぜず、対応する `MRL` を滑らかに開始する別 process として扱う。
 - BDD 章は、目的文、ノーススター、提供方針、`Purpose Story`、`System Behaviors`、受け入れ基準、`MRL` 対応表を持つ。
 - TDD 章は、目的文、TDD タスク表、実行方針、現在の見立てを持つ。
 - タスク表の列は `task_id`、`behavior_id`、`test_target`、`criterion`、`status`、`evidence` とし、1 task 1 責務を守る。
@@ -277,7 +277,7 @@ kisaragi-tree/
 
 - 調査、仮説生成、設計提案、実装支援、文書更新、影響確認を行う。
 - 正本文書変更前に既存文脈を読む。
-- 重要判断を `decision_log` 候補として抽出する。
+- 重要判断は `decision_log` 候補として抽出する。
 
 ### 人間
 
@@ -298,7 +298,7 @@ kisaragi-tree/
 - 共有制御ファイル編集前に `current_state.md` で所有権を宣言する。
 - 重要変更は履歴用文書で追跡可能でなければならない。
 - 文書更新は対応する変更と同じ task で完了させる。
-- 文書更新を伴う task では、影響を受ける正本文書群を先に洗い出し、最低限の整合更新が完了するまで入力待ちへ入ってはならない。未更新を残す時は理由と残件を commentary で明示する。
+- 文書更新を伴う task では、影響を受ける正本文書群を先に洗い出し、最低限の整合更新が完了するまで入力待ちへ入ってはならない。未更新を残す時は、理由と残件を commentary で明示する。
 
 # 意思決定方針
 
@@ -306,7 +306,7 @@ kisaragi-tree/
 
 - 可逆な意思決定は、承認済み方向性の範囲で AI が進めてよい。
 - 不可逆な意思決定には人間の明示承認が必要である。
-- 重要な意思決定は決まった時点で記録する。
+- 重要な意思決定は、決まった時点で記録する。
 
 ## 可逆な意思決定
 
@@ -336,7 +336,7 @@ kisaragi-tree/
 - 新しい永続文書を増やすより既存正本文書の更新を優先する。
 - 重要な意思決定は `kisaragi-db/--devs/--state/decision_log.md` に置く。
 - 人間確認事項と次 action は `kisaragi-db/--devs/--state/current_state.md` に置く。
-- 人が読む各プロジェクトの構築物の試用、使用、利用、運用手順は、内容ごとに整理した上で、`kisaragi-db/--devs/--evidence/prj-kisaragi_****/ux_check_manual.md` に集約する。
+- 人が読む各 project の構築物の試用、使用、利用、運用手順は、内容ごとに整理した上で `kisaragi-db/--devs/--evidence/prj-kisaragi_****/ux_check_manual.md` に集約する。
 - 非 text 資産の inventory 規則は、実装 code や chat だけに残さず正本文書へ反映する。
 - active task に必要な文書更新は、project 上の真実が変わった同じ task 単位で完了させる。
 - `疑問点不整合一覧` に `big-open` が 1 件以上ある project の文書を更新した時は、response で `big-open` の存在を必ず明示する。
@@ -392,7 +392,7 @@ kisaragi-tree/
 
 - AI は人間の取得能力を無制限と仮定しない。
 - 新しい取得依頼の前に、目的、予想時間、成功条件、未実施時の代替を示す。
-- 人間に依頼する実験単位は、一度に小さな 1 件を既定とする。
+- 人間に依頼する実験単位は、既定で一度に小さな 1 件とする。
 
 ## 自律アーキテクト既定
 
@@ -409,7 +409,7 @@ kisaragi-tree/
 
 ## 規則
 
-- Windows ベースの再現可能手順を追加したら、chat へ散在させずここへ記録する。
+- Windows ベースの再現可能手順を追加したら、chat に散在させずここへ記録する。
 
 ## tree sync 実行
 
@@ -423,7 +423,7 @@ kisaragi-tree/
 - 配布用実行物は `kisaragi-tree/kisaragi-tree-sync.exe` とする。
 - 再生成時の正本は `kisaragi-tree/tree-sync.ps1` と `kisaragi-tree/tree-sync-build.sed` とする。
 - Windows 標準の IExpress で `tree-sync-build.sed` を読み込み、`kisaragi-tree-sync.exe` を再生成する。
-- 再生成後は `tree-sync.ps1` を直接実行して同期結果を確認し、その後に `kisaragi-tree-sync.exe` でも起動確認する。
+- 再生成後は `tree-sync.ps1` を直接実行して同期結果を確認し、その後 `kisaragi-tree-sync.exe` でも起動確認する。
 
 # 更新情報
 

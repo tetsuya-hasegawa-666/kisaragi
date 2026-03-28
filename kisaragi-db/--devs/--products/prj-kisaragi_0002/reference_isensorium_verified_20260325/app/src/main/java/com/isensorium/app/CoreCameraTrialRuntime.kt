@@ -410,9 +410,29 @@ class TrialCpuImageVideoRecorder(
     }
 }
 
+data class OffscreenArCorePoseFrame(
+    val frameTimestampNs: Long,
+    val trackingState: String,
+    val translation: FloatArray,
+    val rotationQuaternion: FloatArray,
+    val imageFocalLength: List<Float> = emptyList(),
+    val imagePrincipalPoint: List<Float> = emptyList(),
+    val imageDimensions: List<Int> = emptyList(),
+    val textureFocalLength: List<Float> = emptyList(),
+    val texturePrincipalPoint: List<Float> = emptyList(),
+    val textureDimensions: List<Int> = emptyList(),
+    val imageIntrinsicsRequested: Boolean = false,
+    val imageIntrinsicsSucceeded: Boolean = false,
+    val imageIntrinsicsFailureReason: String? = null,
+    val textureIntrinsicsRequested: Boolean = false,
+    val textureIntrinsicsSucceeded: Boolean = false,
+    val textureIntrinsicsFailureReason: String? = null,
+)
+
 class OffscreenArCorePoseSampler(
     private val handler: Handler,
-    private val onPose: (Long, String, FloatArray, FloatArray) -> Unit,
+    private val sampleIntervalMs: Long,
+    private val onPose: (OffscreenArCorePoseFrame) -> Unit,
 ) {
     private var session: Session? = null
     private var running = false
@@ -437,17 +457,35 @@ class OffscreenArCorePoseSampler(
                     if (timestampNs > 0L && timestampNs != lastFrameTimestampNs) {
                         val camera = frame.camera
                         val pose = camera.pose
+                        val imageIntrinsicsResult = runCatching { camera.imageIntrinsics }
+                        val textureIntrinsicsResult = runCatching { camera.textureIntrinsics }
+                        val imageIntrinsics = imageIntrinsicsResult.getOrNull()
+                        val textureIntrinsics = textureIntrinsicsResult.getOrNull()
                         onPose(
-                            timestampNs,
-                            camera.trackingState.name,
-                            pose.translation,
-                            pose.rotationQuaternion,
+                            OffscreenArCorePoseFrame(
+                                frameTimestampNs = timestampNs,
+                                trackingState = camera.trackingState.name,
+                                translation = pose.translation,
+                                rotationQuaternion = pose.rotationQuaternion,
+                                imageFocalLength = imageIntrinsics?.focalLength?.toList() ?: emptyList(),
+                                imagePrincipalPoint = imageIntrinsics?.principalPoint?.toList() ?: emptyList(),
+                                imageDimensions = imageIntrinsics?.imageDimensions?.toList() ?: emptyList(),
+                                textureFocalLength = textureIntrinsics?.focalLength?.toList() ?: emptyList(),
+                                texturePrincipalPoint = textureIntrinsics?.principalPoint?.toList() ?: emptyList(),
+                                textureDimensions = textureIntrinsics?.imageDimensions?.toList() ?: emptyList(),
+                                imageIntrinsicsRequested = true,
+                                imageIntrinsicsSucceeded = imageIntrinsics != null,
+                                imageIntrinsicsFailureReason = imageIntrinsicsResult.exceptionOrNull()?.javaClass?.simpleName,
+                                textureIntrinsicsRequested = true,
+                                textureIntrinsicsSucceeded = textureIntrinsics != null,
+                                textureIntrinsicsFailureReason = textureIntrinsicsResult.exceptionOrNull()?.javaClass?.simpleName,
+                            ),
                         )
                         lastFrameTimestampNs = timestampNs
                     }
                 }
             }
-            handler.postDelayed(this, SAMPLE_INTERVAL_MS)
+            handler.postDelayed(this, sampleIntervalMs.coerceAtLeast(33L))
         }
     }
 
@@ -561,9 +599,5 @@ class OffscreenArCorePoseSampler(
             EGL14.eglTerminate(eglDisplay)
             eglDisplay = EGL14.EGL_NO_DISPLAY
         }
-    }
-
-    private companion object {
-        const val SAMPLE_INTERVAL_MS = 33L
     }
 }

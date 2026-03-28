@@ -375,6 +375,32 @@ class SessionParser:
         lens_distortion_count = sum(
             1 for row in pose_rows if self._row_has_any_value(row, "lensDistortion.coefficients", "lensDistortion")
         )
+        image_intrinsics_attempt_count = sum(
+            1 for row in pose_rows if str(row.get("captureDiagnostics.imageIntrinsics.requested", "")).lower() == "true"
+        )
+        image_intrinsics_success_count = sum(
+            1 for row in pose_rows if str(row.get("captureDiagnostics.imageIntrinsics.succeeded", "")).lower() == "true"
+        )
+        texture_intrinsics_attempt_count = sum(
+            1 for row in pose_rows if str(row.get("captureDiagnostics.textureIntrinsics.requested", "")).lower() == "true"
+        )
+        texture_intrinsics_success_count = sum(
+            1 for row in pose_rows if str(row.get("captureDiagnostics.textureIntrinsics.succeeded", "")).lower() == "true"
+        )
+        lens_distortion_attempt_count = sum(
+            1 for row in pose_rows if str(row.get("captureDiagnostics.lensDistortion.requested", "")).lower() == "true"
+        )
+        lens_distortion_success_count = sum(
+            1 for row in pose_rows if str(row.get("captureDiagnostics.lensDistortion.succeeded", "")).lower() == "true"
+        )
+        has_capture_diagnostics = any(
+            count > 0
+            for count in (
+                image_intrinsics_attempt_count,
+                texture_intrinsics_attempt_count,
+                lens_distortion_attempt_count,
+            )
+        )
         total_pose_rows = len(pose_rows)
         image_coverage = 0.0 if total_pose_rows == 0 else min(1.0, image_intrinsics_count / total_pose_rows)
         texture_coverage = 0.0 if total_pose_rows == 0 else min(1.0, texture_intrinsics_count / total_pose_rows)
@@ -390,6 +416,8 @@ class SessionParser:
             warnings.append("imageIntrinsicsCoverageRatio が 1.0 未満")
         if distortion_coverage < 1.0:
             warnings.append("lensDistortionCoverageRatio が 1.0 未満")
+        if image_intrinsics_attempt_count > 0 and image_intrinsics_success_count == 0:
+            warnings.append("imageIntrinsics の読取試行はあるが成功 0 件")
         signatures = {
             "|".join(
                 [
@@ -407,11 +435,20 @@ class SessionParser:
         intrinsics_mode = "unknown"
         if image_intrinsics_count > 0:
             intrinsics_mode = "per_frame" if len(signatures) > 1 else "session_fixed"
+        possible_pre_calibration_implementation_data = (
+            total_pose_rows > 0
+            and image_intrinsics_count == 0
+            and texture_intrinsics_count == 0
+            and lens_distortion_count == 0
+            and not has_capture_diagnostics
+        )
         blockers: list[str] = []
         if valid_pose_count == 0:
             blockers.append("pose がほぼ 0 件")
         if image_intrinsics_count == 0:
             blockers.append("intrinsics がほぼ 0 件")
+        if possible_pre_calibration_implementation_data:
+            warnings.append("この session は calibration export 実装前に取得された可能性があります")
         return {
             "specVersion": "2026-03-27-calibration-export-v1",
             "recordCount": total_pose_rows,
@@ -427,6 +464,15 @@ class SessionParser:
             "timestampEndNs": max(timestamps) if timestamps else None,
             "intrinsicsModeCandidate": intrinsics_mode,
             "intrinsicsChangedDuringRecording": intrinsics_mode == "per_frame",
+            "possiblePreCalibrationImplementationData": possible_pre_calibration_implementation_data,
+            "captureDiagnostics": {
+                "imageIntrinsicsAttemptCount": image_intrinsics_attempt_count,
+                "imageIntrinsicsSuccessCount": image_intrinsics_success_count,
+                "textureIntrinsicsAttemptCount": texture_intrinsics_attempt_count,
+                "textureIntrinsicsSuccessCount": texture_intrinsics_success_count,
+                "lensDistortionAttemptCount": lens_distortion_attempt_count,
+                "lensDistortionSuccessCount": lens_distortion_success_count,
+            },
             "recommendedModelingRoutes": [
                 "route-da3metric-large-5fps-static-intrinsics",
                 "route-da3metric-large-10fps-static-intrinsics",
