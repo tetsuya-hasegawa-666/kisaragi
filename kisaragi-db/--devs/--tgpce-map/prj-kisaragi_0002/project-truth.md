@@ -101,13 +101,14 @@
 ### `trajectreview-modeling`
 
 - 対象段階: `SpaceReconstruction`、`TrajectoryReconstruction`
-- 主責務: model 入力確認、実行 gate、進行把握、再構成 blocker 確認
+- 主責務: request 起点受付、model 入力確認、実行 gate、進行把握、result 受け渡し
 - 完成条件:
-  - `session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json`、`camera_calibration_summary.json` を入力として、`DA3Metric-Large` の前処理入力、`Colab` upload 対象、job request を route 単位で生成する。
-  - `Colab bootstrap package` が zip intake から `session_root/` を正規化し、runtime、dependency install、config、output path を再現可能に構築できる。
+  - スマホまたは PC からの request を起点に、`Google Drive` 上の input directory と result directory を指定した `Colab` job request を生成できる。
+  - `Colab bootstrap package` が指定 directory から zip または `session_root/` を正規化し、runtime、dependency install、config、status 更新先、output path を再現可能に構築できる。
+  - request 元画面は remote 実行中に waiting ring、現在段階、直近更新時刻を読み続けられる。
   - `DA3Metric-Large` による metric depth 推定と `ARCore pose` / intrinsics による world projection を実行し、主要 quality 指標と failure reason を route 単位で記録する。
   - 複数の sampling / intrinsics route を比較し、`benchmark_summary.json` と `selected_route.json` により暫定採用 route を固定する。
-  - remote 実行結果を受理し、`SpacePackage`、`TrajectoryPackage`、`space_quality.json`、`trajectory_quality.json`、`attention_seed.json` を更新する。
+  - remote 実行完了後に download URL と result summary を返し、remote 実行結果を受理して `SpacePackage`、`TrajectoryPackage`、`space_quality.json`、`trajectory_quality.json`、`attention_seed.json` を更新する。
   - `local sample before colab` は preflight 用補助 route とし、完成判定の代替に使わない。
 
 ### `trajectreview-reviewing`
@@ -180,7 +181,8 @@
 - `modeling/da3_input_manifest.json`: `DA3Metric-Large` に渡す画像入力、`ARCore` pose、intrinsics 指定
 - `modeling/benchmark_summary.json`: sampling / intrinsics route ごとの比較結果
 - `modeling/selected_route.json`: 暫定採用 route、research route、不採用理由、再評価条件
-- `modeling/colab_job_request.json`: `Colab` remote 実行へ渡す request
+- `modeling/colab_job_request.json`: request 元、input directory、result directory、`Colab` remote 実行 parameter を束ねた request
+- `modeling/job_status.json`: stage、updated_at、result availability、download URL、error summary
 - `modeling/review_artifact_stub.json`: reviewing app と統合 app が読む review 用 stub
 - `modeling/modeling_handoff_manifest.json`: reviewing 着手可否と blocker の要約
 - `space_quality.json`: 主空間品質と coverage の要約
@@ -193,7 +195,7 @@
 ### package / bootstrap
 
 - 準備 UX、配布、install、bootstrap、実行環境整備は `INITRL` / `mINITRL` で管理する。
-- `trajectreview-modeling` の package は `Colab all-in` を主 route とし、`Google Drive` から受け取る zip を unzip して `session_root/` を構成する `Colab bootstrap package` を持つ。
+- `trajectreview-modeling` の package は `Colab all-in` を主 route とし、`Google Drive` の指定 directory から zip または `session_root/` を受けて `session_root/` を正規化する `Colab bootstrap package` を持つ。
 - PC 側は `Colab bootstrap package` の source、install script、config template、notebook template、version 固定情報、証跡を保持する。
 - `trajectreview-correcting` は Android app を正本実行入口としつつ、PC install package も別 process で設計し、artifact 互換性、保存先構成、導線を固定する。
 

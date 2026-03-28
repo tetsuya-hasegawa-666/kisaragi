@@ -2,28 +2,28 @@
 
 ## 目的
 
-この文書は `prj-kisaragi_0002` の `MRL` / `mRL` が `pass` になった根拠を、UX と実行証跡の両面から集約する。
+この文書は `prj-kisaragi_0002` の `MRL` / `mRL` が `p-done` または `i-pass` になった根拠を、UX と実行証跡の両面から集約する。
 
 ## 2026-03-26 再評価
 
 - 判定:
-  - admin `UX check 完了` を `pass` 必須条件にする shared rule へ更新したため、既存の `pass` 解釈は全件再評価対象になった
-  - `MRL-1` から `MRL-10` の既存 `pass` は、admin `UX check` 記録が明示されるまで `active` または `planned` として扱う
+  - admin `UX check 完了` を `i-pass` 必須条件にする shared rule へ更新したため、既存の `pass` 解釈は全件再評価対象になった
+  - `MRL-1` から `MRL-10` の既存 `pass` は、admin `UX check` 記録が明示されるまで `active` または `ready` として扱う
   - admin `UX check` は app 運用順に沿って、関連 gate をまとめた batch で実施してよい
   - 2026-03-25 から 2026-03-26 に記録した `MRL-5` から `MRL-8` の一部は、`UX-only`、`build / install`、`local sample`、summary 読込の確認としては有効だった
-  - ただし、これらは `本来機能が app として完成した証拠` ではないため、対応する `MRL` / `mRL` の一部を `active` / `planned` へ戻した
+  - ただし、これらは `本来機能が app として完成した証拠` ではないため、対応する `MRL` / `mRL` の一部を `active` / `ready` へ戻した
 - 維持する evidence:
   - 記録画面への到達、bundle 読込、request 生成、summary 表示、multi-app build は中間成果として引き続き有効である
   - Python unittest、Android unit test、device install、短時間 harness、局所 service 実行結果は、admin `UX check` 前の候補 evidence として引き続き有効である
 - 取り消す解釈:
   - `correcting`、`modeling`、`reviewing`、統合 app が本来機能完成であるという解釈は採らない
-  - admin `UX check` 未完でも `pass` にできるという解釈は採らない
+  - admin `UX check` 未完でも `i-pass` にできるという解釈は採らない
 
 ## admin batch UX check rule
 
-- `pass` に必要な `UX check` は admin が実施したものだけを有効とする
+- `i-pass` に必要な `UX check` は admin が実施したものだけを有効とする
 - `UX check` は 1 gate 単位に限らず、関連する複数 `MRL` / `mRL` を 1 回の batch でまとめて実施してよい
-- batch 記録には、対象 `MRL` / `mRL`、実施日時、端末または環境、pass / fail、失敗時の要点を必ず含める
+- batch 記録には、対象 `MRL` / `mRL`、実施日時、端末または環境、`ready / active / p-done / i-pass / fail`、失敗時の要点を必ず含める
 - `admin-mrl-test-evidence.md` は admin batch `UX check` の記録場所として使う
 
 ## correcting batch 定義
@@ -52,7 +52,7 @@
   - `MRL-5`
   - `MRL-6`
   - `MRL-7`
-- 結果: `pass / fail`
+- 結果: `ready / active / p-done / i-pass / fail`
 - fail の時の要点:
 - evidence path:
 
@@ -66,13 +66,15 @@
   - `MRL-13`
 - 対象 `mRL`:
   - `mRL-8.1` から `mRL-8.3`
-  - `mRL-10.1` から `mRL-10.3`
+  - `mRL-10.1` から `mRL-10.2`
   - `mRL-11.1` から `mRL-11.3`
-  - `mRL-12.1` から `mRL-12.2`
-  - `mRL-13.1` から `mRL-13.2`
+  - `mRL-12.1` から `mRL-12.3`
+  - `mRL-13.1` から `mRL-13.3`
 - admin 操作観点:
-  - `trajectreview-modeling` で実 bundle を読み、`colab_job_request.json` を生成できる
-- `DA3Metric-Large` の Colab route を起動できる
+  - `trajectreview-modeling` で実 bundle を読み、request 元、input directory、result directory を含む `colab_job_request.json` を生成できる
+  - `Google Drive` directory 指定で `Colab` route を起動できる
+  - waiting ring、現在段階、`job_status.json` の更新を request 元画面で読める
+  - 完了後に download URL と result summary が表示される
   - `benchmark_summary.json` と `selected_route.json` により route 比較と暫定採用が読める
   - remote result import 後に `SpacePackage`、`TrajectoryPackage`、`modeling_handoff_manifest.json` が更新される
 
@@ -88,7 +90,7 @@
   - `MRL-11`
   - `MRL-12`
   - `MRL-13`
-- 結果: `pass / fail`
+- 結果: `ready / active / p-done / i-pass / fail`
 - fail の時の要点:
 - evidence path:
 
@@ -115,7 +117,7 @@
 - 対象 `MRL` / `mRL`:
   - `MRL-9`
   - `MRL-14`
-- 結果: `pass / fail`
+- 結果: `ready / active / p-done / i-pass / fail`
 - fail の時の要点:
 - evidence path:
 

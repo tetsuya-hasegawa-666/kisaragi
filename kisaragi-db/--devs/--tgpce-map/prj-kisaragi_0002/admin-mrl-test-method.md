@@ -182,9 +182,9 @@
 - personal mail address 全文
 - private な Drive URL 全文
 
-## pass の判断
+## `p-done` / `i-pass` の判断
 
-- pass:
+- `p-done` / `i-pass`:
   - 4 app が起動する。
   - `correcting` で camera preview と `現場撮影データ保存を開始` が出る。
   - `correcting` で `端末保存先` から同期先 folder を選べる。
@@ -224,5 +224,5 @@
   - 実施日時
   - 端末名
   - `Colab` の runtime 表示
-  - pass / fail
+  - `ready / active / p-done / i-pass / fail`
   - fail の時だけ、何が起きたかを 1 行で書く

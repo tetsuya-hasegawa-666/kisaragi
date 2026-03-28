@@ -12,6 +12,20 @@
 
 ## 更新履歴
 
+### 2026-03-28 AGENTS.md gate 状態語の再定義
+
+- 日時: `2026-03-28`
+- 文書名: `AGENTS.md`
+- 標題: `ready`、`active`、`p-done`、`i-pass` への移行
+- 背景: UX 評価と gate closeout で、`planned`、`pass`、`done` が phase 完了と統合完了を十分に区別できず、現時点評価をどう書くかも揺れていた。
+- 目的: gate 状態語と UX 評価状態を同じ 4 値で統一し、phase 完了と統合完了を分けて追跡できるようにする。
+- 対処方法: 開発計画節と統合計画書 rule を更新し、正本状態語を `ready`、`active`、`p-done`、`i-pass` へ置き換えた。
+- 対応内容: `aspass` は会話や補足メモ用の補助語とし、正本文書では `p-done` または `i-pass` へ正規化する rule を追加した。
+- 更新結果: 今後は phase 単位の成立確認を `p-done`、統合範囲までの成立確認を `i-pass` として一貫して管理する。
+- 新旧比較:
+  - 旧: `planned`、`active`、`pass`、`need`、`done` が文脈により混在していた。
+  - 新: gate と UX 評価を `ready`、`active`、`p-done`、`i-pass` に統一し、`aspass` は補助語へ限定した。
+
 ### 2026-03-28 AGENTS.md 旧 category directory の全廃
 
 - 日時: `2026-03-28`

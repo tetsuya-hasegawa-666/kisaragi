@@ -165,9 +165,9 @@ kisaragi-tree/
 - MVC を採る project では、View は表示と入力、Controller は状態遷移と orchestration、Model は contract と record structure を担当する。
 - 完了した挙動は docs、plan、evidence のいずれかへ trace を残す。
 - `UX 確認済み`、`contract 固定済み`、`build / install 済み`、`local sample 済み` は、それぞれ `本来機能が実行できる` ことと同義に扱ってはならない。
-- mock、stub、sample、代替 route、説明用 UI、表示だけの接続で確認した内容は、対応する本機能 `MRL` / `mRL` を `pass` にしてはならず、必要なら `UX-only` または `補助 gate` と明記した別 gate で管理する。
-- 本機能 gate の `pass` には、対象 app 自身で本来の入出力を扱い、後段が消費する実生成物を出し、主要 blocker が plan 上で解消済みであり、かつ admin の `UX check 完了` が明示記録されていることを要件とする。
-- `MRL` / `mRL` の `pass` は、既存 gate を含めて admin `UX check 完了` が確認できたものだけに付与する。
+- mock、stub、sample、代替 route、説明用 UI、表示だけの接続で確認した内容は、対応する本機能 `MRL` / `mRL` を `i-pass` にしてはならず、必要なら `UX-only` または `補助 gate` と明記した別 gate で管理する。
+- 本機能 gate の `i-pass` には、対象 app 自身で本来の入出力を扱い、後段が消費する実生成物を出し、主要 blocker が plan 上で解消済みであり、かつ admin の `UX check 完了` が明示記録されていることを要件とする。
+- `MRL` / `mRL` の `i-pass` は、既存 gate を含めて admin `UX check 完了` が確認できたものだけに付与する。
 - admin の `UX check` は、関連する複数 `MRL` / `mRL` を 1 回の batch でまとめて実施してよい。
 - `warning` は後続へ注意を渡すための情報であり、データ欠落や品質低下を明示してよいが、`warning` の存在だけを理由に後続処理や user の継続操作を停止してはならない。
 - 後続処理を停止してよいのは、file 不在、contract 不成立、実行時例外などで対象処理そのものが物理的または論理的に実行不能な場合だけとし、`warning` と `blocker` を混同してはならない。
@@ -178,9 +178,11 @@ kisaragi-tree/
 - 機能の振る舞いではなく、その機能を使うための準備 UX、配布、install、bootstrap、実行環境整備は `INITL`、`mINITL` で管理する。
 - release 計画、truth、evidence-map は `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_****/` に置く。
 - 実装に着手する project は、原則として先に統合計画書を作成または更新する。`--tgpce-map/` 採用 project は `ux-b2t-hypo.md` を使う。
-- `planned` は未着手または着手前提の計画状態、`active` は着手中、`pass` は `active` を経て完了した gate とする。
-- `MRL` または `mRL` が `pass` になったら、その project の admin 証跡正本に記録する。`--tgpce-map/` 採用 project は `admin-mrl-test-evidence.md` を使う。
-- `INITL` または `mINITL` が `pass` になった時も、準備 UX と install / bootstrap 証跡を同じ admin 証跡正本に記録する。
+- gate 状態語は `ready`、`active`、`p-done`、`i-pass` の 4 値を使う。
+- `ready` は未着手または開始待ち、`active` は実装・検証・評価の進行中、`p-done` は当該 phase 範囲で成立確認済み、`i-pass` は関連統合範囲まで成立確認済みを表す。
+- `aspass` は「現時点では合格相当」を表す補助語として会話や短い補足メモで使ってよいが、正本文書の状態語には使わず、`p-done` または `i-pass` へ正規化する。
+- `MRL` または `mRL` が `p-done` または `i-pass` になったら、その project の admin 証跡正本に記録する。`--tgpce-map/` 採用 project は `admin-mrl-test-evidence.md` を使う。
+- `INITL` または `mINITL` が `p-done` または `i-pass` になった時も、準備 UX と install / bootstrap 証跡を同じ admin 証跡正本に記録する。
 - UX 検証成果は同じ admin 証跡正本に集約する。
 
 ### plan 文書の標準 2 点セット
@@ -195,7 +197,8 @@ kisaragi-tree/
 - `System Behaviors` は `b1` 形式の識別子で、観測可能な振る舞いとして記述する。
 - `受け入れ基準` は `s-id`、`b-id`、観点、受け入れ基準の表で持つ。
 - `MRL` 対応表は `MRL`、`mRL`、目的、関連 `s-id`、関連 `b-id`、現在 gate の表で持つ。
-- `MRL` 対応表の記載順は、`planned` から `pass` への時系列ではなく、既定で運用順 `correcting`、`modeling`、`reviewing` を優先する。
+- `MRL` 対応表の gate 状態語は `ready`、`active`、`p-done`、`i-pass` を使う。
+- `MRL` 対応表の記載順は、`ready` から `i-pass` への時系列ではなく、既定で運用順 `correcting`、`modeling`、`reviewing` を優先する。
 - `INITL` 対応表は、`MRL` 対応表の直下に別 subsection として置き、`INITL`、`mINITL`、目的、関連 `MRL` または関連段階、現在 gate を少なくとも持つ。
 - `INITL-*` と `mINITL-*` は、package、install、bootstrap、実行環境、account 準備、remote 配置、配布導線などの準備 UX を表す識別子とする。
 - `INITL` は機能 behavior そのものではないため、`Purpose Story` / `System Behaviors` へ無理に混ぜず、対応する `MRL` を滑らかに開始する別 process として扱う。
@@ -209,6 +212,11 @@ kisaragi-tree/
 - project ごとの局所 decision も、`--tgpce-map/` 適用済み project では統合計画書の `current_state` 章へ要約して持たせてよい。
 - 既存 project が `market_release_lines.md` や `micro_release_lines.md` を持つ場合でも、それらは統合計画書を補助する参考情報として扱う。
 - `MRL` と `mRL` の内容は、原則として統合計画書に吸収し、closeout が必要になった時点で Codex 側 gate closeout 記録文書を追加または移行する。
+- `UX評価状態` も `ready`、`active`、`p-done`、`i-pass` の 4 値で表す。
+- `UX評価状態` の `ready` は、まだ admin `UX check` に出す段階ではないことを示す。
+- `UX評価状態` の `active` は、manual、実行環境、対象機能がそろい、admin が今すぐ test できるか、または test を進行中であることを示す。
+- `UX評価状態` の `p-done` は、当該 phase の UX 確認が一通り完了した状態を示す。
+- `UX評価状態` の `i-pass` は、関連統合範囲まで含む admin `UX check` が完了し、結果が `admin-mrl-test-evidence.md` に記録済みであることを示す。
 
 ## ブランチ規則
 - branch 運用の authoritative section はこの節とする。
@@ -301,7 +309,7 @@ kisaragi-tree/
 - `project-truth.md` には、現在状態、未完 gate、優先度、open issue、進行中、admin 確認待ちのような時間変化する情報を書かない。
 - 統合計画書は、`current_state`、BDD、TDD、`MRL` / `mRL` / `INITL` の進行管理を持つ。
 - 統合計画書の `current_state` は、現在状態、優先順位、未完 gate、疑問点不整合一覧、project 固有 decision 要約の正本とする。
-- admin 手順正本は、人が実際に操作する時の手順と pass / fail 判断を持つ。`--tgpce-map/` 採用 project は `admin-mrl-test-method.md` を使う。
+- admin 手順正本は、人が実際に操作する時の手順と `p-done` / `i-pass` / `fail` 判断を持つ。`--tgpce-map/` 採用 project は `admin-mrl-test-method.md` を使う。
 - admin 証跡正本は、admin `UX check`、実行証跡、candidate evidence、gate close の根拠を集約する。`--tgpce-map/` 採用 project は `admin-mrl-test-evidence.md` を使う。
 
 ## 共有制御ファイル
