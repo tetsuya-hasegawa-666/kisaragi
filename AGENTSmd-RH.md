@@ -12,6 +12,20 @@
 
 ## 更新履歴
 
+### 2026-03-28 AGENTS.md 一時調査出力の `--exsams` 集約
+
+- 日時: `2026-03-28`
+- 文書名: `AGENTS.md`
+- 標題: `uidump` など一時調査出力の配置固定
+- 背景: 実機 UI 調査で生成した `uidump*.xml` が workspace root に残り、raw 生成物の置き場が `--exsams/` に統一されていなかった。
+- 目的: `device dump`、画面構造 dump、実機調査 XML などの一時出力を `--exsams/` 配下へ集約し、workspace root や他 category への散在を防ぐ。
+- 対処方法: `AGENTS.md` の `--exsams/` rule へ、一時調査出力も `--exsams/` 配下だけに置くこと、外に出た場合は即時移動または削除することを追記した。
+- 対応内容: `uidump*.xml` を削除し、同種出力の配置 rule を shared 化した。
+- 更新結果: 今後は `uidump`、screen capture、tmp などの正本でない一時出力は `--exsams/` 配下だけで管理する。
+- 新旧比較:
+  - 旧: raw 生成物は `--exsams/` 想定だったが、一時調査出力の配置先が明文化されていなかった。
+  - 新: 一時調査出力も `--exsams/` 配下へ固定し、外に出た場合の即時是正を rule 化した。
+
 ### 2026-03-28 AGENTS.md shared state file 廃止
 
 - 日時: `2026-03-28`

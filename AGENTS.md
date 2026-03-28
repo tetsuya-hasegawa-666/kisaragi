@@ -122,6 +122,8 @@ kisaragi-tree/
 
 - 開発中 test の raw 生成物はすべてここに置く。
 - 直下は `prj-kisaragi_****/` とする。
+- `device dump`、画面構造 dump、実機調査 XML、screen capture、tmp など、正本でない一時調査出力も `--exsams/` 配下だけに置く。
+- `--exsams/` 外に一時調査出力を生成した時は、その場で `--exsams/` へ移動するか削除し、workspace root や他 category に残してはならない。
 
 </order>
 
