@@ -11,7 +11,7 @@
 - `prj-kisaragi_0002` は、主空間再構成と経路レビューを 4 段階一括処理で扱う project とする
 - `Next Action + Thin Status` を中核 UX とし、`SessionPackage`、`SpacePackage`、`TrajectoryPackage`、`ReviewArtifact` の契約で進める
 - 恒久仕様、入口方針、app 責務、artifact 契約は `project-truth.md` を正本とし、この章では現在状態、未完 gate、優先順位、未解決論点だけを扱う
-- project 固有の current と decision はこの章へ集約し、shared `current_state.md` と `decision_log.md` へ重複配置しない
+- project 固有の current と decision はこの章へ集約し、shared governance 文書や他 category へ重複配置しない
 
 ### 疑問点不整合一覧
 

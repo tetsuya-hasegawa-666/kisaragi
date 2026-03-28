@@ -37,11 +37,6 @@
 - release line: [`market_release_lines.md`](./kisaragi-db/--devs/--plans/prj-kisaragi_0001/market_release_lines.md)
 - UX manual: [`ux_check_manual.md`](./kisaragi-db/--devs/--evidence/prj-kisaragi_0001/ux_check_manual.md)
 
-## shared state
-
-- 全体 current state: [`current_state.md`](./kisaragi-db/--devs/--state/current_state.md)
-- 全体 decision log: [`decision_log.md`](./kisaragi-db/--devs/--state/decision_log.md)
-
 ## 読み始め方
 
 1. repository 全体の rule は [AGENTS.md](./AGENTS.md) を読む。

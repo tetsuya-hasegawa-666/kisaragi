@@ -302,7 +302,7 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 ## 協調原則
 
 - 新しい運用規則を chat だけに残さない。
-- 人間承認事項は `kisaragi-db/--devs/--state/current_state.md` に記録する。
+- 人間承認事項は、shared rule なら `AGENTS.md` と `AGENTSmd-RH.md`、project 固有事項なら該当 project の正本文書へ直接記録する。
 - 短命な推論はその task の短命な記録にとどめ、持続する真実だけを正本文書へ残す。
 - 投機的拡張より、現在制約下で実行可能な前進を優先する。
 - 人間への依頼は、小さく、拒否されても全体計画が崩れない単位で行う。
@@ -310,7 +310,7 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 
 ## 並行作業
 
-- 共有制御ファイル編集前に `current_state.md` で所有権を宣言する。
+- 共有制御ファイル編集時は、同じ task で `AGENTS.md` と `AGENTSmd-RH.md` を更新し、変更理由を追跡可能にする。
 - 重要変更は履歴用文書で追跡可能でなければならない。
 - 文書更新は対応する変更と同じ task で完了させる。
 - 文書更新を伴う task では、影響を受ける正本文書群を先に洗い出し、最低限の整合更新が完了するまで入力待ちへ入ってはならない。未更新を残す時は、理由と残件を commentary で明示する。
@@ -341,7 +341,7 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 ## ゲート
 
 - 承認依頼には文脈、選択肢、採用案、予想される帰結を含める。
-- 承認待ちは `kisaragi-db/--devs/--state/current_state.md` に列挙する。
+- 承認待ちは、shared governance なら `AGENTS.md` の該当節、project 固有事項なら該当 project の正本文書へ列挙する。
 
 # 文書規則
 
@@ -349,8 +349,8 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 
 - 文書体系は最小かつ安定に保つ。
 - 新しい永続文書を増やすより既存正本文書の更新を優先する。
-- 重要な意思決定は `kisaragi-db/--devs/--state/decision_log.md` に置く。
-- 人間確認事項と次 action は `kisaragi-db/--devs/--state/current_state.md` に置く。
+- shared rule の重要な意思決定は `AGENTS.md` に反映し、変更履歴は `AGENTSmd-RH.md` に置く。
+- project 固有の重要な意思決定、人間確認事項、次 action は該当 project の正本文書に置く。
 - 人が読む各 project の構築物の試用、使用、利用、運用手順は、内容ごとに整理した上で `kisaragi-db/--devs/--evidence/prj-kisaragi_****/ux_check_manual.md` に集約する。
 - 非 text 資産の inventory 規則は、実装 code や chat だけに残さず正本文書へ反映する。
 - active task に必要な文書更新は、project 上の真実が変わった同じ task 単位で完了させる。
@@ -369,7 +369,6 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 
 - 最上位 shared control file は `AGENTS.md` とする。
 - directory 単位の shared control file は各階層の `agents.md` とする。
-- state shared control file は `kisaragi-db/--devs/--state/current_state.md` と `kisaragi-db/--devs/--state/decision_log.md` とする。
 - `agents.md` は配下全体に効く directory rule を持つ。
 - shared control file と個別 file が衝突した場合は shared control file を優先し、個別 file を修正する。
 - 共有制御ファイルは可能な限り追記優先で扱う。
@@ -398,7 +397,7 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 
 - 問題は `problem_and_assumptions.md` との差分として記述する。
 - 仮説は採用まで短命な作業痕跡にとどめる。
-- 採用した設計変更は MRL 文書に反映し、重要なら `decision_log.md` にも記録する。
+- 採用した設計変更は MRL 文書に反映し、shared rule 変更なら `AGENTS.md` と `AGENTSmd-RH.md`、project 固有判断なら project 正本文書にも記録する。
 - 評価では、ローカル推論、実行可能検証、現実世界で必要な検証を区別する。
 - 可逆と不可逆の意思決定を分けて扱う。
 
@@ -408,7 +407,7 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 - user が `再開してください` と言った場合は、現在の正本と実装状態から再開する要求として扱う。
 - セッション最初と、前回 prompt から 3 時間以上空いた時は、作業前に正本群を再読込する。
 - 最小再読込対象は `AGENTS.md`、`kisaragi-db/--devs/`、`kisaragi-ruling/` とする。
-- 矛盾が見つかった場合は、継続前に `current_state.md` と必要に応じて `decision_log.md` を更新する。
+- 矛盾が見つかった場合は、継続前に該当する shared 正本または project 正本を更新する。
 - 実際の検証ステップへ近づく最短経路を優先する。
 - 作業単位の終了前に短い task review と全体 quick review を行い、block されていなければ次の高優先 task を 1 件から 3 件続行する。
 

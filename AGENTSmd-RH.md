@@ -12,6 +12,20 @@
 
 ## 更新履歴
 
+### 2026-03-28 AGENTS.md shared state file 廃止
+
+- 日時: `2026-03-28`
+- 文書名: `AGENTS.md`
+- 標題: shared `current_state.md` と `decision_log.md` の廃止
+- 背景: shared current / decision 専用 file を残すと、`AGENTS.md` と project 正本文書の間にもう 1 層の管理点が生まれ、`0002` の `b2t` 統合方針とも衝突していた。
+- 目的: shared governance は `AGENTS.md` と `agents.md`、project 固有 current / decision は各 project の正本文書へ寄せ、shared state file を廃止する。
+- 対処方法: `AGENTS.md` の shared state file 参照を削除し、承認、current、decision の記録先を `AGENTS.md` / `AGENTSmd-RH.md` と project 正本文書へ振り分ける rule に変更した。
+- 対応内容: `AGENTS.md`、`README.md`、`--devs/agents.md`、`--state/agents.md` を更新し、shared `current_state.md` と `decision_log.md` を削除した。
+- 更新結果: shared state の正本は `AGENTS.md` 系へ一本化され、project current / decision は project 側正本だけで追える構造になった。
+- 新旧比較:
+  - 旧: shared `current_state.md` と `decision_log.md` が存在し、shared governance の一部が別 file に分かれていた。
+  - 新: shared governance は `AGENTS.md` と `agents.md` に統合し、project current / decision は project 正本文書へ集約した。
+
 ### 2026-03-28 AGENTS.md `--tgpce-map` pilot と shared / project current 境界整理
 
 - 日時: `2026-03-28`
