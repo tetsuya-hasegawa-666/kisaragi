@@ -1,6 +1,6 @@
 # project-truth
 
-この文書は `prj-kisaragi_0002` の恒久的な真実を保持する正本とする。
+この文書は `prj-kisaragi_0002` の恒久的な真実を保持する正本とする。Concept of truth.
 
 ## 目的
 
@@ -207,8 +207,8 @@
 
 ### `iSensorium` と intake source
 
-- `Xperia 5 III` の設定条件、recording mode、raw output、時刻整列、sample count の詳細は `isensorium_xperia5iii_intake_spec.md` を正本とする。
-- `iSensorium` 由来で吸収した recording / parser / script の実装は、`--products/prj-kisaragi_0002/correcting/`、`--products/prj-kisaragi_0002/python/`、`--products/prj-kisaragi_0002/correcting/scripts/` を現行正規とし、吸収履歴は `--evidence/prj-kisaragi_0002/isensorium_verified_reference_snapshot.md` を参照する。
+- `Xperia 5 III` の設定条件、recording mode、raw output、時刻整列、sample count の詳細はこの文書末尾の `Xperia 5 III intake detail` に統合して保持する。
+- `iSensorium` 由来で吸収した recording / parser / script の実装は、`--products/prj-kisaragi_0002/correcting/`、`--products/prj-kisaragi_0002/python/`、`--products/prj-kisaragi_0002/correcting/scripts/` を現行正規とする。旧 reference 配置は吸収済みで、以後の開発と検証は吸収後 path を使う。
 - `iSensorium` 由来の入力正本は `session_manifest.json` または `manifest.json`、`video_frame_timestamps.csv` または `frames.csv`、`imu.csv`、`gnss.csv`、`bt.jsonl` または `ble_scan.jsonl` または `bt_events.csv` または `bt.csv`、`poses.jsonl` または `arcore_pose.jsonl` とする。
 - legacy alias として `bt_events.csv`、`arcore_pose.csv` も受理対象に含める。
 

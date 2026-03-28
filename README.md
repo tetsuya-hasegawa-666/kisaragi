@@ -23,11 +23,10 @@
 ## `prj-kisaragi_0002` の入口
 
 - project truth: [`project-truth.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/project-truth.md)
-- 計画正本: [`b2t-plans-result.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/b2t-plans-result.md)
-- gate 記録: [`mrl-record.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/mrl-record.md)
-- UX check manual: [`ux_check_manual.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/ux_check_manual.md)
-- UX / gate evidence: [`mrl-ux-valid.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/mrl-ux-valid.md)
-- intake spec: [`isensorium_xperia5iii_intake_spec.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/isensorium_xperia5iii_intake_spec.md)
+- 統合計画書: [`ux-b2t-hypo.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/ux-b2t-hypo.md)
+- Codex gate 記録: [`codex-mrl-test-evidence.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/codex-mrl-test-evidence.md)
+- admin 手順: [`admin-mrl-test-method.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-method.md)
+- admin 証跡: [`admin-mrl-test-evidence.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-evidence.md)
 
 ## `prj-kisaragi_0001` の入口
 
@@ -41,5 +40,5 @@
 
 1. repository 全体の rule は [AGENTS.md](./AGENTS.md) を読む。
 2. project の狙いは `project-truth` を読む。
-3. 現在の実装計画と gate は `b2t-plans-result.md` と `mrl-record.md` を読む。
-4. 人が試す手順は `ux_check_manual.md` を読む。
+3. 現在の実装計画と gate は `ux-b2t-hypo.md` と `codex-mrl-test-evidence.md` を読む。
+4. 人が試す手順は `admin-mrl-test-method.md` を読む。

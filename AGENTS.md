@@ -98,42 +98,33 @@ kisaragi-tree/
 - 計画、状態、証跡、test code、product 実装物、および trace として有益な test 記録を置く。
 - `--testlogs/` には記録、要約、manifest などを置き、それ以外の生成物は `--exsams/` に置く。
 - `--tgpce-map/` は `truth, goal, plan, current, evidence-map` を束ねる統合文書置き場とする。
-- `--tgpce-map/` への統合は承認済み project から段階的に行う。現時点の適用対象は `prj-kisaragi_0002` のみとする。
-- `prj-kisaragi_0002` では project 固有の `current_state` と `decision` も `b2t-plans-result.md` を中心に集約し、旧 category の同 project 文書は `--tgpce-map/` 側へ移す。
-- `--plans/`、`--evidence/`、`--project-truth/`、`--state/` は直ちに全廃するのではなく、承認済み project から順に `--tgpce-map/` へ吸収し、空になった project path から削除する。
+- `--tgpce-map/` への統合は承認済み project から段階的に行う。現時点の正式運用対象は `prj-kisaragi_0002` のみとする。
+- `prj-kisaragi_0002` では project 固有の `current_state` と `decision` も `ux-b2t-hypo.md` を中心に集約し、旧 category の同 project 文書は `--tgpce-map/` 側へ移す。
+- 移行が必要な場合は、`--plans/`、`--evidence/`、`--project-truth/`、`--state/` は直ちに全廃するのではなく、承認済み project から順に `--tgpce-map/` へ吸収し、空になった project path から削除する。
 
 ```text
 --devs/
   --tgpce-map/
-    prj-kisaragi_0002/
+    prj-kisaragi_****/
       project-truth.md
-      b2t-plans-result.md
-      mrl-record.md
+      ux-b2t-hypo.md
+      codex-mrl-test-evidence.md
       resume-startup-plan.md
-      mrl-ux-valid.md
-      ux_check_manual.md
-      etc
-  --evidence/
-  --plans/
+      admin-mrl-test-method.md
+      admin-mrl-test-evidence.md
   --products/
-  --project-truth/
-  --state/
   --testcode/
   --testlogs/
   agents.md
 ```
 
-## `--exsams/`
+### `--exsams/`
 
 - 開発中 test の raw 生成物はすべてここに置く。
 - 直下は `prj-kisaragi_****/` とする。
 
 </order>
 
-<order>
-
-
-</order>
 
 <order>
 
@@ -153,21 +144,6 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 ```
 </order>
 
-<order>
-
-</order>
-
-<order>
-
-</order>
-
-<order>
-
-</order>
-
-<order>
-
-</order>
 
 ## 更新規則
 
@@ -185,6 +161,7 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 - project 計画や truth に shared rule が混入していた時も同様に整理し、shared rule は `AGENTS.md`、project 固有 truth は project 文書へ分離する。
 - `--tgpce-map/` を使う project では、project 固有の `truth`、`goal`、`plan`、`current`、`evidence-map` を同一 project directory に集約してよい。
 - `--tgpce-map/` を使う project でも、shared governance、shared directory rule、shared branch rule、shared 判定語、shared hygiene は `AGENTS.md` に残す。
+- `prj-kisaragi_0002` の正式名称は、統合計画書を `ux-b2t-hypo.md`、Codex 側 gate closeout を `codex-mrl-test-evidence.md`、admin 手順を `admin-mrl-test-method.md`、admin 証跡を `admin-mrl-test-evidence.md` とする。
 
 ## 共有 directory 統制
 
@@ -222,17 +199,17 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 - `--tgpce-map/` 適用済み project では、release 計画、truth、evidence-map は `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_****/` に置く。
 - 実装に着手する project は、原則として先に `b2t-plans-result.md` を計画書として作成または更新する。
 - `planned` は未着手または着手前提の計画状態、`active` は着手中、`pass` は `active` を経て完了した gate とする。
-- `MRL` または `mRL` が `pass` になったら、その project の `mrl-ux-valid.md` に記録する。
-- `INITL` または `mINITL` が `pass` になった時も、準備 UX と install / bootstrap 証跡を同じ `mrl-ux-valid.md` に記録する。
-- UX 検証成果は同 `mrl-ux-valid.md` に集約する。
+- `MRL` または `mRL` が `pass` になったら、その project の admin 証跡正本に記録する。`prj-kisaragi_0002` は `admin-mrl-test-evidence.md` を使う。
+- `INITL` または `mINITL` が `pass` になった時も、準備 UX と install / bootstrap 証跡を同じ admin 証跡正本に記録する。
+- UX 検証成果は同じ admin 証跡正本に集約する。
 
 ### plan 文書の標準 2 点セット
 
-- `b2t-plans-result.md` は、`current_state` 章、BDD 章、TDD 章を持つ。
-- `b2t-plans-result.md` の `current_state` 章の冒頭には `疑問点不整合一覧` を表で置き、列は少なくとも `id`、`論点`、`影響`、`現在の扱い`、`admin 状態`、`関連文書` を持つ。
+- 統合計画書は、`current_state` 章、BDD 章、TDD 章を持つ。`prj-kisaragi_0002` は `ux-b2t-hypo.md` を使う。
+- 統合計画書の `current_state` 章の冒頭には `疑問点不整合一覧` を表で置き、列は少なくとも `id`、`論点`、`影響`、`現在の扱い`、`admin 状態`、`関連文書` を持つ。
 - `疑問点不整合一覧` の `admin 状態` は `big-open`、`small-open`、`close`、`no judge` を使う。
 - `big-open` は影響が大きい未解決、`small-open` は影響が小さい未解決、`close` は解決済み、`no judge` は問題かどうか未判定を表す。
-- `b2t-plans-result.md` は、局所 current state、target behavior、受け入れ基準、検証方針、到達したい小さい milestone をまとめる正本計画書とする。
+- 統合計画書は、局所 current state、target behavior、受け入れ基準、検証方針、到達したい小さい milestone をまとめる正本計画書とする。
 - `resume-startup-plan.md` は任意の補助計画書とし、開発がいつ中断しても次回再開時に現在地と立ち上げ順を短く把握できるように保つ。
 - `resume-startup-plan.md` は、長期の正本を置き換えず、再開時の導線と初動確認項目を補助する目的で使う。
 - `Purpose Story` は `s1` 形式の識別子で、project の目的に直結する利用価値の流れとして記述する。
@@ -247,12 +224,12 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 - TDD 章は、目的文、TDD タスク表、実行方針、現在の見立てを持つ。
 - タスク表の列は `task_id`、`behavior_id`、`test_target`、`criterion`、`status`、`evidence` とし、1 task 1 責務を守る。
 - `behavior_id` は対応する BDD behavior を参照し、`criterion` は自動検証または明確な確認条件で書く。
-- `mrl-record.md` は gate closeout 記録文書とし、目的文、記録ルール、Entries を持つ。
+- Codex 側 gate closeout 記録文書は、目的文、記録ルール、Entries を持つ。`prj-kisaragi_0002` は `codex-mrl-test-evidence.md` を使う。
 - 各 entry は `record date`、`target MRL`、`target mRL`、`gate change`、`issue`、`cause`、`resolution`、`recurrence prevention`、`remaining work`、`evidence path` を持つ。
-- project ごとの局所 current state は、原則として `b2t-plans-result.md` の `current_state` 章で管理する。
-- project ごとの局所 decision も、`--tgpce-map/` 適用済み project では `b2t-plans-result.md` の `current_state` 章へ要約して持たせてよい。
-- 既存 project が `market_release_lines.md` や `micro_release_lines.md` を持つ場合でも、それらは `b2t-plans-result.md` を補助する参考情報として扱う。
-- `MRL` と `mRL` の内容は、原則として `b2t-plans-result.md` に吸収し、closeout が必要になった時点で `mrl-record.md` を追加または移行する。
+- project ごとの局所 current state は、原則として統合計画書の `current_state` 章で管理する。
+- project ごとの局所 decision も、`--tgpce-map/` 適用済み project では統合計画書の `current_state` 章へ要約して持たせてよい。
+- 既存 project が `market_release_lines.md` や `micro_release_lines.md` を持つ場合でも、それらは統合計画書を補助する参考情報として扱う。
+- `MRL` と `mRL` の内容は、原則として統合計画書に吸収し、closeout が必要になった時点で Codex 側 gate closeout 記録文書を追加または移行する。
 
 ## ブランチ規則
 
@@ -360,10 +337,10 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 
 - `project-truth.md` は、目的、完成判定、利用入口、UX 原則、段階構造、app 責務、artifact 契約、外部連携境界のような恒久事項だけを持つ。
 - `project-truth.md` には、現在状態、未完 gate、優先度、open issue、進行中、admin 確認待ちのような時間変化する情報を書かない。
-- `b2t-plans-result.md` は、`current_state`、BDD、TDD、`MRL` / `mRL` / `INITL` の進行管理を持つ。
-- `b2t-plans-result.md` の `current_state` は、現在状態、優先順位、未完 gate、疑問点不整合一覧の正本とする。
-- `ux_check_manual.md` は、人が実際に操作する時の手順と pass / fail 判断の正本とする。
-- `mrl-ux-valid.md` は、admin `UX check`、実行証跡、candidate evidence、gate close の根拠を集約する。
+- 統合計画書は、`current_state`、BDD、TDD、`MRL` / `mRL` / `INITL` の進行管理を持つ。
+- 統合計画書の `current_state` は、現在状態、優先順位、未完 gate、疑問点不整合一覧、project 固有 decision 要約の正本とする。
+- admin 手順正本は、人が実際に操作する時の手順と pass / fail 判断を持つ。`prj-kisaragi_0002` は `admin-mrl-test-method.md` を使う。
+- admin 証跡正本は、admin `UX check`、実行証跡、candidate evidence、gate close の根拠を集約する。`prj-kisaragi_0002` は `admin-mrl-test-evidence.md` を使う。
 
 ## 共有制御ファイル
 
@@ -385,37 +362,28 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 
 # 研究方法
 
-## 研究ループ
-
-1. 問題
-2. 仮説
-3. 設計
-4. 評価
-5. 意思決定
-
-## 運用規則
-
-- 問題は `problem_and_assumptions.md` との差分として記述する。
-- 仮説は採用まで短命な作業痕跡にとどめる。
-- 採用した設計変更は MRL 文書に反映し、shared rule 変更なら `AGENTS.md` と `AGENTSmd-RH.md`、project 固有判断なら project 正本文書にも記録する。
-- 評価では、ローカル推論、実行可能検証、現実世界で必要な検証を区別する。
-- 可逆と不可逆の意思決定を分けて扱う。
-
-## 実行ループ
-
-- 作業が始まったら、計画上進められるところを見つけて継続し、小計画の機械的停止を避ける。
-- user が `再開してください` と言った場合は、現在の正本と実装状態から再開する要求として扱う。
-- セッション最初と、前回 prompt から 3 時間以上空いた時は、作業前に正本群を再読込する。
-- 最小再読込対象は `AGENTS.md`、`kisaragi-db/--devs/`、`kisaragi-ruling/` とする。
-- 矛盾が見つかった場合は、継続前に該当する shared 正本または project 正本を更新する。
-- 実際の検証ステップへ近づく最短経路を優先する。
-- 作業単位の終了前に短い task review と全体 quick review を行い、block されていなければ次の高優先 task を 1 件から 3 件続行する。
-
-## 人間支援実験
+## codexの研究スタンス
 
 - AI は人間の取得能力を無制限と仮定しない。
 - 新しい取得依頼の前に、目的、予想時間、成功条件、未実施時の代替を示す。
 - 人間に依頼する実験単位は、既定で一度に小さな 1 件とする。
+- codexは、adminに人ではやりきれない思考装置としての役割を期待されている
+- codexは常に、問題探索-->要因推定-->課題仮説-->解決-->問題探索…を繰り返すこと
+- - codexの作業が始まったら、計画上進められるところを見つけて継続しなければならず、計画がであっても、その計画に必要な別アプローチの場合は、適切に文書を改訂したうえで、作業を計画実行する必要がある
+- 可逆で、およそ30min以内にロールバックできそうなものは、codexの判断で調査構築まですること
+- 不可逆なものは、どれだけ短い時間であっても、admin判断を求めること
+- user が `再開してください` と言った場合は、現在の正本と実装状態から再開する要求として扱う
+- セッション最初と、前回 prompt から 6 時間以上空いた時は、作業前に正本群を再読込する
+- 矛盾が見つかった場合は、作業継続しながら、該当する shared 正本または project 正本を更新する
+
+## 実行ルール
+
+- adminが後で見たり、対話で理解しやすいよう、特定した文書の記録を確実にとること
+- 仮説は採用まで短命な作業痕跡にとどめる。
+- 採用した設計変更は MRL 文書に反映し、shared rule 変更なら `AGENTS.md` と `AGENTSmd-RH.md`、project 固有判断なら project 正本文書にも記録する。
+- 評価では、ローカル推論、実行可能検証、現実世界で必要な検証を区別する。
+- 最小再読込対象は `AGENTS.md`＋`tgpce-map.md` とする
+- 実際の検証ステップへ近づく最短経路を優先する
 
 ## 自律アーキテクト既定
 

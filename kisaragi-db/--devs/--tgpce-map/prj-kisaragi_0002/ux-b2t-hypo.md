@@ -2,14 +2,16 @@
 
 ## 文書の役割
 
-この文書は `prj-kisaragi_0002` の `current_state`、BDD、TDD、および project 固有 decision 要約を 1 つに統合した正本とする。
+この文書は `prj-kisaragi_0002` プロジェクトの goal、plan、current、evidenceを、1 つに統合した正本とする。
 
 ## current_state
 
 ### 役割
 
+- `project-truth`とgoalからBDDにより実現に必要なUXを分解抽出しマイルストーンを置き、末端周辺をTDDでテスト計画してBDDマイルストーンをさらに小分解した計画と、そのテスト結果および現在の状態（project 固有 decision 要約）を統合的に記載する
+- 基本的な考え方は上記だが、規模や内容によって柔軟に対応可能だが、要素の抜け漏れや忘れが起こらないように対応する
 - `prj-kisaragi_0002` は、主空間再構成と経路レビューを 4 段階一括処理で扱う project とする
-- `Next Action + Thin Status` を中核 UX とし、`SessionPackage`、`SpacePackage`、`TrajectoryPackage`、`ReviewArtifact` の契約で進める
+- 中核 UX は、`SessionPackage`、`SpacePackage`、`TrajectoryPackage`、`ReviewArtifact` が、屋外作業者や作業機の作業結果をレビューが平易な操作で臨場感あるレビュー体験とする
 - 恒久仕様、入口方針、app 責務、artifact 契約は `project-truth.md` を正本とし、この章では現在状態、未完 gate、優先順位、未解決論点だけを扱う
 - project 固有の current と decision はこの章へ集約し、shared governance 文書や他 category へ重複配置しない
 
