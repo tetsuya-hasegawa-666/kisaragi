@@ -12,6 +12,20 @@
 
 ## 更新履歴
 
+### 2026-03-28 AGENTS.md `--tgpce-map` pilot と shared / project current 境界整理
+
+- 日時: `2026-03-28`
+- 文書名: `AGENTS.md`
+- 標題: `--tgpce-map` の pilot 運用と project current / decision の分離
+- 背景: `prj-kisaragi_0002` で truth、plan、evidence、current が category ごとに分散し、再開時の把握と shared state との境界が読みにくくなっていた。
+- 目的: `prj-kisaragi_0002` を先行対象として `--tgpce-map` へ正本文書を集約し、project 固有 current / decision を `b2t-plans-result.md` 中心へ戻す。
+- 対処方法: `--devs/` 構造説明へ `--tgpce-map` pilot を追加し、適用対象を `prj-kisaragi_0002` に限定する rule、project current / decision を `b2t-plans-result.md` へ集約する rule を追記した。
+- 対応内容: `--devs/` の構造説明、`AGENTS.md` と project 文書の境界、開発計画の path 記述を更新し、`--tgpce-map` 適用済み project の扱いを shared rule 化した。
+- 更新結果: `prj-kisaragi_0002` は `--tgpce-map` 配下へ正本文書を移しやすくなり、shared `current_state.md` / `decision_log.md` へ project 固有記録を残し続ける必要がなくなった。
+- 新旧比較:
+  - 旧: `--plans`、`--evidence`、`--project-truth`、`--state` の category 分散が `prj-kisaragi_0002` にもそのまま残り、shared state に project 固有 current / decision が混在していた。
+  - 新: `prj-kisaragi_0002` は `--tgpce-map` pilot で集約し、project current / decision は `b2t-plans-result.md` と project truth 側へ戻す方針を shared rule 化した。
+
 ### 2026-03-28 AGENTS.md project-truth と b2t の文書境界固定
 
 - 日時: `2026-03-28`

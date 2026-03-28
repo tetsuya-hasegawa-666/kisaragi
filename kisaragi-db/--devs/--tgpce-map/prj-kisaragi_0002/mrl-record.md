@@ -21,7 +21,7 @@
   resolution: `AGENTS.md`、`current_state.md`、`decision_log.md`、`b2t-plans-result.md` を更新し、`MRL` 記載順を運用順 `correcting -> modeling -> reviewing` に統一し、admin `UX check` 未完の gate を `active` / `planned` へ戻した
   recurrence prevention: 以後の `pass` は admin `UX check 完了` が記録された gate のみに付与し、関連 gate は batch でまとめて確認範囲を記録する
   remaining work: admin 向け batch `UX check` の対象範囲、手順、結果記録を `mrl-ux-valid.md` へ追加し、各 gate を再 closeout する
-  evidence path: `kisaragi-db/--devs/--plans/prj-kisaragi_0002/b2t-plans-result.md`
+  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/b2t-plans-result.md`
 - record date: `2026-03-26`
   target MRL: `MRL-5C`
   target mRL: `mRL-5C.1`、`mRL-5C.2`、`mRL-5C.3`
@@ -31,7 +31,7 @@
   resolution: `CorrectingDataCheckService` を追加し、最新 session 再読込、`sensor_quality.json`、`session_package.json`、`space_handoff_manifest.json` 生成、recommended correction 表示を `correcting` 内へ実装した
   recurrence prevention: `correcting` の gate は記録画面だけで close せず、実 session から derived artifact が生成され、app 上に correction guidance が表示されるまで `pass` にしない
   remaining work: `modeling` 側の `Colab` handoff と `reviewing` 側の実 `ReviewArtifact` viewer を継続する
-  evidence path: `kisaragi-db/--devs/--evidence/prj-kisaragi_0002/mrl-ux-valid.md`
+  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/mrl-ux-valid.md`
 - record date: `2026-03-26`
   target MRL: `MRL-5` から `MRL-8`
   target mRL: `mRL-5.3`、`mRL-5.4`、`mRL-6.3`、`mRL-6.4`、`mRL-7.x`、`mRL-8.3`、`mRL-8.4`
@@ -41,7 +41,7 @@
   resolution: `b2t-plans-result.md` と `project-truth.md` を再設計し、correcting、modeling、reviewing、統合 app の完成条件を本来機能基準へ引き直し、該当 gate を `active` / `planned` へ戻した
   recurrence prevention: mock、stub、sample、contract、build / install は補助 gate として別扱いにし、本機能 `pass` は実入出力と実生成物の end-to-end 証跡がある時だけ付与する
   remaining work: `correcting` の end-to-end、`Colab` handoff、remote result import、実 `ReviewArtifact` viewer、統合 app の end-to-end を実装する
-  evidence path: `kisaragi-db/--devs/--plans/prj-kisaragi_0002/b2t-plans-result.md`
+  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/b2t-plans-result.md`
 - record date: `2026-03-25`
   target MRL: `none`
   target mRL: `none`
@@ -51,7 +51,7 @@
   resolution: `project-truth.md` と計画正本を更新し、再開基線を `prj-kisaragi_0002` 配下へ集約した
   recurrence prevention: 外部補助文書で採用した構想は、次の実装着手前に `project-truth` と BDD / TDD 正本へ同時反映する
   remaining work: 契約 closeout を実データ処理と viewer 実装へ接続する
-  evidence path: `kisaragi-db/--devs/--plans/prj-kisaragi_0002/b2t-plans-result.md`
+  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/b2t-plans-result.md`
 - record date: `2026-03-25`
   target MRL: `MRL-1`
   target mRL: `mRL-1.1`、`mRL-1.4`
@@ -72,7 +72,7 @@
   resolution: `AGENTS.md` に状態語の意味を追加し、計画正本の gate を保守的に `active` / `planned` へ修正した
   recurrence prevention: `MRL` / `mRL` の closeout は、実装、検証、残作業の 3 点がそろった項目だけに限定する
   remaining work: 実データ接続、viewer 実装、生成物 routing を継続し、`active` と `planned` を順次 close する
-  evidence path: `kisaragi-db/--devs/--plans/prj-kisaragi_0002/b2t-plans-result.md`
+  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/b2t-plans-result.md`
 - record date: `2026-03-25`
   target MRL: `MRL-1`
   target mRL: `mRL-1.2`、`mRL-1.3`

@@ -51,6 +51,7 @@ kisaragi/
   kisaragi-tree/
   AGENTS.md
   README.md
+
 ```
 
 ### `kisaragi-db/`
@@ -96,9 +97,22 @@ kisaragi-tree/
 
 - 計画、状態、証跡、test code、product 実装物、および trace として有益な test 記録を置く。
 - `--testlogs/` には記録、要約、manifest などを置き、それ以外の生成物は `--exsams/` に置く。
+- `--tgpce-map/` は `truth, goal, plan, current, evidence-map` を束ねる統合文書置き場とする。
+- `--tgpce-map/` への統合は承認済み project から段階的に行う。現時点の適用対象は `prj-kisaragi_0002` のみとする。
+- `prj-kisaragi_0002` では project 固有の `current_state` と `decision` も `b2t-plans-result.md` を中心に集約し、旧 category の同 project 文書は `--tgpce-map/` 側へ移す。
+- `--plans/`、`--evidence/`、`--project-truth/`、`--state/` は直ちに全廃するのではなく、承認済み project から順に `--tgpce-map/` へ吸収し、空になった project path から削除する。
 
 ```text
 --devs/
+  --tgpce-map/
+    prj-kisaragi_0002/
+      project-truth.md
+      b2t-plans-result.md
+      mrl-record.md
+      resume-startup-plan.md
+      mrl-ux-valid.md
+      ux_check_manual.md
+      etc
   --evidence/
   --plans/
   --products/
@@ -169,6 +183,8 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 - 特定 project の現時点判断、暫定 route、URL、workflow、platform 前提を `AGENTS.md` の rule として固定してはならない。
 - project ごとに変わりうる内容を見つけた時は、shared rule へ一般化できるものだけを `AGENTS.md` に残し、固有部分は project 文書へ戻す。
 - project 計画や truth に shared rule が混入していた時も同様に整理し、shared rule は `AGENTS.md`、project 固有 truth は project 文書へ分離する。
+- `--tgpce-map/` を使う project では、project 固有の `truth`、`goal`、`plan`、`current`、`evidence-map` を同一 project directory に集約してよい。
+- `--tgpce-map/` を使う project でも、shared governance、shared directory rule、shared branch rule、shared 判定語、shared hygiene は `AGENTS.md` に残す。
 
 ## 共有 directory 統制
 
@@ -203,9 +219,10 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 - 到達段階は `MRL`、実行単位は `mRL` で管理する。
 - 機能の振る舞いではなく、その機能を使うための準備 UX、配布、install、bootstrap、実行環境整備は `INITL`、`mINITL` で管理する。
 - release 計画は `kisaragi-db/--devs/--plans/prj-kisaragi_****/` に置く。
+- `--tgpce-map/` 適用済み project では、release 計画、truth、evidence-map は `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_****/` に置く。
 - 実装に着手する project は、原則として先に `b2t-plans-result.md` を計画書として作成または更新する。
 - `planned` は未着手または着手前提の計画状態、`active` は着手中、`pass` は `active` を経て完了した gate とする。
-- `MRL` または `mRL` が `pass` になったら `kisaragi-db/--devs/--evidence/prj-kisaragi_****/mrl-ux-valid.md` に記録する。
+- `MRL` または `mRL` が `pass` になったら、その project の `mrl-ux-valid.md` に記録する。
 - `INITL` または `mINITL` が `pass` になった時も、準備 UX と install / bootstrap 証跡を同じ `mrl-ux-valid.md` に記録する。
 - UX 検証成果は同 `mrl-ux-valid.md` に集約する。
 
@@ -233,6 +250,7 @@ No.2 | prj-kisaragi_0002 : prj-trajectreview
 - `mrl-record.md` は gate closeout 記録文書とし、目的文、記録ルール、Entries を持つ。
 - 各 entry は `record date`、`target MRL`、`target mRL`、`gate change`、`issue`、`cause`、`resolution`、`recurrence prevention`、`remaining work`、`evidence path` を持つ。
 - project ごとの局所 current state は、原則として `b2t-plans-result.md` の `current_state` 章で管理する。
+- project ごとの局所 decision も、`--tgpce-map/` 適用済み project では `b2t-plans-result.md` の `current_state` 章へ要約して持たせてよい。
 - 既存 project が `market_release_lines.md` や `micro_release_lines.md` を持つ場合でも、それらは `b2t-plans-result.md` を補助する参考情報として扱う。
 - `MRL` と `mRL` の内容は、原則として `b2t-plans-result.md` に吸収し、closeout が必要になった時点で `mrl-record.md` を追加または移行する。
 

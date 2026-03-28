@@ -2,7 +2,7 @@
 
 ## 文書の役割
 
-この文書は `prj-kisaragi_0002` の `current_state`、BDD、TDD を 1 つに統合した正本とする。
+この文書は `prj-kisaragi_0002` の `current_state`、BDD、TDD、および project 固有 decision 要約を 1 つに統合した正本とする。
 
 ## current_state
 
@@ -11,6 +11,7 @@
 - `prj-kisaragi_0002` は、主空間再構成と経路レビューを 4 段階一括処理で扱う project とする
 - `Next Action + Thin Status` を中核 UX とし、`SessionPackage`、`SpacePackage`、`TrajectoryPackage`、`ReviewArtifact` の契約で進める
 - 恒久仕様、入口方針、app 責務、artifact 契約は `project-truth.md` を正本とし、この章では現在状態、未完 gate、優先順位、未解決論点だけを扱う
+- project 固有の current と decision はこの章へ集約し、shared `current_state.md` と `decision_log.md` へ重複配置しない
 
 ### 疑問点不整合一覧
 
@@ -47,6 +48,14 @@
 - `INITL-2` は `correcting` の PC install package 準備と artifact 互換性を追跡する
 - `trajectreview-modeling` の本機能 gate は、単一 route の一括 close ではなく、`比較基盤`、`比較実験`、`採用 route の運用化` の 3 段で閉じる
 - `trajectreview-reviewing` は summary と stub 読込までは持つが、実 `ReviewArtifact` viewer と同時刻ハイライト操作は未実装である
+
+### 決定済み運用
+
+- `InputPackaging` の入口は `correcting`、統合 app、legacy intake を閉じずに併存させる
+- `Google Drive` 転送先 file の document grant は保持前提にせず、毎回 `転送先を選択` で指定する
+- `Google Drive` 転送 zip の既定名は `trajectreview-correcting-session-YYYYMMDD-HHMMSS.zip` とし、custom 名でも `-session-YYYYMMDD-HHMMSS` suffix を必須にする
+- `reference_isensorium_verified_20260325` 配下の recording 実装は吸収済みとし、現行正規は `correcting`、`python`、`correcting/scripts`、`correcting-test` とする
+- `prj-kisaragi_0002` の正本文書は `--tgpce-map/prj-kisaragi_0002/` に集約する
 
 ### 阻害要因の境界
 
@@ -204,8 +213,8 @@
 
 ### `MRL` 対応表
 
-- `ux_check_manual_ref` は [ux_check_manual.md](/Users/tetsuya/kisaragi/kisaragi-db/--devs/--evidence/prj-kisaragi_0002/ux_check_manual.md) の章名または操作手順番号をそのまま書く。
-- `mrl_ux_valid_ref` は [mrl-ux-valid.md](/Users/tetsuya/kisaragi/kisaragi-db/--devs/--evidence/prj-kisaragi_0002/mrl-ux-valid.md) の章名をそのまま書く。
+- `ux_check_manual_ref` は [ux_check_manual.md](/Users/tetsuya/kisaragi/kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/ux_check_manual.md) の章名または操作手順番号をそのまま書く。
+- `mrl_ux_valid_ref` は [mrl-ux-valid.md](/Users/tetsuya/kisaragi/kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/mrl-ux-valid.md) の章名をそのまま書く。
 - `UX確認待ち` は `ready`、`need`、`done` の 3 値だけを使う。
 - `ready` は、system 構築前または構築途中で、まだ admin `UX check` へ出す段階ではないことを示す。
 - `need` は、manual、実行環境、対象機能がそろい、admin が今すぐ test できる状態を示す。これは通常 blocker ではない。
@@ -350,7 +359,7 @@
 | `T37` | `b31c` | selected route decision artifact | 暫定採用 route、不採用理由、research route、再評価条件を `selected_route.json` に保存できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/LocalModelingService.kt` |
 | `T38` | `b31` | remote result import | remote modeling 結果を受理し、`SpacePackage`、`TrajectoryPackage`、`modeling_handoff_manifest.json` を更新できる | planned | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
 | `T39` | `b32` | review artifact viewer | `reviewing` app が実 `ReviewArtifact` を読み、viewer と timeline 操作を提供できる | planned | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reviewing/` |
-| `T40` | `b33` | gate classification rule trace | `UX-only`、contract、sample、本機能の区別が `b2t`、`mrl-record`、`mrl-ux-valid` で矛盾なく追える | planned | `kisaragi-db/--devs/--plans/prj-kisaragi_0002/` |
+| `T40` | `b33` | gate classification rule trace | `UX-only`、contract、sample、本機能の区別が `b2t`、`mrl-record`、`mrl-ux-valid` で矛盾なく追える | planned | `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/` |
 
 ### 実行方針
 

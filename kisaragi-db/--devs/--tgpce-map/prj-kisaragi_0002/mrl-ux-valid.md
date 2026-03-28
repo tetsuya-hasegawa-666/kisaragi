@@ -229,7 +229,7 @@
   - raw build cache、binary results、pycache は `kisaragi-db/--exsams/prj-kisaragi_0002/` に出力する
   - 要約 report と summary は `kisaragi-db/--devs/--testlogs/prj-kisaragi_0002/` に出力する
 - 主要 evidence:
-  - `kisaragi-db/--devs/--plans/prj-kisaragi_0002/b2t-plans-result.md`
+  - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/b2t-plans-result.md`
   - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_session_parser.py`
   - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_project_contracts.py`
   - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt`
