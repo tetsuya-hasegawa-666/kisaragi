@@ -1,4 +1,4 @@
-# mrl-record
+# codex-mrl-test-evidence
 
 ## 目的文
 
@@ -13,35 +13,35 @@
 ## Entries
 
 - record date: `2026-03-26`
-  target MRL: `MRL-1` から `MRL-8`、`MRL-5C`
+  target MRL: `MRL-1` から `MRL-10`
   target mRL: `current pass entries all`
   gate change: `reverted to active/planned`
   issue: admin `UX check 完了` 前でも、test、contract、build、local sample、局所 device 確認を根拠に `pass` を付けていた
   cause: `pass` の必須条件として admin `UX check` と batch check 運用を shared rule へ明文化していなかった
-  resolution: `AGENTS.md`、`current_state.md`、`decision_log.md`、`b2t-plans-result.md` を更新し、`MRL` 記載順を運用順 `correcting -> modeling -> reviewing` に統一し、admin `UX check` 未完の gate を `active` / `planned` へ戻した
+  resolution: `AGENTS.md`、`ux-b2t-hypo.md`、関連 admin test 文書を更新し、`MRL` 記載順を運用順 `correcting -> modeling -> reviewing` に統一し、admin `UX check` 未完の gate を `active` / `planned` へ戻した
   recurrence prevention: 以後の `pass` は admin `UX check 完了` が記録された gate のみに付与し、関連 gate は batch でまとめて確認範囲を記録する
-  remaining work: admin 向け batch `UX check` の対象範囲、手順、結果記録を `mrl-ux-valid.md` へ追加し、各 gate を再 closeout する
-  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/b2t-plans-result.md`
+  remaining work: admin 向け batch `UX check` の対象範囲、手順、結果記録を `admin-mrl-test-evidence.md` へ追加し、各 gate を再 closeout する
+  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/ux-b2t-hypo.md`
 - record date: `2026-03-26`
-  target MRL: `MRL-5C`
-  target mRL: `mRL-5C.1`、`mRL-5C.2`、`mRL-5C.3`
+  target MRL: `MRL-6`
+  target mRL: `mRL-6.1`、`mRL-6.2`、`mRL-6.3`
   gate change: `pass`
   issue: `trajectreview-correcting` は記録画面だけで、同じ app 内の `data-check` と correction guidance が不足していた
   cause: `correcting` は verified mirror の recording screen に依存しており、session 停止後の intake / diagnose を app 内で閉じていなかった
   resolution: `CorrectingDataCheckService` を追加し、最新 session 再読込、`sensor_quality.json`、`session_package.json`、`space_handoff_manifest.json` 生成、recommended correction 表示を `correcting` 内へ実装した
   recurrence prevention: `correcting` の gate は記録画面だけで close せず、実 session から derived artifact が生成され、app 上に correction guidance が表示されるまで `pass` にしない
   remaining work: `modeling` 側の `Colab` handoff と `reviewing` 側の実 `ReviewArtifact` viewer を継続する
-  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/mrl-ux-valid.md`
+  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-evidence.md`
 - record date: `2026-03-26`
-  target MRL: `MRL-5` から `MRL-8`
-  target mRL: `mRL-5.3`、`mRL-5.4`、`mRL-6.3`、`mRL-6.4`、`mRL-7.x`、`mRL-8.3`、`mRL-8.4`
+  target MRL: `MRL-5` から `MRL-10`
+  target mRL: `mRL-5.3`、`mRL-5.4`、`mRL-6.3`、`mRL-6.4`、`mRL-7.x`、`mRL-8.3`、`mRL-9.x`、`mRL-10.3`
   gate change: `reverted to active/planned`
   issue: `UX 確認`、`build / install`、`local sample`、summary 読込を本来機能完成に近い意味で扱い、app の完成度を過大に closeout していた
   cause: `UX-only` gate と本機能 gate を分離せず、multi-app 骨格と実 app 機能の境界を `MRL` 表へ十分に反映していなかった
-  resolution: `b2t-plans-result.md` と `project-truth.md` を再設計し、correcting、modeling、reviewing、統合 app の完成条件を本来機能基準へ引き直し、該当 gate を `active` / `planned` へ戻した
+  resolution: `ux-b2t-hypo.md` と `project-truth.md` を再設計し、correcting、modeling、reviewing、統合 app の完成条件を本来機能基準へ引き直し、該当 gate を `active` / `planned` へ戻した
   recurrence prevention: mock、stub、sample、contract、build / install は補助 gate として別扱いにし、本機能 `pass` は実入出力と実生成物の end-to-end 証跡がある時だけ付与する
   remaining work: `correcting` の end-to-end、`Colab` handoff、remote result import、実 `ReviewArtifact` viewer、統合 app の end-to-end を実装する
-  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/b2t-plans-result.md`
+  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/ux-b2t-hypo.md`
 - record date: `2026-03-25`
   target MRL: `none`
   target mRL: `none`
@@ -51,7 +51,7 @@
   resolution: `project-truth.md` と計画正本を更新し、再開基線を `prj-kisaragi_0002` 配下へ集約した
   recurrence prevention: 外部補助文書で採用した構想は、次の実装着手前に `project-truth` と BDD / TDD 正本へ同時反映する
   remaining work: 契約 closeout を実データ処理と viewer 実装へ接続する
-  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/b2t-plans-result.md`
+  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/ux-b2t-hypo.md`
 - record date: `2026-03-25`
   target MRL: `MRL-1`
   target mRL: `mRL-1.1`、`mRL-1.4`
@@ -63,7 +63,6 @@
   remaining work: diagnose と execute gate を `active` で継続し、実データ入力を Android UI へ接続する
   evidence path: `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_session_parser.py`
 - record date: `2026-03-25`
-- record date: `2026-03-25`
   target MRL: `MRL-2` から `MRL-4`
   target mRL: `mRL-1.2`、`mRL-1.3`、`mRL-2.x`、`mRL-3.x`、`mRL-4.x`
   gate change: `reverted to active/planned`
@@ -72,7 +71,7 @@
   resolution: `AGENTS.md` に状態語の意味を追加し、計画正本の gate を保守的に `active` / `planned` へ修正した
   recurrence prevention: `MRL` / `mRL` の closeout は、実装、検証、残作業の 3 点がそろった項目だけに限定する
   remaining work: 実データ接続、viewer 実装、生成物 routing を継続し、`active` と `planned` を順次 close する
-  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/b2t-plans-result.md`
+  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/ux-b2t-hypo.md`
 - record date: `2026-03-25`
   target MRL: `MRL-1`
   target mRL: `mRL-1.2`、`mRL-1.3`
@@ -124,8 +123,8 @@
   remaining work: 抽出 bundle を後段の実空間再構成と viewer 実装へ接続する
   evidence path: `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ISensoriumExtractionServiceTest.kt`
 - record date: `2026-03-25`
-  target MRL: `MRL-6`
-  target mRL: `mRL-6.1` から `mRL-6.3`
+  target MRL: `MRL-8`
+  target mRL: `mRL-8.1` から `mRL-8.3`
   gate change: `pass`
   issue: 抽出 bundle は生成できても、`SpaceReconstruction` がそのまま消費できる concrete handoff artifact と主カメラ動画保持が不足していた
   cause: `MRL-5` までは intake と quality summary を優先し、`SessionPackage` 実体と stage-2 gate を抽象契約のまま残していた
@@ -134,8 +133,8 @@
   remaining work: `space_handoff_manifest.json` を実 `SpaceReconstruction` engine の入口へ接続する
   evidence path: `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ISensoriumExtractionServiceTest.kt`
 - record date: `2026-03-26`
-  target MRL: `MRL-7`
-  target mRL: `mRL-7.1` から `mRL-7.3`
+  target MRL: `MRL-9`
+  target mRL: `mRL-9.1` から `mRL-9.3`
   gate change: `pass`
   issue: 4 app 分割の骨格は入ったが、build、install、role-specific UX の成立を closeout できていなかった
   cause: module 追加と共通 source 再利用までは進んでいた一方、統合 app との関係と app 単位切り分け表示の evidence が不足していた
@@ -144,8 +143,8 @@
   remaining work: 実 bundle 読込と local modeling による mock 依存の解消
   evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/settings.gradle.kts`
 - record date: `2026-03-26`
-  target MRL: `MRL-8`
-  target mRL: `mRL-8.1` から `mRL-8.3`
+  target MRL: `MRL-10`
+  target mRL: `mRL-10.1` から `mRL-10.3`
   gate change: `pass`
   issue: 4 app が mock snapshot 固定だと、実データでの UX 確認と `Colab` 前提 modeling handoff を進められなかった
   cause: extracting 後の bundle を再読込する service と、`Colab` account 未取得期間の local sample modeling route が未実装だった

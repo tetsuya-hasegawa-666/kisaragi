@@ -9,7 +9,7 @@
 - 利用者は常に次に取るべき行動を 1 件だけ受け取れる。
 - 利用者は `Thin Status` で処理段階、品質低下、阻害理由を薄く常時把握できる。
 - 利用者は主空間、主カメラ経路、人物経路を同じ `Timeline` で見比べ、同時刻ハイライトと `attention point` からレビュー判断へ進める。
-- 運用者は外部 project や一時文書に依存せず、`prj-kisaragi_0002` 配下だけで計画、実装、検証を継続できる。
+- 運営者は外部 project や一時文書に依存せず、`prj-kisaragi_0002` 配下だけで計画、実装、検証を継続できる。
 - 主空間収録主体は `ARCore` 連携スマホカメラを持ち、連続動画と `IMU` を記録して主空間の基準となる。
 - 人物主体は動画なしの携行スマートフォンを持ち、`IMU` と必要に応じて `BT` を中心に時系列追跡される。
 - 人物は主カメラ動画へ頻繁に映り込み、人物経路の再拘束に使える。
@@ -30,7 +30,7 @@
 - `trajectreview-correcting`、`trajectreview-modeling`、`trajectreview-reviewing`、統合 app、既存 session intake は、開発中から実使用まで閉じずに併存させる。
 - 現場記録の標準例は `trajectreview-correcting` を使って説明してよいが、他入口を補助扱いとして閉じない。
 - どの入口から入っても、後段は同じ artifact 契約へ収束する。
-- 操作説明の優先順、実装優先順、`MRL` の進行順はあり得るが、それは `b2t-plans-result.md` で管理し、この文書では入口の可否差にしない。
+- 操作説明の優先順、実装優先順、`MRL` の進行順はあり得るが、それは `ux-b2t-hypo.md` で管理し、この文書では入口の可否差にしない。
 
 ## UX 原則
 
@@ -192,7 +192,7 @@
 
 ### package / bootstrap
 
-- 準備 UX、配布、install、bootstrap、実行環境整備は `INITL` / `mINITL` で管理する。
+- 準備 UX、配布、install、bootstrap、実行環境整備は `INITRL` / `mINITRL` で管理する。
 - `trajectreview-modeling` の package は `Colab all-in` を主 route とし、`Google Drive` から受け取る zip を unzip して `session_root/` を構成する `Colab bootstrap package` を持つ。
 - PC 側は `Colab bootstrap package` の source、install script、config template、notebook template、version 固定情報、証跡を保持する。
 - `trajectreview-correcting` は Android app を正本実行入口としつつ、PC install package も別 process で設計し、artifact 互換性、保存先構成、導線を固定する。

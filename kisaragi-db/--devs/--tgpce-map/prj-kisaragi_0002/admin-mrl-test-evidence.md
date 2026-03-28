@@ -1,4 +1,4 @@
-# mrl-ux-valid
+# admin-mrl-test-evidence
 
 ## 目的
 
@@ -8,7 +8,7 @@
 
 - 判定:
   - admin `UX check 完了` を `pass` 必須条件にする shared rule へ更新したため、既存の `pass` 解釈は全件再評価対象になった
-  - `MRL-1` から `MRL-8`、`MRL-5C` の既存 `pass` は、admin `UX check` 記録が明示されるまで `active` または `planned` として扱う
+  - `MRL-1` から `MRL-10` の既存 `pass` は、admin `UX check` 記録が明示されるまで `active` または `planned` として扱う
   - admin `UX check` は app 運用順に沿って、関連 gate をまとめた batch で実施してよい
   - 2026-03-25 から 2026-03-26 に記録した `MRL-5` から `MRL-8` の一部は、`UX-only`、`build / install`、`local sample`、summary 読込の確認としては有効だった
   - ただし、これらは `本来機能が app として完成した証拠` ではないため、対応する `MRL` / `mRL` の一部を `active` / `planned` へ戻した
@@ -24,18 +24,18 @@
 - `pass` に必要な `UX check` は admin が実施したものだけを有効とする
 - `UX check` は 1 gate 単位に限らず、関連する複数 `MRL` / `mRL` を 1 回の batch でまとめて実施してよい
 - batch 記録には、対象 `MRL` / `mRL`、実施日時、端末または環境、pass / fail、失敗時の要点を必ず含める
-- `mrl-ux-valid.md` は admin batch `UX check` の記録場所として使う
+- `admin-mrl-test-evidence.md` は admin batch `UX check` の記録場所として使う
 
 ## correcting batch 定義
 
 - 対象 `MRL`:
   - `MRL-5`
-  - `MRL-5C`
   - `MRL-6`
+  - `MRL-7`
 - 対象 `mRL`:
   - `mRL-5.1` から `mRL-5.4`
-  - `mRL-5C.1` から `mRL-5C.3`
-  - `mRL-6.1` から `mRL-6.4`
+  - `mRL-6.1` から `mRL-6.5`
+  - `mRL-7.1` から `mRL-7.3`
 - admin 操作観点:
   - `trajectreview-correcting` で記録開始、停止、session 保存ができる
   - `data-check` に readiness、blocker、recommended correction が出る
@@ -50,8 +50,8 @@
 - 端末 / 環境:
 - 対象 `MRL` / `mRL`:
   - `MRL-5`
-  - `MRL-5C`
   - `MRL-6`
+  - `MRL-7`
 - 結果: `pass / fail`
 - fail の時の要点:
 - evidence path:
@@ -60,16 +60,16 @@
 
 - 対象 `MRL`:
   - `MRL-8`
-  - `MRL-9A`
-  - `MRL-9B`
-  - `MRL-9C`
+  - `MRL-10`
+  - `MRL-11`
+  - `MRL-12`
+  - `MRL-13`
 - 対象 `mRL`:
-  - `mRL-8.1`
-  - `mRL-8.2`
-  - `mRL-8.4`
-  - `mRL-9A.1` から `mRL-9A.3`
-  - `mRL-9B.1` から `mRL-9B.3`
-  - `mRL-9C.1` から `mRL-9C.3`
+  - `mRL-8.1` から `mRL-8.3`
+  - `mRL-10.1` から `mRL-10.3`
+  - `mRL-11.1` から `mRL-11.3`
+  - `mRL-12.1` から `mRL-12.2`
+  - `mRL-13.1` から `mRL-13.2`
 - admin 操作観点:
   - `trajectreview-modeling` で実 bundle を読み、`colab_job_request.json` を生成できる
 - `DA3Metric-Large` の Colab route を起動できる
@@ -84,9 +84,10 @@
 - 端末 / 環境:
 - 対象 `MRL` / `mRL`:
   - `MRL-8`
-  - `MRL-9A`
-  - `MRL-9B`
-  - `MRL-9C`
+  - `MRL-10`
+  - `MRL-11`
+  - `MRL-12`
+  - `MRL-13`
 - 結果: `pass / fail`
 - fail の時の要点:
 - evidence path:
@@ -94,11 +95,11 @@
 ## reviewing batch 定義
 
 - 対象 `MRL`:
-  - `MRL-10`
-  - `MRL-7`
+  - `MRL-9`
+  - `MRL-14`
 - 対象 `mRL`:
-  - `mRL-10.1` から `mRL-10.3`
-  - `mRL-7.1` から `mRL-7.4`
+  - `mRL-9.1` から `mRL-9.3`
+  - `mRL-14.1` から `mRL-14.3`
 - admin 操作観点:
   - `trajectreview-reviewing` で実 `ReviewArtifact` を読み、verify / review 状態を確認できる
   - same-time highlight と `attention point` 操作ができる
@@ -112,17 +113,17 @@
 - 実施者: `admin`
 - 端末 / 環境:
 - 対象 `MRL` / `mRL`:
-  - `MRL-10`
-  - `MRL-7`
+  - `MRL-9`
+  - `MRL-14`
 - 結果: `pass / fail`
 - fail の時の要点:
 - evidence path:
 
-## 2026-03-26 `MRL-5C` candidate evidence
+## 2026-03-26 `MRL-6` candidate evidence
 
 - 対象 gate:
-  - `MRL-5C`
-  - `mRL-5C.1` から `mRL-5C.3`
+  - `MRL-6`
+  - `mRL-6.1` から `mRL-6.5`
 - UX 観点:
   - `trajectreview-correcting` で `現場撮影データ保存を開始` と `現場撮影データ保存を停止` が動く
   - 1 つ目の block で `データ保存先ディレクトリ選択` から同期先 folder を選び、その保持状態を app 内で確認できる
@@ -156,11 +157,11 @@
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/res/layout/activity_main.xml`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/test/java/com/isensorium/app/CorrectingDataCheckServiceSmokeTest.java`
 
-## 2026-03-27 `MRL-5D` candidate evidence
+## 2026-03-27 `MRL-7` candidate evidence
 
 - 対象 gate:
-  - `MRL-5D`
-  - `mRL-5D.1` から `mRL-5D.3`
+  - `MRL-7`
+  - `mRL-7.1` から `mRL-7.3`
 - UX 観点:
   - preview 直下の状態表示には `現場の風景と経路を記録します。1. 条件設定⇒2. 収録⇒3. 転送` が表示される
   - `端末保存先` が未設定の間は `Data収録開始` が非活性で、`端末保存先：未設定` が表示される
@@ -205,7 +206,7 @@
     - `:correcting:installDebug`
 - 制約:
   - `Google Drive` app または provider が端末上で選択可能である必要がある
-  - そのため `MRL-5D` は admin 実機 UX check 前の `candidate evidence` として扱う
+  - そのため `MRL-7` は admin 実機 UX check 前の `candidate evidence` として扱う
 - 主要 evidence:
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/MainActivity.kt`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/res/layout/activity_main.xml`
@@ -229,7 +230,7 @@
   - raw build cache、binary results、pycache は `kisaragi-db/--exsams/prj-kisaragi_0002/` に出力する
   - 要約 report と summary は `kisaragi-db/--devs/--testlogs/prj-kisaragi_0002/` に出力する
 - 主要 evidence:
-  - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/b2t-plans-result.md`
+  - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/ux-b2t-hypo.md`
   - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_session_parser.py`
   - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_project_contracts.py`
   - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt`
@@ -264,7 +265,7 @@
 - UX 観点:
   - app 起動直後に `入力セッションを選択` が `Next Action` として見える
   - `Extraction` card で抽出元、抽出先、`ready_for_diagnose`、欠落入力、quality 数値を 1 画面で読める
-  - `ux_check_manual.md` を、抽出 UI を含む最小操作手順へ更新した
+  - `admin-mrl-test-method.md` を、抽出 UI を含む最小操作手順へ更新した
 - 実装 / test 観点:
   - Python unittest: `test_session_parser.py`
   - Android unit test: `ReviewScreenControllerTest.kt`、`ISensoriumExtractionServiceTest.kt`
@@ -284,11 +285,11 @@
   - `kisaragi-db/--devs/--testlogs/prj-kisaragi_0002/reports/python-unittest-summary.md`
   - `kisaragi-db/--devs/--testlogs/prj-kisaragi_0002/reports/android-test-summary.md`
 
-## 2026-03-25 `MRL-6` candidate evidence
+## 2026-03-25 `MRL-8` candidate evidence
 
 - 対象 gate:
-  - `MRL-6`
-  - `mRL-6.1` から `mRL-6.3`
+  - `MRL-8`
+  - `mRL-8.1` から `mRL-8.3`
 - UX 観点:
   - 抽出結果画面で `ready_for_space_reconstruction` と blocker を確認できる
   - raw bundle に主カメラ動画を保持したまま、後段着手判断を 1 画面で行える
@@ -307,11 +308,11 @@
   - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ISensoriumExtractionServiceTest.kt`
   - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_session_parser.py`
 - 
-## 2026-03-26 `MRL-7` candidate evidence
+## 2026-03-26 `MRL-9` candidate evidence
 
 - 対象 gate:
-  - `MRL-7`
-  - `mRL-7.1` から `mRL-7.3`
+  - `MRL-9`
+  - `mRL-9.1` から `mRL-9.3`
 - UX 観点:
   - `trajectreview-correcting`、`trajectreview-modeling`、`trajectreview-reviewing`、統合 app がそれぞれ自分の役割だけを主表示にする
   - 統合 app は `correcting / modeling / reviewing` を 1 画面で俯瞰できる
@@ -333,7 +334,7 @@
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/MainActivity.kt`
   - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt`
 
-## 2026-03-26 `MRL-8` candidate evidence
+## 2026-03-26 `MRL-10` candidate evidence
 
 - 対象 gate:
   - `MRL-8`
