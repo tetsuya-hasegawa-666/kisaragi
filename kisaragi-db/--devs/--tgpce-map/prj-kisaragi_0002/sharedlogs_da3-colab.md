@@ -1252,6 +1252,9 @@ print("saved:", OUTPUT_ROOT)
   - いま貼り戻すべき回答欄
 
 - いま正本で見るべき章:
+  - `blank workspace 前提`
+  - `事前準備`
+  - `準備確認`
   - `現在の status`
   - `Candidate Bootstrap v1`
   - `成功判定`

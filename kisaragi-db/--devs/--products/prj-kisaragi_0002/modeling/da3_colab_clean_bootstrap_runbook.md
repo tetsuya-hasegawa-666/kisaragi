@@ -6,6 +6,12 @@
 - shared worklog の trial 往復をそのまま正本化せず、真に必要だった command と file 操作だけを抽出して保持する。
 - `candidate` は現時点の最短候補、`adopted` は admin 実測で end-to-end 完了した `truly pass` 手順を示す。
 
+## blank workspace 前提
+
+- この文書は、`Colab` の fresh runtime、つまり `/content/` 配下に前回の clone や install が残っていない状態から始める前提で書く。
+- admin は「前回の途中状態を引き継げる」と仮定せず、まずこの文書の `事前準備` と `準備確認` を実行する。
+- 途中状態から再開するのは、bootstrap 自体の failure を切り分ける時だけに限定する。
+
 ## 運用 rule
 
 - `Colab` runtime が揮発した時は、途中 patch の継ぎ足しより、この runbook の先頭からやり直すことを既定とする。
@@ -18,6 +24,70 @@
 - `adopted` は未成立
 - 現在の blocker は、fresh runtime で DA3 repo と custom dependency を戻した後に `1 frame` 推論が end-to-end で通るか未確認な点である
 
+## 事前準備
+
+- `Google Colab` notebook を新規に開く
+- `Runtime` は可能なら `T4` 以上の GPU を選ぶ
+- `Google Drive` を mount できる account で入る
+- 対象 folder id `1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_` への access があることを確認する
+
+## 準備確認
+
+### 準備確認 1: runtime と Drive mount の確認
+
+```python
+import os
+from pathlib import Path
+import torch
+from google.colab import drive
+
+drive.mount("/content/drive", force_remount=True)
+
+print("cwd", os.getcwd())
+print("cuda_available", torch.cuda.is_available())
+print("drive_exists", Path("/content/drive").exists())
+print("mydrive_exists", Path("/content/drive/MyDrive").exists())
+print("shortcut_root_exists", Path("/content/drive/.shortcut-targets-by-id").exists())
+```
+
+OK 条件:
+
+- `drive_exists True`
+- `mydrive_exists True`
+- `shortcut_root_exists True`
+- `cuda_available` は `True` が理想。`False` でも bootstrap は進められるが、推論は遅くなる
+
+### 準備確認 2: 対象 folder と zip の存在確認
+
+```python
+from pathlib import Path
+
+folder_root = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_")
+zip_path = folder_root / "trajectreview" / "correcting" / "session-20260328-103250.zip"
+
+print("folder_root_exists", folder_root.exists(), folder_root)
+print("zip_exists", zip_path.exists(), zip_path)
+```
+
+OK 条件:
+
+- `folder_root_exists True`
+- `zip_exists True`
+
+### 準備確認 3: blank workspace であることの確認
+
+```python
+from pathlib import Path
+
+print("repo_exists_before_bootstrap", Path("/content/Depth-Anything-3").exists())
+print("extract_root_exists_before_bootstrap", Path("/content/trajectreview_input").exists())
+```
+
+OK 条件:
+
+- 両方 `False` が理想
+- `True` の時は、この runbook の Step 1 と Step 2 が削除して作り直すので、そのまま続けてよい
+
 ## Candidate Bootstrap v1
 
 ### 目的
@@ -26,7 +96,7 @@
 
 ### 前提
 
-- `Google Drive` は mount 済み
+- `事前準備` と `準備確認` が済んでいる
 - 対象 folder id は `1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_`
 - 対象 zip は `trajectreview/correcting/session-20260328-103250.zip`
 - 結果出力先は `trajectreview/results/da3_smoke_v24/`
