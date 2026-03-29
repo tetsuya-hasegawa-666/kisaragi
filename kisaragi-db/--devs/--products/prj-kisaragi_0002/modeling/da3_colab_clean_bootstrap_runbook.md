@@ -29,7 +29,8 @@
 - `gsplat` warning は single-frame bootstrap では blocker ではなかったが、今後の `3DGS` 系主空間モデル生成では import と実行可否を明示確認する必要がある
 - `2026-03-29` の `Step 5b gsplat install probe` では、`Python 3.12` の `Colab` runtime 上で `pip install gsplat` が成功し、`gsplat 1.5.3` が `/usr/local/lib/python3.12/dist-packages` に入ることを確認した
 - `2026-03-29` の `Step 5c` と `Step 5d` と `Step 5e` により、`gsplat 1.5.3` は import 可能で、`rasterization`、`rasterization_2dgs`、`fully_fused_projection` が callable として利用可能だと確認した
-- 現在の次 block は world projection 前提 probe であり、`DA3Metric-Large` depth と `ARCore pose` / intrinsics を同一 frame 集合へ揃えたうえで、最小 `3DGS` 系主空間モデル生成 probe へ進む
+- `2026-03-29` の `Step 5f` から `Step 5j` により、bundle 実配置、`arcore_pose.jsonl` の実 path、pose / intrinsics payload、depth 1 点の world back-projection smoke test が成功した
+- 現在の次 block は点群書き出し probe であり、`DA3Metric-Large` depth と `ARCore pose` / intrinsics から主 `ARCore` 空間の point 群を保存したうえで、最小 `3DGS` 系主空間モデル生成 probe へ進む
 
 ## 事前準備
 
@@ -202,10 +203,12 @@ print("import_ok", DepthAnything3)
 - `Step 5d`: `gsplat` の top-level symbol と submodule 一覧を確認し、使うべき import path を確定する。
 - `Step 5e`: `rasterization`、`rasterization_2dgs`、`fully_fused_projection` の signature を確認し、最小呼び出し形を確定する。
 - `Step 5f`: `session_package.json`、`arcore_pose.jsonl`、`frame_pose_index.csv`、image 群から、`DA3Metric-Large` depth と `ARCore pose` を同一 frame 集合へ揃える。
-- `Step 5g`: world projection smoke test を通し、depth を主 `ARCore` 空間へ戻した point 群を保存できることを確認する。
-- `Step 5h`: point 群または `DA3Metric-Large` 出力を入力として、実データ由来の最小 `3DGS` 系主空間モデル生成を試す。
-- `Step 5i`: `gs_model` の保存先、`space_quality.json` の記録項目、`SpacePackage` への組み込み方を確定する。
-- `Step 5j`: 上記が 1 route で通ったら、runbook の `candidate` を `3DGS` 生成まで拡張する。
+- `Step 5g`: 1 frame の pose / intrinsics payload を確認し、world projection の最小入力 shape を確定する。
+- `Step 5h`: world back-projection smoke test を通し、depth 1 点を主 `ARCore` 空間へ戻せることを確認する。
+- `Step 5i`: depth から point 群を書き出す point export probe を通し、主 `ARCore` 空間の点群を保存できることを確認する。
+- `Step 5j`: point 群または `DA3Metric-Large` 出力を入力として、実データ由来の最小 `3DGS` 系主空間モデル生成を試す。
+- `Step 5k`: `gs_model` の保存先、`space_quality.json` の記録項目、`SpacePackage` への組み込み方を確定する。
+- `Step 5l`: 上記が 1 route で通ったら、runbook の `candidate` を `3DGS` 生成まで拡張する。
 
 ## shared worklog へ出す command block の単位
 

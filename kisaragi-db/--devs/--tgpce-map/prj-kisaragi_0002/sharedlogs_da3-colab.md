@@ -1032,5 +1032,100 @@ print("tracking_state", pose["trackingState"])
 
 ```text
 # Step 5j world back-projection smoke test res
+depth_shape (378, 504)
+sample_uv [252, 189]
+sample_depth 0.5909101366996765
+camera_point [-0.09096274347837847, -0.059963176079481935, 0.5909101366996765]
+world_point [-0.05996312626947611, 0.09096279328838429, 0.5909101340866039]
+tracking_state PAUSED
+
+```
+
+# codex
+
+2026-03-29 v17 next action。
+
+- `Step 5j` は成功です。`DA3Metric-Large` depth の 1 点を主 `ARCore` 空間へ戻せる first proof が取れました。
+- 次は depth 全体から間引いた point 群を world 座標へ変換し、`.npy` と `.ply` で保存できるかを確認します。
+- 目的は `3DGS` 系主空間モデル生成の前段となる point export の成立確認です。
+
+```python
+# Step 5k point export smoke test
+import json
+from pathlib import Path
+
+import numpy as np
+
+root = Path("/content/trajectreview_input/session-20260328-103250")
+arcore_pose_path = root / "arcore_pose.jsonl"
+out_dir = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05")
+depth_path = out_dir / "depth_raw.npy"
+points_npy = out_dir / "world_points_smoke.npy"
+points_ply = out_dir / "world_points_smoke.ply"
+
+with arcore_pose_path.open("r", encoding="utf-8") as f:
+    poses = [json.loads(line) for line in f]
+
+pose = poses[1]
+intr = pose["imageIntrinsics"]
+depth = np.load(depth_path)
+
+fx = float(intr["fx"])
+fy = float(intr["fy"])
+cx = float(intr["cx"])
+cy = float(intr["cy"])
+
+qx = float(pose["pose"]["qx"])
+qy = float(pose["pose"]["qy"])
+qz = float(pose["pose"]["qz"])
+qw = float(pose["pose"]["qw"])
+tx = float(pose["pose"]["tx"])
+ty = float(pose["pose"]["ty"])
+tz = float(pose["pose"]["tz"])
+
+q = np.array([qw, qx, qy, qz], dtype=np.float64)
+q = q / np.linalg.norm(q)
+qw, qx, qy, qz = q
+R = np.array([
+    [1 - 2 * (qy * qy + qz * qz), 2 * (qx * qy - qz * qw), 2 * (qx * qz + qy * qw)],
+    [2 * (qx * qy + qz * qw), 1 - 2 * (qx * qx + qz * qz), 2 * (qy * qz - qx * qw)],
+    [2 * (qx * qz - qy * qw), 2 * (qy * qz + qx * qw), 1 - 2 * (qx * qx + qy * qy)],
+], dtype=np.float64)
+t = np.array([tx, ty, tz], dtype=np.float64)
+
+step = 24
+points = []
+for v in range(0, depth.shape[0], step):
+    for u in range(0, depth.shape[1], step):
+        z = float(depth[v, u])
+        if not np.isfinite(z) or z <= 0:
+            continue
+        x = (u - cx) / fx * z
+        y = (v - cy) / fy * z
+        cam = np.array([x, y, z], dtype=np.float64)
+        world = R @ cam + t
+        points.append(world)
+
+points = np.asarray(points, dtype=np.float32)
+np.save(points_npy, points)
+
+with points_ply.open("w", encoding="utf-8") as f:
+    f.write("ply\nformat ascii 1.0\n")
+    f.write(f"element vertex {len(points)}\n")
+    f.write("property float x\nproperty float y\nproperty float z\n")
+    f.write("end_header\n")
+    for p in points:
+        f.write(f"{p[0]} {p[1]} {p[2]}\n")
+
+print("points_shape", points.shape)
+print("points_npy_exists", points_npy.exists(), points_npy)
+print("points_ply_exists", points_ply.exists(), points_ply)
+print("first_points", points[:5].tolist())
+```
+
+# admin
+
+```text
+# Step 5k point export smoke test res
 
 ```
