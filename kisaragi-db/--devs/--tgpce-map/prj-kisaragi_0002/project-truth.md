@@ -203,6 +203,7 @@
 - shared worklog の置き場は `--tgpce-map/prj-kisaragi_****/` 直下とし、file 名は `sharedlogs_<thema>.md` 形式に統一する。
 - shared worklog を使う時は、読みやすさのために定型 header を持ち、header より下は `# codex` または `# admin` 見出しで末尾追記のみとする。
 - 採用判断、gate 状態、artifact 契約、manual、evidence は必ず対応する正本文書または証跡文書へ別途反映する。
+- shared worklog は定期的に振り返り、持続価値のある内容を `project-truth.md`、`ux-b2t-hypo.md`、admin evidence、product runbook へ反映した後、old log 本文を削除または reset してよい。
 - `Colab` や remote notebook のように runtime が揮発する route では、途中修復手順ではなく fresh runtime からの最短 clean bootstrap を canonical route とする。
 - 上記 route では、shared worklog の trial 往復とは別に、`--products/prj-kisaragi_0002/` 配下へ `最小 clean bootstrap runbook` を保持することを必須とする。
 - `最小 clean bootstrap runbook` は `candidate` と `adopted` を分け、admin 実測で end-to-end 完了した手順だけを `truly pass` 扱いとする。

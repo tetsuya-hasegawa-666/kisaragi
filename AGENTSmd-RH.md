@@ -26,6 +26,20 @@
   - 旧: shared worklog が bootstrap 手順の主な保持場所になりやすかった。
   - 新: shared worklog は trial 往復、product 文書は最小 clean bootstrap runbook という役割分担が強制される。
 
+### 2026-03-29 AGENTS.md shared worklog の定期振り返りと削除可能化
+
+- 日時: `2026-03-29`
+- 文書名: `AGENTS.md`
+- 標題: shared worklog の有益部分反映後 reset を shared rule 化
+- 背景: shared worklog は往復面として有効だが、長くなると可読性が落ち、最下部追記 only の rule も崩れやすくなる。
+- 目的: shared worklog を定期的に棚卸しし、有益部分を正本へ移した後は old log を削除または reset できるようにする。
+- 対処方法: `協調原則` に、反映先更新後の reset 許可、shared worklog 単独保持の禁止、fixed header を残した blank reset rule を追加した。
+- 対応内容: periodic review、正本反映、old log 削除可能、reset 時の前提条件を明文化した。
+- 更新結果: shared worklog は肥大化したら正本反映後に安全に整理できる運用になった。
+- 新旧比較:
+  - 旧: shared worklog をどの時点で reset してよいかが弱かった。
+  - 新: 有益部分を正本へ反映済みなら、shared worklog を reset してよい shared rule になった。
+
 ### 2026-03-29 AGENTS.md 前提節の再整理
 
 - 日時: `2026-03-29`

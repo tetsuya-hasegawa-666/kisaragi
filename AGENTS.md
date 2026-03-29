@@ -264,6 +264,9 @@ kisaragi-tree/
 - `最小 clean bootstrap runbook` は、`いま最短で再現できる候補` と `admin 実測で truly pass 済みの採用手順` を明確に分け、後者だけを `truly pass` と表現する。
 - 揮発 runtime task で 1 回の session で完了しなかった時は、原則として partial recovery の説明を積み増すより `最小 clean bootstrap runbook` を更新し、次回は先頭から再実行できる形へ収束させる。
 - product 系文書に未反映のまま shared worklog だけへ bootstrap 手順を積み続けることを禁止する。最短再現経路が見えた時点で、同じ task 内で product 系文書へ昇格させる。
+- shared worklog は定期的に振り返り、持続価値のある内容を正本、manual、evidence、product runbook へ反映した後、old log 本文を削除または reset してよい。
+- 上記の削除または reset を行う時は、有益部分の反映先が先に更新済みであることを条件とし、shared worklog 単独を唯一の保持場所にしてはならない。
+- shared worklog の reset は、fixed header を残したうえで本文を blank に戻すか、新 file へ切り替える。どちらの場合も「何を正本へ反映済みか」を先に確定させる。
 
 ## 並行作業
 - 共有制御ファイル編集時は、同じ task で `AGENTS.md` と `AGENTSmd-RH.md` を更新し、変更理由を追跡可能にする。

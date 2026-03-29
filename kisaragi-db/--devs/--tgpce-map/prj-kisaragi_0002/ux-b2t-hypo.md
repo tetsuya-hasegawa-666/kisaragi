@@ -52,6 +52,7 @@
 - 現在の `DA3Metric-Large` `Colab` thread の main worklog は `sharedlogs_da3-colab.md` である
 - shared worklog は読みやすさのために定型 header を持ち、header より下は `# codex` または `# admin` 見出しで末尾追記のみとする
 - 採用判断、gate 状態、contract 変更、manual 変更は必ず対応する正本文書へ別途反映する
+- shared worklog は定期的に振り返り、有益部分を正本や evidence へ反映済みなら old 本文を削除または reset してよい
 - `Colab` のように runtime が揮発する route では、partial recovery の積み上げではなく fresh runtime からの最短 clean bootstrap を canonical route とする
 - 上記 route では、trial 往復の shared worklog と別に、`--products/prj-kisaragi_0002/modeling/` 配下へ `最小 clean bootstrap runbook` を保持し、admin が次回は先頭から再実行できる形に収束させる
 - `最小 clean bootstrap runbook` は `candidate` と `adopted` を分け、admin 実測で end-to-end が通った手順のみを `truly pass` 扱いにする

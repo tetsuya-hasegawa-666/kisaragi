@@ -18,6 +18,7 @@
 - 既存本文は原則として書き換えず、必ず最下部へ追記する。
 - 長い code と error は code block のまま貼る。
 - shared rule 変更は `AGENTS.md`、project truth / plan / current 変更は `project-truth.md` と `ux-b2t-hypo.md`、gate 判定根拠は admin evidence へ別途反映する。
+
 # codex
 
 2026-03-29 reset for fresh restart。
@@ -70,14 +71,6 @@ Step 4:
 blocker:
 
 ```
-
-images = sorted((SESSION_ROOT / "images").glob("*.png")) + sorted((SESSION_ROOT / "images").glob("*.jpg")) + sorted((SESSION_ROOT / "images").glob("*.jpeg"))
-assert images, f"images not found under {SESSION_ROOT / 'images'}"
-
-image_path = images[0]
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = DepthAnything3.from_pretrained("depth-anything/DA3METRIC-LARGE").to(device=device)
-prediction = model.inference([str(image_path)])
 
 depth = np.asarray(prediction.depth[0])
 conf = np.asarray(prediction.conf[0])
