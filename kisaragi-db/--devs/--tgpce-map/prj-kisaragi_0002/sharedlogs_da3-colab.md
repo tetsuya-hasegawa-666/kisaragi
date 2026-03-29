@@ -658,5 +658,83 @@ for name, obj in targets:
 
 ```text
 # Step 5e gsplat callable surface probe res
+NAME rasterization
+TYPE <class 'function'>
+CALLABLE True
+SIGNATURE (means: torch.Tensor, quats: torch.Tensor, scales: torch.Tensor, opacities: torch.Tensor, colors: torch.Tensor, viewmats: torch.Tensor, Ks: torch.Tensor, width: int, height: int, near_plane: float = 0.01, far_plane: float = 10000000000.0, radius_clip: float = 0.0, eps2d: float = 0.3, sh_degree: Optional[int] = None, packed: bool = True, tile_size: int = 16, backgrounds: Optional[torch.Tensor] = None, render_mode: Literal['RGB', 'D', 'ED', 'RGB+D', 'RGB+ED'] = 'RGB', sparse_grad: bool = False, absgrad: bool = False, rasterize_mode: Literal['classic', 'antialiased'] = 'classic', channel_chunk: int = 32, distributed: bool = False, camera_model: Literal['pinhole', 'ortho', 'fisheye', 'ftheta'] = 'pinhole', segmented: bool = False, covars: Optional[torch.Tensor] = None, with_ut: bool = False, with_eval3d: bool = False, radial_coeffs: Optional[torch.Tensor] = None, tangential_coeffs: Optional[torch.Tensor] = None, thin_prism_coeffs: Optional[torch.Tensor] = None, ftheta_coeffs: Optional[gsplat.cuda._wrapper.FThetaCameraDistortionParameters] = None, rolling_shutter: gsplat.cuda._wrapper.RollingShutterType = <RollingShutterType.GLOBAL: 4>, viewmats_rs: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor, Dict]
+DOC_HEAD ['Rasterize a set of 3D Gaussians (N) to a batch of image planes (C).', '', 'This function provides a handful features for 3D Gaussian rasterization, which', 'we detail in the following notes. A complete profiling of the these features', 'can be found in the :ref:`profiling` page.', '', '.. note::', '    **Multi-GPU Distributed Rasterization**: This function can be used in a multi-GPU']
+---
+NAME rasterization_2dgs
+TYPE <class 'function'>
+CALLABLE True
+SIGNATURE (means: torch.Tensor, quats: torch.Tensor, scales: torch.Tensor, opacities: torch.Tensor, colors: torch.Tensor, viewmats: torch.Tensor, Ks: torch.Tensor, width: int, height: int, near_plane: float = 0.01, far_plane: float = 10000000000.0, radius_clip: float = 0.0, eps2d: float = 0.3, sh_degree: Optional[int] = None, packed: bool = False, tile_size: int = 16, backgrounds: Optional[torch.Tensor] = None, render_mode: Literal['RGB', 'D', 'ED', 'RGB+D', 'RGB+ED'] = 'RGB', sparse_grad: bool = False, absgrad: bool = False, distloss: bool = False, depth_mode: Literal['expected', 'median'] = 'expected') -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, Dict]
+DOC_HEAD ['Rasterize a set of 2D Gaussians (N) to a batch of image planes (C).', '', 'This function supports a handful of features, similar to the :func:`rasterization` function.', '', '.. warning::', '    This function is currently not differentiable w.r.t. the camera intrinsics `Ks`.', '', 'Args:']
+---
+NAME fully_fused_projection
+TYPE <class 'function'>
+CALLABLE True
+SIGNATURE (means: torch.Tensor, covars: Optional[torch.Tensor], quats: Optional[torch.Tensor], scales: Optional[torch.Tensor], viewmats: torch.Tensor, Ks: torch.Tensor, width: int, height: int, eps2d: float = 0.3, near_plane: float = 0.01, far_plane: float = 10000000000.0, radius_clip: float = 0.0, packed: bool = False, sparse_grad: bool = False, calc_compensations: bool = False, camera_model: Literal['pinhole', 'ortho', 'fisheye', 'ftheta'] = 'pinhole', opacities: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
+DOC_HEAD ['Projects Gaussians to 2D.', '', 'This function fuse the process of computing covariances', '(:func:`quat_scale_to_covar_preci()`), transforming to camera space (:func:`world_to_cam()`),', 'and projection (:func:`proj()`).', '', '.. note::', '']
+---
+```
+
+# codex
+
+2026-03-29 v12 next action。
+
+- `Step 5e` は成功です。`gsplat` の callable surface まで確認できました。
+- 次は world projection 前提として、実 session から `ARCore pose`、`frame_pose_index.csv`、`camera_calibration_summary.json`、image 群の対応関係を 1 frame で確定します。
+- 目的は `DA3Metric-Large` depth を主 `ARCore` 空間へ戻す最小入力を揃えることです。
+
+```python
+# Step 5f frame alignment probe
+import csv
+import json
+from pathlib import Path
+
+session_root = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+images_dir = session_root / "images"
+frame_pose_index_path = session_root / "frame_pose_index.csv"
+camera_summary_path = session_root / "camera_calibration_summary.json"
+arcore_pose_path = session_root.parent / "isensorium" / "arcore_pose.jsonl"
+
+print("session_root_exists", session_root.exists(), session_root)
+print("images_dir_exists", images_dir.exists(), images_dir)
+print("frame_pose_index_exists", frame_pose_index_path.exists(), frame_pose_index_path)
+print("camera_summary_exists", camera_summary_path.exists(), camera_summary_path)
+print("arcore_pose_exists", arcore_pose_path.exists(), arcore_pose_path)
+
+rows = []
+if frame_pose_index_path.exists():
+    with frame_pose_index_path.open("r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for i, row in enumerate(reader):
+            rows.append(row)
+            if i >= 4:
+                break
+print("frame_pose_index_head", rows)
+
+if camera_summary_path.exists():
+    summary = json.loads(camera_summary_path.read_text(encoding="utf-8"))
+    print("camera_summary_keys", sorted(summary.keys()))
+
+poses = []
+if arcore_pose_path.exists():
+    with arcore_pose_path.open("r", encoding="utf-8") as f:
+        for i, line in enumerate(f):
+            poses.append(json.loads(line))
+            if i >= 2:
+                break
+print("arcore_pose_head_keys", [sorted(p.keys()) for p in poses])
+
+images = sorted(images_dir.glob("*.png")) + sorted(images_dir.glob("*.jpg")) + sorted(images_dir.glob("*.jpeg"))
+print("image_count", len(images))
+print("first_images", [p.name for p in images[:5]])
+```
+
+# admin
+
+```text
+# Step 5f frame alignment probe res
 
 ```
