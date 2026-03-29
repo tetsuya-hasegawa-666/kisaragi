@@ -48,8 +48,8 @@
 - 既存の `COLMAP 4.0 + nerfstudio splatfacto` notebook は参考ひな形であり、`DA3Metric-Large` modeling の truth ではない
 - `DA3Metric-Large` の `Colab` 実装は greenfield とし、`Codex` が script / notebook を作成し、admin が `Colab` 実行結果を shared worklog に貼り戻す往復で詰める
 - shared worklog は project に対する truth / plan / evidence の正本ではないが、共同作業の保持情報としては authoritative な log であり、正本反映の根拠として保持する
-- shared worklog の置き場は `--tgpce-map/prj-kisaragi_0002/` 直下とし、file 名は `shared_worklog-prj-kisaragi_0002-<thema>.md` 形式に統一する
-- 現在の `DA3Metric-Large` `Colab` thread の main worklog は `shared_worklog-prj-kisaragi_0002-da3-colab.md` である
+- shared worklog の置き場は `--tgpce-map/prj-kisaragi_0002/` 直下とし、file 名は `sharedlogs_<thema>.md` 形式に統一する
+- 現在の `DA3Metric-Large` `Colab` thread の main worklog は `sharedlogs_da3-colab.md` である
 - shared worklog は読みやすさのために定型 header を持ち、header より下は `# codex` または `# admin` 見出しで末尾追記のみとする
 - 採用判断、gate 状態、contract 変更、manual 変更は必ず対応する正本文書へ別途反映する
 - `ISS-003` の unzip / 配置正規化責務は `modeling` の `Colab bootstrap package` が担う

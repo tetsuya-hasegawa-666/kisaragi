@@ -1,4 +1,4 @@
-# shared_worklog-prj-kisaragi_0002-da3-colab.md
+# sharedlogs_da3-colab.md
 
 ## 役割
 

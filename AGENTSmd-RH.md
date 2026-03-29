@@ -12,19 +12,19 @@
 
 ## 更新履歴
 
-### 2026-03-29 AGENTS.md shared worklog の `--tgpce-map` 移管と命名統一
+### 2026-03-29 AGENTS.md shared worklog の `--tgpce-map` 移管と命名簡素化
 
 - 日時: `2026-03-29`
 - 文書名: `AGENTS.md`
-- 標題: collaborative log を `--tgpce-map` 直下へ移し `shared_worklog-<project-code>-<thema>.md` に統一
+- 標題: collaborative log を `--tgpce-map` 直下へ移し `sharedlogs_<thema>.md` に統一
 - 背景: notebook / script / error の往復 log は raw 生成物ではなく、人と AI の共同作業で参照し続ける可読性重視の保持情報であるため、`--exsams/` より `--tgpce-map/` の方が実態に合っていた。
 - 目的: collaborative log の置き場、役割、命名規則を shared rule として固定し、project ごとに同じ読み方と参照方法で運用できるようにする。
-- 対処方法: `--devs/` と `--exsams/` の説明、および協調原則と文書規則を更新し、shared worklog を `--tgpce-map/prj-kisaragi_****/shared_worklog-<project-code>-<thema>.md` として扱う rule を追加した。
+- 対処方法: `--devs/` と `--exsams/` の説明、および協調原則と文書規則を更新し、shared worklog を `--tgpce-map/prj-kisaragi_****/sharedlogs_<thema>.md` として扱う rule を追加した。
 - 対応内容: shared worklog は truth / plan / evidence の正本ではないが、共同作業の保持情報としては authoritative な log であり、正本反映の根拠 log として保持することを明記した。
 - 更新結果: 長い code 往復や admin 実行結果は `--tgpce-map` 側の shared worklog に集約し、`--exsams/` は raw 生成物専用として整理された。
 - 新旧比較:
   - 旧: collaborative log は `--exsams/` 配下の一時共有 log として扱っていた。
-  - 新: collaborative log は `--tgpce-map/` 直下の `shared_worklog-<project-code>-<thema>.md` に統一し、保持情報としての authoritative log として扱う。
+  - 新: collaborative log は `--tgpce-map/` 直下の `sharedlogs_<thema>.md` に統一し、保持情報としての authoritative log として扱う。
 
 ### 2026-03-29 AGENTS.md 長い code 往復の一時共有 log 既定化
 

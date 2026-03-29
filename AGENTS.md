@@ -105,7 +105,7 @@ kisaragi-tree/
 - `--testlogs/` には記録、要約、manifest などを置き、それ以外の生成物は `--exsams/` に置く。
 - `--tgpce-map/` は `truth, goal, plan, current, evidence-map` を束ねる統合文書置き場とする。
 - 人と AI が notebook cell、長い script、error 全文、実行結果を往復する可読性重視の共有 log は、raw 生成物ではなく project 運用文書として `--tgpce-map/prj-kisaragi_****/` 直下に置く。
-- 上記の共有 log 名は `shared_worklog-<project-code>-<thema>.md` 形式に統一する。
+- 上記の共有 log 名は `sharedlogs_<thema>.md` 形式に統一する。
 - `--tgpce-map/` への統合は承認済み `prj-kisaragi_****` から段階的に行う。
 - `--tgpce-map/` 採用済み `prj-kisaragi_****` では、project 固有の `current_state` と `decision` も統合計画書を中心に集約し、旧 category の同 project 文書は `--tgpce-map/` 側へ移す。
 - `--plans/`、`--evidence/`、`--project-truth/`、`--state/` は旧 category とし、`--tgpce-map/` へ吸収し終えたら directory 実体ごと削除する。
@@ -119,6 +119,7 @@ kisaragi-tree/
       resume-startup-plan.md
       admin-mrl-test-method.md
       admin-mrl-test-evidence.md
+      sharedlogs_<thema>.md
   --products/
   --testcode/
   --testlogs/
@@ -130,7 +131,7 @@ kisaragi-tree/
 - 直下は `prj-kisaragi_****/` とする。
 - `device dump`、画面構造 dump、実機調査 XML、screen capture、tmp など、正本でない一時調査出力も `--exsams/` 配下だけに置く。
 - `--exsams/` 外に一時調査出力を生成した時は、その場で `--exsams/` へ移動するか削除し、workspace root や他 category に残してはならない。
-- 人と AI の共同作業 log は raw 生成物ではないため `--exsams/` に置かず、`--tgpce-map/` 側の `shared_worklog-<project-code>-<thema>.md` を使う。
+- 人と AI の共同作業 log は raw 生成物ではないため `--exsams/` に置かず、`--tgpce-map/` 側の `sharedlogs_<thema>.md` を使う。
 
 </order>
 
@@ -266,7 +267,7 @@ kisaragi-tree/
 - 投機的拡張より、現在制約下で実行可能な前進を優先する。
 - 人間への依頼は、小さく、拒否されても全体計画が崩れない単位で行う。
 - 複数指示を含む prompt を処理する時は、未完了指示を task 内の残件として保持し、理由説明なしに取りこぼしたまま入力待ちへ移ってはならない。
-- notebook cell、長い script、error 全文、admin 実行結果の往復を伴う task では、main code thread を chat の直接往復ではなく project ごとの `shared_worklog-<project-code>-<thema>.md` へ集約することを既定とする。
+- notebook cell、長い script、error 全文、admin 実行結果の往復を伴う task では、main code thread を chat の直接往復ではなく project ごとの `sharedlogs_<thema>.md` へ集約することを既定とする。
 - 上記の task では、Codex は回答前に shared worklog の最新追記を先に確認し、chat では「どの worklog を基準に答えるか」を明示する。
 - shared worklog は context window の代替ではなく、誤送信と文脈取り違えを減らすための canonical な往復面として使う。main code、実行順、admin の raw response は原則そこで管理する。
 - chat には要点、判断、次 action を短く返し、長い code block や長い error 全文は shared worklog を基準に扱う。

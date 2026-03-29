@@ -13,7 +13,7 @@
 - `ux-b2t-hypo.md` の BDD 章に terminal behavior と `MRL` / `mRL` を固定する
 - `ux-b2t-hypo.md` の TDD 章に検証 task と優先順を固定する
 - `codex-mrl-test-evidence.md` を更新し、再開基線を記録する
-- notebook / script / error 往復の current thread は `shared_worklog-prj-kisaragi_0002-<thema>.md` を先に確認する
+- notebook / script / error 往復の current thread は `sharedlogs_<thema>.md` を先に確認する
 
 ## 第 2 段階
 
