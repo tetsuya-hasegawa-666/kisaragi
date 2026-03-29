@@ -104,6 +104,8 @@ kisaragi-tree/
 - 計画、状態、証跡、test code、product 実装物、および trace として有益な test 記録を置く。
 - `--testlogs/` には記録、要約、manifest などを置き、それ以外の生成物は `--exsams/` に置く。
 - `--tgpce-map/` は `truth, goal, plan, current, evidence-map` を束ねる統合文書置き場とする。
+- 人と AI が notebook cell、長い script、error 全文、実行結果を往復する可読性重視の共有 log は、raw 生成物ではなく project 運用文書として `--tgpce-map/prj-kisaragi_****/` 直下に置く。
+- 上記の共有 log 名は `shared_worklog-<project-code>-<thema>.md` 形式に統一する。
 - `--tgpce-map/` への統合は承認済み `prj-kisaragi_****` から段階的に行う。
 - `--tgpce-map/` 採用済み `prj-kisaragi_****` では、project 固有の `current_state` と `decision` も統合計画書を中心に集約し、旧 category の同 project 文書は `--tgpce-map/` 側へ移す。
 - `--plans/`、`--evidence/`、`--project-truth/`、`--state/` は旧 category とし、`--tgpce-map/` へ吸収し終えたら directory 実体ごと削除する。
@@ -128,6 +130,7 @@ kisaragi-tree/
 - 直下は `prj-kisaragi_****/` とする。
 - `device dump`、画面構造 dump、実機調査 XML、screen capture、tmp など、正本でない一時調査出力も `--exsams/` 配下だけに置く。
 - `--exsams/` 外に一時調査出力を生成した時は、その場で `--exsams/` へ移動するか削除し、workspace root や他 category に残してはならない。
+- 人と AI の共同作業 log は raw 生成物ではないため `--exsams/` に置かず、`--tgpce-map/` 側の `shared_worklog-<project-code>-<thema>.md` を使う。
 
 </order>
 
@@ -263,6 +266,10 @@ kisaragi-tree/
 - 投機的拡張より、現在制約下で実行可能な前進を優先する。
 - 人間への依頼は、小さく、拒否されても全体計画が崩れない単位で行う。
 - 複数指示を含む prompt を処理する時は、未完了指示を task 内の残件として保持し、理由説明なしに取りこぼしたまま入力待ちへ移ってはならない。
+- notebook cell、長い script、error 全文、admin 実行結果の往復を伴う task では、main code thread を chat の直接往復ではなく project ごとの `shared_worklog-<project-code>-<thema>.md` へ集約することを既定とする。
+- 上記の task では、Codex は回答前に shared worklog の最新追記を先に確認し、chat では「どの worklog を基準に答えるか」を明示する。
+- shared worklog は context window の代替ではなく、誤送信と文脈取り違えを減らすための canonical な往復面として使う。main code、実行順、admin の raw response は原則そこで管理する。
+- chat には要点、判断、次 action を短く返し、長い code block や長い error 全文は shared worklog を基準に扱う。
 
 ## 並行作業
 - 共有制御ファイル編集時は、同じ task で `AGENTS.md` と `AGENTSmd-RH.md` を更新し、変更理由を追跡可能にする。
@@ -303,6 +310,10 @@ kisaragi-tree/
 - 非 text 資産の inventory 規則は、実装 code や chat だけに残さず正本文書へ反映する。
 - active task に必要な文書更新は、project 上の真実が変わった同じ task 単位で完了させる。
 - `疑問点不整合一覧` に `big-open` が 1 件以上ある project の文書を更新した時は、response で `big-open` の存在を必ず明示する。
+- shared worklog を使う task では、その file は project に対する truth / plan / evidence の正本ではないが、共同作業の保持情報としては authoritative な worklog として扱う。
+- shared worklog は、truth / current / plan / evidence へ反映する時の根拠 log として保持し、shared rule 変更は `AGENTS.md`、project truth / plan / gate 影響は project 正本文書、gate 判定根拠は admin 証跡正本へ必ず別途反映する。
+- shared worklog は、原則として「固定 header」と「時系列本文」に分け、header より下は `# codex` または `# admin` 見出しによる末尾追記だけを許可する。途中挿入、途中修正、本文中ほどへの要約追記は禁止とする。
+- admin / Codex が次に読む場所を迷わないよう、shared worklog の運用上の正規読み順は「最下部から上へ」とする。Codex は回答前に最下部の最新 `# admin` / `# codex` を先に確認する。
 
 ## 文書の役割境界
 - `project-truth.md` は、目的、完成判定、利用入口、UX 原則、段階構造、app 責務、artifact 契約、外部連携境界のような恒久事項だけを持つ。

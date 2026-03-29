@@ -197,6 +197,12 @@
 - 準備 UX、配布、install、bootstrap、実行環境整備は `INITRL` / `mINITRL` で管理する。
 - `trajectreview-modeling` の package は `Colab all-in` を主 route とし、`Google Drive` の指定 directory から zip または `session_root/` を受けて `session_root/` を正規化する `Colab bootstrap package` を持つ。
 - PC 側は `Colab bootstrap package` の source、install script、config template、notebook template、version 固定情報、証跡を保持する。
+- 既存の `COLMAP 4.0 + nerfstudio splatfacto` notebook は参考ひな形であり、`DA3Metric-Large` modeling の正本ではない。
+- `DA3Metric-Large` の `Colab` 実装は greenfield とし、`Codex` が script / notebook を作成し、admin が `Colab` 実行結果を shared worklog に貼り戻す往復で具体化する。
+- shared worklog は project に対する truth / plan / evidence の正本ではないが、共同作業の保持情報としては authoritative な log であり、正本反映の根拠 log として保持する。
+- shared worklog の置き場は `--tgpce-map/prj-kisaragi_****/` 直下とし、file 名は `shared_worklog-<project-code>-<thema>.md` 形式に統一する。
+- shared worklog を使う時は、読みやすさのために定型 header を持ち、header より下は `# codex` または `# admin` 見出しで末尾追記のみとする。
+- 採用判断、gate 状態、artifact 契約、manual、evidence は必ず対応する正本文書または証跡文書へ別途反映する。
 - `trajectreview-correcting` は Android app を正本実行入口としつつ、PC install package も別 process で設計し、artifact 互換性、保存先構成、導線を固定する。
 
 ### modeling route

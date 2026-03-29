@@ -12,6 +12,48 @@
 
 ## 更新履歴
 
+### 2026-03-29 AGENTS.md shared worklog の `--tgpce-map` 移管と命名統一
+
+- 日時: `2026-03-29`
+- 文書名: `AGENTS.md`
+- 標題: collaborative log を `--tgpce-map` 直下へ移し `shared_worklog-<project-code>-<thema>.md` に統一
+- 背景: notebook / script / error の往復 log は raw 生成物ではなく、人と AI の共同作業で参照し続ける可読性重視の保持情報であるため、`--exsams/` より `--tgpce-map/` の方が実態に合っていた。
+- 目的: collaborative log の置き場、役割、命名規則を shared rule として固定し、project ごとに同じ読み方と参照方法で運用できるようにする。
+- 対処方法: `--devs/` と `--exsams/` の説明、および協調原則と文書規則を更新し、shared worklog を `--tgpce-map/prj-kisaragi_****/shared_worklog-<project-code>-<thema>.md` として扱う rule を追加した。
+- 対応内容: shared worklog は truth / plan / evidence の正本ではないが、共同作業の保持情報としては authoritative な log であり、正本反映の根拠 log として保持することを明記した。
+- 更新結果: 長い code 往復や admin 実行結果は `--tgpce-map` 側の shared worklog に集約し、`--exsams/` は raw 生成物専用として整理された。
+- 新旧比較:
+  - 旧: collaborative log は `--exsams/` 配下の一時共有 log として扱っていた。
+  - 新: collaborative log は `--tgpce-map/` 直下の `shared_worklog-<project-code>-<thema>.md` に統一し、保持情報としての authoritative log として扱う。
+
+### 2026-03-29 AGENTS.md 長い code 往復の一時共有 log 既定化
+
+- 日時: `2026-03-29`
+- 文書名: `AGENTS.md`
+- 標題: notebook / script / error 往復時の一時共有 log を shared rule 化
+- 背景: `Colab` のように長い cell、error 全文、admin 実行結果を何度も往復する task では、chat へ直接 code を積み続けると誤送信や文脈取り違えが起きやすく、main code thread の参照元が揺れやすかった。
+- 目的: 長い code 往復の canonical な面を `--exsams/` 配下の一時共有 log へ固定し、chat は要点整理と次 action の案内に集中させる。
+- 対処方法: `協調原則` と `文書規則` に、一時共有 log を main code / raw response の既定面とする rule、回答前に最新追記を確認する rule、log 自体は正本や証跡の代替にしない rule を追記した。
+- 対応内容: notebook cell、長い script、error 全文、admin 実行結果の往復を伴う task では、一時共有 log を基準に進めること、chat ではどの log を基準に答えるかを明示すること、log は header 付き追記専用を既定にすることを追加した。
+- 更新結果: 今後は長い code 往復で context window だけに依存せず、`--exsams/` の一時共有 log を canonical な往復面として扱い、shared / project / evidence への反映漏れも抑えやすくなる。
+- 新旧比較:
+  - 旧: chat と一時 log の使い分けは project ごとの運用に依存し、shared rule としては弱かった。
+  - 新: 長い code 往復では一時共有 log を既定面とし、chat は要点整理と次 action を返す補助面として扱う shared rule が追加された。
+
+### 2026-03-29 AGENTS.md 一時共有 log の最下部追記固定
+
+- 日時: `2026-03-29`
+- 文書名: `AGENTS.md`
+- 標題: shared log 本文の途中挿入禁止と最下部読み順固定
+- 背景: shared log に本文途中の要約や説明が混じると、admin がどこから読めばよいか分かりにくく、時系列の追跡も難しくなる問題が出た。
+- 目的: 一時共有 log の固定 header と時系列本文を明確に分け、header より下は最下部追記だけで運用する。
+- 対処方法: `文書規則` に、一時共有 log は固定 header の下を `# codex` / `# admin` 見出しによる末尾追記だけに限定する rule と、正規読み順を「最下部から上へ」とする rule を追加した。
+- 対応内容: 途中挿入、途中修正、本文中ほどへの要約追記を禁止し、Codex は回答前に最下部の最新追記を確認することを shared rule 化した。
+- 更新結果: shared log は「上が固定説明、下が時系列本文」という読み方に統一され、admin と Codex がどこを見るべきか迷いにくくなった。
+- 新旧比較:
+  - 旧: header の下にも途中要約や説明を差し込む余地があり、読み順が揺れやすかった。
+  - 新: header より下は最下部追記だけに固定し、正規読み順も最下部起点に統一した。
+
 ### 2026-03-28 AGENTS.md gate 状態語の再定義
 
 - 日時: `2026-03-28`

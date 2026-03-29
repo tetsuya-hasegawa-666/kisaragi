@@ -45,6 +45,13 @@
 - `trajectreview-modeling` は `Colab all-in` を主 route とし、PC 側は source、config、auto-install package、証跡の正本を保持する
 - `trajectreview-modeling` は preflight artifact として `experiment_manifest.json`、`da3_input_manifest.json`、`benchmark_summary.json`、`selected_route.json`、Colab notebook / import helper / bootstrap package を持つ
 - Colab notebook の `CONFIG` は `session_root` と `result_root` を最小入力とし、残りの route 情報は session bundle 内の artifact から自動で補完する
+- 既存の `COLMAP 4.0 + nerfstudio splatfacto` notebook は参考ひな形であり、`DA3Metric-Large` modeling の truth ではない
+- `DA3Metric-Large` の `Colab` 実装は greenfield とし、`Codex` が script / notebook を作成し、admin が `Colab` 実行結果を shared worklog に貼り戻す往復で詰める
+- shared worklog は project に対する truth / plan / evidence の正本ではないが、共同作業の保持情報としては authoritative な log であり、正本反映の根拠として保持する
+- shared worklog の置き場は `--tgpce-map/prj-kisaragi_0002/` 直下とし、file 名は `shared_worklog-prj-kisaragi_0002-<thema>.md` 形式に統一する
+- 現在の `DA3Metric-Large` `Colab` thread の main worklog は `shared_worklog-prj-kisaragi_0002-da3-colab.md` である
+- shared worklog は読みやすさのために定型 header を持ち、header より下は `# codex` または `# admin` 見出しで末尾追記のみとする
+- 採用判断、gate 状態、contract 変更、manual 変更は必ず対応する正本文書へ別途反映する
 - `ISS-003` の unzip / 配置正規化責務は `modeling` の `Colab bootstrap package` が担う
 - `INITRL-1` は `modeling` の `Colab bootstrap package`、source 配置、config、auto-install package を追跡する
 - `INITRL-2` は `correcting` の PC install package 準備と artifact 互換性を追跡する
@@ -62,6 +69,20 @@
 ### 阻害要因の境界
 
 - `DA3Metric-Large` を first target とする depth 基盤は定まったが、最終採用する sampling / intrinsics route は未決定である
+- `DA3Metric-Large` の初回 `Colab` probe は一時確認であり、最終採用 route や truth を意味しない
+- `DA3Metric-Large` の初回 `Colab` probe` は `numpy` ABI 不整合を越えたが、次段では probe cell 側の不要な `pkg_resources` import と runtime package 解決の不整合で `Cell C` import check が失敗している
+- 次段の `Colab` probe は official repo clone、`numpy<2` 固定、runtime restart を維持しつつ、`pkg_resources` を明示 import しない最小 import check と runtime site-packages の実測確認へ切り替える
+- runtime 実測により `Python 3.12` と `/usr/local/lib/python3.12/dist-packages` は整合していることが分かった。現在の blocker は `DepthAnything3` import 時に `export.gs -> moviepy -> pygame` を eager import して落ちる点である
+- 次段の `Colab` probe は、推論に不要な `gs` export import を lazy 化するため、`depth_anything_3/utils/export/__init__.py` を部分置換ではなく file 上書き patch で差し替え、import / 1 frame 推論を再確認する
+- `gs` eager import は外せたが、次段では `export.colmap -> pycolmap` の eager import が blocker になっている
+- 次段の `Colab` probe は export module 全体を lazy import 化し、推論確認時に `pycolmap`、`moviepy`、`pygame` などの export 依存を読まない形へ切り替える
+- export module 全体の lazy import 化は成立した。現在の blocker は `depth_anything_3.utils.io.output_processor` が要求する `addict` の未install である
+- 次段の `Colab` probe は install をやり直さず、`addict` を追加 install して import / 1 frame 推論確認を続行する
+- `addict` は install 済みとなり、現在の blocker は `depth_anything_3.utils.pose_align` が要求する `evo` の未install である
+- 次段の `Colab` probe は install をやり直さず、`evo` を追加 install して import / 1 frame 推論確認を続行する
+- `evo` は install 済みとなり、`Cell C` の import check は通過した。現在の blocker は `Cell D` の `SESSION_ROOT` が placeholder のままで、`images/` 実 path を指していない点である
+- 次段の `Colab` probe は code 修正ではなく、実 `session_root` を特定して `images/` の存在確認を行ったうえで 1 frame 推論へ進む
+- `DA3Metric-Large` の最適な package / module 構成、weight 配布元、download URL の返却方式は未決定である
 - 人物 path の視覚再拘束に使う実データ条件が未確定である
 - `ReviewArtifact` の最終 viewer 実装先は Android 固定ではない
 - 取得元 app data の配置差分は実機ごとの差を吸収する必要がある
@@ -74,6 +95,7 @@
 1. `trajectreview-modeling` を `DA3Metric-Large` depth 推定 + `ARCore pose` / intrinsics 統合、multi-route 比較、採用 route 運用化の 3 段で閉じる
 2. `trajectreview-reviewing` を `ReviewArtifact` 実 viewer と same-time highlight 操作まで閉じる
 3. `INITRL-1` として `Colab all-in modeling` package の source、config、auto-install 導線を固める
+4. `DA3Metric-Large` の `Colab` 実装は install / import の初期確認を通過したので、次は実 `session_root` と `images/` を特定し、1 frame 推論を成立させる
 
 ### 作業所有権
 
