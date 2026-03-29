@@ -22,6 +22,7 @@
 - 現在の main target は `MRL-13` であり、`10s` 前後の整った実動画を使った `multi-frame` densify で、利用者が主空間の見え方と主カメラ経路を粗く把握できる再現モデルを admin がまず `PLY` viewer で確認する水準へ進めることである。
 - `MRL-14` 以降は細かく固定せず `MRL-**` として大まかな順番だけを置き、実測で見えた課題の大小に応じて `MRL` / `mRL` を切り直す。
 - ただし後続 `MRL` でも UX 到達品質は元の目標に沿わせる。特に modeling では、利用者が主空間の見え方、主カメラ経路、処理状態、次 action を迷わず把握できる方向を維持する。
+- 後続 `MRL-**` で最低限残る項目は、`multi-route` 比較、`selected_route.json` 固定、request 起点 UX、`job_status.json` と waiting ring、download URL を含む result 返却、`SpacePackage` / `TrajectoryPackage` / `ReviewArtifact` handoff、reviewing viewer 実装である。
 
 ## 到達済み
 
@@ -41,6 +42,7 @@
 - remote 実行中の `waiting ring`、現在 stage、更新時刻表示は未実装。
 - `modeling/job_status.json` の厳密 schema と更新 timing は未固定。
 - remote 完了後の `download URL` 返却導線は未実装。
+- reviewing viewer で主空間、主カメラ経路、人物経路、same-time highlight、`attention point` を同じ review 文脈で扱う最終 UX は未実装。
 
 ## 次回の最初の 5 手
 

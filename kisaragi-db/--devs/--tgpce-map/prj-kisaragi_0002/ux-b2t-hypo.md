@@ -352,7 +352,7 @@
 - `MRL-11` では `td14`、`td15`、`tu18`、`tu19`、`tu21` で `Google Drive` directory intake、waiting UX、安全 gate、status 更新を固める
 - `MRL-12` では `td16` から `td18` と `tu22`、`tu23` で `DA3Metric-Large` 前処理、`DA3Metric-Large` による `3DGS` 系主空間モデル生成までの system 構築、smoke artifact 取得を固める
 - `MRL-13` では `td19` を中心に `10s` 前後の整った実動画から `multi-frame` densify を行い、ぼんやり見える再現モデルを得る
-- 後続の利用者向け `MRL-**` では route 比較、採用 route 固定、request / status UX、reviewing viewer、正式統合を、admin が手を動かす modeling 実態に合わせて順次切り出す
+- 後続の利用者向け `MRL-**` では route 比較、採用 route 固定、request / status UX、remote result 返却、reviewing viewer、正式統合を、admin が手を動かす modeling 実態に合わせて順次切り出す
 
 ### 現在の見立て
 - `tu1` から `tu7` と `td1` から `td8` の基礎 task は、契約実装、project 境界 scan、output routing 実行で `p-done` になった
@@ -365,6 +365,7 @@
 - `MRL-12` は、`correcting` 実データを使った `3DGS` 系主空間モデル候補の smoke 生成と生成 artifact 取得までを根拠に `p-done` とする
 - 次段は `MRL-13` とし、`10s` 前後の整った実動画から `multi-frame` depth / world projection を積み上げて、admin が `PLY` viewer でぼんやり見える再現モデルを確認できる水準を first target に置く
 - `MRL-14` 以降は `MRL-**` として大まかな順番だけを置き、task 実測で課題の大小が見えた時点で `MRL` / `mRL` の切り方を調整する
+- 後続 `MRL-**` では、少なくとも `multi-route` 比較、`selected_route.json` 固定、request 起点 UX、`job_status.json` と waiting ring、download URL を含む result 返却、`SpacePackage` / `TrajectoryPackage` / `ReviewArtifact` handoff、reviewing viewer 実装、主空間 / 主カメラ経路 / 人物経路 / same-time highlight を同じ review 文脈で扱う統合 UX を順に残す
 - modeling は admin の手作業を含むため、後続 `MRL` の達成基準は都度「いま実際に進めやすい粒度」へ合わせて更新する
 - ただし `MRL` の達成品質として求める UX 自体は薄めず、元の north star である「利用者が主空間の見え方と主カメラ経路を確認できる」「処理状態と次 action を迷わず把握できる」方向に沿って各段の到達像を明記する
 
@@ -444,3 +445,8 @@
 | MRL | mRL | gate test 項目 | 関連 story-id | 関連 behavior-id | 関連 task-id | 現在 gate | UX評価状態 | admin UX確認手順 | admin evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `MRL-**` | `-` | 利用者向け後続 `MRL-**` を支える補助 gate として、route 比較、採用 route 固定、request / status UX、reviewing viewer、正式統合を実測に応じて順次切り出す。ただし UX 目標は常に元の north star に沿って明記する | `sd6`,`sd9`,`sd10`,`su19`,`sd11` | `bd15`,`bd18`,`bd19`,`bu23`,`bu24`,`bd20` | `td20`,`td21`,`td22`,`tu28`,`tu29`,`td23` | `ready` | `ready` | `未収載` | `未収載` |
+| `MRL-**` | `mRL-**.1` | `multi-route` 比較を行い、quality、runtime、resource usage、failure reason を同一 session 上で比較できる | `sd9`,`sd11` | `bd18`,`bd20` | `td20`,`td23` | `ready` | `ready` | `未収載` | `未収載` |
+| `MRL-**` | `mRL-**.2` | 暫定採用 route を `selected_route.json` として固定し、research route と再評価条件を追える | `sd9` | `bd19` | `td21` | `ready` | `ready` | `未収載` | `未収載` |
+| `MRL-**` | `mRL-**.3` | request 元から input directory、result directory、route id を束ねて remote 実行 request を作り、waiting ring と `job_status.json` を読み続けられる | `sd6`,`su10`,`su13` | `bd15`,`bu14`,`bu17` | `td22`,`tu28`,`td23` | `ready` | `ready` | `未収載` | `未収載` |
+| `MRL-**` | `mRL-**.4` | remote 完了後に download URL と result summary を返し、`SpacePackage`、`TrajectoryPackage`、`ReviewArtifact` handoff を後段へ渡せる | `sd10`,`su19` | `bu23`,`bu24` | `tu28`,`tu29` | `ready` | `ready` | `未収載` | `未収載` |
+| `MRL-**` | `mRL-**.5` | reviewing viewer で主空間、主カメラ経路、人物経路、same-time highlight、`attention point` を同じ review 文脈で扱える | `su18`,`su19` | `bu22`,`bu24` | `tu27`,`tu29` | `ready` | `ready` | `未収載` | `未収載` |
