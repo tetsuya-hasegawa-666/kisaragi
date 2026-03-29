@@ -23,7 +23,7 @@
 
 - `candidate` はあり
 - `adopted` は未成立
-- 現在の blocker は、`Step 3` で `trimesh` が未install のため `depth_anything_3.api` import が止まる点である
+- 現在の blocker は、`Step 3` は通過し、次に `Step 4` の `1 frame` 推論が end-to-end で通るか未確認な点である
 - 現在は blank restart を強制せず、同じ runtime で blocker を潰しながら bootstrap 仕様を確定する段階である
 
 ## 事前準備

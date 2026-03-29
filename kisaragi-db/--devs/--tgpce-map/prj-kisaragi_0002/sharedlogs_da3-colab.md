@@ -242,12 +242,80 @@ print("import_ok", DepthAnything3)
 
 ```text
 # Step 3 dependency fix v03 res
-
+trimesh_install_ok
 ```
 
 # admin
 
 ```text
 # Step 3 retry v03 res
+src_root_exists True /content/Depth-Anything-3/src
+import_ok <class 'depth_anything_3.api.DepthAnything3'>
+```
+
+# codex
+
+2026-03-29 v04 continue on current runtime。
+
+- `Step 3` は通過しました。
+- 次は `Step 4` の `1 frame` 推論を実行し、保存 artifact と summary を確認します。
+
+```python
+# Step 4 run v04
+import json
+from pathlib import Path
+
+import numpy as np
+from PIL import Image
+import torch
+from depth_anything_3.api import DepthAnything3
+
+SESSION_ROOT = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+OUTPUT_ROOT = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v04")
+OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+
+images = sorted((SESSION_ROOT / "images").glob("*.png")) + sorted((SESSION_ROOT / "images").glob("*.jpg")) + sorted((SESSION_ROOT / "images").glob("*.jpeg"))
+assert images, f"images not found under {SESSION_ROOT / 'images'}"
+
+image_path = images[0]
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = DepthAnything3.from_pretrained("depth-anything/DA3METRIC-LARGE").to(device=device)
+prediction = model.inference([str(image_path)])
+
+depth = np.asarray(prediction.depth[0])
+conf = np.asarray(prediction.conf[0])
+intrinsics = np.asarray(prediction.intrinsics[0])
+extrinsics = np.asarray(prediction.extrinsics[0])
+
+depth_min = float(depth.min())
+depth_max = float(depth.max())
+depth_norm = np.zeros_like(depth, dtype=np.float32) if depth_max <= depth_min else (depth - depth_min) / (depth_max - depth_min)
+Image.fromarray((depth_norm * 255).astype(np.uint8)).save(OUTPUT_ROOT / "depth_preview.png")
+
+np.save(OUTPUT_ROOT / "depth_raw.npy", depth)
+np.save(OUTPUT_ROOT / "conf_raw.npy", conf)
+np.save(OUTPUT_ROOT / "intrinsics.npy", intrinsics)
+np.save(OUTPUT_ROOT / "extrinsics.npy", extrinsics)
+
+summary = {
+    "image_path": str(image_path),
+    "device": str(device),
+    "depth_shape": list(depth.shape),
+    "conf_shape": list(conf.shape),
+    "intrinsics_shape": list(intrinsics.shape),
+    "extrinsics_shape": list(extrinsics.shape),
+    "depth_min": depth_min,
+    "depth_max": depth_max,
+}
+
+(OUTPUT_ROOT / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+print(json.dumps(summary, indent=2))
+print("saved:", OUTPUT_ROOT)
+```
+
+# admin
+
+```text
+# Step 4 run v04 res
 
 ```
