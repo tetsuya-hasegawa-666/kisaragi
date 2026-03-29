@@ -420,3 +420,69 @@ with zipfile.ZipFile(zip_path, "r") as zf:
 # Zip target search v17 res
 
 ```
+
+# admin
+
+```text
+# Data_Correcting_System.zip note
+Data_Correcting_System.zipは全く違う案件で置いたものですので違います
+```
+
+# codex
+
+2026-03-29 v18。
+
+- `Data_Correcting_System.zip` は無関係な file として除外します。こちらの候補選定が誤りでした。
+- したがって、現在の探索対象は `MyDrive` 全体の中で `prj-kisaragi_0002` 実 data に関係する folder / zip / notebook 周辺です。
+- 次は `Colab Notebooks` 配下と、`MyDrive` 全体から `trajectreview`、`session`、`camera_calibration_summary.json`、`frame_pose_index.csv` を手掛かりに再探索します。
+
+```python
+# Colab Notebooks inspect v18
+from pathlib import Path
+
+root = Path("/content/drive/MyDrive/Colab Notebooks")
+print("exists", root.exists(), root)
+if root.exists():
+    for p in sorted(root.rglob("*")):
+        print(p)
+        if len(str(p)) > 0:
+            pass
+```
+
+```python
+# Broad hint search v18
+from pathlib import Path
+
+drive_root = Path("/content/drive/MyDrive")
+hints = [
+    "*trajectreview*",
+    "*session*",
+    "camera_calibration_summary.json",
+    "frame_pose_index.csv",
+    "session_package.json",
+]
+
+for hint in hints:
+    found = list(drive_root.rglob(hint))
+    print("hint", hint, "count", len(found))
+    for p in found[:30]:
+        print(" ", p)
+```
+
+- `session_package.json`、`camera_calibration_summary.json`、`frame_pose_index.csv` のどれかが見つかった path を最優先候補にします。
+- `Colab Notebooks` 配下に zip や data folder があれば、それも候補です。
+- 上の 2 cell の結果を返してください。
+
+# admin
+
+```text
+# Colab Notebooks inspect v18 res
+
+```
+
+# admin
+
+```text
+# Broad hint search v18 res
+
+```
