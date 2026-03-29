@@ -317,5 +317,168 @@ print("saved:", OUTPUT_ROOT)
 
 ```text
 # Step 4 run v04 res
+WARNING:py.warnings:/usr/local/lib/python3.12/dist-packages/huggingface_hub/utils/_auth.py:94: UserWarning: 
+The secret `HF_TOKEN` does not exist in your Colab secrets.
+To authenticate with the Hugging Face Hub, create a token in your settings tab (https://huggingface.co/settings/tokens), set it as secret in your Google Colab and restart your session.
+You will be able to reuse this secret in all of your notebooks.
+Please note that authentication is recommended but still optional to access public models or datasets.
+  warnings.warn(
+
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+WARNING:huggingface_hub.utils._http:Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+config.json: 100%
+ 847/847 [00:00<00:00, 42.1kB/s]
+[INFO ] using MLP layer as FFN
+model.safetensors: 100%
+ 1.34G/1.34G [00:12<00:00, 134MB/s]
+[INFO ] Processed Images Done taking 0.18443822860717773 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 90.08614325523376 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0011453628540039062 seconds
+---------------------------------------------------------------------------
+TypeError                                 Traceback (most recent call last)
+/tmp/ipykernel_1078/826605900.py in <cell line: 0>()
+     21 
+     22 depth = np.asarray(prediction.depth[0])
+---> 23 conf = np.asarray(prediction.conf[0])
+     24 intrinsics = np.asarray(prediction.intrinsics[0])
+     25 extrinsics = np.asarray(prediction.extrinsics[0])
+
+TypeError: 'NoneType' object is not subscriptable
+```
+
+# codex
+
+2026-03-29 v05 continue on current runtime。
+
+- T4 上で core 推論自体は通過しています。
+- 現在の blocker は `prediction.conf` が `None` なのに、保存処理で必須扱いしている点です。
+- `HF_TOKEN` warning は public model download では optional なので、今は無視して進めてよいです。
+- 次は `conf` / `intrinsics` / `extrinsics` を optional 扱いにした `Step 4` を再実行します。
+
+```python
+# Step 4 rerun v05
+import json
+from pathlib import Path
+
+import numpy as np
+from PIL import Image
+import torch
+from depth_anything_3.api import DepthAnything3
+
+SESSION_ROOT = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+OUTPUT_ROOT = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05")
+OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+
+images = sorted((SESSION_ROOT / "images").glob("*.png")) + sorted((SESSION_ROOT / "images").glob("*.jpg")) + sorted((SESSION_ROOT / "images").glob("*.jpeg"))
+assert images, f"images not found under {SESSION_ROOT / 'images'}"
+
+image_path = images[0]
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = DepthAnything3.from_pretrained("depth-anything/DA3METRIC-LARGE").to(device=device)
+prediction = model.inference([str(image_path)])
+
+depth = np.asarray(prediction.depth[0])
+conf = None if prediction.conf is None else np.asarray(prediction.conf[0])
+intrinsics = None if prediction.intrinsics is None else np.asarray(prediction.intrinsics[0])
+extrinsics = None if prediction.extrinsics is None else np.asarray(prediction.extrinsics[0])
+
+depth_min = float(depth.min())
+depth_max = float(depth.max())
+depth_norm = np.zeros_like(depth, dtype=np.float32) if depth_max <= depth_min else (depth - depth_min) / (depth_max - depth_min)
+Image.fromarray((depth_norm * 255).astype(np.uint8)).save(OUTPUT_ROOT / "depth_preview.png")
+
+np.save(OUTPUT_ROOT / "depth_raw.npy", depth)
+if conf is not None:
+    np.save(OUTPUT_ROOT / "conf_raw.npy", conf)
+if intrinsics is not None:
+    np.save(OUTPUT_ROOT / "intrinsics.npy", intrinsics)
+if extrinsics is not None:
+    np.save(OUTPUT_ROOT / "extrinsics.npy", extrinsics)
+
+summary = {
+    "image_path": str(image_path),
+    "device": str(device),
+    "depth_shape": list(depth.shape),
+    "conf_shape": None if conf is None else list(conf.shape),
+    "intrinsics_shape": None if intrinsics is None else list(intrinsics.shape),
+    "extrinsics_shape": None if extrinsics is None else list(extrinsics.shape),
+    "depth_min": depth_min,
+    "depth_max": depth_max,
+}
+
+(OUTPUT_ROOT / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+print(json.dumps(summary, indent=2))
+print("saved:", OUTPUT_ROOT)
+```
+
+# admin
+
+```text
+# Step 4 rerun v05 res
 
 ```
+
+
+
+Mounted at /content/drive
+cwd /content
+cuda_available True
+drive_exists True
+mydrive_exists True
+shortcut_root_exists True
+
+
+
+folder_root_exists True /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_
+zip_exists True /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/session-20260328-103250.zip
+
+
+repo_exists_before_bootstrap False
+extract_root_exists_before_bootstrap False
+
+
+session_root_exists True /content/trajectreview_input/session-20260328-103250/trajectreview
+images_dir_exists True /content/trajectreview_input/session-20260328-103250/trajectreview/images
+image_count 182
+first_image /content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000009.jpg
+
+
+
+RUN git clone https://github.com/ByteDance-Seed/Depth-Anything-3.git /content/Depth-Anything-3
+RUN python -m pip install --quiet addict evo moviepy==1.0.3 pygame pycolmap plyfile trimesh
+bootstrap_done True /content/Depth-Anything-3
+
+
+
+src_root_exists True /content/Depth-Anything-3/src
+/usr/local/lib/python3.12/dist-packages/moviepy/config_defaults.py:47: SyntaxWarning: invalid escape sequence '\P'
+  IMAGEMAGICK_BINARY = r"C:\Program Files\ImageMagick-6.8.8-Q16\magick.exe"
+/usr/local/lib/python3.12/dist-packages/moviepy/video/io/ffmpeg_reader.py:294: SyntaxWarning: invalid escape sequence '\d'
+  lines_video = [l for l in lines if ' Video: ' in l and re.search('\d+x\d+', l)]
+/usr/local/lib/python3.12/dist-packages/moviepy/video/io/ffmpeg_reader.py:367: SyntaxWarning: invalid escape sequence '\d'
+  rotation_lines = [l for l in lines if 'rotate          :' in l and re.search('\d+$', l)]
+/usr/local/lib/python3.12/dist-packages/moviepy/video/io/ffmpeg_reader.py:370: SyntaxWarning: invalid escape sequence '\d'
+  match = re.search('\d+$', rotation_line)
+WARNING:py.warnings:/usr/local/lib/python3.12/dist-packages/moviepy/video/io/sliders.py:61: SyntaxWarning: "is" with 'str' literal. Did you mean "=="?
+  if event.key is 'enter':
+
+[WARN ] Dependency `gsplat` is required for rendering 3DGS. Install via: pip install git+https://github.com/nerfstudio-project/gsplat.git@0b4dddf04cb687367602c01196913cde6a743d70
+import_ok <class 'depth_anything_3.api.DepthAnything3'>
+
+
+[INFO ] using MLP layer as FFN
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+WARNING:huggingface_hub.utils._http:Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[INFO ] Processed Images Done taking 0.015592813491821289 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.467714786529541 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0012240409851074219 seconds
+---------------------------------------------------------------------------
+TypeError                                 Traceback (most recent call last)
+/tmp/ipykernel_6304/3880107111.py in <cell line: 0>()
+     20 
+     21 depth = np.asarray(prediction.depth[0])
+---> 22 conf = np.asarray(prediction.conf[0])
+     23 intrinsics = np.asarray(prediction.intrinsics[0])
+     24 extrinsics = np.asarray(prediction.extrinsics[0])
+
+TypeError: 'NoneType' object is not subscriptable

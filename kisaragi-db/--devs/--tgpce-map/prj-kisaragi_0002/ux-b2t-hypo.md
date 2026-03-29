@@ -109,7 +109,9 @@
 - `Step 2` は通過し、現在の blocker は install 不足ではなく、official codebase が `src/depth_anything_3` 配下であるのに `repo root` を `sys.path` へ入れていた点である
 - 次段の `Colab` probe は `repo_root/src` を `sys.path` へ入れる修正版 `Step 3` で import check をやり直す
 - `Step 3` 再試行では `src_root`、`plyfile`、`trimesh` の blocker を越え、`depth_anything_3.api` import は通過した
-- 現在の次段は `Step 4` の `1 frame` 推論を end-to-end で通し、保存 artifact と runtime 実測を確認することである
+- `Step 4` では T4 上で core 推論自体は通過し、現在の blocker は `prediction.conf` を必須扱いした保存処理が `None` で落ちる点である
+- `HF_TOKEN` warning は public model download では optional であり、現段階の blocker ではない
+- 現在の次段は `conf` / `intrinsics` / `extrinsics` を optional 扱いへ修正し、`1 frame` 推論を end-to-end で完了させることである
 - `gsplat` warning は出るが、これは `3DGS rendering` 用の optional dependency であり、現段階の `DA3Metric-Large` metric depth bootstrap の blocker ではない
 - ここからは blank restart に戻さず、同じ runtime で blocker を 1 件ずつ解消しながら bootstrap 仕様へ反映する
 - `DA3Metric-Large` の最適な package / module 構成、weight 配布元、download URL の返却方式は未決定である

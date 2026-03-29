@@ -23,8 +23,9 @@
 
 - `candidate` はあり
 - `adopted` は未成立
-- 現在の blocker は、`Step 3` は通過し、次に `Step 4` の `1 frame` 推論が end-to-end で通るか未確認な点である
+- 現在の blocker は、`Step 4` の core 推論自体は通るが、`prediction.conf` を必須と仮定した保存処理が `None` で落ちる点である
 - 現在は blank restart を強制せず、同じ runtime で blocker を潰しながら bootstrap 仕様を確定する段階である
+- `HF_TOKEN` warning は public model の download では optional であり、現段階の blocker ではない
 - `gsplat` warning は出るが、これは `3DGS rendering` 用の optional dependency であり、現在の `DA3Metric-Large` `1 frame` 推論の blocker ではない
 
 ## 事前準備
@@ -211,9 +212,9 @@ model = DepthAnything3.from_pretrained("depth-anything/DA3METRIC-LARGE").to(devi
 prediction = model.inference([str(image_path)])
 
 depth = np.asarray(prediction.depth[0])
-conf = np.asarray(prediction.conf[0])
-intrinsics = np.asarray(prediction.intrinsics[0])
-extrinsics = np.asarray(prediction.extrinsics[0])
+conf = None if prediction.conf is None else np.asarray(prediction.conf[0])
+intrinsics = None if prediction.intrinsics is None else np.asarray(prediction.intrinsics[0])
+extrinsics = None if prediction.extrinsics is None else np.asarray(prediction.extrinsics[0])
 
 depth_min = float(depth.min())
 depth_max = float(depth.max())
@@ -221,17 +222,20 @@ depth_norm = np.zeros_like(depth, dtype=np.float32) if depth_max <= depth_min el
 Image.fromarray((depth_norm * 255).astype(np.uint8)).save(OUTPUT_ROOT / "depth_preview.png")
 
 np.save(OUTPUT_ROOT / "depth_raw.npy", depth)
-np.save(OUTPUT_ROOT / "conf_raw.npy", conf)
-np.save(OUTPUT_ROOT / "intrinsics.npy", intrinsics)
-np.save(OUTPUT_ROOT / "extrinsics.npy", extrinsics)
+if conf is not None:
+    np.save(OUTPUT_ROOT / "conf_raw.npy", conf)
+if intrinsics is not None:
+    np.save(OUTPUT_ROOT / "intrinsics.npy", intrinsics)
+if extrinsics is not None:
+    np.save(OUTPUT_ROOT / "extrinsics.npy", extrinsics)
 
 summary = {
     "image_path": str(image_path),
     "device": str(device),
     "depth_shape": list(depth.shape),
-    "conf_shape": list(conf.shape),
-    "intrinsics_shape": list(intrinsics.shape),
-    "extrinsics_shape": list(extrinsics.shape),
+    "conf_shape": None if conf is None else list(conf.shape),
+    "intrinsics_shape": None if intrinsics is None else list(intrinsics.shape),
+    "extrinsics_shape": None if extrinsics is None else list(extrinsics.shape),
     "depth_min": depth_min,
     "depth_max": depth_max,
 }
@@ -249,7 +253,8 @@ print("saved:", OUTPUT_ROOT)
 - `src_root_exists True`
 - `import_ok` が出る
 - `summary.json` が生成される
-- `depth_preview.png`、`depth_raw.npy`、`conf_raw.npy`、`intrinsics.npy`、`extrinsics.npy` が保存される
+- `depth_preview.png` と `depth_raw.npy` が保存される
+- `conf_raw.npy`、`intrinsics.npy`、`extrinsics.npy` は `None` でなければ保存される
 
 ## Adopted Bootstrap
 
