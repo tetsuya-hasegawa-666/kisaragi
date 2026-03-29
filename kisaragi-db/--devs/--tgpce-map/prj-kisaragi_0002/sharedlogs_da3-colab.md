@@ -172,5 +172,71 @@ print(json.dumps({
 
 ```text
 # Step 7a multi-frame window probe res
+---------------------------------------------------------------------------
+AssertionError                            Traceback (most recent call last)
+/tmp/ipykernel_4762/1256230407.py in <cell line: 0>()
+     12 images_dir = SESSION_ROOT / "images"
+     13 
+---> 14 assert frame_index_path.exists(), frame_index_path
+     15 assert images_dir.exists(), images_dir
+     16 
+
+AssertionError: /content/trajectreview_input/session-20260328-103250/trajectreview/frame_pose_index.csv
+
+```
+
+# codex
+
+2026-03-29 v26 step-7a1 session-root rediscovery probe。
+
+- 目的: `frame_pose_index.csv` が無いので、fresh runtime 上の実 `session_root`、`frame_pose_index.csv`、`images/` の配置を再特定する。
+- 成功条件:
+  - `session_package.json`、`frame_pose_index.csv`、`images/` の実 path を 1 組以上見つける
+  - 次 block で使うべき `SESSION_ROOT` を 1 つに絞れる
+- 失敗時の扱い:
+  - `/content/trajectreview_input` 自体が無ければ、まず unzip 未実行として扱う
+  - `frame_pose_index.csv` だけ無ければ、近い calibration file と `images/` を手掛かりに候補 root を返す
+
+```python
+# Step 7a1 session-root rediscovery probe
+from pathlib import Path
+import json
+
+search_roots = [
+    Path("/content/trajectreview_input"),
+    Path("/content"),
+]
+
+hits = []
+for root in search_roots:
+    if not root.exists():
+        continue
+    for pkg in root.rglob("session_package.json"):
+        session_root = pkg.parent
+        frame_pose = next(iter(session_root.rglob("frame_pose_index.csv")), None)
+        images_dir = next((p for p in session_root.rglob("images") if p.is_dir()), None)
+        calib = next(iter(session_root.rglob("camera_calibration_summary.json")), None)
+        hits.append({
+            "session_root": str(session_root),
+            "session_package_json": str(pkg),
+            "frame_pose_index_csv": None if frame_pose is None else str(frame_pose),
+            "camera_calibration_summary_json": None if calib is None else str(calib),
+            "images_dir": None if images_dir is None else str(images_dir),
+            "image_count": 0 if images_dir is None else len(list(images_dir.glob("*.jpg"))) + len(list(images_dir.glob("*.png"))),
+        })
+
+result = {
+    "search_roots": [str(p) for p in search_roots],
+    "hit_count": len(hits),
+    "hits": hits[:20],
+}
+
+print(json.dumps(result, indent=2, ensure_ascii=False))
+```
+
+# admin
+
+```text
+# Step 7a1 session-root rediscovery probe res
 
 ```
