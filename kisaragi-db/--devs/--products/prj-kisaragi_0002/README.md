@@ -32,5 +32,5 @@ pwsh -File .\scripts\run_python_tests.ps1
 ## 揮発 runtime runbook
 
 - `Colab`、remote notebook、揮発 container の bootstrap 手順は、shared worklog ではなく product 側の runbook に昇格して保持する。
-- `prj-kisaragi_0002` の `DA3Metric-Large` `Colab` 最小 bootstrap runbook は [modeling/da3_colab_clean_bootstrap_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_clean_bootstrap_runbook.md) を正規参照先とする。
+- `prj-kisaragi_0002` の `DA3Metric-Large` `Colab bootstrap` の正本は [modeling/da3_colab_clean_bootstrap_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_clean_bootstrap_runbook.md) とする。
 - runbook は `candidate` と `adopted` を分け、admin 実測で end-to-end が通った手順だけを `truly pass` として昇格する。

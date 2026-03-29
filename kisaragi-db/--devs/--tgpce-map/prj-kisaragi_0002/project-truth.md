@@ -206,7 +206,7 @@
 - `Colab` や remote notebook のように runtime が揮発する route では、途中修復手順ではなく fresh runtime からの最短 clean bootstrap を canonical route とする。
 - 上記 route では、shared worklog の trial 往復とは別に、`--products/prj-kisaragi_0002/` 配下へ `最小 clean bootstrap runbook` を保持することを必須とする。
 - `最小 clean bootstrap runbook` は `candidate` と `adopted` を分け、admin 実測で end-to-end 完了した手順だけを `truly pass` 扱いとする。
-- 現在の `DA3Metric-Large` `Colab` runbook 正規 file は `--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md` とする。
+- 現在の `DA3Metric-Large` `Colab bootstrap` の正本は `--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md` とする。
 - `trajectreview-correcting` は Android app を正本実行入口としつつ、PC install package も別 process で設計し、artifact 互換性、保存先構成、導線を固定する。
 
 ### modeling route

@@ -1234,3 +1234,40 @@ print("saved:", OUTPUT_ROOT)
 # Cell D rerun v24 res
 
 ```
+
+# codex
+
+2026-03-29 v25。
+
+- `DA3 Colab bootstrap` の正本は `--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md` とします。
+- shared log は trial 往復の保持面であり、「今やるべきこと」と「結果の貼り戻し先」を示す役割に寄せます。
+
+- いま admin がやること:
+  1. まず正本 [da3_colab_clean_bootstrap_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_clean_bootstrap_runbook.md) を開く
+  2. `Candidate Bootstrap v1` を Step 1 から順に fresh runtime で実行する
+  3. どこで止まったか、またはどこまで通ったかを、この shared log の最下部へ貼る
+
+- いま shared log だけを見ればよい内容:
+  - 正本を見る場所
+  - いま貼り戻すべき回答欄
+
+- いま正本で見るべき章:
+  - `現在の status`
+  - `Candidate Bootstrap v1`
+  - `成功判定`
+
+# admin
+
+```text
+# Candidate Bootstrap v1 progress res
+Step 1:
+
+Step 2:
+
+Step 3:
+
+Step 4:
+
+blocker:
+
+```

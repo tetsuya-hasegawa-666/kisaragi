@@ -55,7 +55,7 @@
 - `Colab` のように runtime が揮発する route では、partial recovery の積み上げではなく fresh runtime からの最短 clean bootstrap を canonical route とする
 - 上記 route では、trial 往復の shared worklog と別に、`--products/prj-kisaragi_0002/modeling/` 配下へ `最小 clean bootstrap runbook` を保持し、admin が次回は先頭から再実行できる形に収束させる
 - `最小 clean bootstrap runbook` は `candidate` と `adopted` を分け、admin 実測で end-to-end が通った手順のみを `truly pass` 扱いにする
-- 現在の `DA3Metric-Large` `Colab` runbook は `--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md` とする
+- 現在の `DA3Metric-Large` `Colab bootstrap` の正本は `--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md` とする
 - `ISS-003` の unzip / 配置正規化責務は `modeling` の `Colab bootstrap package` が担う
 - `INITRL-1` は `modeling` の `Colab bootstrap package`、source 配置、config、auto-install package を追跡する
 - `INITRL-2` は `correcting` の PC install package 準備と artifact 互換性を追跡する
