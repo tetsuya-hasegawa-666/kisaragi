@@ -615,5 +615,48 @@ else:
 
 ```text
 # Step 5d gsplat api surface probe res
+G_SPLAT_FILE /usr/local/lib/python3.12/dist-packages/gsplat/__init__.py
+G_SPLAT_VERSION 1.5.3
+TOP_LEVEL_SYMBOLS ['DefaultStrategy', 'MCMCStrategy', 'PngCompression', 'RollingShutterType', 'SelectiveAdam', 'Strategy', 'accumulate', 'accumulate_2dgs', 'all', 'compression', 'cuda', 'distributed', 'export_splats', 'exporter', 'fully_fused_projection', 'fully_fused_projection_2dgs', 'fully_fused_projection_with_ut', 'isect_offset_encode', 'isect_tiles', 'optimizers', 'proj', 'quat_scale_to_covar_preci', 'rasterization', 'rasterization_2dgs', 'rasterization_2dgs_inria_wrapper', 'rasterization_inria_wrapper', 'rasterize_to_indices_in_range', 'rasterize_to_indices_in_range_2dgs', 'rasterize_to_pixels', 'rasterize_to_pixels_2dgs', 'rasterize_to_pixels_eval3d', 'relocation', 'rendering', 'spherical_harmonics', 'strategy', 'utils', 'version', 'warnings', 'world_to_cam']
+SUBMODULES ['_helper', 'compression', 'cuda', 'distributed', 'exporter', 'optimizers', 'profile', 'relocation', 'rendering', 'strategy', 'utils', 'version']
+
+```
+
+# codex
+
+2026-03-29 v11 next action。
+
+- `Step 5d` により、`gsplat.rasterization` は submodule ではなく top-level symbol だと確認できました。
+- したがって import path の問題は解消方向です。
+- 次は `gsplat.rasterization` と関連 symbol が callable として使えるか、docstring / signature を見て最小呼び出し形を確定します。
+
+```python
+# Step 5e gsplat callable surface probe
+import inspect
+import gsplat
+
+targets = [
+    ("rasterization", gsplat.rasterization),
+    ("rasterization_2dgs", gsplat.rasterization_2dgs),
+    ("fully_fused_projection", gsplat.fully_fused_projection),
+]
+
+for name, obj in targets:
+    print("NAME", name)
+    print("TYPE", type(obj))
+    print("CALLABLE", callable(obj))
+    try:
+        print("SIGNATURE", inspect.signature(obj))
+    except Exception as exc:
+        print("SIGNATURE_NG", type(exc).__name__, str(exc))
+    doc = inspect.getdoc(obj)
+    print("DOC_HEAD", None if doc is None else doc.splitlines()[:8])
+    print("---")
+```
+
+# admin
+
+```text
+# Step 5e gsplat callable surface probe res
 
 ```
