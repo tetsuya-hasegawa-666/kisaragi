@@ -29,16 +29,16 @@
 ## correcting batch 定義
 
 - 対象 `MRL`:
+  - `MRL-1`
   - `MRL-2`
-  - `MRL-3`
 - 対象 `mRL`:
+  - `mRL-1.1` から `mRL-1.3`
   - `mRL-2.1` から `mRL-2.3`
-  - `mRL-3.1` から `mRL-3.3`
 - admin 操作観点:
   - `trajectreview-correcting` で記録開始、停止、session 保存ができる
   - `data-check` に readiness、blocker、recommended correction が出る
   - export 後の bundle に `session_package.json`、`space_handoff_manifest.json`、`sensor_quality.json` が出る
-  - `modeling` 着手に必要な handoff 情報が 1 回の収録から読める
+  - `Google Drive` 転送と handoff bundle を 1 回の収録から読める
 
 ### correcting batch 記録テンプレート
 
@@ -47,39 +47,33 @@
 - 実施者: `admin`
 - 端末 / 環境:
 - 対象 `MRL` / `mRL`:
+  - `MRL-1`
   - `MRL-2`
-  - `MRL-3`
 - 結果: `ready / active / p-done / i-pass / fail`
 - fail の時の要点:
 - evidence path:
 
 ## modeling batch 定義
 
-- 補助 UX gate 兼用:
-  - `MRL-1`
-  - `mRL-1.2`
 - 対象 `MRL`:
-  - `MRL-1`
+  - `MRL-3`
   - `MRL-4`
   - `MRL-5`
   - `MRL-6`
-  - `MRL-**`
+  - `MRL-7`
 - 対象 `mRL`:
-  - `mRL-1.2`
+  - `mRL-3.1` から `mRL-3.3`
   - `mRL-4.1` から `mRL-4.3`
-  - `mRL-5.1` から `mRL-5.3`
-  - `mRL-6.1`
-  - `mRL-**.1` から `mRL-**.5`
+  - `mRL-5.1`
+  - `mRL-6.1` から `mRL-6.2`
+  - `mRL-7.1` から `mRL-7.2`
 - admin 操作観点:
   - [da3_colab_clean_bootstrap_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_clean_bootstrap_runbook.md) を fresh runtime から実行し、bootstrap UX が再現可能である
   - `trajectreview-correcting` 由来の実 data を入力に、`DA3Metric-Large` から `3DGS` 系主空間モデル候補を smoke 生成できる
   - `trajectreview-modeling` で実 bundle を読み、request 元、input directory、result directory を含む `colab_job_request.json` を生成できる
-  - `Google Drive` directory 指定で `Colab` route を起動できる
-  - waiting ring、現在段階、`job_status.json` の更新を request 元画面で読める
-  - 完了後に download URL と result summary が表示される
-  - remote result import 後に `SpacePackage`、`TrajectoryPackage`、`modeling_handoff_manifest.json` が更新される
-  - `benchmark_summary.json` と `selected_route.json` による route 比較と採用固定は後続 `MRL-**` の課題とする
-  - `MRL-6` は 10s 前後の整った実動画から `multi-frame` densify で粗い再現モデルを得る段とし、route 比較本体には含めない
+  - `Google Drive` directory 指定で `Colab` route の入力位置を決められる
+  - waiting ring、現在段階、`job_status.json` の更新は `MRL-3.3` 以降の未達項目として残す
+  - `MRL-5` は 10s 前後の整った実動画から `multi-frame` densify で粗い再現モデルを得る段とし、route 比較本体には含めない
 
 ### modeling batch 記録テンプレート
 
@@ -88,12 +82,11 @@
 - 実施者: `admin`
 - 端末 / 環境:
 - 対象 `MRL` / `mRL`:
-  - `MRL-1`
-  - `mRL-1.2`
+  - `MRL-3`
   - `MRL-4`
   - `MRL-5`
   - `MRL-6`
-  - `MRL-**`
+  - `MRL-7`
 - 結果: `ready / active / p-done / i-pass / fail`
 - fail の時の要点:
 - evidence path:
@@ -101,12 +94,10 @@
 ## 2026-03-29 modeling bootstrap candidate evidence
 
 - 対象 gate:
-  - `MRL-1`
-  - `mRL-1.2`
+  - `MRL-3`
+  - `mRL-3.2`
   - `MRL-4`
   - `mRL-4.2`
-  - `MRL-5`
-  - `mRL-5.2`
 - 実施環境:
   - `Google Colab`
   - `T4`
@@ -115,18 +106,18 @@
   - `summary.json`、`depth_preview.png`、`depth_raw.npy` が生成された
   - `prediction.conf`、`intrinsics`、`extrinsics` は `None` を許容し、single-frame の end-to-end 完了を確認した
   - `HF_TOKEN` warning は public model download の範囲では blocker ではなかった
-  - `MRL-6` の route 比較や採用固定はこの bootstrap candidate には含めず、後続 `MRL-**` の課題とした
+  - `MRL-5` の `multi-frame` densify、route 比較や採用固定はこの bootstrap candidate には含めない
 - evidence path:
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md`
   - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/sharedlogs_da3-colab.md`
 
-## 2026-03-29 correcting batch `MRL-2` と `MRL-3` close evidence
+## 2026-03-29 correcting batch `MRL-1` と `MRL-2` close evidence
 
 - 対象 gate:
+  - `MRL-1`
+  - `mRL-1.1` から `mRL-1.3`
   - `MRL-2`
   - `mRL-2.1` から `mRL-2.3`
-  - `MRL-3`
-  - `mRL-3.1` から `mRL-3.3`
 - 実施者:
   - `admin`
 - 判定:
@@ -137,22 +128,40 @@
   - `sensor_quality.json`、`session_package.json`、`space_handoff_manifest.json`、`frame_pose_index.csv`、`camera_calibration_summary.json` が実 session から生成されている
   - calibration capture 診断と intrinsics 実収集の candidate evidence がそろっている
   - `Google Drive` 転送先選択、zip 転送、既存 data 再転送の UX が candidate evidence として確認されている
-  - 転送済み data が `MRL-5` の `DA3Metric-Large` `3DGS` smoke 生成に実際に使われており、`correcting -> modeling` の handoff 実績がある
+  - 転送済み data が `MRL-4` の `DA3Metric-Large` `3DGS` smoke 生成に実際に使われており、`correcting -> modeling` の handoff 実績がある
   - `session_package.json` と `space_handoff_manifest.json` により `SpaceReconstruction` 着手可否を後段へ渡せている
 - 補足:
   - この batch は `p-done` 判定であり、admin `UX check 完了` を伴う `i-pass` ではない
-  - multi-app UX、request 起点 modeling、waiting ring、remote result import は `MRL-4` と後続 `MRL-**` に別置きした
+  - request 起点 modeling、waiting ring、remote result import、reviewing viewer は `MRL-3` 以降と後続 `MRL-**` に別置きした
 - evidence path:
   - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-method.md`
   - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/ux-b2t-hypo.md`
   - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-evidence.md`
 
-## 2026-03-29 `MRL-5` `3DGS` smoke candidate evidence
+## 2026-03-29 modeling preflight close evidence
 
 - 対象 gate:
-  - `MRL-5`
-  - `mRL-5.2`
-  - `mRL-5.3`
+  - `MRL-3`
+  - `mRL-3.1`
+  - `mRL-3.2`
+- 実施者:
+  - `admin`
+- 判定:
+  - この段は `p-done`
+- 結果要点:
+  - `trajectreview-modeling` 側で実 bundle snapshot 読込と request preflight 生成の candidate evidence がある
+  - `Google Drive` directory bootstrap と unzip / 配置正規化は runbook の採用手順で実行実績がある
+  - waiting ring、`job_status.json`、download URL は `mRL-3.3` と後続 `MRL-**` に残した
+- evidence path:
+  - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/ux-b2t-hypo.md`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md`
+
+## 2026-03-29 `MRL-4` `3DGS` smoke candidate evidence
+
+- 対象 gate:
+  - `MRL-4`
+  - `mRL-4.2`
+  - `mRL-4.3`
 - 実施者:
   - `admin`
 - 実施環境:
@@ -169,7 +178,7 @@
   - `gsplat` install / import / callable 確認を通し、`gsplat.rasterization` を `cuda` 上で返せた
   - `gsplat_render_smoke.png`、`gs_model_smoke.json`、`space_quality_smoke.json`、`space_package_smoke.json` を生成できた
   - `gs_model.contract.json`、`space_quality.contract.json`、`space_package.contract.json` を生成し、smoke artifact を contract 名へ寄せられた
-  - この段の `MRL-5 p-done` 候補判断は、「ある程度整った correcting 実 data から `3DGS` 系主空間モデル候補を再現でき、admin が生成 artifact を取得できること」を基準に置く
+  - この段の `MRL-4 p-done` 候補判断は、「ある程度整った correcting 実 data から `3DGS` 系主空間モデル候補を再現でき、admin が生成 artifact を取得できること」を基準に置く
   - `trajectreview-modeling` 本体への正式統合と `multi-frame` / `multi-route` 比較は、この candidate evidence の必須条件から分離し、後続 gate へ送る
 - 主要 artifact:
   - `depth_raw.npy`
@@ -188,6 +197,23 @@
 - evidence path:
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md`
   - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/sharedlogs_da3-colab.md`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/trajectreview_modeling_20260329_gpu-evidence.ipynb`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/da3_smoke_v05/`
+
+## 2026-03-29 modeling evidence bundle close evidence
+
+- 対象 gate:
+  - `MRL-4`
+  - `mRL-4.3`
+- 実施者:
+  - `admin`
+- 判定:
+  - この段は `p-done` 根拠を補強する evidence close
+- 結果要点:
+  - `Google Colab` 実行 notebook evidence を product 側へ保存済みである
+  - local downloaded smoke artifact 一式を product 側 evidence へ保存済みである
+  - admin が後で local 可視化や再確認を行うための参照 bundle が揃っている
+- evidence path:
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/trajectreview_modeling_20260329_gpu-evidence.ipynb`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/da3_smoke_v05/`
 
