@@ -238,5 +238,76 @@ print(json.dumps(result, indent=2, ensure_ascii=False))
 
 ```text
 # Step 7a1 session-root rediscovery probe res
+{
+  "search_roots": [
+    "/content/trajectreview_input",
+    "/content"
+  ],
+  "hit_count": 0,
+  "hits": []
+}
+```
+
+# codex
+
+2026-03-29 v27 step-7a2 input-zip restore probe。
+
+- 目的: fresh runtime 上で unzip 前と判明したため、入力 zip の実在を確認し、`/content/trajectreview_input` へ展開して `SESSION_ROOT` を復元する。
+- 成功条件:
+  - 入力 zip が存在する
+  - `/content/trajectreview_input` 配下へ展開できる
+  - `session_package.json`、`frame_pose_index.csv`、`images/` の実 path を返せる
+- 失敗時の扱い:
+  - zip が無ければ Drive mount または shortcut path を再確認する
+  - 展開後も `frame_pose_index.csv` が無ければ、その session の実配置差分として次 block で file 探索に切り替える
+
+```python
+# Step 7a2 input-zip restore probe
+from pathlib import Path
+import json
+import shutil
+import zipfile
+
+zip_path = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/session-20260328-103250.zip")
+extract_root = Path("/content/trajectreview_input")
+
+assert zip_path.exists(), {"zip_not_found": str(zip_path)}
+
+if extract_root.exists():
+    shutil.rmtree(extract_root)
+extract_root.mkdir(parents=True, exist_ok=True)
+
+with zipfile.ZipFile(zip_path, "r") as zf:
+    zf.extractall(extract_root)
+
+hits = []
+for pkg in extract_root.rglob("session_package.json"):
+    session_root = pkg.parent
+    frame_pose = next(iter(session_root.rglob("frame_pose_index.csv")), None)
+    images_dir = next((p for p in session_root.rglob("images") if p.is_dir()), None)
+    calib = next(iter(session_root.rglob("camera_calibration_summary.json")), None)
+    hits.append({
+        "session_root": str(session_root),
+        "session_package_json": str(pkg),
+        "frame_pose_index_csv": None if frame_pose is None else str(frame_pose),
+        "camera_calibration_summary_json": None if calib is None else str(calib),
+        "images_dir": None if images_dir is None else str(images_dir),
+        "image_count": 0 if images_dir is None else len(list(images_dir.glob("*.jpg"))) + len(list(images_dir.glob("*.png"))),
+    })
+
+result = {
+    "zip_path": str(zip_path),
+    "extract_root": str(extract_root),
+    "hit_count": len(hits),
+    "hits": hits[:20],
+}
+
+print(json.dumps(result, indent=2, ensure_ascii=False))
+```
+
+# admin
+
+```text
+# Step 7a2 input-zip restore probe res
 
 ```
