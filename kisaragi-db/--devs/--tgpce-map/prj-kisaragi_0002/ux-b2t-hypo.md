@@ -351,8 +351,8 @@
 - `MRL-10` では `td12`、`td13`、`tu20` で実 bundle 読込と request preflight を固める
 - `MRL-11` では `td14`、`td15`、`tu18`、`tu19`、`tu21` で `Google Drive` directory intake、waiting UX、安全 gate、status 更新を固める
 - `MRL-12` では `td16` から `td18` と `tu22`、`tu23` で `DA3Metric-Large` 前処理、`DA3Metric-Large` による `3DGS` 系主空間モデル生成までの system 構築、smoke artifact 取得を固める
-- `MRL-13` では `td19` から `td21` で `10s` 前後の整った実動画から `multi-frame` densify を行い、ぼんやり見える再現モデルを得たうえで route 比較と採用 route 固定を固める
-- `MRL-14` では `td22`、`td23`、`tu28`、`tu29` で reviewing 実 bundle summary と実 `ReviewArtifact` viewer を固める
+- `MRL-13` では `td19` を中心に `10s` 前後の整った実動画から `multi-frame` densify を行い、ぼんやり見える再現モデルを得る
+- `MRL-**` では route 比較、採用 route 固定、request / status UX、reviewing viewer、正式統合を、admin が手を動かす modeling 実態に合わせて順次切り出す
 
 ### 現在の見立て
 - `tu1` から `tu7` と `td1` から `td8` の基礎 task は、契約実装、project 境界 scan、output routing 実行で `p-done` になった
@@ -364,7 +364,8 @@
 - `td9` から `td23` と `tu20` から `tu29` は multi-app 骨格、実 bundle summary、request preflight、remote status、route 比較、viewer 検証としては有効だが、本機能完成の証拠としては不十分である
 - `MRL-12` は、`correcting` 実データを使った `3DGS` 系主空間モデル候補の smoke 生成と生成 artifact 取得までを根拠に `p-done` とする
 - 次段は `MRL-13` とし、`10s` 前後の整った実動画から `multi-frame` depth / world projection を積み上げて、admin が `PLY` viewer でぼんやり見える再現モデルを確認できる水準を first target に置く
-- `MRL-13` の後半では、その `multi-frame` route を基準に sampling / intrinsics / projection route 比較と採用 route 固定を進める
+- `MRL-14` 以降は `MRL-**` として大まかな順番だけを置き、task 実測で課題の大小が見えた時点で `MRL` / `mRL` の切り方を調整する
+- modeling は admin の手作業を含むため、後続 `MRL` の達成基準は都度「いま実際に進めやすい粒度」へ合わせて更新する
 
 ## `MRL`, `INITRL` 対応表
 - `MRL`, `INITRL` は `BDD` の story / behavior と `TDD` の task を束ね、admin がどの gate test 項目を `UX check` すべきかを定義する。
@@ -445,11 +446,7 @@
 | `MRL-12` | `mRL-12.1` | `DA3` input manifest と route export を確認する | `sd9` | `bd17` | `td16` | `p-done` | `p-done` | `modeling batch 操作手順 13-14` | `2026-03-29 \`MRL-12\` \`3DGS\` smoke candidate evidence` |
 | `MRL-12` | `mRL-12.2` | `Colab` 上の metric depth と `3DGS` 系主空間モデル生成を確認する | `sd9`,`su14` | `bd17`,`bu18` | `td17`,`tu22` | `p-done` | `p-done` | `modeling batch 操作手順 15-17` と `da3_colab_clean_bootstrap_runbook.md` の `Candidate Bootstrap v1` | `2026-03-29 \`MRL-12\` \`3DGS\` smoke candidate evidence` |
 | `MRL-12` | `mRL-12.3` | `depth_estimation_report.json`、`space_quality.json`、`gs_model` を含む主空間要約を確認する | `su15`,`sd9` | `bu19`,`bd17` | `tu23`,`td18` | `p-done` | `p-done` | `未収載` | `2026-03-29 \`MRL-12\` \`3DGS\` smoke candidate evidence` |
-| `MRL-13` | `-` | `10s` 前後の整った実動画から `multi-frame` でぼんやり見える再現モデルを得て、route 比較と採用 route の運用化を成立させる | `sd9`,`sd10`,`sd11` | `bd18`,`bd19`,`bd20` | `td19`,`td20`,`td21`,`td23` | `active` | `ready` | `未収載` | `2026-03-28 \`MRL-13\` candidate evidence` |
+| `MRL-13` | `-` | `10s` 前後の整った実動画から `multi-frame` でぼんやり見える再現モデルを得る | `sd9`,`sd11` | `bd18`,`bd20` | `td19`,`td23` | `active` | `ready` | `未収載` | `2026-03-28 \`MRL-13\` candidate evidence` |
 | `MRL-13` | `mRL-13.1` | `10s` 前後の整った実動画から `multi-frame` sampling route を回し、`PLY` でぼんやり見える再現モデルを確認する | `sd9` | `bd18` | `td19` | `active` | `ready` | `未収載` | `2026-03-28 \`MRL-13\` candidate evidence` |
-| `MRL-13` | `mRL-13.2` | intrinsics / projection route 比較を確認する | `sd9` | `bd18` | `td20` | `ready` | `ready` | `未収載` | `2026-03-28 \`MRL-13\` candidate evidence` |
-| `MRL-13` | `mRL-13.3` | `selected_route.json` 生成を確認する | `sd10` | `bd19` | `td21` | `ready` | `ready` | `未収載` | `2026-03-28 \`MRL-13\` candidate evidence` |
-| `MRL-14` | `-` | reviewing 本機能を成立させる | `sd6`,`su19`,`sd11` | `bd15`,`bu23`,`bu24`,`bd20` | `td22`,`tu28`,`tu29`,`td23` | `ready` | `ready` | `未収載` | `reviewing batch 定義` |
-| `MRL-14` | `mRL-14.1` | modeling 結果の reviewing 読込を確認する | `sd6` | `bd15` | `td22` | `active` | `ready` | `未収載` | `2026-03-25 \`MRL-14\` candidate evidence` |
-| `MRL-14` | `mRL-14.2` | 実 `ReviewArtifact` viewer 操作を確認する | `su19` | `bu23` | `tu28` | `ready` | `ready` | `未収載` | `reviewing batch 定義` |
-| `MRL-14` | `mRL-14.3` | `ReviewArtifact` 境界と gate 分類を確認する | `su19`,`sd11` | `bu24`,`bd20` | `tu29`,`td23` | `ready` | `ready` | `未収載` | `reviewing batch 定義` |
+| `MRL-13` | `mRL-13.**` | 補助比較や追加確認が必要なら、実測に応じて route 差分確認を切り出す | `sd9`,`sd11` | `bd18`,`bd20` | `td20`,`td21`,`td23` | `ready` | `ready` | `未収載` | `未収載` |
+| `MRL-**` | `-` | route 比較、採用 route 固定、request / status UX、reviewing viewer、正式統合を実測に応じて順次切り出す | `sd6`,`sd9`,`sd10`,`su19`,`sd11` | `bd15`,`bd18`,`bd19`,`bu23`,`bu24`,`bd20` | `td20`,`td21`,`td22`,`tu28`,`tu29`,`td23` | `ready` | `ready` | `未収載` | `未収載` |

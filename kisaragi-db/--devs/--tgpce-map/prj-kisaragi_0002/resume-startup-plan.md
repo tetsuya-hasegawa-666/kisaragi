@@ -20,6 +20,7 @@
 - 成立済みなのは `single-frame bootstrap` であり、これは最終目標ではなく `modeling 本機能` への通過点である。
 - `MRL-12` は、`correcting` 実 data から `3DGS` 系主空間モデル候補を smoke 生成し、admin が notebook / local download で生成物を取得できることを根拠に `p-done` とした。
 - 現在の main target は `MRL-13` であり、`10s` 前後の整った実動画を使った `multi-frame` densify で、admin が `PLY` viewer からぼんやり見える再現モデルを確認できる水準へ進めることである。
+- `MRL-14` 以降は細かく固定せず `MRL-**` として大まかな順番だけを置き、実測で見えた課題の大小に応じて `MRL` / `mRL` を切り直す。
 
 ## 到達済み
 
@@ -34,7 +35,7 @@
 ## 次回の主残件
 
 - `10s` 前後の整った実動画から `multi-frame` で point cloud を densify し、`PLY` viewer でぼんやり見える再現モデルを確認する route は未着手。
-- `sampling` / `intrinsics` / `projection` の route 比較、`benchmark_summary.json`、`selected_route.json` の本機能 close は未達。
+- `sampling` / `intrinsics` / `projection` の route 比較、`benchmark_summary.json`、`selected_route.json` の本機能 close は `MRL-**` 側の後続課題として未達。
 - request 元画面から `Google Drive` input directory / result directory を指定する UX は未実装。
 - remote 実行中の `waiting ring`、現在 stage、更新時刻表示は未実装。
 - `modeling/job_status.json` の厳密 schema と更新 timing は未固定。
@@ -45,7 +46,7 @@
 1. [sharedlogs_da3-colab.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\sharedlogs_da3-colab.md) の最下部を読んで、最新の `# codex v**` と `# admin` を確認する。
 2. [ux-b2t-hypo.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\ux-b2t-hypo.md) の `MRL-13` を確認し、次段の target を `10s` 前後の整った実動画による `multi-frame` densify に合わせる。
 3. `Colab` 側で `single-frame` の次として、複数 frame を sampling して world point cloud を統合し、`PLY` でぼんやり見える再現モデルを出す最小 route を設計する。
-4. `sampling` / `intrinsics` / `projection` の route 差分が `benchmark_summary.json` と `selected_route.json` へ進めるよう、`MRL-13` の前半完了条件を固定する。
+4. `MRL-13` で本当に必要になった追加確認だけを `mRL-13.**` として切り出し、後続の route 比較や UX 統合は `MRL-**` 側へ送る。
 5. その後に `modeling/job_status.json` の schema、stage 名、waiting ring 更新条件、download URL 返却条件と、request 元の `input directory`、`result directory`、`route id` を束ねた request 生成 UX を設計する。
 
 ## 引き継ぎ上の重要判断
