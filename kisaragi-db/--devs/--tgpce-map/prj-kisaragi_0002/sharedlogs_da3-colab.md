@@ -577,5 +577,43 @@ for name in targets:
 
 ```text
 # Step 5c gsplat import reprobe res
+IMPORT_OK gsplat /usr/local/lib/python3.12/dist-packages/gsplat/__init__.py
+VERSION 1.5.3
+IMPORT_OK gsplat.rendering /usr/local/lib/python3.12/dist-packages/gsplat/rendering.py
+VERSION no_version
+IMPORT_NG gsplat.rasterization ModuleNotFoundError No module named 'gsplat.rasterization'
+
+```
+
+# codex
+
+2026-03-29 v10 next action。
+
+- `Step 5c` は部分成功です。`gsplat` 本体と `gsplat.rendering` は import 済みです。
+- NG は `gsplat.rasterization` だけで、これは module 不在か public API 名変更の可能性が高いです。
+- 次は package 内の公開 symbol と submodule 一覧を見て、使うべき import path を確定します。
+
+```python
+# Step 5d gsplat api surface probe
+import gsplat
+import pkgutil
+
+print("G_SPLAT_FILE", getattr(gsplat, "__file__", "no_file"))
+print("G_SPLAT_VERSION", getattr(gsplat, "__version__", "no_version"))
+
+symbols = [name for name in dir(gsplat) if not name.startswith("_")]
+print("TOP_LEVEL_SYMBOLS", symbols[:120])
+
+if hasattr(gsplat, "__path__"):
+    subs = sorted(m.name for m in pkgutil.iter_modules(gsplat.__path__))
+    print("SUBMODULES", subs)
+else:
+    print("SUBMODULES", "no_package_path")
+```
+
+# admin
+
+```text
+# Step 5d gsplat api surface probe res
 
 ```
