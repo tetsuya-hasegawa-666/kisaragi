@@ -667,19 +667,438 @@ if images_dir.exists():
 
 ```text
 # Unzip session v21 res
-
+zip_exists True /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/session-20260328-103250.zip
+extract_root /content/trajectreview_input
+/content/trajectreview_input/session-20260328-103250
+/content/trajectreview_input/session-20260328-103250/arcore_pose.jsonl
+/content/trajectreview_input/session-20260328-103250/ble_scan.jsonl
+/content/trajectreview_input/session-20260328-103250/gnss.csv
+/content/trajectreview_input/session-20260328-103250/imu.csv
+/content/trajectreview_input/session-20260328-103250/session_manifest.json
+/content/trajectreview_input/session-20260328-103250/trajectreview
+/content/trajectreview_input/session-20260328-103250/trajectreview/camera_calibration_summary.json
+/content/trajectreview_input/session-20260328-103250/trajectreview/frame_pose_index.csv
+/content/trajectreview_input/session-20260328-103250/trajectreview/images
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000009.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000012.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000013.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000014.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000021.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000022.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000028.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000031.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000037.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000040.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000041.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000045.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000048.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000050.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000051.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000055.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000058.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000060.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000061.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000068.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000070.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000071.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000076.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000080.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000082.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000083.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000087.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000090.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000092.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000093.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000097.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000099.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000101.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000103.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000104.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000107.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000111.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000113.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000114.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000119.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000122.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000123.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000127.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000129.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000131.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000133.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000137.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000140.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000142.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000143.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000147.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000150.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000152.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000153.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000157.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000159.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000161.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000163.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000167.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000171.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000172.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000176.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000179.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000181.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000182.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000186.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000189.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000191.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000192.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000196.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000199.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000200.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000202.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000206.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000209.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000211.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000215.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000217.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000220.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000221.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000225.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000228.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000230.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000234.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000237.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000239.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000240.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000244.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000247.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000249.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000250.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000254.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000257.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000259.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000260.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000264.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000267.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000269.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000270.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000274.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000276.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000278.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000280.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000283.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000286.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000289.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000290.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000293.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000297.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000299.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000300.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000304.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000306.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000309.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000310.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000314.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000316.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000318.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000320.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000324.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000326.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000328.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000330.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000331.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000335.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000337.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000340.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000344.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000347.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000349.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000350.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000354.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000356.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000359.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000363.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000366.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000368.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000369.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000373.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000375.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000377.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000379.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000380.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000384.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000386.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000388.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000390.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000391.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000395.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000398.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000400.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000405.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000408.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000413.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000415.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000417.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000423.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000425.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000431.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000433.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000434.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000440.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000442.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000449.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000453.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000457.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000459.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000465.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000469.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000470.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000477.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000479.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000480.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000485.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000487.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000489.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000500.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000503.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000508.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000511.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000517.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000520.jpg
+/content/trajectreview_input/session-20260328-103250/trajectreview/input_readiness.json
+/content/trajectreview_input/session-20260328-103250/trajectreview/member_identity_map.json
+/content/trajectreview_input/session-20260328-103250/trajectreview/sensor_quality.json
+/content/trajectreview_input/session-20260328-103250/trajectreview/session_package.json
+/content/trajectreview_input/session-20260328-103250/trajectreview/space_handoff_manifest.json
+/content/trajectreview_input/session-20260328-103250/video.mp4
+/content/trajectreview_input/session-20260328-103250/video_events.jsonl
+/content/trajectreview_input/session-20260328-103250/video_frame_timestamps.csv
 ```
 
 # admin
 
 ```text
 # Detect session_root v21 res
-
+session_package_count 1
+session_package /content/trajectreview_input/session-20260328-103250/trajectreview/session_package.json
+session_root_candidate /content/trajectreview_input/session-20260328-103250/trajectreview
 ```
 
 # admin
 
 ```text
 # Check images under detected session_root v21 res
+session_root_exists False /content/trajectreview_input/<ここを session_root_candidate に置換>
+images_dir_exists False /content/trajectreview_input/<ここを session_root_candidate に置換>/images
+```
+
+# codex
+
+2026-03-29 v22。
+
+- `session_root_candidate` は確定しました。
+  - `/content/trajectreview_input/session-20260328-103250/trajectreview`
+- 直前の `False` は code 失敗ではなく、確認 cell の placeholder を実 path に置き換えていないことが原因です。
+- 次は placeholder を実値へ置き換えて、`images/` 存在確認と `Cell D` 再実行を行います。
+
+```python
+# Check images under detected session_root v22
+from pathlib import Path
+
+SESSION_ROOT = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+images_dir = SESSION_ROOT / "images"
+print("session_root_exists", SESSION_ROOT.exists(), SESSION_ROOT)
+print("images_dir_exists", images_dir.exists(), images_dir)
+if images_dir.exists():
+    files = sorted(images_dir.glob("*.png")) + sorted(images_dir.glob("*.jpg")) + sorted(images_dir.glob("*.jpeg"))
+    print("image_count", len(files))
+    if files:
+        print("first_image", files[0])
+```
+
+```python
+# Cell D rerun v22
+import json
+from pathlib import Path
+
+import numpy as np
+from PIL import Image
+import torch
+from depth_anything_3.api import DepthAnything3
+
+SESSION_ROOT = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+OUTPUT_ROOT = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v22")
+OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+
+images = sorted((SESSION_ROOT / "images").glob("*.png")) + sorted((SESSION_ROOT / "images").glob("*.jpg")) + sorted((SESSION_ROOT / "images").glob("*.jpeg"))
+assert images, f"images not found under {SESSION_ROOT / 'images'}"
+
+image_path = images[0]
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = DepthAnything3.from_pretrained("depth-anything/DA3METRIC-LARGE").to(device=device)
+prediction = model.inference([str(image_path)])
+
+depth = np.asarray(prediction.depth[0])
+conf = np.asarray(prediction.conf[0])
+intrinsics = np.asarray(prediction.intrinsics[0])
+extrinsics = np.asarray(prediction.extrinsics[0])
+
+depth_min = float(depth.min())
+depth_max = float(depth.max())
+depth_norm = np.zeros_like(depth, dtype=np.float32) if depth_max <= depth_min else (depth - depth_min) / (depth_max - depth_min)
+Image.fromarray((depth_norm * 255).astype(np.uint8)).save(OUTPUT_ROOT / "depth_preview.png")
+
+np.save(OUTPUT_ROOT / "depth_raw.npy", depth)
+np.save(OUTPUT_ROOT / "conf_raw.npy", conf)
+np.save(OUTPUT_ROOT / "intrinsics.npy", intrinsics)
+np.save(OUTPUT_ROOT / "extrinsics.npy", extrinsics)
+
+summary = {
+    "image_path": str(image_path),
+    "device": str(device),
+    "depth_shape": list(depth.shape),
+    "conf_shape": list(conf.shape),
+    "intrinsics_shape": list(intrinsics.shape),
+    "extrinsics_shape": list(extrinsics.shape),
+    "depth_min": depth_min,
+    "depth_max": depth_max,
+}
+
+(OUTPUT_ROOT / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+print(json.dumps(summary, indent=2))
+print("saved:", OUTPUT_ROOT)
+```
+
+- `Check images under detected session_root v22` が通ったら、そのまま `Cell D rerun v22` を実行してください。
+- `Cell D rerun v22` が落ちたら error 全文を返してください。
+
+# admin
+
+```text
+# Check images under detected session_root v22 res
+session_root_exists True /content/trajectreview_input/session-20260328-103250/trajectreview
+images_dir_exists True /content/trajectreview_input/session-20260328-103250/trajectreview/images
+image_count 182
+first_image /content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000009.jpg
+```
+
+# admin
+
+```text
+# Cell D rerun v22 res
+---------------------------------------------------------------------------
+ModuleNotFoundError                       Traceback (most recent call last)
+/tmp/ipykernel_29678/3642200570.py in <cell line: 0>()
+      6 from PIL import Image
+      7 import torch
+----> 8 from depth_anything_3.api import DepthAnything3
+      9 
+     10 SESSION_ROOT = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+
+ModuleNotFoundError: No module named 'depth_anything_3'
+
+---------------------------------------------------------------------------
+NOTE: If your import is failing due to a missing package, you can
+manually install dependencies using either !pip or !apt.
+
+To view examples of installing some common dependencies, click the
+"Open Examples" button below.
+---------------------------------------------------------------------------
+```
+
+# codex
+
+2026-03-29 v23。
+
+- `session_root` と `images/` は成立しました。
+  - `session_root_exists True`
+  - `images_dir_exists True`
+  - `image_count 182`
+- 現在の blocker は data ではなく、runtime 上で `depth_anything_3` module 解決が外れている点です。
+- 次は install 全やり直しではなく、repo path を runtime に戻して import context を再確立します。
+
+```python
+# Reattach repo path and import check v23
+import sys
+from pathlib import Path
+
+REPO_ROOT = Path("/content/Depth-Anything-3")
+print("repo_exists", REPO_ROOT.exists(), REPO_ROOT)
+assert REPO_ROOT.exists(), f"repo not found: {REPO_ROOT}"
+
+repo_str = str(REPO_ROOT)
+if repo_str not in sys.path:
+    sys.path.insert(0, repo_str)
+
+print("sys_path_head", sys.path[:5])
+
+from depth_anything_3.api import DepthAnything3
+print("import_ok", DepthAnything3)
+```
+
+```python
+# Cell D rerun v23
+import json
+from pathlib import Path
+
+import numpy as np
+from PIL import Image
+import torch
+from depth_anything_3.api import DepthAnything3
+
+SESSION_ROOT = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+OUTPUT_ROOT = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v23")
+OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+
+images = sorted((SESSION_ROOT / "images").glob("*.png")) + sorted((SESSION_ROOT / "images").glob("*.jpg")) + sorted((SESSION_ROOT / "images").glob("*.jpeg"))
+assert images, f"images not found under {SESSION_ROOT / 'images'}"
+
+image_path = images[0]
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = DepthAnything3.from_pretrained("depth-anything/DA3METRIC-LARGE").to(device=device)
+prediction = model.inference([str(image_path)])
+
+depth = np.asarray(prediction.depth[0])
+conf = np.asarray(prediction.conf[0])
+intrinsics = np.asarray(prediction.intrinsics[0])
+extrinsics = np.asarray(prediction.extrinsics[0])
+
+depth_min = float(depth.min())
+depth_max = float(depth.max())
+depth_norm = np.zeros_like(depth, dtype=np.float32) if depth_max <= depth_min else (depth - depth_min) / (depth_max - depth_min)
+Image.fromarray((depth_norm * 255).astype(np.uint8)).save(OUTPUT_ROOT / "depth_preview.png")
+
+np.save(OUTPUT_ROOT / "depth_raw.npy", depth)
+np.save(OUTPUT_ROOT / "conf_raw.npy", conf)
+np.save(OUTPUT_ROOT / "intrinsics.npy", intrinsics)
+np.save(OUTPUT_ROOT / "extrinsics.npy", extrinsics)
+
+summary = {
+    "image_path": str(image_path),
+    "device": str(device),
+    "depth_shape": list(depth.shape),
+    "conf_shape": list(conf.shape),
+    "intrinsics_shape": list(intrinsics.shape),
+    "extrinsics_shape": list(extrinsics.shape),
+    "depth_min": depth_min,
+    "depth_max": depth_max,
+}
+
+(OUTPUT_ROOT / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+print(json.dumps(summary, indent=2))
+print("saved:", OUTPUT_ROOT)
+```
+
+- `Reattach repo path and import check v23` が通ったら、そのまま `Cell D rerun v23` を実行してください。
+- `repo_exists False` の場合は、その結果だけ返してください。そこで clone / patch の再投入へ切り替えます。
+- `import` が別 error で落ちた場合は traceback 全文を返してください。
+
+# admin
+
+```text
+# Reattach repo path and import check v23 res
+
+```
+
+# admin
+
+```text
+# Cell D rerun v23 res
 
 ```
