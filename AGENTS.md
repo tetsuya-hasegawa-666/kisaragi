@@ -266,6 +266,8 @@ kisaragi-tree/
 - `Colab`、remote notebook、揮発 container のように runtime state が消える系の task では、途中修復を正にせず、fresh runtime からの最短 clean bootstrap を canonical route とする。
 - 上記の task では、shared worklog の trial 往復とは別に、真に必要だった command と file 操作だけを合成した `最小 clean bootstrap runbook` を product 系文書として保持することを必須とする。
 - `最小 clean bootstrap runbook` は、`いま最短で再現できる候補` と `admin 実測で truly pass 済みの採用手順` を明確に分け、後者だけを `truly pass` と表現する。
+- `最小 clean bootstrap runbook` は、それ単体で再現可能でなければならず、evidence notebook、evidence log、chat、shared worklog を参照しないと再実行できない状態を許容しない。
+- evidence notebook や evidence log は証跡であり runbook ではない。runbook に必要な install、config、file 配置、実行順、確認条件は、evidence 側ではなく runbook 正本へ昇格してから使う。
 - 揮発 runtime task で 1 回の session で完了しなかった時は、原則として partial recovery の説明を積み増すより `最小 clean bootstrap runbook` を更新し、次回は先頭から再実行できる形へ収束させる。
 - product 系文書に未反映のまま shared worklog だけへ bootstrap 手順を積み続けることを禁止する。最短再現経路が見えた時点で、同じ task 内で product 系文書へ昇格させる。
 - shared worklog は定期的に振り返り、持続価値のある内容を正本、manual、evidence、product runbook へ反映した後、old log 本文を削除または reset してよい。

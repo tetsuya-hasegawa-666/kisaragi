@@ -473,3 +473,17 @@
 - 新旧比較:
   - 旧: `MRL` / `mRL` と計画正本の役割分担が明文化されていなかった。
   - 新: `b2t-plans-result.md` が正本、`MRL` / `mRL` は参考、closeout は `mrl-record.md` へ集約する方針を明示した。
+
+### 2026-03-29 AGENTS.md runbook と evidence の境界固定
+
+- 日時: `2026-03-29`
+- 文書名: `AGENTS.md`
+- 標題: runbook 単体再現性の必須化
+- 背景: `Colab` 系 task で evidence notebook を見ないと install や実行順を再現できない runbook は、runbook ではなく evidence 参照メモに過ぎないという確認があった。
+- 目的: runbook と evidence の役割を shared rule として分離し、再実行可能な正本を常に product 側へ保持する。
+- 対処方法: 揮発 runtime task の runbook rule に、runbook 単体で再現可能であることと、evidence notebook / log を runbook 代替に使わないことを追記した。
+- 対応内容: `最小 clean bootstrap runbook` の要件として、install、config、file 配置、実行順、確認条件を runbook 正本へ昇格済みであることを追加した。
+- 更新結果: 今後は evidence notebook や evidence log は証跡専用となり、再実行に必要な内容は runbook 正本だけで追えることが必須になる。
+- 新旧比較:
+  - 旧: notebook や shared worklog を補助参照しないと再現しにくい runbook が残り得た。
+  - 新: runbook は evidence 非参照で単体再現できることを shared rule として固定した。
