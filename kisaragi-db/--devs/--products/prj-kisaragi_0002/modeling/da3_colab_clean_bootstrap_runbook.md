@@ -31,7 +31,8 @@
 - `2026-03-29` の `Step 5c` と `Step 5d` と `Step 5e` により、`gsplat 1.5.3` は import 可能で、`rasterization`、`rasterization_2dgs`、`fully_fused_projection` が callable として利用可能だと確認した
 - `2026-03-29` の `Step 5f` から `Step 5j` により、bundle 実配置、`arcore_pose.jsonl` の実 path、pose / intrinsics payload、depth 1 点の world back-projection smoke test が成功した
 - `2026-03-29` の `Step 5k` により、`DA3Metric-Large` depth と `ARCore pose` / intrinsics から主 `ARCore` 空間の point 群を `.npy` と `.ply` で保存できることを確認した
-- 現在の次 block は最小 `3DGS` 系主空間モデル生成 probe であり、point 群または `DA3Metric-Large` 出力を入力として `gsplat` 側の最小生成 route を具体化する
+- `2026-03-29` の `Step 5l` により、`gsplat.rasterization` を `cuda` 上で呼び、`render_colors` と `render_alphas` を返せることを確認した
+- 現在の次 block は rendered image の保存と `gs_model` 候補 artifact 化であり、`3DGS` 系主空間モデル生成の最小 closeout を具体化する
 
 ## 事前準備
 
@@ -208,8 +209,10 @@ print("import_ok", DepthAnything3)
 - `Step 5h`: world back-projection smoke test を通し、depth 1 点を主 `ARCore` 空間へ戻せることを確認する。
 - `Step 5i`: depth から point 群を書き出す point export probe を通し、主 `ARCore` 空間の点群を保存できることを確認する。
 - `Step 5j`: point 群または `DA3Metric-Large` 出力を入力として、実データ由来の最小 `3DGS` 系主空間モデル生成を試す。
-- `Step 5k`: `gs_model` の保存先、`space_quality.json` の記録項目、`SpacePackage` への組み込み方を確定する。
-- `Step 5l`: 上記が 1 route で通ったら、runbook の `candidate` を `3DGS` 生成まで拡張する。
+- `Step 5k`: `gsplat.rasterization` を 1 view で実行し、最小 render が返ることを確認する。
+- `Step 5l`: rendered image、`gs_model` 候補 artifact、`space_quality.json` の最小記録を保存する。
+- `Step 5m`: `SpacePackage` への組み込み方を確定する。
+- `Step 5n`: 上記が 1 route で通ったら、runbook の `candidate` を `3DGS` 生成まで拡張する。
 
 ## shared worklog へ出す command block の単位
 

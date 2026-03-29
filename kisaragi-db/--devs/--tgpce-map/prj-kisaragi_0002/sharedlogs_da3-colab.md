@@ -1209,5 +1209,107 @@ print("info_keys", sorted(info.keys()))
 
 ```text
 # Step 5l gsplat rasterization smoke test res
+gsplat: CUDA extension has been set up successfully in 772.22 seconds.
+device cuda
+means_shape (128, 3)
+render_colors_shape (1, 480, 640, 3)
+render_alphas_shape (1, 480, 640, 1)
+info_keys ['batch_ids', 'camera_ids', 'conics', 'depths', 'flatten_ids', 'gaussian_ids', 'height', 'isect_ids', 'isect_offsets', 'means2d', 'n_batches', 'n_cameras', 'opacities', 'radii', 'tile_height', 'tile_size', 'tile_width', 'tiles_per_gauss', 'width']
+
+```
+
+# codex
+
+2026-03-29 v19 next action。
+
+- `Step 5l` は成功です。`gsplat.rasterization` が `cuda` 上で返り、最小 render path は成立しました。
+- 次は render 結果を画像として保存し、同時に `gs_model` 候補 artifact の最小 manifest を置きます。
+- 目的は `MRL-12` の `gs_model` 候補を file として残し、`space_quality.json` へ最小 closeout 情報を入れることです。
+
+```python
+# Step 5m render artifact smoke test
+import json
+from pathlib import Path
+
+import numpy as np
+from PIL import Image
+import torch
+import gsplat
+
+root = Path("/content/trajectreview_input/session-20260328-103250")
+arcore_pose_path = root / "arcore_pose.jsonl"
+out_dir = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05")
+points_path = out_dir / "world_points_smoke.npy"
+render_png = out_dir / "gsplat_render_smoke.png"
+gs_model_manifest = out_dir / "gs_model_smoke.json"
+space_quality_path = out_dir / "space_quality_smoke.json"
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+points = np.load(points_path).astype(np.float32)[:128]
+
+with arcore_pose_path.open("r", encoding="utf-8") as f:
+    poses = [json.loads(line) for line in f]
+pose = poses[1]
+intr = pose["imageIntrinsics"]
+
+means = torch.from_numpy(points).to(device)
+quats = torch.tensor([[1.0, 0.0, 0.0, 0.0]] * len(points), dtype=torch.float32, device=device)
+scales = torch.full((len(points), 3), 0.02, dtype=torch.float32, device=device)
+opacities = torch.full((len(points),), 0.5, dtype=torch.float32, device=device)
+colors = torch.full((len(points), 3), 0.7, dtype=torch.float32, device=device)
+
+Ks = torch.tensor([[
+    [float(intr["fx"]), 0.0, float(intr["cx"])],
+    [0.0, float(intr["fy"]), float(intr["cy"])],
+    [0.0, 0.0, 1.0],
+]], dtype=torch.float32, device=device)
+
+viewmats = torch.eye(4, dtype=torch.float32, device=device).unsqueeze(0)
+
+render_colors, render_alphas, info = gsplat.rasterization(
+    means=means,
+    quats=quats,
+    scales=scales,
+    opacities=opacities,
+    colors=colors,
+    viewmats=viewmats,
+    Ks=Ks,
+    width=int(intr["width"]),
+    height=int(intr["height"]),
+    packed=False,
+)
+
+img = render_colors[0].detach().float().clamp(0, 1).cpu().numpy()
+Image.fromarray((img * 255).astype(np.uint8)).save(render_png)
+
+manifest = {
+    "artifact_type": "gs_model_smoke",
+    "renderer": "gsplat",
+    "point_source": str(points_path),
+    "render_png": str(render_png),
+    "num_points": int(len(points)),
+    "device": str(device),
+    "image_size": [int(intr["width"]), int(intr["height"])],
+}
+gs_model_manifest.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+space_quality = {
+    "gsplat_rasterization_smoke": "pass",
+    "num_points": int(len(points)),
+    "render_png": str(render_png),
+    "info_keys": sorted(info.keys()),
+}
+space_quality_path.write_text(json.dumps(space_quality, indent=2), encoding="utf-8")
+
+print("render_png_exists", render_png.exists(), render_png)
+print("gs_model_manifest_exists", gs_model_manifest.exists(), gs_model_manifest)
+print("space_quality_exists", space_quality_path.exists(), space_quality_path)
+print("manifest", json.dumps(manifest, indent=2))
+```
+
+# admin
+
+```text
+# Step 5m render artifact smoke test res
 
 ```
