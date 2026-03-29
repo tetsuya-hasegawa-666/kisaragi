@@ -167,12 +167,87 @@ print("import_ok", DepthAnything3)
 
 ```text
 # Step 3 dependency fix v02 res
-
+plyfile_install_ok
 ```
 
 # admin
 
 ```text
 # Step 3 retry v02 res
+src_root_exists True /content/Depth-Anything-3/src
+---------------------------------------------------------------------------
+ModuleNotFoundError                       Traceback (most recent call last)
+/tmp/ipykernel_1078/827092518.py in <cell line: 0>()
+     14     sys.path.insert(0, src_str)
+     15 
+---> 16 from depth_anything_3.api import DepthAnything3
+     17 print("import_ok", DepthAnything3)
+
+3 frames
+/content/Depth-Anything-3/src/depth_anything_3/utils/export/glb.py in <module>
+     17 import os
+     18 import numpy as np
+---> 19 import trimesh
+     20 
+     21 from depth_anything_3.specs import Prediction
+
+ModuleNotFoundError: No module named 'trimesh'
+
+---------------------------------------------------------------------------
+NOTE: If your import is failing due to a missing package, you can
+manually install dependencies using either !pip or !apt.
+
+To view examples of installing some common dependencies, click the
+"Open Examples" button below.
+---------------------------------------------------------------------------
+```
+
+# codex
+
+2026-03-29 v03 continue on current runtime。
+
+- `plyfile` は越えました。
+- 次の blocker は `trimesh` 未install です。
+- 同じ runtime を維持し、`trimesh` を追加して `Step 3` を再試行します。
+
+```python
+# Step 3 dependency fix v03
+import subprocess
+
+subprocess.run(["python", "-m", "pip", "install", "--quiet", "trimesh"], check=True)
+print("trimesh_install_ok")
+```
+
+```python
+# Step 3 retry v03
+import sys
+from pathlib import Path
+
+REPO_ROOT = Path("/content/Depth-Anything-3")
+assert REPO_ROOT.exists(), f"repo not found: {REPO_ROOT}"
+
+src_root = REPO_ROOT / "src"
+print("src_root_exists", src_root.exists(), src_root)
+assert src_root.exists(), f"src not found: {src_root}"
+
+src_str = str(src_root)
+if src_str not in sys.path:
+    sys.path.insert(0, src_str)
+
+from depth_anything_3.api import DepthAnything3
+print("import_ok", DepthAnything3)
+```
+
+# admin
+
+```text
+# Step 3 dependency fix v03 res
+
+```
+
+# admin
+
+```text
+# Step 3 retry v03 res
 
 ```

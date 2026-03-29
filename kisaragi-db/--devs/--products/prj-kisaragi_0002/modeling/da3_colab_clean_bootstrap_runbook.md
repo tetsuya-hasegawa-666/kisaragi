@@ -23,7 +23,7 @@
 
 - `candidate` はあり
 - `adopted` は未成立
-- 現在の blocker は、`Step 3` で `plyfile` が未install のため `depth_anything_3.api` import が止まる点である
+- 現在の blocker は、`Step 3` で `trimesh` が未install のため `depth_anything_3.api` import が止まる点である
 - 現在は blank restart を強制せず、同じ runtime で blocker を潰しながら bootstrap 仕様を確定する段階である
 
 ## 事前準備
@@ -148,7 +148,7 @@ if repo_root.exists():
     shutil.rmtree(repo_root)
 
 run(["git", "clone", "https://github.com/ByteDance-Seed/Depth-Anything-3.git", str(repo_root)])
-run(["python", "-m", "pip", "install", "--quiet", "addict", "evo", "moviepy==1.0.3", "pygame", "pycolmap", "plyfile"])
+run(["python", "-m", "pip", "install", "--quiet", "addict", "evo", "moviepy==1.0.3", "pygame", "pycolmap", "plyfile", "trimesh"])
 print("bootstrap_done", repo_root.exists(), repo_root)
 ```
 
