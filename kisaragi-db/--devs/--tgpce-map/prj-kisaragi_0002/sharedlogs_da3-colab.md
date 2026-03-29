@@ -916,5 +916,121 @@ for field in ["pose", "imageIntrinsics", "textureIntrinsics", "lensDistortion", 
 
 ```text
 # Step 5i pose payload probe res
+FIELD pose dict
+KEYS ['qw', 'qx', 'qy', 'qz', 'tx', 'ty', 'tz']
+VALUE tx 0
+VALUE ty 0
+VALUE tz 0
+VALUE qx -5.9604645e-08
+VALUE qy 0
+VALUE qz -0.7071067
+VALUE qw 0.7071067
+---
+FIELD imageIntrinsics dict
+KEYS ['cx', 'cy', 'fx', 'fy', 'height', 'width']
+VALUE fx 451.99124
+VALUE fy 451.90652
+VALUE cx 321.57803
+VALUE cy 234.85765
+VALUE width 640
+VALUE height 480
+---
+FIELD textureIntrinsics dict
+KEYS ['cx', 'cy', 'fx', 'fy', 'height', 'width']
+VALUE fx 1355.9738
+VALUE fy 1355.7195
+VALUE cx 965.7341
+VALUE cy 525.57294
+VALUE width 1920
+VALUE height 1080
+---
+FIELD lensDistortion dict
+KEYS ['coefficients', 'model']
+LIST coefficients 5 [0, 0, 0, 0, 0]
+VALUE model android_lens_distortion
+---
+FIELD captureDiagnostics dict
+KEYS ['imageIntrinsics', 'lensDistortion', 'textureIntrinsics']
+SUBDICT imageIntrinsics ['failureReason', 'requested', 'succeeded']
+SUBDICT textureIntrinsics ['failureReason', 'requested', 'succeeded']
+SUBDICT lensDistortion ['failureReason', 'requested', 'succeeded']
+---
+```
+
+# codex
+
+2026-03-29 v16 next action。
+
+- `Step 5i` は成功です。world projection の最小入力として `pose(tx,ty,tz,qx,qy,qz,qw)`、`imageIntrinsics(fx,fy,cx,cy,width,height)`、`depth_raw.npy` を結べる状態になりました。
+- 次は `frame_000009.jpg` と `depth_raw.npy` を使い、画像中心付近の depth を camera 座標へ戻し、さらに pose で world 座標へ変換する最小 back-projection smoke test を行います。
+- 目的は `DA3Metric-Large` depth を主 `ARCore` 空間へ戻せることの first proof を取ることです。
+
+```python
+# Step 5j world back-projection smoke test
+import csv
+import json
+from pathlib import Path
+
+import numpy as np
+
+root = Path("/content/trajectreview_input/session-20260328-103250")
+session_root = root / "trajectreview"
+arcore_pose_path = root / "arcore_pose.jsonl"
+depth_path = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05/depth_raw.npy")
+
+with arcore_pose_path.open("r", encoding="utf-8") as f:
+    poses = [json.loads(line) for line in f]
+
+pose = poses[1]
+intr = pose["imageIntrinsics"]
+depth = np.load(depth_path)
+
+h, w = depth.shape
+u = w // 2
+v = h // 2
+z = float(depth[v, u])
+
+fx = float(intr["fx"])
+fy = float(intr["fy"])
+cx = float(intr["cx"])
+cy = float(intr["cy"])
+
+x_cam = (u - cx) / fx * z
+y_cam = (v - cy) / fy * z
+z_cam = z
+
+qx = float(pose["pose"]["qx"])
+qy = float(pose["pose"]["qy"])
+qz = float(pose["pose"]["qz"])
+qw = float(pose["pose"]["qw"])
+tx = float(pose["pose"]["tx"])
+ty = float(pose["pose"]["ty"])
+tz = float(pose["pose"]["tz"])
+
+q = np.array([qw, qx, qy, qz], dtype=np.float64)
+q = q / np.linalg.norm(q)
+qw, qx, qy, qz = q
+
+R = np.array([
+    [1 - 2 * (qy * qy + qz * qz), 2 * (qx * qy - qz * qw), 2 * (qx * qz + qy * qw)],
+    [2 * (qx * qy + qz * qw), 1 - 2 * (qx * qx + qz * qz), 2 * (qy * qz - qx * qw)],
+    [2 * (qx * qz - qy * qw), 2 * (qy * qz + qx * qw), 1 - 2 * (qx * qx + qy * qy)],
+], dtype=np.float64)
+
+cam_point = np.array([x_cam, y_cam, z_cam], dtype=np.float64)
+world_point = R @ cam_point + np.array([tx, ty, tz], dtype=np.float64)
+
+print("depth_shape", depth.shape)
+print("sample_uv", [u, v])
+print("sample_depth", z)
+print("camera_point", cam_point.tolist())
+print("world_point", world_point.tolist())
+print("tracking_state", pose["trackingState"])
+```
+
+# admin
+
+```text
+# Step 5j world back-projection smoke test res
 
 ```
