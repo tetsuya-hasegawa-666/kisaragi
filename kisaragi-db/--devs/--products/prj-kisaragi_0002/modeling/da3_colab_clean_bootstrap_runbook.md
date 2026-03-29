@@ -24,7 +24,7 @@
 - `candidate` はあり
 - `adopted` はあり
 - `2026-03-29` に admin 実測で `Step 1` から `Step 4` まで end-to-end 完了した
-- 現在の次段は、single-frame bootstrap 成立を踏まえて `gsplat` import、world projection、実データによる `3DGS` 系主空間モデル生成を通し、その後に request 起点 UX、waiting ring、download URL、複数 frame / route 比較へ広げる点である
+- 現在の次段は、single-frame bootstrap と `3DGS` 系主空間モデル生成 smoke 成立を踏まえて、`mRL-7.1` の `multi-frame` densify、`PLY` でぼんやり見える再現モデル、主カメラ path 対応確認へ広げる点である
 - `HF_TOKEN` warning は public model の download では optional であり、現段階の blocker ではない
 - `gsplat` warning は single-frame bootstrap では blocker ではなかったが、今後の `3DGS` 系主空間モデル生成では import と実行可否を明示確認する必要がある
 - `2026-03-29` の `Step 5b gsplat install probe` では、`Python 3.12` の `Colab` runtime 上で `pip install gsplat` が成功し、`gsplat 1.5.3` が `/usr/local/lib/python3.12/dist-packages` に入ることを確認した
@@ -36,7 +36,7 @@
 - `2026-03-29` の `Step 5n` により、`space_package_smoke.json` を生成し、`gs_model` 候補 artifact と `quality` を `SpacePackage` 形へ接続できることを確認した
 - `2026-03-29` の `Step 5o` により、`space_package.contract.json`、`space_quality.contract.json`、`gs_model.contract.json` を生成し、smoke artifact を contract 名へ寄せられることを確認した
 - `2026-03-29` の `Step 5p` により、single-frame bootstrap から `3DGS` 系主空間モデル生成 smoke までの到達 artifact 一式がそろっていることを確認した
-- 現在の次 block は `Candidate Bootstrap v1` の closeout を admin evidence と `MRL-5` closeout へ接続することだが、runbook の candidate 自体は `3DGS` 生成 smoke まで拡張可能な状態になった
+- 現在の次 block は `mRL-7.1` に向けた `10s` window 特定、sampled frame 選定、multi-frame point cloud 統合である
 
 ## 事前準備
 
@@ -105,6 +105,63 @@ OK 条件:
 - 両方 `False` が理想
 - `True` の時は、この runbook の Step 1 と Step 2 が削除して作り直すので、そのまま続けてよい
 
+## install 正本
+
+- この runbook で使う install / bootstrap command の正本はこの節とする。
+- shared worklog に trial が残っていても、採用する install 手順はここだけを見る。
+- `3DGS` 系主空間モデル生成 smoke まで進む時は、`gsplat` install を含める。
+
+### install 1: DA3 repo clone
+
+```bash
+git clone https://github.com/ByteDance-Seed/Depth-Anything-3.git /content/Depth-Anything-3
+```
+
+### install 2: DA3 import と export lazy-path に必要な custom dependency
+
+```bash
+python -m pip install --quiet addict evo moviepy==1.0.3 pygame pycolmap plyfile trimesh
+```
+
+### install 3: `3DGS` smoke 用 `gsplat`
+
+```bash
+python -m pip install --quiet gsplat
+```
+
+### install 4: install 結果の最小確認
+
+```python
+import sys
+from pathlib import Path
+
+repo_root = Path("/content/Depth-Anything-3")
+src_root = repo_root / "src"
+if str(src_root) not in sys.path:
+    sys.path.insert(0, str(src_root))
+
+from depth_anything_3.api import DepthAnything3
+import gsplat
+
+print("repo_root_exists", repo_root.exists(), repo_root)
+print("src_root_exists", src_root.exists(), src_root)
+print("depth_anything_3_import_ok", DepthAnything3)
+print("gsplat_module", gsplat.__file__)
+print("gsplat_version", getattr(gsplat, "__version__", "unknown"))
+```
+
+OK 条件:
+
+- `repo_root_exists True`
+- `src_root_exists True`
+- `depth_anything_3_import_ok` が出る
+- `gsplat_module` が出る
+
+補足:
+
+- `gsplat` は single-frame depth bootstrap だけなら optional だったが、この runbook の現在目的は `3DGS` 系主空間モデル生成 smoke まで含むため、install 正本に昇格した。
+- 以後 `3DGS` smoke まで進める時は、`pip install gsplat` を省略しない。
+
 ## Candidate Bootstrap v1
 
 ### 目的
@@ -146,7 +203,7 @@ if files:
     print("first_image", files[0])
 ```
 
-### Step 2: DA3 repo と custom dependency を fresh runtime へ入れる
+### Step 2: DA3 repo と dependency を fresh runtime へ入れる
 
 ```python
 import shutil
@@ -162,7 +219,7 @@ if repo_root.exists():
     shutil.rmtree(repo_root)
 
 run(["git", "clone", "https://github.com/ByteDance-Seed/Depth-Anything-3.git", str(repo_root)])
-run(["python", "-m", "pip", "install", "--quiet", "addict", "evo", "moviepy==1.0.3", "pygame", "pycolmap", "plyfile", "trimesh"])
+run(["python", "-m", "pip", "install", "--quiet", "addict", "evo", "moviepy==1.0.3", "pygame", "pycolmap", "plyfile", "trimesh", "gsplat"])
 print("bootstrap_done", repo_root.exists(), repo_root)
 ```
 
@@ -190,8 +247,192 @@ print("import_ok", DepthAnything3)
 補足:
 
 - `Dependency gsplat is required for rendering 3DGS` の warning は、`DepthAnything3` import 時に `3DGS rendering` 系 code path が見えていることを示す。
-- 現在の runbook では `DA3Metric-Large` の metric depth 推論を主目的にしているため、`gsplat` は必須 dependency に含めない。
-- `MRL-5` の次段では、この warning を放置せず、`gsplat` import probe と実データ `3DGS` 生成 smoke test を shared worklog で詰める。
+- 現在の runbook では `DA3Metric-Large` metric depth と `3DGS` 系主空間モデル生成 smoke までを対象にするため、`gsplat` は必須 dependency として install する。
+
+### Step 4.5: `gsplat` surface を最小確認する
+
+```python
+import gsplat
+
+print("gsplat_version", getattr(gsplat, "__version__", "unknown"))
+print("rasterization_type", type(gsplat.rasterization).__name__)
+print("rasterization_2dgs_type", type(gsplat.rasterization_2dgs).__name__)
+print("fully_fused_projection_type", type(gsplat.fully_fused_projection).__name__)
+```
+
+OK 条件:
+
+- `gsplat_version` が出る
+- `rasterization_type function`
+- `rasterization_2dgs_type function`
+- `fully_fused_projection_type function`
+
+### Step 5: `3DGS` smoke candidate を生成する
+
+- ここからは single-frame depth bootstrap の上に、world back-projection、point export、`gsplat` rasterization、`SpacePackage` smoke contract を積む。
+- 完全な試行錯誤ログは shared worklog に残すが、採用済みの最小到達物はこの節で追えるようにする。
+
+#### Step 5a: session file 配置を確認する
+
+```python
+from pathlib import Path
+
+SESSION_ROOT = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+
+print("session_root_exists", SESSION_ROOT.exists(), SESSION_ROOT)
+print("arcore_pose_exists", (SESSION_ROOT / "arcore_pose.jsonl").exists())
+print("frame_pose_index_exists", (SESSION_ROOT / "frame_pose_index.csv").exists())
+print("camera_calibration_exists", (SESSION_ROOT / "camera_calibration_summary.json").exists())
+print("images_exists", (SESSION_ROOT / "images").exists())
+```
+
+#### Step 5b: world point export を生成する
+
+```python
+from pathlib import Path
+import json
+import numpy as np
+import pandas as pd
+
+SESSION_ROOT = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+OUTPUT_ROOT = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05")
+
+depth = np.load(OUTPUT_ROOT / "depth_raw.npy")
+frame_index = pd.read_csv(SESSION_ROOT / "frame_pose_index.csv")
+
+with open(SESSION_ROOT / "arcore_pose.jsonl", "r", encoding="utf-8") as f:
+    pose_records = [json.loads(line) for line in f if line.strip()]
+
+row = frame_index.iloc[0]
+pose_idx = int(row["pose_record_index"])
+record = pose_records[pose_idx]
+pose = record["pose"]
+intr = record["imageIntrinsics"]
+
+h, w = depth.shape
+grid_y, grid_x = np.mgrid[0:h:24, 0:w:24]
+z = depth[grid_y, grid_x]
+x = (grid_x - intr["cx"]) * z / intr["fx"]
+y = (grid_y - intr["cy"]) * z / intr["fy"]
+camera_points = np.stack([x, y, z], axis=-1).reshape(-1, 3)
+
+tx, ty, tz = pose["tx"], pose["ty"], pose["tz"]
+world_points = camera_points + np.array([tx, ty, tz], dtype=np.float32)
+
+np.save(OUTPUT_ROOT / "world_points_smoke.npy", world_points.astype(np.float32))
+
+ply_path = OUTPUT_ROOT / "world_points_smoke.ply"
+with open(ply_path, "w", encoding="utf-8") as f:
+    f.write("ply\nformat ascii 1.0\n")
+    f.write(f"element vertex {len(world_points)}\n")
+    f.write("property float x\nproperty float y\nproperty float z\n")
+    f.write("end_header\n")
+    for p in world_points:
+        f.write(f"{p[0]} {p[1]} {p[2]}\n")
+
+print("points_shape", world_points.shape)
+print("saved_npy", OUTPUT_ROOT / "world_points_smoke.npy")
+print("saved_ply", ply_path)
+```
+
+#### Step 5c: `gsplat` 最小 render と smoke artifact を生成する
+
+```python
+from pathlib import Path
+import json
+import numpy as np
+from PIL import Image
+import torch
+import gsplat
+
+OUTPUT_ROOT = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05")
+points = np.load(OUTPUT_ROOT / "world_points_smoke.npy")[:128]
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+means = torch.tensor(points, dtype=torch.float32, device=device)
+quats = torch.tensor([[1.0, 0.0, 0.0, 0.0]] * len(points), dtype=torch.float32, device=device)
+scales = torch.full((len(points), 3), 0.01, dtype=torch.float32, device=device)
+opacities = torch.full((len(points),), 0.5, dtype=torch.float32, device=device)
+colors = torch.full((len(points), 3), 0.7, dtype=torch.float32, device=device)
+viewmats = torch.eye(4, dtype=torch.float32, device=device)[None, ...]
+Ks = torch.tensor([[[400.0, 0.0, 320.0], [0.0, 400.0, 240.0], [0.0, 0.0, 1.0]]], dtype=torch.float32, device=device)
+
+render_colors, render_alphas, _ = gsplat.rasterization(
+    means=means,
+    quats=quats,
+    scales=scales,
+    opacities=opacities,
+    colors=colors,
+    viewmats=viewmats,
+    Ks=Ks,
+    width=640,
+    height=480,
+)
+
+img = (render_colors[0].detach().clamp(0, 1).cpu().numpy() * 255).astype(np.uint8)
+Image.fromarray(img).save(OUTPUT_ROOT / "gsplat_render_smoke.png")
+
+gs_model = {
+    "kind": "gsplat-smoke",
+    "num_points": int(len(points)),
+    "render_preview": "gsplat_render_smoke.png",
+    "points_npy": "world_points_smoke.npy",
+    "points_ply": "world_points_smoke.ply",
+}
+space_quality = {
+    "status": "pass",
+    "checks": ["gsplat_rasterization_smoke"],
+    "point_count": int(len(points)),
+}
+space_package = {
+    "coordinate_system": "arcore_local",
+    "gs_model": {"path": "gs_model_smoke.json"},
+    "quality": {"path": "space_quality_smoke.json"},
+}
+
+(OUTPUT_ROOT / "gs_model_smoke.json").write_text(json.dumps(gs_model, indent=2), encoding="utf-8")
+(OUTPUT_ROOT / "space_quality_smoke.json").write_text(json.dumps(space_quality, indent=2), encoding="utf-8")
+(OUTPUT_ROOT / "space_package_smoke.json").write_text(json.dumps(space_package, indent=2), encoding="utf-8")
+
+print("device", device)
+print("render_colors_shape", tuple(render_colors.shape))
+print("render_alphas_shape", tuple(render_alphas.shape))
+print("saved", OUTPUT_ROOT)
+```
+
+#### Step 5d: contract 名へ寄せる
+
+```python
+from pathlib import Path
+import shutil
+
+OUTPUT_ROOT = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05")
+
+shutil.copy2(OUTPUT_ROOT / "gs_model_smoke.json", OUTPUT_ROOT / "gs_model.contract.json")
+shutil.copy2(OUTPUT_ROOT / "space_quality_smoke.json", OUTPUT_ROOT / "space_quality.contract.json")
+shutil.copy2(OUTPUT_ROOT / "space_package_smoke.json", OUTPUT_ROOT / "space_package.contract.json")
+
+for name in [
+    "gs_model.contract.json",
+    "space_quality.contract.json",
+    "space_package.contract.json",
+]:
+    print(name, (OUTPUT_ROOT / name).exists())
+```
+
+### Step 5 の到達 artifact
+
+- `depth_raw.npy`
+- `depth_preview.png`
+- `world_points_smoke.npy`
+- `world_points_smoke.ply`
+- `gsplat_render_smoke.png`
+- `gs_model_smoke.json`
+- `space_quality_smoke.json`
+- `space_package_smoke.json`
+- `gs_model.contract.json`
+- `space_quality.contract.json`
+- `space_package.contract.json`
 
 ## 次段の shared worklog 運用
 
@@ -203,30 +444,19 @@ print("import_ok", DepthAnything3)
 
 ## 次段でやること
 
-- `Step 5a`: `gsplat` import probe を通し、runtime 上で必要 package と import path を確定する。
-- `Step 5b`: `gsplat` install probe を通し、`pip install gsplat` が current runtime で成立するかを確認する。
-- `Step 5c`: install 後の `gsplat` import probe を通し、runtime 上で import path と version を確定する。
-- `Step 5d`: `gsplat` の top-level symbol と submodule 一覧を確認し、使うべき import path を確定する。
-- `Step 5e`: `rasterization`、`rasterization_2dgs`、`fully_fused_projection` の signature を確認し、最小呼び出し形を確定する。
-- `Step 5f`: `session_package.json`、`arcore_pose.jsonl`、`frame_pose_index.csv`、image 群から、`DA3Metric-Large` depth と `ARCore pose` を同一 frame 集合へ揃える。
-- `Step 5g`: 1 frame の pose / intrinsics payload を確認し、world projection の最小入力 shape を確定する。
-- `Step 5h`: world back-projection smoke test を通し、depth 1 点を主 `ARCore` 空間へ戻せることを確認する。
-- `Step 5i`: depth から point 群を書き出す point export probe を通し、主 `ARCore` 空間の点群を保存できることを確認する。
-- `Step 5j`: point 群または `DA3Metric-Large` 出力を入力として、実データ由来の最小 `3DGS` 系主空間モデル生成を試す。
-- `Step 5k`: `gsplat.rasterization` を 1 view で実行し、最小 render が返ることを確認する。
-- `Step 5l`: rendered image、`gs_model` 候補 artifact、`space_quality.json` の最小記録を保存する。
-- `Step 5m`: `SpacePackage` への組み込み方を確定する。
-- `Step 5n`: smoke artifact を正式 contract 名へ寄せ、handoff で読める path / file 名へ整理する。
-- `Step 5o`: 上記が 1 route で通ったら、runbook の `candidate` を `3DGS` 生成まで拡張する。
+- `Step 7a`: `10s` 前後の連続 window を 1 件決め、`multi-frame` densify に使う sampled frame 群を特定する。
+- `Step 7b`: sampled frame ごとに `DA3Metric-Large` depth を生成し、pose / intrinsics と同一 frame 集合へ揃える。
+- `Step 7c`: 複数 frame の world point cloud を統合し、single-frame より密な `.npy` / `.ply` を保存する。
+- `Step 7d`: `PLY` viewer でぼんやり見える再現モデルと主カメラ path の対応を確認する。
+- `Step 7e`: この段で必要な preview / summary / evidence bundle を整理し、`MRL-7` closeout 候補へ接続する。
 
 ## shared worklog へ出す command block の単位
 
-- block 1: `gsplat` import だけを確認する probe
-- block 2: 実 session から複数 frame を読み、depth 推論対象 frame を決める probe
-- block 3: `ARCore pose` / intrinsics と depth の整列確認 probe
-- block 4: world projection で point 群を書き出す probe
-- block 5: 最小 `3DGS` 系主空間モデル生成 probe
-- block 6: `gs_model`、`space_quality.json`、`SpacePackage` 保存 probe
+- block 1: `10s` window と sampled frame 候補を決める probe
+- block 2: sampled frame ごとの depth 対象と pose / intrinsics 整列を確認する probe
+- block 3: multi-frame world projection で point 群を書き出す probe
+- block 4: `PLY` と preview を保存する probe
+- block 5: evidence bundle と closeout 用 summary を保存する probe
 
 ## shared worklog に貼る時の template
 
