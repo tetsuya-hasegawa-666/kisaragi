@@ -1127,5 +1127,87 @@ print("first_points", points[:5].tolist())
 
 ```text
 # Step 5k point export smoke test res
+points_shape (336, 3)
+points_npy_exists True /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05/world_points_smoke.npy
+points_ply_exists True /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05/world_points_smoke.ply
+first_points [[-1.0956165790557861, 1.4998884201049805, 2.1081550121307373], [-1.1172717809677124, 1.4153820276260376, 2.1498234272003174], [-1.1234573125839233, 1.308434009552002, 2.1617255210876465], [-0.8727853298187256, 0.9273160696029663, 1.6793893575668335], [-0.8485155701637268, 0.8148368000984192, 1.632690191268921]]
+
+```
+
+# codex
+
+2026-03-29 v18 next action。
+
+- `Step 5k` は成功です。主 `ARCore` 空間の point 群を `.npy` と `.ply` で保存できました。
+- 次は `gsplat` を使って、この point 群から最小の `3DGS` 系主空間モデル入力形を組めるかを確認します。
+- ここでは full training ではなく、`means`、`quats`、`scales`、`opacities`、`colors` の tensor を組み、`gsplat.rasterization` を 1 view で呼べるかを first target にします。
+
+```python
+# Step 5l gsplat rasterization smoke test
+import json
+from pathlib import Path
+
+import numpy as np
+import torch
+import gsplat
+
+root = Path("/content/trajectreview_input/session-20260328-103250")
+arcore_pose_path = root / "arcore_pose.jsonl"
+points_path = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05/world_points_smoke.npy")
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+points = np.load(points_path).astype(np.float32)
+points = points[:128]
+
+with arcore_pose_path.open("r", encoding="utf-8") as f:
+    poses = [json.loads(line) for line in f]
+pose = poses[1]
+intr = pose["imageIntrinsics"]
+
+means = torch.from_numpy(points).to(device)
+quats = torch.tensor([[1.0, 0.0, 0.0, 0.0]] * len(points), dtype=torch.float32, device=device)
+scales = torch.full((len(points), 3), 0.02, dtype=torch.float32, device=device)
+opacities = torch.full((len(points),), 0.5, dtype=torch.float32, device=device)
+colors = torch.full((len(points), 3), 0.7, dtype=torch.float32, device=device)
+
+fx = float(intr["fx"])
+fy = float(intr["fy"])
+cx = float(intr["cx"])
+cy = float(intr["cy"])
+width = int(intr["width"])
+height = int(intr["height"])
+
+Ks = torch.tensor([[
+    [fx, 0.0, cx],
+    [0.0, fy, cy],
+    [0.0, 0.0, 1.0],
+]], dtype=torch.float32, device=device)
+
+viewmats = torch.eye(4, dtype=torch.float32, device=device).unsqueeze(0)
+
+render_colors, render_alphas, info = gsplat.rasterization(
+    means=means,
+    quats=quats,
+    scales=scales,
+    opacities=opacities,
+    colors=colors,
+    viewmats=viewmats,
+    Ks=Ks,
+    width=width,
+    height=height,
+    packed=False,
+)
+
+print("device", device)
+print("means_shape", tuple(means.shape))
+print("render_colors_shape", tuple(render_colors.shape))
+print("render_alphas_shape", tuple(render_alphas.shape))
+print("info_keys", sorted(info.keys()))
+```
+
+# admin
+
+```text
+# Step 5l gsplat rasterization smoke test res
 
 ```

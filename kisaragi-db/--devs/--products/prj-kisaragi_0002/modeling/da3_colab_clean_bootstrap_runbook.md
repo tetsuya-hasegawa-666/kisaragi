@@ -30,7 +30,8 @@
 - `2026-03-29` の `Step 5b gsplat install probe` では、`Python 3.12` の `Colab` runtime 上で `pip install gsplat` が成功し、`gsplat 1.5.3` が `/usr/local/lib/python3.12/dist-packages` に入ることを確認した
 - `2026-03-29` の `Step 5c` と `Step 5d` と `Step 5e` により、`gsplat 1.5.3` は import 可能で、`rasterization`、`rasterization_2dgs`、`fully_fused_projection` が callable として利用可能だと確認した
 - `2026-03-29` の `Step 5f` から `Step 5j` により、bundle 実配置、`arcore_pose.jsonl` の実 path、pose / intrinsics payload、depth 1 点の world back-projection smoke test が成功した
-- 現在の次 block は点群書き出し probe であり、`DA3Metric-Large` depth と `ARCore pose` / intrinsics から主 `ARCore` 空間の point 群を保存したうえで、最小 `3DGS` 系主空間モデル生成 probe へ進む
+- `2026-03-29` の `Step 5k` により、`DA3Metric-Large` depth と `ARCore pose` / intrinsics から主 `ARCore` 空間の point 群を `.npy` と `.ply` で保存できることを確認した
+- 現在の次 block は最小 `3DGS` 系主空間モデル生成 probe であり、point 群または `DA3Metric-Large` 出力を入力として `gsplat` 側の最小生成 route を具体化する
 
 ## 事前準備
 
