@@ -47,6 +47,9 @@
 - Colab notebook の `CONFIG` は `session_root` と `result_root` を最小入力とし、残りの route 情報は session bundle 内の artifact から自動で補完する
 - 既存の `COLMAP 4.0 + nerfstudio splatfacto` notebook は参考ひな形であり、`DA3Metric-Large` modeling の truth ではない
 - `DA3Metric-Large` の `Colab` 実装は greenfield とし、`Codex` が script / notebook を作成し、admin が `Colab` 実行結果を shared worklog に貼り戻す往復で詰める
+- `2026-03-29` 時点で、`trajectreview-correcting` で取得した session `session-20260328-103250.zip` を入力に、`DA3Metric-Large` single-frame depth、world back-projection、point export、`gsplat` rasterization、`gs_model` / `space_quality` / `SpacePackage` smoke artifact 生成まで通過した
+- 上記は `MRL-12` の candidate proof として有効であり、この段の `p-done` 判断は「ある程度整った correcting 実データから `3DGS` 系主空間モデル候補を再現でき、admin が生成物を取得できること」を中心基準に置く
+- `trajectreview-modeling` 本体への正式統合と `multi-frame` / `multi-route` 比較は、この段の `MRL-12 p-done` 必須条件には置かず、後続 `MRL` で扱う
 - shared worklog は project に対する truth / plan / evidence の正本ではないが、共同作業の保持情報としては authoritative な log であり、正本反映の根拠として保持する
 - shared worklog の置き場は `--tgpce-map/prj-kisaragi_0002/` 直下とし、file 名は `sharedlogs_<thema>.md` 形式に統一する
 - 現在の `DA3Metric-Large` `Colab` thread の main worklog は `sharedlogs_da3-colab.md` である
@@ -359,6 +362,7 @@
 - `MRL-7` は `correcting` の次 gate とし、`現場撮影データ保存 -> data-check -> Google Drive転送` を 1 app UX として閉じる。転送 block 内の順番と popup UX を正本に固定する
 - `MRL-7` の事前設定は `転送先を選択 -> URL を確認または変更 -> 保存先fileを設定する -> Google Drive 上で保存先 file を選ぶ` を既定導線とし、既定 URL は `u/2` の指定 folder に固定する
 - `td9` から `td23` と `tu20` から `tu29` は multi-app 骨格、実 bundle summary、request preflight、remote status、route 比較、viewer 検証としては有効だが、本機能完成の証拠としては不十分である
+- `MRL-12` は、現段階では `correcting` 実データを使った `3DGS` 系主空間モデル候補の smoke 生成を `p-done` 候補の中心根拠とし、`trajectreview-modeling` 本体への正式統合や route 比較の完了は後続 gate へ分離する
 - 次段は `td14` から `td23` と `tu20` から `tu29` を中心に、`Google Drive` directory intake、waiting ring、download URL、`DA3Metric-Large` 前処理、`3DGS` 系主空間モデル生成、multi-route 比較、採用 route 固定、実 `ReviewArtifact` viewer、gate 分類を詰める
 
 ## `MRL`, `INITRL` 対応表

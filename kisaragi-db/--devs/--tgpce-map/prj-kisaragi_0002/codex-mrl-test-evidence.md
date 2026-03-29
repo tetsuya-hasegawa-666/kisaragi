@@ -12,6 +12,17 @@
 
 ## Entries
 
+- record date: `2026-03-29`
+  target MRL: `MRL-12`
+  target mRL: `mRL-12.2`、`mRL-12.3`
+  gate change: `candidate evidence strengthened`
+  issue: `MRL-12` は depth bootstrap までは通っていたが、`correcting` 実 data から `3DGS` 系主空間モデル候補を再現できるか、また smoke artifact を `SpacePackage` 形へ接続できるかが未記録だった
+  cause: 初期 closeout は single-frame depth bootstrap の成立確認を優先し、world projection、point export、`gsplat` rasterization、contract artifact 生成の結果を正本へ昇格し切れていなかった
+  resolution: `DA3Metric-Large` single-frame depth、world back-projection、point export、`gsplat` rasterization、`gs_model_smoke.json`、`space_quality_smoke.json`、`space_package_smoke.json`、contract 名 artifact 生成までを `Candidate Bootstrap v1` と `admin-mrl-test-evidence.md` へ反映し、`MRL-12` の candidate proof を「correcting 実 data から `3DGS` 系主空間モデル候補を再現できる」水準まで引き上げた
+  recurrence prevention: Colab 往復で得た持続価値のある結果は、shared worklog のみへ残さず、runbook、admin evidence、必要なら closeout 記録へ同じ task で反映する
+  remaining work: `admin-mrl-test-evidence.md` を根拠に `MRL-12 p-done` 判定を行うか判断し、後続 gate では `trajectreview-modeling` 正式統合と `multi-frame` / `multi-route` を別 MRL として進める
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md`
+
 - record date: `2026-03-26`
   target MRL: `MRL-1` から `MRL-10`
   target mRL: `current pass entries all`

@@ -75,6 +75,7 @@
   - `mRL-13.1` から `mRL-13.3`
 - admin 操作観点:
   - [da3_colab_clean_bootstrap_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_clean_bootstrap_runbook.md) を fresh runtime から実行し、bootstrap UX が再現可能である
+  - `trajectreview-correcting` 由来の実 data を入力に、`DA3Metric-Large` から `3DGS` 系主空間モデル候補を smoke 生成できる
   - `trajectreview-modeling` で実 bundle を読み、request 元、input directory、result directory を含む `colab_job_request.json` を生成できる
   - `Google Drive` directory 指定で `Colab` route を起動できる
   - waiting ring、現在段階、`job_status.json` の更新を request 元画面で読める
@@ -120,6 +121,47 @@
 - evidence path:
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md`
   - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/sharedlogs_da3-colab.md`
+
+## 2026-03-29 `MRL-12` `3DGS` smoke candidate evidence
+
+- 対象 gate:
+  - `MRL-12`
+  - `mRL-12.2`
+  - `mRL-12.3`
+- 実施者:
+  - `admin`
+- 実施環境:
+  - `Google Colab`
+  - `T4`
+  - notebook evidence: `kisaragi-db/--exsams/prj-kisaragi_0002/modeling-colab-evidence/trajectreview_modeling_20260329_gpu-evidence.ipynb`
+- 入力 data:
+  - `trajectreview-correcting` で取得した `session-20260328-103250.zip`
+  - `Google Drive` shortcut 配下 `trajectreview/correcting/session-20260328-103250.zip`
+- 結果要点:
+  - `correcting` 実 data から `DA3Metric-Large` single-frame depth 推論が通過した
+  - `arcore_pose.jsonl`、`frame_pose_index.csv`、`camera_calibration_summary.json`、`images/` を使い、depth の world back-projection smoke を確認した
+  - `world_points_smoke.npy` と `world_points_smoke.ply` を生成できた
+  - `gsplat` install / import / callable 確認を通し、`gsplat.rasterization` を `cuda` 上で返せた
+  - `gsplat_render_smoke.png`、`gs_model_smoke.json`、`space_quality_smoke.json`、`space_package_smoke.json` を生成できた
+  - `gs_model.contract.json`、`space_quality.contract.json`、`space_package.contract.json` を生成し、smoke artifact を contract 名へ寄せられた
+  - この段の `MRL-12 p-done` 候補判断は、「ある程度整った correcting 実 data から `3DGS` 系主空間モデル候補を再現でき、admin が生成 artifact を取得できること」を基準に置く
+  - `trajectreview-modeling` 本体への正式統合と `multi-frame` / `multi-route` 比較は、この candidate evidence の必須条件から分離し、後続 gate へ送る
+- 主要 artifact:
+  - `depth_raw.npy`
+  - `depth_preview.png`
+  - `world_points_smoke.npy`
+  - `world_points_smoke.ply`
+  - `gsplat_render_smoke.png`
+  - `gs_model_smoke.json`
+  - `space_quality_smoke.json`
+  - `space_package_smoke.json`
+  - `gs_model.contract.json`
+  - `space_quality.contract.json`
+  - `space_package.contract.json`
+- evidence path:
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md`
+  - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/sharedlogs_da3-colab.md`
+  - `kisaragi-db/--exsams/prj-kisaragi_0002/modeling-colab-evidence/trajectreview_modeling_20260329_gpu-evidence.ipynb`
 
 ## reviewing batch 定義
 
