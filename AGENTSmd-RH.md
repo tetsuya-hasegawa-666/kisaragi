@@ -40,6 +40,20 @@
   - 旧: shared worklog をどの時点で reset してよいかが弱かった。
   - 新: 有益部分を正本へ反映済みなら、shared worklog を reset してよい shared rule になった。
 
+### 2026-03-29 AGENTS.md shared worklog の `# codex` 通し番号必須化
+
+- 日時: `2026-03-29`
+- 文書名: `AGENTS.md`
+- 標題: `# codex` 追記に `v**` 通し番号を必須化
+- 背景: shared worklog を reset した後や長い往復の途中で、どの `# codex` 追記が新しいかが見分けにくくなった。
+- 目的: `# codex` 追記を時系列番号で追いやすくし、admin が参照箇所を特定しやすくする。
+- 対処方法: shared worklog rule に、`# codex` 追記へ単調増加の通し番号 `v**` を付けることを追加した。
+- 対応内容: 重複や逆行を禁止し、番号飛びは許容する rule として明文化した。
+- 更新結果: `# codex` 追記は番号で参照でき、shared worklog の最新案内を指示しやすくなった。
+- 新旧比較:
+  - 旧: `# codex` 追記の番号付けは運用依存だった。
+  - 新: `v**` 通し番号が shared rule になった。
+
 ### 2026-03-29 AGENTS.md 前提節の再整理
 
 - 日時: `2026-03-29`

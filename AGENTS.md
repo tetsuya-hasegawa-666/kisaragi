@@ -259,6 +259,7 @@ kisaragi-tree/
 - 上記の task では、Codex は回答前に shared worklog の最新追記を先に確認し、chat では「どの worklog を基準に答えるか」を明示する。
 - shared worklog は context window の代替ではなく、誤送信と文脈取り違えを減らすための canonical な往復面として使う。main code、実行順、admin の raw response は原則そこで管理する。
 - chat には要点、判断、次 action を短く返し、長い code block や長い error 全文は shared worklog を基準に扱う。
+- shared worklog の `# codex` 追記には、必ず単調増加の通し番号 `v**` を付ける。番号を飛ばしてよいが、逆行や重複をしてはならない。
 - `Colab`、remote notebook、揮発 container のように runtime state が消える系の task では、途中修復を正にせず、fresh runtime からの最短 clean bootstrap を canonical route とする。
 - 上記の task では、shared worklog の trial 往復とは別に、真に必要だった command と file 操作だけを合成した `最小 clean bootstrap runbook` を product 系文書として保持することを必須とする。
 - `最小 clean bootstrap runbook` は、`いま最短で再現できる候補` と `admin 実測で truly pass 済みの採用手順` を明確に分け、後者だけを `truly pass` と表現する。
