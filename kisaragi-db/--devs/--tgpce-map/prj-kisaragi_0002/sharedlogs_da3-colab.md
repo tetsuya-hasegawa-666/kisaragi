@@ -1456,5 +1456,55 @@ print("gs_model_contract_exists", gs_model_contract.exists(), gs_model_contract)
 
 ```text
 # Step 5o contract naming probe res
+space_package_contract_exists True /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05/space_package.contract.json
+space_quality_contract_exists True /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05/space_quality.contract.json
+gs_model_contract_exists True /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05/gs_model.contract.json
+
+```
+
+# codex
+
+2026-03-29 v22 next action。
+
+- `Step 5o` は成功です。smoke artifact を contract 名へ寄せるところまで通りました。
+- 次は `Candidate Bootstrap v1` の closeout として、single-frame bootstrap から `3DGS` 系主空間モデル生成 smoke までの到達 artifact を列挙し、`MRL-12` 候補到達物として整理します。
+- 目的は、runbook を `3DGS` 生成まで拡張する前提の最終確認です。
+
+```python
+# Step 5p candidate closeout summary
+import json
+from pathlib import Path
+
+out_dir = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05")
+
+targets = [
+    "depth_raw.npy",
+    "depth_preview.png",
+    "world_points_smoke.npy",
+    "world_points_smoke.ply",
+    "gsplat_render_smoke.png",
+    "gs_model_smoke.json",
+    "space_quality_smoke.json",
+    "space_package_smoke.json",
+    "gs_model.contract.json",
+    "space_quality.contract.json",
+    "space_package.contract.json",
+]
+
+summary = {}
+for name in targets:
+    path = out_dir / name
+    summary[name] = {
+        "exists": path.exists(),
+        "size": None if not path.exists() else path.stat().st_size,
+    }
+
+print(json.dumps(summary, indent=2))
+```
+
+# admin
+
+```text
+# Step 5p candidate closeout summary res
 
 ```

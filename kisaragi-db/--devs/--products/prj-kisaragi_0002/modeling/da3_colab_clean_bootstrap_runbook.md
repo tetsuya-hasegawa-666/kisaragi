@@ -34,7 +34,8 @@
 - `2026-03-29` の `Step 5l` により、`gsplat.rasterization` を `cuda` 上で呼び、`render_colors` と `render_alphas` を返せることを確認した
 - `2026-03-29` の `Step 5m` により、`gsplat_render_smoke.png`、`gs_model_smoke.json`、`space_quality_smoke.json` を保存できることを確認した
 - `2026-03-29` の `Step 5n` により、`space_package_smoke.json` を生成し、`gs_model` 候補 artifact と `quality` を `SpacePackage` 形へ接続できることを確認した
-- 現在の次 block は smoke artifact を正式 contract 名へ寄せる確認であり、`SpacePackage`、`space_quality.json`、`gs_model` の rename / 保存先 / handoff 反映を具体化する
+- `2026-03-29` の `Step 5o` により、`space_package.contract.json`、`space_quality.contract.json`、`gs_model.contract.json` を生成し、smoke artifact を contract 名へ寄せられることを確認した
+- 現在の次 block は `Candidate Bootstrap v1` の closeout であり、single-frame bootstrap から `3DGS` 系主空間モデル生成 smoke までを 1 route として整理する
 
 ## 事前準備
 
@@ -214,7 +215,7 @@ print("import_ok", DepthAnything3)
 - `Step 5k`: `gsplat.rasterization` を 1 view で実行し、最小 render が返ることを確認する。
 - `Step 5l`: rendered image、`gs_model` 候補 artifact、`space_quality.json` の最小記録を保存する。
 - `Step 5m`: `SpacePackage` への組み込み方を確定する。
-- `Step 5n`: smoke artifact を正式 contract 名へ寄せ、hadoop先ではなく handoff で読める path / file 名へ整理する。
+- `Step 5n`: smoke artifact を正式 contract 名へ寄せ、handoff で読める path / file 名へ整理する。
 - `Step 5o`: 上記が 1 route で通ったら、runbook の `candidate` を `3DGS` 生成まで拡張する。
 
 ## shared worklog へ出す command block の単位
