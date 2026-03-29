@@ -278,9 +278,14 @@ OK 条件:
 from pathlib import Path
 
 SESSION_ROOT = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+SESSION_BUNDLE_ROOT = SESSION_ROOT.parent
+arcore_pose_path = SESSION_ROOT / "arcore_pose.jsonl"
+if not arcore_pose_path.exists():
+    arcore_pose_path = SESSION_BUNDLE_ROOT / "arcore_pose.jsonl"
 
 print("session_root_exists", SESSION_ROOT.exists(), SESSION_ROOT)
-print("arcore_pose_exists", (SESSION_ROOT / "arcore_pose.jsonl").exists())
+print("bundle_root_exists", SESSION_BUNDLE_ROOT.exists(), SESSION_BUNDLE_ROOT)
+print("arcore_pose_exists", arcore_pose_path.exists(), arcore_pose_path)
 print("frame_pose_index_exists", (SESSION_ROOT / "frame_pose_index.csv").exists())
 print("camera_calibration_exists", (SESSION_ROOT / "camera_calibration_summary.json").exists())
 print("images_exists", (SESSION_ROOT / "images").exists())
@@ -295,12 +300,16 @@ import numpy as np
 import pandas as pd
 
 SESSION_ROOT = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+SESSION_BUNDLE_ROOT = SESSION_ROOT.parent
 OUTPUT_ROOT = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05")
+arcore_pose_path = SESSION_ROOT / "arcore_pose.jsonl"
+if not arcore_pose_path.exists():
+    arcore_pose_path = SESSION_BUNDLE_ROOT / "arcore_pose.jsonl"
 
 depth = np.load(OUTPUT_ROOT / "depth_raw.npy")
 frame_index = pd.read_csv(SESSION_ROOT / "frame_pose_index.csv")
 
-with open(SESSION_ROOT / "arcore_pose.jsonl", "r", encoding="utf-8") as f:
+with open(arcore_pose_path, "r", encoding="utf-8") as f:
     pose_records = [json.loads(line) for line in f if line.strip()]
 
 row = frame_index.iloc[0]
@@ -345,19 +354,34 @@ from PIL import Image
 import torch
 import gsplat
 
+SESSION_ROOT = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+SESSION_BUNDLE_ROOT = SESSION_ROOT.parent
 OUTPUT_ROOT = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05")
-points = np.load(OUTPUT_ROOT / "world_points_smoke.npy")[:128]
+arcore_pose_path = SESSION_ROOT / "arcore_pose.jsonl"
+if not arcore_pose_path.exists():
+    arcore_pose_path = SESSION_BUNDLE_ROOT / "arcore_pose.jsonl"
+
+points = np.load(OUTPUT_ROOT / "world_points_smoke.npy").astype(np.float32)[:128]
+
+with arcore_pose_path.open("r", encoding="utf-8") as f:
+    poses = [json.loads(line) for line in f if line.strip()]
+pose = poses[1]
+intr = pose["imageIntrinsics"]
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 means = torch.tensor(points, dtype=torch.float32, device=device)
 quats = torch.tensor([[1.0, 0.0, 0.0, 0.0]] * len(points), dtype=torch.float32, device=device)
-scales = torch.full((len(points), 3), 0.01, dtype=torch.float32, device=device)
+scales = torch.full((len(points), 3), 0.02, dtype=torch.float32, device=device)
 opacities = torch.full((len(points),), 0.5, dtype=torch.float32, device=device)
 colors = torch.full((len(points), 3), 0.7, dtype=torch.float32, device=device)
 viewmats = torch.eye(4, dtype=torch.float32, device=device)[None, ...]
-Ks = torch.tensor([[[400.0, 0.0, 320.0], [0.0, 400.0, 240.0], [0.0, 0.0, 1.0]]], dtype=torch.float32, device=device)
+Ks = torch.tensor([[
+    [float(intr["fx"]), 0.0, float(intr["cx"])],
+    [0.0, float(intr["fy"]), float(intr["cy"])],
+    [0.0, 0.0, 1.0],
+]], dtype=torch.float32, device=device)
 
-render_colors, render_alphas, _ = gsplat.rasterization(
+render_colors, render_alphas, info = gsplat.rasterization(
     means=means,
     quats=quats,
     scales=scales,
@@ -365,29 +389,41 @@ render_colors, render_alphas, _ = gsplat.rasterization(
     colors=colors,
     viewmats=viewmats,
     Ks=Ks,
-    width=640,
-    height=480,
+    width=int(intr["width"]),
+    height=int(intr["height"]),
+    packed=False,
 )
 
 img = (render_colors[0].detach().clamp(0, 1).cpu().numpy() * 255).astype(np.uint8)
 Image.fromarray(img).save(OUTPUT_ROOT / "gsplat_render_smoke.png")
 
 gs_model = {
-    "kind": "gsplat-smoke",
+    "artifact_type": "gs_model_smoke",
+    "renderer": "gsplat",
     "num_points": int(len(points)),
-    "render_preview": "gsplat_render_smoke.png",
-    "points_npy": "world_points_smoke.npy",
-    "points_ply": "world_points_smoke.ply",
+    "render_png": "gsplat_render_smoke.png",
+    "point_source": "world_points_smoke.npy",
+    "image_size": [int(intr["width"]), int(intr["height"])],
+    "device": str(device),
 }
 space_quality = {
-    "status": "pass",
-    "checks": ["gsplat_rasterization_smoke"],
+    "gsplat_rasterization_smoke": "pass",
     "point_count": int(len(points)),
+    "render_png": "gsplat_render_smoke.png",
+    "info_keys": sorted(info.keys()),
 }
 space_package = {
     "coordinate_system": "arcore_local",
-    "gs_model": {"path": "gs_model_smoke.json"},
-    "quality": {"path": "space_quality_smoke.json"},
+    "camera_path_source": arcore_pose_path.name,
+    "gs_model": {
+        "artifact_type": "gs_model_smoke",
+        "renderer": "gsplat",
+        "manifest_path": "gs_model_smoke.json",
+        "preview_path": "gsplat_render_smoke.png",
+        "point_cloud_npy": "world_points_smoke.npy",
+        "point_cloud_ply": "world_points_smoke.ply",
+    },
+    "quality": space_quality,
 }
 
 (OUTPUT_ROOT / "gs_model_smoke.json").write_text(json.dumps(gs_model, indent=2), encoding="utf-8")
@@ -397,6 +433,7 @@ space_package = {
 print("device", device)
 print("render_colors_shape", tuple(render_colors.shape))
 print("render_alphas_shape", tuple(render_alphas.shape))
+print("info_keys", sorted(info.keys()))
 print("saved", OUTPUT_ROOT)
 ```
 
