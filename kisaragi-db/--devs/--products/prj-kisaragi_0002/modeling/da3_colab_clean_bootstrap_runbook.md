@@ -32,7 +32,8 @@
 - `2026-03-29` の `Step 5f` から `Step 5j` により、bundle 実配置、`arcore_pose.jsonl` の実 path、pose / intrinsics payload、depth 1 点の world back-projection smoke test が成功した
 - `2026-03-29` の `Step 5k` により、`DA3Metric-Large` depth と `ARCore pose` / intrinsics から主 `ARCore` 空間の point 群を `.npy` と `.ply` で保存できることを確認した
 - `2026-03-29` の `Step 5l` により、`gsplat.rasterization` を `cuda` 上で呼び、`render_colors` と `render_alphas` を返せることを確認した
-- 現在の次 block は rendered image の保存と `gs_model` 候補 artifact 化であり、`3DGS` 系主空間モデル生成の最小 closeout を具体化する
+- `2026-03-29` の `Step 5m` により、`gsplat_render_smoke.png`、`gs_model_smoke.json`、`space_quality_smoke.json` を保存できることを確認した
+- 現在の次 block は `SpacePackage` への最小組み込み確認であり、`gs_model` 候補 artifact を contract 上の出力へどう昇格させるかを具体化する
 
 ## 事前準備
 

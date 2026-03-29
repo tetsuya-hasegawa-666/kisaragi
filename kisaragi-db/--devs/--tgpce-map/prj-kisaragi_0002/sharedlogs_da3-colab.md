@@ -1311,5 +1311,70 @@ print("manifest", json.dumps(manifest, indent=2))
 
 ```text
 # Step 5m render artifact smoke test res
+render_png_exists True /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05/gsplat_render_smoke.png
+gs_model_manifest_exists True /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05/gs_model_smoke.json
+space_quality_exists True /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05/space_quality_smoke.json
+manifest {
+  "artifact_type": "gs_model_smoke",
+  "renderer": "gsplat",
+  "point_source": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05/world_points_smoke.npy",
+  "render_png": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05/gsplat_render_smoke.png",
+  "num_points": 128,
+  "device": "cuda",
+  "image_size": [
+    640,
+    480
+  ]
+}
+```
+
+# codex
+
+2026-03-29 v20 next action。
+
+- `Step 5m` は成功です。`gs_model` 候補 artifact、render PNG、`space_quality_smoke.json` まで揃いました。
+- 次は `SpacePackage` contract に寄せて、どの file を `gs_model` 候補として持たせるか、どの summary を `space_quality` 側へ寄せるかを最小 JSON で確認します。
+- 目的は smoke artifact を `MRL-12` の contract に接続することです。
+
+```python
+# Step 5n space package smoke manifest
+import json
+from pathlib import Path
+
+out_dir = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05")
+space_package_path = out_dir / "space_package_smoke.json"
+space_quality_path = out_dir / "space_quality_smoke.json"
+gs_model_manifest = out_dir / "gs_model_smoke.json"
+render_png = out_dir / "gsplat_render_smoke.png"
+points_npy = out_dir / "world_points_smoke.npy"
+points_ply = out_dir / "world_points_smoke.ply"
+
+space_quality = json.loads(space_quality_path.read_text(encoding="utf-8"))
+gs_model = json.loads(gs_model_manifest.read_text(encoding="utf-8"))
+
+space_package = {
+    "coordinate_system": "arcore_local",
+    "camera_path_source": "arcore_pose.jsonl",
+    "gs_model": {
+        "artifact_type": gs_model["artifact_type"],
+        "renderer": gs_model["renderer"],
+        "manifest_path": str(gs_model_manifest),
+        "preview_path": str(render_png),
+        "point_cloud_npy": str(points_npy),
+        "point_cloud_ply": str(points_ply),
+    },
+    "quality": space_quality,
+}
+
+space_package_path.write_text(json.dumps(space_package, indent=2), encoding="utf-8")
+
+print("space_package_exists", space_package_path.exists(), space_package_path)
+print(json.dumps(space_package, indent=2))
+```
+
+# admin
+
+```text
+# Step 5n space package smoke manifest res
 
 ```
