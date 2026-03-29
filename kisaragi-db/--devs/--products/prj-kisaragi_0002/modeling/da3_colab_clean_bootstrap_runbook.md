@@ -33,6 +33,8 @@
 - `Google Drive` を mount できる account で入る
 - 対象 folder id `1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_` への access があることを確認する
 - `GPU` を選べても、初回は `CPU` で bootstrap / import / 1 frame まで進めてよい
+- 運用の目安として、`Step 1` から `Step 3` は `CPU` または `GPU` のどちらでも進めてよい
+- `Step 4` は `CPU` だと極端に遅いか停止しやすいため、`GPU` runtime を推奨する
 
 ## 準備確認
 
@@ -174,6 +176,11 @@ print("import_ok", DepthAnything3)
 ```
 
 ### Step 4: `1 frame` 推論を実行する
+
+- 推奨:
+  - `cuda_available True` の状態で実行する
+  - `CPU` のままでも試せるが、途中停止や長時間待機が起きやすい
+  - `Step 1` から `Step 3` が通った時点でいったん止め、後で `GPU` runtime に切り替えて `Step 4` から再開してよい
 
 ```python
 import json
