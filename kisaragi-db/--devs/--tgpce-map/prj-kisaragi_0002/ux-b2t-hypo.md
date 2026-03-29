@@ -189,7 +189,7 @@
 - `sd6`: 運営者は、4 app の各画面で mock ではなく直近の実 bundle を読み、同じ project truth で UX 確認できる
 - `sd7`: 運営者は、`trajectreview-modeling` から request 起点の local sample と handoff request を生成し、PC 上で logic を先に検証できる
 - `sd8`: 運営者は、指定した `Google Drive` directory を `Colab` 側が読み、実行状態と result URL を返す contract を維持できる
-- `sd9`: 運営者は、`trajectreview-modeling` だけで `DA3Metric-Large` の metric depth 推定、`ARCore pose` / intrinsics 統合、`3DGS` 系主空間モデル生成の成否、および複数 route 比較を確認できる
+- `sd9`: 運営者は、`trajectreview-modeling` だけで `DA3Metric-Large` の metric depth 推定、`ARCore pose` / intrinsics 統合、`3DGS` 系主空間モデル生成の成否を確認でき、必要になった時は複数 route 比較へ広げられる
 - `sd10`: 運営者は、比較結果から暫定採用 route を決め、以後の既定 route と research route を分けて運用できる
 - `sd11`: 運営者は、`UX-only` 確認、契約固定、local sample、本機能完成を別 gate として追跡できる
 
@@ -234,11 +234,11 @@
 - `bd11`: `trajectreview-modeling` は `SpaceReconstruction` と `TrajectoryReconstruction` に必要な request 起点、進行表示、result 受け渡しを主表示にする
 - `bd12`: `trajectreview-reviewing` は verify / review / same-time highlight を主表示にし、統合 app は全 workflow を束ねる
 - `bd13`: correcting、modeling、reviewing、統合 app は、選択した実 bundle から `ReviewContractSnapshot` を再構成し、mock 固定状態に依存しない
-- `bd14`: `trajectreview-modeling` は `session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json`、`camera_calibration_summary.json` を読み、`local_model_summary.json`、`colab_job_request.json`、`job_status.json`、`review_artifact_stub.json` を生成する
+- `bd14`: `trajectreview-modeling` は `session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json`、`camera_calibration_summary.json` を読み、`local_model_summary.json`、`colab_job_request.json`、`job_status.json`、`review_artifact_stub.json` を生成する。これは `Colab` 実行前の request preflight と handoff 準備を担う
 - `bd15`: `trajectreview-reviewing` と統合 app は `local_model_summary.json` と `review_artifact_stub.json` を読んで verify / review 状態を組み立てる
 - `bd16`: `trajectreview-modeling` は、指定した `Google Drive` directory から zip または `session_root/` を正規化して読み、`Colab` runtime、status 更新、result URL 公開先を再現可能に構築できる
 - `bd17`: `trajectreview-modeling` は `session_package.json`、`arcore_pose.jsonl`、`frame_pose_index.csv`、`camera_calibration_summary.json`、frame 群から `DA3Metric-Large` 用の前処理入力、metric depth 推定、world projection、`3DGS` 系主空間モデル生成を route 単位で実行できる
-- `bd18`: `trajectreview-modeling` は sampling route、intrinsics route、ごとの quality、runtime、resource usage、failure reason を `benchmark_summary.json` へ集約できる
+- `bd18`: `trajectreview-modeling` は、まず `10s` 前後の整った実動画から `multi-frame` densify を行い、主空間の見え方と主カメラ path を粗くでも把握できる再現モデルを返せる。route 比較が必要になった時は、sampling route、intrinsics route、ごとの quality、runtime、resource usage、failure reason を `benchmark_summary.json` へ集約できる
 - `bd19`: `trajectreview-modeling` は比較結果から `selected_route.json` を生成し、採用 route と research route を分離できる
 - `bd20`: `MRL` / `mRL` の `i-pass` は admin `UX check 完了` と本来機能の実行証跡を要件とし、`UX-only`、contract、sample、build / install は補助 gate として別記する
 
@@ -274,7 +274,7 @@
 | `sd6` | `bd13`,`bd15` | 実データ UX | 各 app が抽出済みまたは modeling 済み bundle を読み、直近実データに基づく状態を表示できる |
 | `sd7` | `bd14`,`bd15` | request preflight | `Colab` account 未取得でも local sample model、request payload、reviewing 用 stub を生成し、PC 上で logic を先に検証できる |
 | `sd8` | `bd16` | remote 実行運用 | `Google Drive` directory 指定、`Colab` bootstrap、status 更新、result URL 公開先の contract を維持できる |
-| `sd9` | `bd17`,`bd18` | `DA3` route 比較 | 同一 session に対し複数 route を再実行し、sampling、intrinsics、quality、runtime、resource usage、failure reason を同一形式で比較できる |
+| `sd9` | `bd17`,`bd18` | `DA3` modeling 確認 | まず `10s` 前後の整った実動画から `multi-frame` densify を行い、主空間の見え方と主カメラ path を粗くでも把握できる再現モデルを得られる。必要になった時は route 比較へ広げられる |
 | `sd10` | `bd18`,`bd19` | route 運用化 | 採用 route と research route が分離され、既定 route を machine-readable に固定できる |
 | `sd11` | `bd20` | gate 運用 | `UX-only`、contract、sample、本機能完成が別 gate として記録され、完了誤認が起きない |
 
@@ -332,7 +332,7 @@
 | `td16` | `bd17` | `DA3Metric-Large` input manifest | `modeling` app が frame sampling、intrinsics mode、projection option を route 単位で `experiment_manifest.json` と `da3_input_manifest.json` に出力できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/LocalModelingService.kt` |
 | `td17` | `bd17` | metric depth and space runner | `DA3Metric-Large` の少なくとも 1 route を `Colab` で実行し、depth、world projection、`3DGS` 系主空間モデル生成に必要な出力を保存できる | ready | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
 | `td18` | `bd17` | space reconstruction report | `metric scale confidence`、`depth continuity`、`point count estimate`、`gs_model` 生成結果、failure reason を `depth_estimation_report.json` と `space_quality.json` に正規化できる | ready | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
-| `td19` | `bd18` | sampling route benchmark aggregation | 同一 session に対して複数の sampling route を比較し、quality、runtime、resource usage、failure reason を `benchmark_summary.json` に集約できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/LocalModelingService.kt` |
+| `td19` | `bd18` | multi-frame densify visible reconstruction | `10s` 前後の整った実動画から複数 frame を sampling し、world point cloud を統合して、`PLY` viewer で粗くでも主空間の見え方と主カメラ path の対応を確認できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
 | `td20` | `bd18` | intrinsics route benchmark aggregation | 少なくとも 2 つの intrinsics / projection route の結果を同一比較表へ集約できる | ready | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
 | `td21` | `bd19` | selected route decision artifact | 暫定採用 route、不採用理由、research route、再評価条件を `selected_route.json` に保存できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/LocalModelingService.kt` |
 | `td22` | `bd15` | reviewing actual bundle state | `reviewing` app と統合 app が modeling 結果を読み、verify / review 状態へ反映できる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/MainActivity.kt` |
@@ -348,7 +348,7 @@
 - `MRL-7` では `tu8` から `tu11` で `correcting` 単体の `Google Drive` transfer を固める
 - `MRL-8` では `td6` から `td8` と `tu5` で raw video 維持、`SessionPackage` 正規化、`SpaceReconstruction` handoff gate を固める
 - `MRL-9` では `td9` から `td11` で 4 app 骨格、role-specific UX、統合 app overview を固める
-- `MRL-10` では `td12`、`td13`、`tu20` で実 bundle 読込と request preflight を固める
+- `MRL-10` では `td12`、`td13`、`tu20` で実 bundle 読込と request preflight を固める。ここは app から request を作る本機能側とする
 - `MRL-11` では `td14`、`td15`、`tu18`、`tu19`、`tu21` で `Google Drive` directory intake、waiting UX、安全 gate、status 更新を固める
 - `MRL-12` では `td16` から `td18` と `tu22`、`tu23` で `DA3Metric-Large` 前処理、`DA3Metric-Large` による `3DGS` 系主空間モデル生成までの system 構築、smoke artifact 取得を固める
 - `MRL-13` では `td19` を中心に `10s` 前後の整った実動画から `multi-frame` densify を行い、ぼんやり見える再現モデルを得る
@@ -420,7 +420,7 @@
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `INITRL-1` | `-` | `Colab all-in modeling` package の bootstrap 導線を成立させる | `sd6`,`sd7`,`su12` | `bd13`,`bd14`,`bu16` | `td12`,`td13`,`tu20` | `active` | `active` | `modeling batch 操作手順 1-6` と `da3_colab_clean_bootstrap_runbook.md` | `modeling batch 定義` |
 | `INITRL-1` | `mINITRL-1.1` | 抽出済み bundle snapshot を手動で選んで読めることを確認する | `sd6` | `bd13` | `td12` | `p-done` | `ready` | `未収載` | `2026-03-25 candidate evidence` |
-| `INITRL-1` | `mINITRL-1.2` | local sample modeling と handoff request を手動で作れることを確認する | `sd7`,`su12` | `bd14`,`bu16` | `td13`,`tu20` | `active` | `active` | `modeling batch 操作手順 4-6` と `da3_colab_clean_bootstrap_runbook.md` | `2026-03-25 \`MRL-10\` candidate evidence` |
+| `INITRL-1` | `mINITRL-1.2` | `Colab` 実行前の package / config / runbook 導線を手動でたどれることを確認する | `sd7`,`su12` | `bd14`,`bu16` | `td13`,`tu20` | `active` | `active` | `modeling batch 操作手順 4-6` と `da3_colab_clean_bootstrap_runbook.md` | `2026-03-25 \`MRL-10\` candidate evidence` |
 | `INITRL-2` | `-` | `correcting` 側の PC install / package 補助導線を成立させる | `sd1`,`sd4`,`sd5` | `bd2`,`bd9`,`bd10`,`bd11`,`bd12` | `td2`,`td3`,`td9`,`td10`,`td11` | `active` | `ready` | `未収載` | `2026-03-25 candidate evidence` |
 | `INITRL-2` | `mINITRL-2.1` | project 境界 scan と dependency hygiene を確認する | `sd1` | `bd2` | `td2`,`td3` | `p-done` | `ready` | `未収載` | `2026-03-25 candidate evidence` |
 | `INITRL-2` | `mINITRL-2.2` | 4 app module build と初期表示導線を確認する | `sd4`,`sd5` | `bd9`,`bd10`,`bd11`,`bd12` | `td9`,`td10`,`td11` | `p-done` | `ready` | `未収載` | `2026-03-25 candidate evidence` |
@@ -436,7 +436,7 @@
 | `MRL-9` | `mRL-9.1` | multi-app module build を確認する | `sd4`,`sd5` | `bd9` | `td9` | `active` | `ready` | `未収載` | `2026-03-25 candidate evidence` |
 | `MRL-9` | `mRL-9.2` | role-specific app UX を確認する | `sd4` | `bd10`,`bd11` | `td10` | `active` | `ready` | `未収載` | `2026-03-25 candidate evidence` |
 | `MRL-9` | `mRL-9.3` | 統合 app での境界説明と gate 分類を確認する | `sd5`,`sd11` | `bd12`,`bd20` | `td11`,`td23` | `active` | `ready` | `未収載` | `2026-03-25 candidate evidence` |
-| `MRL-10` | `-` | request 起点の local sample modeling と実 bundle 読込を成立させる | `sd6`,`sd7`,`su12` | `bd13`,`bd14`,`bu16` | `td12`,`td13`,`tu20` | `active` | `active` | `modeling batch 操作手順 1-6` | `modeling batch 定義`, `2026-03-25 \`MRL-10\` candidate evidence` |
+| `MRL-10` | `-` | app から request 起点の local sample modeling と実 bundle 読込を成立させる | `sd6`,`sd7`,`su12` | `bd13`,`bd14`,`bu16` | `td12`,`td13`,`tu20` | `active` | `active` | `modeling batch 操作手順 1-6` | `modeling batch 定義`, `2026-03-25 \`MRL-10\` candidate evidence` |
 | `MRL-10` | `mRL-10.1` | 実 bundle snapshot 読込を確認する | `sd6` | `bd13` | `td12` | `active` | `active` | `modeling batch 操作手順 1-3` | `2026-03-25 \`MRL-10\` candidate evidence` |
 | `MRL-10` | `mRL-10.2` | request preflight 生成を確認する | `sd7`,`su12` | `bd14`,`bu16` | `td13`,`tu20` | `active` | `active` | `modeling batch 操作手順 4-6` | `2026-03-25 \`MRL-10\` candidate evidence` |
 | `MRL-11` | `-` | `Google Drive` directory intake と waiting UX を成立させる | `su10`,`su11`,`su13`,`sd8`,`sd11` | `bu14`,`bu15`,`bu17`,`bd16`,`bd20` | `tu18`,`tu19`,`tu21`,`td14`,`td15`,`td23` | `active` | `active` | `modeling batch 操作手順 7-12, p-done / i-pass の判断, fail の判断` と `da3_colab_clean_bootstrap_runbook.md` の `事前準備` / `準備確認` | `modeling batch 定義` |
