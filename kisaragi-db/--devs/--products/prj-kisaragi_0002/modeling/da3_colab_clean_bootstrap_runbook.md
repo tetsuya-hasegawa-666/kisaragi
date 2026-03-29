@@ -2,7 +2,7 @@
 
 ## 文書の役割
 
-- この文書は `prj-kisaragi_0002` の `DA3Metric-Large` `Colab` 実行について、fresh runtime からの最短 clean bootstrap を保持する product-side runbook とする。
+- この文書は `prj-kisaragi_0002` の `DA3Metric-Large` `Colab` 実行について、fresh runtime から `DA3Metric-Large` による `3DGS` 系主空間モデル生成まで進めるための clean bootstrap と作業導線を保持する product-side runbook とする。
 - shared worklog の trial 往復をそのまま正本化せず、真に必要だった command と file 操作だけを抽出して保持する。
 - `candidate` は現時点の最短候補、`adopted` は admin 実測で end-to-end 完了した `truly pass` 手順を示す。
 
@@ -24,9 +24,9 @@
 - `candidate` はあり
 - `adopted` はあり
 - `2026-03-29` に admin 実測で `Step 1` から `Step 4` まで end-to-end 完了した
-- 現在の次段は、single-frame bootstrap 成立を踏まえて request 起点 UX、waiting ring、download URL、複数 frame / route 比較へ広げる点である
+- 現在の次段は、single-frame bootstrap 成立を踏まえて `gsplat` import、world projection、実データによる `3DGS` 系主空間モデル生成を通し、その後に request 起点 UX、waiting ring、download URL、複数 frame / route 比較へ広げる点である
 - `HF_TOKEN` warning は public model の download では optional であり、現段階の blocker ではない
-- `gsplat` warning は出るが、これは `3DGS rendering` 用の optional dependency であり、現在の `DA3Metric-Large` `1 frame` 推論の blocker ではない
+- `gsplat` warning は single-frame bootstrap では blocker ではなかったが、今後の `3DGS` 系主空間モデル生成では import と実行可否を明示確認する必要がある
 
 ## 事前準備
 
@@ -181,7 +181,63 @@ print("import_ok", DepthAnything3)
 
 - `Dependency gsplat is required for rendering 3DGS` の warning は、`DepthAnything3` import 時に `3DGS rendering` 系 code path が見えていることを示す。
 - 現在の runbook では `DA3Metric-Large` の metric depth 推論を主目的にしているため、`gsplat` は必須 dependency に含めない。
-- 後段で `3DGS rendering` までこの runbook に含める段階になったら、その時点で `gsplat` を追加する。
+- `MRL-12` の次段では、この warning を放置せず、`gsplat` import probe と実データ `3DGS` 生成 smoke test を shared worklog で詰める。
+
+## 次段の shared worklog 運用
+
+- `gsplat` import から実データ `3DGS` 系主空間モデル生成までの command block は、この runbookへ即断で長文化せず、まず [sharedlogs_da3-colab.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\sharedlogs_da3-colab.md) で `# codex v**` と `# admin` の往復で確定させる。
+- Codex は 1 回につき 1 つの目的だけを持つ短い command block を shared worklog へ追記する。
+- admin は block ごとの実行結果を、その block title を保ったまま `# admin` に貼り戻す。
+- Codex は結果を読んで、次 block を出すか、runbook / 正本文書へ昇格させるかを判断する。
+- shared worklog で成立した持続事項は、この runbook、[ux-b2t-hypo.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\ux-b2t-hypo.md)、必要なら admin evidence へ同じ task 内で反映する。
+
+## 次段でやること
+
+- `Step 5a`: `gsplat` import probe を通し、runtime 上で必要 package と import path を確定する。
+- `Step 5b`: `session_package.json`、`arcore_pose.jsonl`、`frame_pose_index.csv`、image 群から、`DA3Metric-Large` depth と `ARCore pose` を同一 frame 集合へ揃える。
+- `Step 5c`: world projection smoke test を通し、depth を主 `ARCore` 空間へ戻した point 群を保存できることを確認する。
+- `Step 5d`: point 群または `DA3Metric-Large` 出力を入力として、実データ由来の最小 `3DGS` 系主空間モデル生成を試す。
+- `Step 5e`: `gs_model` の保存先、`space_quality.json` の記録項目、`SpacePackage` への組み込み方を確定する。
+- `Step 5f`: 上記が 1 route で通ったら、runbook の `candidate` を `3DGS` 生成まで拡張する。
+
+## shared worklog へ出す command block の単位
+
+- block 1: `gsplat` import だけを確認する probe
+- block 2: 実 session から複数 frame を読み、depth 推論対象 frame を決める probe
+- block 3: `ARCore pose` / intrinsics と depth の整列確認 probe
+- block 4: world projection で point 群を書き出す probe
+- block 5: 最小 `3DGS` 系主空間モデル生成 probe
+- block 6: `gs_model`、`space_quality.json`、`SpacePackage` 保存 probe
+
+## shared worklog に貼る時の template
+
+- Codex は次の形で block を出す。
+
+```text
+# codex
+
+2026-03-29 v07 step-5a gsplat import probe。
+
+- 目的: `gsplat` import 可否と version を確認する。
+- 成功条件: import error が出ず、version または module path を取得できる。
+- 失敗時の扱い: install 不足か path 問題かを切り分ける。
+
+```python
+# Step 5a gsplat import probe
+...
+```
+```
+
+- admin は次の形で返す。
+
+```text
+# admin
+
+```text
+# Step 5a gsplat import probe res
+...
+```
+```
 
 ### Step 4: `1 frame` 推論を実行する
 

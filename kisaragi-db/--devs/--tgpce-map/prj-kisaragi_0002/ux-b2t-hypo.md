@@ -347,7 +347,7 @@
 - `MRL-9` では `td9` から `td11` で 4 app 骨格、role-specific UX、統合 app overview を固める
 - `MRL-10` では `td12`、`td13`、`tu20` で実 bundle 読込と request preflight を固める
 - `MRL-11` では `td14`、`td15`、`tu18`、`tu19`、`tu21` で `Google Drive` directory intake、waiting UX、安全 gate、status 更新を固める
-- `MRL-12` では `td16` から `td18` と `tu22`、`tu23` で `DA3Metric-Large` 前処理、metric depth、`3DGS` 系主空間モデル生成、download URL 付き result 受理を固める
+- `MRL-12` では `td16` から `td18` と `tu22`、`tu23` で `DA3Metric-Large` 前処理、`DA3Metric-Large` による `3DGS` 系主空間モデル生成までの system 構築、download URL 付き result 受理を固める
 - `MRL-13` では `td19` から `td21` で route 比較と採用 route 固定を固める
 - `MRL-14` では `td22`、`td23`、`tu28`、`tu29` で reviewing 実 bundle summary と実 `ReviewArtifact` viewer を固める
 
@@ -436,7 +436,7 @@
 | `MRL-11` | `mRL-11.1` | `Google Drive` directory bootstrap を確認する | `sd8`,`su12` | `bd16`,`bu16` | `td14`,`tu20` | `active` | `active` | `modeling batch 操作手順 7-9` と `da3_colab_clean_bootstrap_runbook.md` の `事前準備` / `準備確認` | `modeling batch 定義` |
 | `MRL-11` | `mRL-11.2` | waiting ring と status 更新を確認する | `su10`,`su13` | `bu14`,`bu17` | `tu18`,`tu21`,`td15` | `ready` | `active` | `modeling batch 操作手順 10-12` | `modeling batch 定義` |
 | `MRL-11` | `mRL-11.3` | remote modeling 安全 gate を確認する | `su11`,`sd11` | `bu15`,`bd20` | `tu19`,`td23` | `ready` | `ready` | `未収載` | `2026-03-28 \`MRL-11\` candidate evidence` |
-| `MRL-12` | `-` | `DA3Metric-Large` 実行、`3DGS` 系主空間モデル生成、result download 導線を成立させる | `su14`,`su15`,`sd9`,`sd11` | `bu18`,`bu19`,`bd17`,`bd20` | `tu22`,`tu23`,`td16`,`td17`,`td18`,`td23` | `active` | `active` | `modeling batch 操作手順 13-18, p-done / i-pass の判断, fail の判断` と `da3_colab_clean_bootstrap_runbook.md` の `Candidate Bootstrap v1` | `modeling batch 定義`, `2026-03-28 \`MRL-12\` candidate evidence` |
+| `MRL-12` | `-` | `DA3Metric-Large` による `3DGS` 系主空間モデル生成までの system 構築と result download 導線を成立させる | `su14`,`su15`,`sd9`,`sd11` | `bu18`,`bu19`,`bd17`,`bd20` | `tu22`,`tu23`,`td16`,`td17`,`td18`,`td23` | `active` | `active` | `modeling batch 操作手順 13-18, p-done / i-pass の判断, fail の判断` と `da3_colab_clean_bootstrap_runbook.md` の `Candidate Bootstrap v1` | `modeling batch 定義`, `2026-03-28 \`MRL-12\` candidate evidence` |
 | `MRL-12` | `mRL-12.1` | `DA3` input manifest と route export を確認する | `sd9` | `bd17` | `td16` | `active` | `active` | `modeling batch 操作手順 13-14` | `2026-03-28 \`MRL-12\` candidate evidence` |
 | `MRL-12` | `mRL-12.2` | `Colab` 上の metric depth と `3DGS` 系主空間モデル生成を確認する | `sd9`,`su14` | `bd17`,`bu18` | `td17`,`tu22` | `ready` | `active` | `modeling batch 操作手順 15-17` と `da3_colab_clean_bootstrap_runbook.md` の `Candidate Bootstrap v1` | `modeling batch 定義` |
 | `MRL-12` | `mRL-12.3` | `depth_estimation_report.json`、`space_quality.json`、`gs_model` を含む主空間要約を確認する | `su15`,`sd9` | `bu19`,`bd17` | `tu23`,`td18` | `ready` | `ready` | `未収載` | `2026-03-28 \`MRL-12\` candidate evidence` |

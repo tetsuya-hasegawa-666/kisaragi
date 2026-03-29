@@ -18,7 +18,7 @@
 
 - `DA3Metric-Large` の `Colab` bootstrap は、`2026-03-29` に `T4` 上で `Step 1` から `Step 4` まで end-to-end 通過した。
 - 成立済みなのは `single-frame bootstrap` であり、これは最終目標ではなく `modeling 本機能` への通過点である。
-- 現在の main target は、`MRL-12` の system 構築として `metric depth + world projection + 3DGS 系主空間モデル生成` を具体化し、`gs_model` を含む `SpacePackage` 実生成を成立させることである。
+- 現在の main target は、`MRL-12` の system 構築として `DA3Metric-Large` による `3DGS` 系主空間モデル生成までを具体化し、`gs_model` を含む `SpacePackage` 実生成を成立させることである。
 - `request 起点 UX`、`job_status`、`waiting ring`、`download URL` は、その後段で `MRL-11` から `MRL-13` を閉じるために実装する。
 
 ## 到達済み
