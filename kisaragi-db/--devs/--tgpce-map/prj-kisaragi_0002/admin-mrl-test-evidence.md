@@ -100,6 +100,27 @@
 - fail の時の要点:
 - evidence path:
 
+## 2026-03-29 modeling bootstrap candidate evidence
+
+- 対象 gate:
+  - `INITRL-1`
+  - `mINITRL-1.2`
+  - `MRL-11`
+  - `mRL-11.1`
+  - `MRL-12`
+  - `mRL-12.2`
+- 実施環境:
+  - `Google Colab`
+  - `T4`
+- 結果要点:
+  - `DA3Metric-Large` `Colab bootstrap` は blank workspace から `準備確認 1` から `Step 4` まで通過した
+  - `summary.json`、`depth_preview.png`、`depth_raw.npy` が生成された
+  - `prediction.conf`、`intrinsics`、`extrinsics` は `None` を許容し、single-frame の end-to-end 完了を確認した
+  - `HF_TOKEN` warning は public model download の範囲では blocker ではなかった
+- evidence path:
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md`
+  - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/sharedlogs_da3-colab.md`
+
 ## reviewing batch 定義
 
 - 対象 `MRL`:

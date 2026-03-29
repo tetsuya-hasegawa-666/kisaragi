@@ -22,9 +22,9 @@
 ## 現在の status
 
 - `candidate` はあり
-- `adopted` は未成立
-- 現在の blocker は、`Step 4` の core 推論自体は通るが、`prediction.conf` を必須と仮定した保存処理が `None` で落ちる点である
-- 現在は blank restart を強制せず、同じ runtime で blocker を潰しながら bootstrap 仕様を確定する段階である
+- `adopted` はあり
+- `2026-03-29` に admin 実測で `Step 1` から `Step 4` まで end-to-end 完了した
+- 現在の次段は、single-frame bootstrap 成立を踏まえて request 起点 UX、waiting ring、download URL、複数 frame / route 比較へ広げる点である
 - `HF_TOKEN` warning は public model の download では optional であり、現段階の blocker ではない
 - `gsplat` warning は出るが、これは `3DGS rendering` 用の optional dependency であり、現在の `DA3Metric-Large` `1 frame` 推論の blocker ではない
 
@@ -258,5 +258,26 @@ print("saved:", OUTPUT_ROOT)
 
 ## Adopted Bootstrap
 
-- 未確定
-- admin 実測で fresh runtime から end-to-end 完了した時に、ここへ `truly pass` 手順を昇格する
+### Adopted Bootstrap v1
+
+- 実施日: `2026-03-29`
+- 実施者: `admin`
+- 実行環境:
+  - `Google Colab`
+  - `T4`
+  - `device = cuda`
+- 採用理由:
+  - blank workspace から `準備確認 1` から `Step 4` まで通った
+  - `summary.json`、`depth_preview.png`、`depth_raw.npy` が生成された
+  - `conf`、`intrinsics`、`extrinsics` は `None` 許容で end-to-end 完了した
+- 採用手順:
+  - 現時点では `Candidate Bootstrap v1` の手順をそのまま `Adopted Bootstrap v1` として採用する
+- 実測 summary:
+  - `image_path`: `/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000009.jpg`
+  - `device`: `cuda`
+  - `depth_shape`: `[378, 504]`
+  - `conf_shape`: `null`
+  - `intrinsics_shape`: `null`
+  - `extrinsics_shape`: `null`
+  - `depth_min`: `0.31544607877731323`
+  - `depth_max`: `4.0310516357421875`

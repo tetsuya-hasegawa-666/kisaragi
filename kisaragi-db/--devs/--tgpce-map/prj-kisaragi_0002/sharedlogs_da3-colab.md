@@ -415,70 +415,38 @@ print("saved:", OUTPUT_ROOT)
 
 ```text
 # Step 4 rerun v05 res
+[INFO ] using MLP layer as FFN
+[INFO ] Processed Images Done taking 0.013252019882202148 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.47681665420532227 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0010962486267089844 seconds
+{
+  "image_path": "/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000009.jpg",
+  "device": "cuda",
+  "depth_shape": [
+    378,
+    504
+  ],
+  "conf_shape": null,
+  "intrinsics_shape": null,
+  "extrinsics_shape": null,
+  "depth_min": 0.31544607877731323,
+  "depth_max": 4.0310516357421875
+}
+saved: /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05
 
 ```
 
+# codex
 
+2026-03-29 v06 bootstrap success。
 
-Mounted at /content/drive
-cwd /content
-cuda_available True
-drive_exists True
-mydrive_exists True
-shortcut_root_exists True
-
-
-
-folder_root_exists True /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_
-zip_exists True /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/session-20260328-103250.zip
-
-
-repo_exists_before_bootstrap False
-extract_root_exists_before_bootstrap False
-
-
-session_root_exists True /content/trajectreview_input/session-20260328-103250/trajectreview
-images_dir_exists True /content/trajectreview_input/session-20260328-103250/trajectreview/images
-image_count 182
-first_image /content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000009.jpg
-
-
-
-RUN git clone https://github.com/ByteDance-Seed/Depth-Anything-3.git /content/Depth-Anything-3
-RUN python -m pip install --quiet addict evo moviepy==1.0.3 pygame pycolmap plyfile trimesh
-bootstrap_done True /content/Depth-Anything-3
-
-
-
-src_root_exists True /content/Depth-Anything-3/src
-/usr/local/lib/python3.12/dist-packages/moviepy/config_defaults.py:47: SyntaxWarning: invalid escape sequence '\P'
-  IMAGEMAGICK_BINARY = r"C:\Program Files\ImageMagick-6.8.8-Q16\magick.exe"
-/usr/local/lib/python3.12/dist-packages/moviepy/video/io/ffmpeg_reader.py:294: SyntaxWarning: invalid escape sequence '\d'
-  lines_video = [l for l in lines if ' Video: ' in l and re.search('\d+x\d+', l)]
-/usr/local/lib/python3.12/dist-packages/moviepy/video/io/ffmpeg_reader.py:367: SyntaxWarning: invalid escape sequence '\d'
-  rotation_lines = [l for l in lines if 'rotate          :' in l and re.search('\d+$', l)]
-/usr/local/lib/python3.12/dist-packages/moviepy/video/io/ffmpeg_reader.py:370: SyntaxWarning: invalid escape sequence '\d'
-  match = re.search('\d+$', rotation_line)
-WARNING:py.warnings:/usr/local/lib/python3.12/dist-packages/moviepy/video/io/sliders.py:61: SyntaxWarning: "is" with 'str' literal. Did you mean "=="?
-  if event.key is 'enter':
-
-[WARN ] Dependency `gsplat` is required for rendering 3DGS. Install via: pip install git+https://github.com/nerfstudio-project/gsplat.git@0b4dddf04cb687367602c01196913cde6a743d70
-import_ok <class 'depth_anything_3.api.DepthAnything3'>
-
-
-[INFO ] using MLP layer as FFN
-Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-WARNING:huggingface_hub.utils._http:Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-[INFO ] Processed Images Done taking 0.015592813491821289 seconds. Shape:  torch.Size([1, 3, 378, 504])
-[INFO ] Model Forward Pass Done. Time: 0.467714786529541 seconds
-[INFO ] Conversion to Prediction Done. Time: 0.0012240409851074219 seconds
----------------------------------------------------------------------------
-TypeError                                 Traceback (most recent call last)
-/tmp/ipykernel_6304/3880107111.py in <cell line: 0>()
-     20 
-     21 depth = np.asarray(prediction.depth[0])
----> 22 conf = np.asarray(prediction.conf[0])
-     23 intrinsics = np.asarray(prediction.intrinsics[0])
-     24 extrinsics = np.asarray(prediction.extrinsics[0])
-
-TypeError: 'NoneType' object is not subscriptable
+- `Adopted Bootstrap v1` を成立として扱います。
+- ここまでの single-frame bootstrap は end-to-end で通過しました。
+- この結果は次の candidate evidence に反映済みです。
+  - `INITRL-1`
+  - `mINITRL-1.2`
+  - `MRL-11`
+  - `mRL-11.1`
+  - `MRL-12`
+  - `mRL-12.2`
+- 次段は bootstrap そのものではなく、request 起点 UX、waiting ring、download URL、複数 frame / route 比較です。
