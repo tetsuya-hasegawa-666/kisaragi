@@ -1376,5 +1376,85 @@ print(json.dumps(space_package, indent=2))
 
 ```text
 # Step 5n space package smoke manifest res
+space_package_exists True /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05/space_package_smoke.json
+{
+  "coordinate_system": "arcore_local",
+  "camera_path_source": "arcore_pose.jsonl",
+  "gs_model": {
+    "artifact_type": "gs_model_smoke",
+    "renderer": "gsplat",
+    "manifest_path": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05/gs_model_smoke.json",
+    "preview_path": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05/gsplat_render_smoke.png",
+    "point_cloud_npy": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05/world_points_smoke.npy",
+    "point_cloud_ply": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05/world_points_smoke.ply"
+  },
+  "quality": {
+    "gsplat_rasterization_smoke": "pass",
+    "num_points": 128,
+    "render_png": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05/gsplat_render_smoke.png",
+    "info_keys": [
+      "batch_ids",
+      "camera_ids",
+      "conics",
+      "depths",
+      "flatten_ids",
+      "gaussian_ids",
+      "height",
+      "isect_ids",
+      "isect_offsets",
+      "means2d",
+      "n_batches",
+      "n_cameras",
+      "opacities",
+      "radii",
+      "tile_height",
+      "tile_size",
+      "tile_width",
+      "tiles_per_gauss",
+      "width"
+    ]
+  }
+}
+```
+
+# codex
+
+2026-03-29 v21 next action。
+
+- `Step 5n` は成功です。smoke artifact を `SpacePackage` 形へ接続できました。
+- 次は smoke 名のままではなく、`MRL-12` の handoff を意識して正式 contract 側へ寄せます。
+- 目的は `gs_model`、`space_quality.json`、`SpacePackage` を後段が読む file 名と path に近づけることです。
+
+```python
+# Step 5o contract naming probe
+import json
+from pathlib import Path
+
+out_dir = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05")
+space_package_smoke = out_dir / "space_package_smoke.json"
+space_quality_smoke = out_dir / "space_quality_smoke.json"
+gs_model_smoke = out_dir / "gs_model_smoke.json"
+
+space_package = json.loads(space_package_smoke.read_text(encoding="utf-8"))
+space_quality = json.loads(space_quality_smoke.read_text(encoding="utf-8"))
+gs_model = json.loads(gs_model_smoke.read_text(encoding="utf-8"))
+
+space_package_contract = out_dir / "space_package.contract.json"
+space_quality_contract = out_dir / "space_quality.contract.json"
+gs_model_contract = out_dir / "gs_model.contract.json"
+
+space_package_contract.write_text(json.dumps(space_package, indent=2), encoding="utf-8")
+space_quality_contract.write_text(json.dumps(space_quality, indent=2), encoding="utf-8")
+gs_model_contract.write_text(json.dumps(gs_model, indent=2), encoding="utf-8")
+
+print("space_package_contract_exists", space_package_contract.exists(), space_package_contract)
+print("space_quality_contract_exists", space_quality_contract.exists(), space_quality_contract)
+print("gs_model_contract_exists", gs_model_contract.exists(), gs_model_contract)
+```
+
+# admin
+
+```text
+# Step 5o contract naming probe res
 
 ```
