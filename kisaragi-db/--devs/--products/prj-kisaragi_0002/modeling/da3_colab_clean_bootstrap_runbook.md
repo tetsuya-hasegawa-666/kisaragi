@@ -19,25 +19,6 @@
 - `truly pass` と表現してよいのは、fresh runtime からこの runbook の `adopted` 手順で end-to-end 完了した時だけとする。
 - ただし、bootstrap 仕様の未確定点を詰めている途中は、現在の runtime を維持したまま blocker を 1 件ずつ解消し、その結果をこの文書へ反映してよい。
 
-## 現在の status
-
-- `candidate` はあり
-- `adopted` はあり
-- `2026-03-29` に admin 実測で `Step 1` から `Step 4` まで end-to-end 完了した
-- 現在の次段は、single-frame bootstrap と `3DGS` 系主空間モデル生成 smoke 成立を踏まえて、`mRL-7.1` の `multi-frame` densify、`PLY` でぼんやり見える再現モデル、主カメラ path 対応確認へ広げる点である
-- `HF_TOKEN` warning は public model の download では optional であり、現段階の blocker ではない
-- `gsplat` warning は single-frame bootstrap では blocker ではなかったが、今後の `3DGS` 系主空間モデル生成では import と実行可否を明示確認する必要がある
-- `2026-03-29` の `Step 5b gsplat install probe` では、`Python 3.12` の `Colab` runtime 上で `pip install gsplat` が成功し、`gsplat 1.5.3` が `/usr/local/lib/python3.12/dist-packages` に入ることを確認した
-- `2026-03-29` の `Step 5c` と `Step 5d` と `Step 5e` により、`gsplat 1.5.3` は import 可能で、`rasterization`、`rasterization_2dgs`、`fully_fused_projection` が callable として利用可能だと確認した
-- `2026-03-29` の `Step 5f` から `Step 5j` により、bundle 実配置、`arcore_pose.jsonl` の実 path、pose / intrinsics payload、depth 1 点の world back-projection smoke test が成功した
-- `2026-03-29` の `Step 5k` により、`DA3Metric-Large` depth と `ARCore pose` / intrinsics から主 `ARCore` 空間の point 群を `.npy` と `.ply` で保存できることを確認した
-- `2026-03-29` の `Step 5l` により、`gsplat.rasterization` を `cuda` 上で呼び、`render_colors` と `render_alphas` を返せることを確認した
-- `2026-03-29` の `Step 5m` により、`gsplat_render_smoke.png`、`gs_model_smoke.json`、`space_quality_smoke.json` を保存できることを確認した
-- `2026-03-29` の `Step 5n` により、`space_package_smoke.json` を生成し、`gs_model` 候補 artifact と `quality` を `SpacePackage` 形へ接続できることを確認した
-- `2026-03-29` の `Step 5o` により、`space_package.contract.json`、`space_quality.contract.json`、`gs_model.contract.json` を生成し、smoke artifact を contract 名へ寄せられることを確認した
-- `2026-03-29` の `Step 5p` により、single-frame bootstrap から `3DGS` 系主空間モデル生成 smoke までの到達 artifact 一式がそろっていることを確認した
-- 現在の次 block は `mRL-7.1` に向けた `10s` window 特定、sampled frame 選定、multi-frame point cloud 統合である
-
 ## 事前準備
 
 - `Google Colab` notebook を新規に開く
@@ -248,6 +229,68 @@ print("import_ok", DepthAnything3)
 
 - `Dependency gsplat is required for rendering 3DGS` の warning は、`DepthAnything3` import 時に `3DGS rendering` 系 code path が見えていることを示す。
 - 現在の runbook では `DA3Metric-Large` metric depth と `3DGS` 系主空間モデル生成 smoke までを対象にするため、`gsplat` は必須 dependency として install する。
+
+### Step 4: `1 frame` 推論を実行する
+
+- 推奨:
+  - `cuda_available True` の状態で実行する
+  - `CPU` のままでも試せるが、途中停止や長時間待機が起きやすい
+  - `Step 1` から `Step 3` が通った時点でいったん止め、後で `GPU` runtime に切り替えて `Step 4` から再開してよい
+
+```python
+import json
+from pathlib import Path
+
+import numpy as np
+from PIL import Image
+import torch
+from depth_anything_3.api import DepthAnything3
+
+SESSION_ROOT = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+OUTPUT_ROOT = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v24")
+OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+
+images = sorted((SESSION_ROOT / "images").glob("*.png")) + sorted((SESSION_ROOT / "images").glob("*.jpg")) + sorted((SESSION_ROOT / "images").glob("*.jpeg"))
+assert images, f"images not found under {SESSION_ROOT / 'images'}"
+
+image_path = images[0]
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = DepthAnything3.from_pretrained("depth-anything/DA3METRIC-LARGE").to(device=device)
+prediction = model.inference([str(image_path)])
+
+depth = np.asarray(prediction.depth[0])
+conf = None if prediction.conf is None else np.asarray(prediction.conf[0])
+intrinsics = None if prediction.intrinsics is None else np.asarray(prediction.intrinsics[0])
+extrinsics = None if prediction.extrinsics is None else np.asarray(prediction.extrinsics[0])
+
+depth_min = float(depth.min())
+depth_max = float(depth.max())
+depth_norm = np.zeros_like(depth, dtype=np.float32) if depth_max <= depth_min else (depth - depth_min) / (depth_max - depth_min)
+Image.fromarray((depth_norm * 255).astype(np.uint8)).save(OUTPUT_ROOT / "depth_preview.png")
+
+np.save(OUTPUT_ROOT / "depth_raw.npy", depth)
+if conf is not None:
+    np.save(OUTPUT_ROOT / "conf_raw.npy", conf)
+if intrinsics is not None:
+    np.save(OUTPUT_ROOT / "intrinsics.npy", intrinsics)
+if extrinsics is not None:
+    np.save(OUTPUT_ROOT / "extrinsics.npy", extrinsics)
+
+summary = {
+    "image_path": str(image_path),
+    "device": str(device),
+    "depth_shape": list(depth.shape),
+    "conf_shape": None if conf is None else list(conf.shape),
+    "intrinsics_shape": None if intrinsics is None else list(intrinsics.shape),
+    "extrinsics_shape": None if extrinsics is None else list(extrinsics.shape),
+    "depth_min": depth_min,
+    "depth_max": depth_max,
+}
+
+(OUTPUT_ROOT / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+print(json.dumps(summary, indent=2))
+print("saved:", OUTPUT_ROOT)
+```
 
 ### Step 4.5: `gsplat` surface を最小確認する
 
@@ -471,122 +514,6 @@ for name in [
 - `space_quality.contract.json`
 - `space_package.contract.json`
 
-## 次段の shared worklog 運用
-
-- `gsplat` import から実データ `3DGS` 系主空間モデル生成までの command block は、この runbookへ即断で長文化せず、まず [sharedlogs_da3-colab.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\sharedlogs_da3-colab.md) で `# codex v**` と `# admin` の往復で確定させる。
-- Codex は 1 回につき 1 つの目的だけを持つ短い command block を shared worklog へ追記する。
-- admin は block ごとの実行結果を、その block title を保ったまま `# admin` に貼り戻す。
-- Codex は結果を読んで、次 block を出すか、runbook / 正本文書へ昇格させるかを判断する。
-- shared worklog で成立した持続事項は、この runbook、[ux-b2t-hypo.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\ux-b2t-hypo.md)、必要なら admin evidence へ同じ task 内で反映する。
-
-## 次段でやること
-
-- `Step 7a`: `10s` 前後の連続 window を 1 件決め、`multi-frame` densify に使う sampled frame 群を特定する。
-- `Step 7b`: sampled frame ごとに `DA3Metric-Large` depth を生成し、pose / intrinsics と同一 frame 集合へ揃える。
-- `Step 7c`: 複数 frame の world point cloud を統合し、single-frame より密な `.npy` / `.ply` を保存する。
-- `Step 7d`: `PLY` viewer でぼんやり見える再現モデルと主カメラ path の対応を確認する。
-- `Step 7e`: この段で必要な preview / summary / evidence bundle を整理し、`MRL-7` closeout 候補へ接続する。
-
-## shared worklog へ出す command block の単位
-
-- block 1: `10s` window と sampled frame 候補を決める probe
-- block 2: sampled frame ごとの depth 対象と pose / intrinsics 整列を確認する probe
-- block 3: multi-frame world projection で point 群を書き出す probe
-- block 4: `PLY` と preview を保存する probe
-- block 5: evidence bundle と closeout 用 summary を保存する probe
-
-## shared worklog に貼る時の template
-
-- Codex は次の形で block を出す。
-
-```text
-# codex
-
-2026-03-29 v07 step-5a gsplat import probe。
-
-- 目的: `gsplat` import 可否と version を確認する。
-- 成功条件: import error が出ず、version または module path を取得できる。
-- 失敗時の扱い: install 不足か path 問題かを切り分ける。
-
-```python
-# Step 5a gsplat import probe
-...
-```
-```
-
-- admin は次の形で返す。
-
-```text
-# admin
-
-```text
-# Step 5a gsplat import probe res
-...
-```
-```
-
-### Step 4: `1 frame` 推論を実行する
-
-- 推奨:
-  - `cuda_available True` の状態で実行する
-  - `CPU` のままでも試せるが、途中停止や長時間待機が起きやすい
-  - `Step 1` から `Step 3` が通った時点でいったん止め、後で `GPU` runtime に切り替えて `Step 4` から再開してよい
-
-```python
-import json
-from pathlib import Path
-
-import numpy as np
-from PIL import Image
-import torch
-from depth_anything_3.api import DepthAnything3
-
-SESSION_ROOT = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
-OUTPUT_ROOT = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v24")
-OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
-
-images = sorted((SESSION_ROOT / "images").glob("*.png")) + sorted((SESSION_ROOT / "images").glob("*.jpg")) + sorted((SESSION_ROOT / "images").glob("*.jpeg"))
-assert images, f"images not found under {SESSION_ROOT / 'images'}"
-
-image_path = images[0]
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = DepthAnything3.from_pretrained("depth-anything/DA3METRIC-LARGE").to(device=device)
-prediction = model.inference([str(image_path)])
-
-depth = np.asarray(prediction.depth[0])
-conf = None if prediction.conf is None else np.asarray(prediction.conf[0])
-intrinsics = None if prediction.intrinsics is None else np.asarray(prediction.intrinsics[0])
-extrinsics = None if prediction.extrinsics is None else np.asarray(prediction.extrinsics[0])
-
-depth_min = float(depth.min())
-depth_max = float(depth.max())
-depth_norm = np.zeros_like(depth, dtype=np.float32) if depth_max <= depth_min else (depth - depth_min) / (depth_max - depth_min)
-Image.fromarray((depth_norm * 255).astype(np.uint8)).save(OUTPUT_ROOT / "depth_preview.png")
-
-np.save(OUTPUT_ROOT / "depth_raw.npy", depth)
-if conf is not None:
-    np.save(OUTPUT_ROOT / "conf_raw.npy", conf)
-if intrinsics is not None:
-    np.save(OUTPUT_ROOT / "intrinsics.npy", intrinsics)
-if extrinsics is not None:
-    np.save(OUTPUT_ROOT / "extrinsics.npy", extrinsics)
-
-summary = {
-    "image_path": str(image_path),
-    "device": str(device),
-    "depth_shape": list(depth.shape),
-    "conf_shape": None if conf is None else list(conf.shape),
-    "intrinsics_shape": None if intrinsics is None else list(intrinsics.shape),
-    "extrinsics_shape": None if extrinsics is None else list(extrinsics.shape),
-    "depth_min": depth_min,
-    "depth_max": depth_max,
-}
-
-(OUTPUT_ROOT / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
-print(json.dumps(summary, indent=2))
-print("saved:", OUTPUT_ROOT)
-```
-
 ### 成功判定
 
 - `session_root_exists True`
@@ -600,49 +527,3 @@ print("saved:", OUTPUT_ROOT)
 - `world_points_smoke.npy` と `world_points_smoke.ply` が保存される
 - `gsplat_render_smoke.png`、`gs_model_smoke.json`、`space_quality_smoke.json` が保存される
 - `space_package_smoke.json`、`gs_model.contract.json`、`space_quality.contract.json`、`space_package.contract.json` が保存される
-
-## Adopted Bootstrap
-
-### Adopted Bootstrap v1
-
-- 実施日: `2026-03-29`
-- 実施者: `admin`
-- 実行環境:
-  - `Google Colab`
-  - `T4`
-  - `device = cuda`
-- 採用理由:
-  - blank workspace から `準備確認 1` から `Step 4` まで通った
-  - `summary.json`、`depth_preview.png`、`depth_raw.npy` が生成された
-  - `conf`、`intrinsics`、`extrinsics` は `None` 許容で end-to-end 完了した
-- 採用手順:
-  - 現時点では `Candidate Bootstrap v1` の手順をそのまま `Adopted Bootstrap v1` として採用する
-- 実測 summary:
-  - `image_path`: `/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000009.jpg`
-  - `device`: `cuda`
-  - `depth_shape`: `[378, 504]`
-  - `conf_shape`: `null`
-  - `intrinsics_shape`: `null`
-  - `extrinsics_shape`: `null`
-  - `depth_min`: `0.31544607877731323`
-  - `depth_max`: `4.0310516357421875`
-
-## Candidate 拡張状況
-
-- `2026-03-29` 時点で、`Candidate Bootstrap v1` は single-frame depth bootstrap だけでなく、以下の `3DGS` 系主空間モデル生成 smoke まで到達済みである。
-- 到達 artifact:
-  - `depth_raw.npy`
-  - `depth_preview.png`
-  - `world_points_smoke.npy`
-  - `world_points_smoke.ply`
-  - `gsplat_render_smoke.png`
-  - `gs_model_smoke.json`
-  - `space_quality_smoke.json`
-  - `space_package_smoke.json`
-  - `gs_model.contract.json`
-  - `space_quality.contract.json`
-  - `space_package.contract.json`
-- この段階は `MRL-5` の `gs_model` 候補 artifact と `SpacePackage` smoke contract を作れることの candidate proof である。
-- admin が `Google Colab` の `T4` で実行した notebook 証跡は `modeling/evidence/trajectreview_modeling_20260329_gpu-evidence.ipynb` に置き、candidate closeout を裏づける product 側 evidence として扱う。
-- admin が Colab から download した smoke artifact 一式は `modeling/evidence/da3_smoke_v05/` に置き、local 可視化確認と `MRL-6` candidate evidence の bundle として扱う。
-- まだ admin evidence 正本と `MRL-5` / `MRL-6` closeout への反映は別途必要であり、この runbook 単独で `i-pass` を意味しない。
