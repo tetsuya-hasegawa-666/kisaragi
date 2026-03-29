@@ -59,15 +59,17 @@
 ## modeling batch 定義
 
 - 補助 UX gate 兼用:
-  - `INITRL-1`
-  - `mINITRL-1.2`
+  - `MRL-0`
+  - `mRL-0.2`
 - 対象 `MRL`:
+  - `MRL-0`
   - `MRL-8`
   - `MRL-10`
   - `MRL-11`
   - `MRL-12`
   - `MRL-13`
 - 対象 `mRL`:
+  - `mRL-0.2`
   - `mRL-8.1` から `mRL-8.3`
   - `mRL-10.1` から `mRL-10.2`
   - `mRL-11.1` から `mRL-11.3`
@@ -80,8 +82,9 @@
   - `Google Drive` directory 指定で `Colab` route を起動できる
   - waiting ring、現在段階、`job_status.json` の更新を request 元画面で読める
   - 完了後に download URL と result summary が表示される
-  - `benchmark_summary.json` と `selected_route.json` により route 比較と暫定採用が読める
   - remote result import 後に `SpacePackage`、`TrajectoryPackage`、`modeling_handoff_manifest.json` が更新される
+  - `benchmark_summary.json` と `selected_route.json` による route 比較と採用固定は後続 `MRL-**` の課題とする
+  - `MRL-13` は 10s 前後の整った実動画から `multi-frame` densify で粗い再現モデルを得る段とし、route 比較本体には含めない
 
 ### modeling batch 記録テンプレート
 
@@ -90,8 +93,8 @@
 - 実施者: `admin`
 - 端末 / 環境:
 - 対象 `MRL` / `mRL`:
-  - `INITRL-1`
-  - `mINITRL-1.2`
+  - `MRL-0`
+  - `mRL-0.2`
   - `MRL-8`
   - `MRL-10`
   - `MRL-11`
@@ -104,8 +107,8 @@
 ## 2026-03-29 modeling bootstrap candidate evidence
 
 - 対象 gate:
-  - `INITRL-1`
-  - `mINITRL-1.2`
+  - `MRL-0`
+  - `mRL-0.2`
   - `MRL-11`
   - `mRL-11.1`
   - `MRL-12`
@@ -118,6 +121,7 @@
   - `summary.json`、`depth_preview.png`、`depth_raw.npy` が生成された
   - `prediction.conf`、`intrinsics`、`extrinsics` は `None` を許容し、single-frame の end-to-end 完了を確認した
   - `HF_TOKEN` warning は public model download の範囲では blocker ではなかった
+  - `MRL-13` の route 比較や採用固定はこの bootstrap candidate には含めず、後続 `MRL-**` の課題とした
 - evidence path:
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md`
   - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/sharedlogs_da3-colab.md`
