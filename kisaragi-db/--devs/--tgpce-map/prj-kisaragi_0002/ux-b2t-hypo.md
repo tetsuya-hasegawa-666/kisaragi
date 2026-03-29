@@ -92,6 +92,7 @@
 - admin 提示の Google Drive folder URL があり、その folder が `共有アイテム` 側または shortcut 側にだけ存在して `MyDrive` 直下へ見えていない可能性がある
 - 次段の `Colab` probe は `.shortcut-targets-by-id` と account / shortcut 状態を確認し、mount account と実 folder 可視性を切り分ける
 - admin から `ショートカット追加済み`、`account 正しい` が確認されたため、次段は `.shortcut-targets-by-id/<folder-id>/` の直接確認で実 path を特定する
+- `.shortcut-targets-by-id/<folder-id>/trajectreview/correcting/session-20260328-103250.zip` が実入力候補として見えたため、次段は Colab 作業用 directory への unzip / `session_root` 正規化へ進む
 - `DA3Metric-Large` の最適な package / module 構成、weight 配布元、download URL の返却方式は未決定である
 - 人物 path の視覚再拘束に使う実データ条件が未確定である
 - `ReviewArtifact` の最終 viewer 実装先は Android 固定ではない

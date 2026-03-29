@@ -585,12 +585,101 @@ if target.exists():
 
 ```text
 # Shortcut root inspect v20 res
-
+exists True /content/drive/.shortcut-targets-by-id
 ```
 
 # admin
 
 ```text
 # Folder id direct inspect v20 res
+target_exists True /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_
+/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview
+/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting
+/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/session-20260328-103250.zip
+/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/trajectreview-correcting-export.zip
+/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results
+/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v7
+
+```
+
+# codex
+
+2026-03-29 v21。
+
+- 実データの置き場は見えました。main root は次です。
+  - `/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview`
+- その下に `correcting/session-20260328-103250.zip` があるので、次はこの zip を Colab 作業用 directory に unzip して `session_root` を正規化します。
+- `results/da3_smoke_v7` は既存結果置き場なので、入力は `correcting/session-20260328-103250.zip` を優先します。
+
+```python
+# Unzip session v21
+from pathlib import Path
+import zipfile
+import shutil
+
+zip_path = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/session-20260328-103250.zip")
+extract_root = Path("/content/trajectreview_input")
+
+if extract_root.exists():
+    shutil.rmtree(extract_root)
+extract_root.mkdir(parents=True, exist_ok=True)
+
+with zipfile.ZipFile(zip_path, "r") as zf:
+    zf.extractall(extract_root)
+
+print("zip_exists", zip_path.exists(), zip_path)
+print("extract_root", extract_root)
+for p in sorted(extract_root.rglob("*")):
+    print(p)
+```
+
+```python
+# Detect session_root v21
+from pathlib import Path
+
+extract_root = Path("/content/trajectreview_input")
+candidates = list(extract_root.rglob("session_package.json"))
+print("session_package_count", len(candidates))
+for p in candidates:
+    print("session_package", p)
+    print("session_root_candidate", p.parent)
+```
+
+```python
+# Check images under detected session_root v21
+from pathlib import Path
+
+SESSION_ROOT = Path("/content/trajectreview_input/<ここを session_root_candidate に置換>")
+images_dir = SESSION_ROOT / "images"
+print("session_root_exists", SESSION_ROOT.exists(), SESSION_ROOT)
+print("images_dir_exists", images_dir.exists(), images_dir)
+if images_dir.exists():
+    files = sorted(images_dir.glob("*.png")) + sorted(images_dir.glob("*.jpg")) + sorted(images_dir.glob("*.jpeg"))
+    print("image_count", len(files))
+    if files:
+        print("first_image", files[0])
+```
+
+- `session_package_count >= 1` で `images_dir_exists True`、`image_count >= 1` まで行けたら、次段は `Cell D` の `SESSION_ROOT` をその path に置き換えて再実行します。
+- 上の 3 cell の結果を返してください。
+
+# admin
+
+```text
+# Unzip session v21 res
+
+```
+
+# admin
+
+```text
+# Detect session_root v21 res
+
+```
+
+# admin
+
+```text
+# Check images under detected session_root v21 res
 
 ```
