@@ -785,5 +785,75 @@ for path in sorted(root.rglob("*")):
 
 ```text
 # Step 5g bundle layout probe res
+ROOT /content/trajectreview_input/session-20260328-103250 True
+FILE arcore_pose.jsonl
+FILE ble_scan.jsonl
+FILE gnss.csv
+FILE imu.csv
+FILE session_manifest.json
+DIR  trajectreview
+FILE trajectreview/frame_pose_index.csv
+DIR  trajectreview/images
+FILE trajectreview/space_handoff_manifest.json
+FILE video_events.jsonl
+FILE video_frame_timestamps.csv
+```
+
+# codex
+
+2026-03-29 v14 next action。
+
+- `arcore_pose.jsonl` の実体 path は session root 直下だと確認できました。
+- これで path blocker は解消です。
+- 次は `arcore_pose.jsonl` の record key と、`frame_pose_index.csv` の `pose_record_index` で参照できる実 pose record を 1 件取り、world projection に必要な最小 pose / intrinsics 入力を確定します。
+
+```python
+# Step 5h pose record probe
+import csv
+import json
+from pathlib import Path
+
+root = Path("/content/trajectreview_input/session-20260328-103250")
+session_root = root / "trajectreview"
+frame_pose_index_path = session_root / "frame_pose_index.csv"
+arcore_pose_path = root / "arcore_pose.jsonl"
+
+rows = []
+with frame_pose_index_path.open("r", encoding="utf-8") as f:
+    reader = csv.DictReader(f)
+    for i, row in enumerate(reader):
+        rows.append(row)
+        if i >= 9:
+            break
+
+poses = []
+with arcore_pose_path.open("r", encoding="utf-8") as f:
+    for line in f:
+        poses.append(json.loads(line))
+
+print("frame_pose_index_count_sample", len(rows))
+print("arcore_pose_count", len(poses))
+
+target = None
+for row in rows:
+    idx = int(row["pose_record_index"])
+    if 0 <= idx < len(poses):
+        target = (row, poses[idx])
+        break
+
+print("target_found", target is not None)
+if target is not None:
+    row, pose = target
+    print("frame_pose_row", row)
+    print("pose_keys", sorted(pose.keys()))
+    for k in ["timestampNs", "elapsedRealtimeNanos", "trackingState", "cameraPose", "imageIntrinsics", "textureIntrinsics", "lensDistortion"]:
+        if k in pose:
+            print("pose_field", k, pose[k] if isinstance(pose[k], (int, float, str, type(None))) else type(pose[k]).__name__)
+```
+
+# admin
+
+```text
+# Step 5h pose record probe res
 
 ```
