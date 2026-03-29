@@ -17,12 +17,14 @@
 - `Colab` runtime が揮発した時は、途中 patch の継ぎ足しより、この runbook の先頭からやり直すことを既定とする。
 - shared worklog に新しい回避策が出た時は、この文書へ昇格が必要かを同じ task 内で判断する。
 - `truly pass` と表現してよいのは、fresh runtime からこの runbook の `adopted` 手順で end-to-end 完了した時だけとする。
+- ただし、bootstrap 仕様の未確定点を詰めている途中は、現在の runtime を維持したまま blocker を 1 件ずつ解消し、その結果をこの文書へ反映してよい。
 
 ## 現在の status
 
 - `candidate` はあり
 - `adopted` は未成立
-- 現在の blocker は、fresh runtime で DA3 repo と custom dependency を戻した後に `1 frame` 推論が end-to-end で通るか未確認な点である
+- 現在の blocker は、`Step 3` で `plyfile` が未install のため `depth_anything_3.api` import が止まる点である
+- 現在は blank restart を強制せず、同じ runtime で blocker を潰しながら bootstrap 仕様を確定する段階である
 
 ## 事前準備
 
@@ -146,7 +148,7 @@ if repo_root.exists():
     shutil.rmtree(repo_root)
 
 run(["git", "clone", "https://github.com/ByteDance-Seed/Depth-Anything-3.git", str(repo_root)])
-run(["python", "-m", "pip", "install", "--quiet", "addict", "evo", "moviepy==1.0.3", "pygame", "pycolmap"])
+run(["python", "-m", "pip", "install", "--quiet", "addict", "evo", "moviepy==1.0.3", "pygame", "pycolmap", "plyfile"])
 print("bootstrap_done", repo_root.exists(), repo_root)
 ```
 
