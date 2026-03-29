@@ -352,7 +352,7 @@
 - `MRL-11` では `td14`、`td15`、`tu18`、`tu19`、`tu21` で `Google Drive` directory intake、waiting UX、安全 gate、status 更新を固める
 - `MRL-12` では `td16` から `td18` と `tu22`、`tu23` で `DA3Metric-Large` 前処理、`DA3Metric-Large` による `3DGS` 系主空間モデル生成までの system 構築、smoke artifact 取得を固める
 - `MRL-13` では `td19` を中心に `10s` 前後の整った実動画から `multi-frame` densify を行い、ぼんやり見える再現モデルを得る
-- `MRL-**` では route 比較、採用 route 固定、request / status UX、reviewing viewer、正式統合を、admin が手を動かす modeling 実態に合わせて順次切り出す
+- 後続の利用者向け `MRL-**` では route 比較、採用 route 固定、request / status UX、reviewing viewer、正式統合を、admin が手を動かす modeling 実態に合わせて順次切り出す
 
 ### 現在の見立て
 - `tu1` から `tu7` と `td1` から `td8` の基礎 task は、契約実装、project 境界 scan、output routing 実行で `p-done` になった
@@ -440,7 +440,7 @@
 | `MRL-13` | `mRL-13.1` | `10s` 前後の整った実動画から `multi-frame` sampling route を回し、`PLY` でぼんやり見える再現モデルと主カメラ path の対応を確認する | `sd9`,`su15` | `bd18`,`bu19` | `td19` | `active` | `ready` | `未収載` | `2026-03-28 \`MRL-13\` candidate evidence` |
 | `MRL-13` | `mRL-13.**` | 補助比較や追加確認が必要なら、実測に応じて route 差分確認を切り出す | `sd9`,`sd11` | `bd18`,`bd20` | `td20`,`td21`,`td23` | `ready` | `ready` | `未収載` | `未収載` |
 
-### 運営者主導 gate
+### 利用者向け後続 `MRL-**` に紐づく運営者補助 gate
 | MRL | mRL | gate test 項目 | 関連 story-id | 関連 behavior-id | 関連 task-id | 現在 gate | UX評価状態 | admin UX確認手順 | admin evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `MRL-**` | `-` | route 比較、採用 route 固定、request / status UX、reviewing viewer、正式統合を実測に応じて順次切り出す。ただし UX 目標は常に元の north star に沿って明記する | `sd6`,`sd9`,`sd10`,`su19`,`sd11` | `bd15`,`bd18`,`bd19`,`bu23`,`bu24`,`bd20` | `td20`,`td21`,`td22`,`tu28`,`tu29`,`td23` | `ready` | `ready` | `未収載` | `未収載` |
+| `MRL-**` | `-` | 利用者向け後続 `MRL-**` を支える補助 gate として、route 比較、採用 route 固定、request / status UX、reviewing viewer、正式統合を実測に応じて順次切り出す。ただし UX 目標は常に元の north star に沿って明記する | `sd6`,`sd9`,`sd10`,`su19`,`sd11` | `bd15`,`bd18`,`bd19`,`bu23`,`bu24`,`bd20` | `td20`,`td21`,`td22`,`tu28`,`tu29`,`td23` | `ready` | `ready` | `未収載` | `未収載` |
