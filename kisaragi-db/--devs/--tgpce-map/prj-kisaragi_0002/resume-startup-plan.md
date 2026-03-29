@@ -21,6 +21,7 @@
 - `MRL-12` は、`correcting` 実 data から `3DGS` 系主空間モデル候補を smoke 生成し、admin が notebook / local download で生成物を取得できることを根拠に `p-done` とした。
 - 現在の main target は `MRL-13` であり、`10s` 前後の整った実動画を使った `multi-frame` densify で、admin が `PLY` viewer からぼんやり見える再現モデルを確認できる水準へ進めることである。
 - `MRL-14` 以降は細かく固定せず `MRL-**` として大まかな順番だけを置き、実測で見えた課題の大小に応じて `MRL` / `mRL` を切り直す。
+- ただし後続 `MRL` でも UX 到達品質は元の目標に沿わせる。特に modeling では、利用者が主空間の見え方、主カメラ経路、処理状態、次 action を迷わず把握できる方向を維持する。
 
 ## 到達済み
 

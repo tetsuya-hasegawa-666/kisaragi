@@ -366,6 +366,7 @@
 - 次段は `MRL-13` とし、`10s` 前後の整った実動画から `multi-frame` depth / world projection を積み上げて、admin が `PLY` viewer でぼんやり見える再現モデルを確認できる水準を first target に置く
 - `MRL-14` 以降は `MRL-**` として大まかな順番だけを置き、task 実測で課題の大小が見えた時点で `MRL` / `mRL` の切り方を調整する
 - modeling は admin の手作業を含むため、後続 `MRL` の達成基準は都度「いま実際に進めやすい粒度」へ合わせて更新する
+- ただし `MRL` の達成品質として求める UX 自体は薄めず、元の north star である「利用者が主空間の見え方と主カメラ経路を確認できる」「処理状態と次 action を迷わず把握できる」方向に沿って各段の到達像を明記する
 
 ## `MRL`, `INITRL` 対応表
 - `MRL`, `INITRL` は `BDD` の story / behavior と `TDD` の task を束ね、admin がどの gate test 項目を `UX check` すべきかを定義する。
@@ -446,7 +447,7 @@
 | `MRL-12` | `mRL-12.1` | `DA3` input manifest と route export を確認する | `sd9` | `bd17` | `td16` | `p-done` | `p-done` | `modeling batch 操作手順 13-14` | `2026-03-29 \`MRL-12\` \`3DGS\` smoke candidate evidence` |
 | `MRL-12` | `mRL-12.2` | `Colab` 上の metric depth と `3DGS` 系主空間モデル生成を確認する | `sd9`,`su14` | `bd17`,`bu18` | `td17`,`tu22` | `p-done` | `p-done` | `modeling batch 操作手順 15-17` と `da3_colab_clean_bootstrap_runbook.md` の `Candidate Bootstrap v1` | `2026-03-29 \`MRL-12\` \`3DGS\` smoke candidate evidence` |
 | `MRL-12` | `mRL-12.3` | `depth_estimation_report.json`、`space_quality.json`、`gs_model` を含む主空間要約を確認する | `su15`,`sd9` | `bu19`,`bd17` | `tu23`,`td18` | `p-done` | `p-done` | `未収載` | `2026-03-29 \`MRL-12\` \`3DGS\` smoke candidate evidence` |
-| `MRL-13` | `-` | `10s` 前後の整った実動画から `multi-frame` でぼんやり見える再現モデルを得る | `sd9`,`sd11` | `bd18`,`bd20` | `td19`,`td23` | `active` | `ready` | `未収載` | `2026-03-28 \`MRL-13\` candidate evidence` |
-| `MRL-13` | `mRL-13.1` | `10s` 前後の整った実動画から `multi-frame` sampling route を回し、`PLY` でぼんやり見える再現モデルを確認する | `sd9` | `bd18` | `td19` | `active` | `ready` | `未収載` | `2026-03-28 \`MRL-13\` candidate evidence` |
+| `MRL-13` | `-` | `10s` 前後の整った実動画から `multi-frame` で、利用者が主空間の見え方と主カメラ経路を粗くでも把握できる再現モデルを得る | `sd9`,`su15`,`sd11` | `bd18`,`bu19`,`bd20` | `td19`,`td23` | `active` | `ready` | `未収載` | `2026-03-28 \`MRL-13\` candidate evidence` |
+| `MRL-13` | `mRL-13.1` | `10s` 前後の整った実動画から `multi-frame` sampling route を回し、`PLY` でぼんやり見える再現モデルと主カメラ path の対応を確認する | `sd9`,`su15` | `bd18`,`bu19` | `td19` | `active` | `ready` | `未収載` | `2026-03-28 \`MRL-13\` candidate evidence` |
 | `MRL-13` | `mRL-13.**` | 補助比較や追加確認が必要なら、実測に応じて route 差分確認を切り出す | `sd9`,`sd11` | `bd18`,`bd20` | `td20`,`td21`,`td23` | `ready` | `ready` | `未収載` | `未収載` |
-| `MRL-**` | `-` | route 比較、採用 route 固定、request / status UX、reviewing viewer、正式統合を実測に応じて順次切り出す | `sd6`,`sd9`,`sd10`,`su19`,`sd11` | `bd15`,`bd18`,`bd19`,`bu23`,`bu24`,`bd20` | `td20`,`td21`,`td22`,`tu28`,`tu29`,`td23` | `ready` | `ready` | `未収載` | `未収載` |
+| `MRL-**` | `-` | route 比較、採用 route 固定、request / status UX、reviewing viewer、正式統合を実測に応じて順次切り出す。ただし UX 目標は常に元の north star に沿って明記する | `sd6`,`sd9`,`sd10`,`su19`,`sd11` | `bd15`,`bd18`,`bd19`,`bu23`,`bu24`,`bd20` | `td20`,`td21`,`td22`,`tu28`,`tu29`,`td23` | `ready` | `ready` | `未収載` | `未収載` |
