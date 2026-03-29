@@ -41,3 +41,136 @@
 # <next-step> res
 
 ```
+
+# codex
+
+2026-03-29 v25 step-7a multi-frame window probe。
+
+- 目的: `mRL-7.1` の最初の block として、実 session から `10s` 前後の連続 window と、`multi-frame` densify に使う候補 frame 群を確定する。
+- 成功条件:
+  - `frame_pose_index.csv` と `images/` を読み、frame ごとの時刻と path を取得できる
+  - `10s` 前後の window 候補を 1 件以上出せる
+  - その window から `12 frame` 前後の sampled frame 候補を出せる
+  - 結果を `mrl7_window_probe.json` として保存できる
+- 失敗時の扱い:
+  - timestamp key 不一致なら、まず実 key 名を列挙して切り分ける
+  - `10s` 連続 window が取れないなら、まず最長連続 window を返す
+
+```python
+# Step 7a multi-frame window probe
+from pathlib import Path
+import json
+import math
+import pandas as pd
+
+SESSION_ROOT = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+OUTPUT_ROOT = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01")
+OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+
+frame_index_path = SESSION_ROOT / "frame_pose_index.csv"
+images_dir = SESSION_ROOT / "images"
+
+assert frame_index_path.exists(), frame_index_path
+assert images_dir.exists(), images_dir
+
+df = pd.read_csv(frame_index_path)
+print("columns", list(df.columns))
+print("rows", len(df))
+
+time_candidates = [
+    "frame_timestamp_ns",
+    "capture_timestamp_ns",
+    "timestamp_ns",
+    "frameTimestampNs",
+    "captureTimestampNs",
+]
+frame_candidates = [
+    "frame_name",
+    "image_file",
+    "image_path",
+    "filename",
+]
+
+time_col = next((c for c in time_candidates if c in df.columns), None)
+frame_col = next((c for c in frame_candidates if c in df.columns), None)
+
+if frame_col is None:
+    derived = []
+    for idx in range(len(df)):
+        jpg = images_dir / f"frame_{idx:06d}.jpg"
+        png = images_dir / f"frame_{idx:06d}.png"
+        derived.append(jpg.name if jpg.exists() else png.name if png.exists() else None)
+    df["derived_frame_name"] = derived
+    frame_col = "derived_frame_name"
+
+assert time_col is not None, {"missing_time_col": list(df.columns)}
+assert frame_col is not None, {"missing_frame_col": list(df.columns)}
+
+work = df[[time_col, frame_col]].copy()
+work = work.dropna().reset_index(drop=True)
+work["frame_name"] = work[frame_col].astype(str)
+work["image_path"] = work["frame_name"].apply(lambda x: str(images_dir / x))
+work = work[work["image_path"].map(lambda p: Path(p).exists())].reset_index(drop=True)
+work["timestamp_sec"] = work[time_col].astype("float64") / 1e9
+
+assert len(work) > 0, "no aligned frames found"
+
+target_sec = 10.0
+best = None
+left = 0
+for right in range(len(work)):
+    while left < right and (work.loc[right, "timestamp_sec"] - work.loc[left, "timestamp_sec"]) > target_sec:
+        left += 1
+    span = work.loc[right, "timestamp_sec"] - work.loc[left, "timestamp_sec"]
+    count = right - left + 1
+    score = (abs(target_sec - span), -count)
+    if best is None or score < best["score"]:
+        best = {
+            "left": left,
+            "right": right,
+            "span_sec": float(span),
+            "count": int(count),
+            "score": score,
+        }
+
+window = work.iloc[best["left"]:best["right"] + 1].reset_index(drop=True)
+sample_count = min(12, len(window))
+sample_indices = sorted({round(i * (len(window) - 1) / max(sample_count - 1, 1)) for i in range(sample_count)})
+sampled = window.iloc[sample_indices].reset_index(drop=True)
+
+result = {
+    "session_root": str(SESSION_ROOT),
+    "frame_index_path": str(frame_index_path),
+    "time_col": time_col,
+    "frame_col": frame_col,
+    "aligned_frame_count": int(len(work)),
+    "window_start_sec": float(window["timestamp_sec"].iloc[0]),
+    "window_end_sec": float(window["timestamp_sec"].iloc[-1]),
+    "window_span_sec": float(window["timestamp_sec"].iloc[-1] - window["timestamp_sec"].iloc[0]),
+    "window_frame_count": int(len(window)),
+    "sample_frame_count": int(len(sampled)),
+    "sample_frames": sampled[["frame_name", "timestamp_sec", "image_path"]].to_dict(orient="records"),
+}
+
+out_path = OUTPUT_ROOT / "mrl7_window_probe.json"
+out_path.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
+
+print(json.dumps({
+    "time_col": result["time_col"],
+    "frame_col": result["frame_col"],
+    "aligned_frame_count": result["aligned_frame_count"],
+    "window_span_sec": result["window_span_sec"],
+    "window_frame_count": result["window_frame_count"],
+    "sample_frame_count": result["sample_frame_count"],
+    "first_sample": result["sample_frames"][0] if result["sample_frames"] else None,
+    "last_sample": result["sample_frames"][-1] if result["sample_frames"] else None,
+    "saved": str(out_path),
+}, indent=2, ensure_ascii=False))
+```
+
+# admin
+
+```text
+# Step 7a multi-frame window probe res
+
+```
