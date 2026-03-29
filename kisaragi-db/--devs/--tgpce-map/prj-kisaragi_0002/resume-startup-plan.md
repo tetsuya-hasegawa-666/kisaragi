@@ -1,34 +1,62 @@
 # 再開ブートストラップ計画
 
-## 目標
+## 目的
 
-- `trajectreview` の再開計画を `prj-kisaragi_0002` 配下の正本文書だけで読める状態にする
-- 外部一時文書に残っていた処理構造と UX 構想を `project-truth.md` と `ux-b2t-hypo.md` へ吸収する
-- `MRL-1` の実装着手に直結する task を明確にする
+- 次セッションの Codex または admin が、`prj-kisaragi_0002` の現在地を取り違えずに再開できるようにする。
+- `DA3Metric-Large` の `Colab` bootstrap 成立を最終目標と誤認せず、その先の modeling UX 実装へ直結する再開順を固定する。
 
-## 第 1 段階
+## 最初に読む正本
 
-- `project-truth.md` に 4 段階処理構造とパッケージ契約を固定する
-- 4 分担の入力、出力、受け渡し条件を固定する
-- `ux-b2t-hypo.md` の BDD 章に terminal behavior と `MRL` / `mRL` を固定する
-- `ux-b2t-hypo.md` の TDD 章に検証 task と優先順を固定する
-- `codex-mrl-test-evidence.md` を更新し、再開基線を記録する
-- notebook / script / error 往復の current thread は `sharedlogs_<thema>.md` を先に確認する
+- 恒久 truth は [project-truth.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\project-truth.md)
+- plan / current / gate は [ux-b2t-hypo.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\ux-b2t-hypo.md)
+- `DA3 Colab bootstrap` の product 正本は [da3_colab_clean_bootstrap_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_clean_bootstrap_runbook.md)
+- notebook cell、error、admin 実行結果の往復 log は [sharedlogs_da3-colab.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\sharedlogs_da3-colab.md)
+- admin UX 手順は [admin-mrl-test-method.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\admin-mrl-test-method.md)
+- admin evidence は [admin-mrl-test-evidence.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\admin-mrl-test-evidence.md)
 
-## 第 2 段階
+## 現在地
 
-- `SessionPackage` intake summary を実装し、`Thin Status` 診断と execute gate の test を先に置く
-- `COLMAP` failure から diagnose へ戻る return path を明示する
-- 主 `ARCore` 空間を唯一基準とする `SpacePackage` 契約を実装へ落とす
+- `DA3Metric-Large` の `Colab` bootstrap は、`2026-03-29` に `T4` 上で `Step 1` から `Step 4` まで end-to-end 通過した。
+- 成立済みなのは `single-frame bootstrap` であり、これは最終目標ではなく `modeling 本機能` への通過点である。
+- 現在の main target は `スマホまたは PC から request を出し、Google Drive directory を指定し、waiting ring と stage 表示を見ながら待ち、完了後に download URL を返す modeling UX` を成立させることである。
+- したがって、次段は bootstrap の磨き込みではなく、`request 起点 UX`、`job_status`、`waiting ring`、`download URL`、`複数 frame / route 比較` の実装である。
 
-## 第 3 段階
+## 到達済み
 
-- `TrajectoryPackage`、relink、不確実性、`attention point` を実データ由来で成立させる
-- `ReviewArtifact` と viewer の責務境界を固定する
-- 独立運用境界と生成物 routing を継続確認する
+- [da3_colab_clean_bootstrap_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_clean_bootstrap_runbook.md) は `Adopted Bootstrap v1` を持つ。
+- `Google Drive` shortcut 配下の zip から `session_root` を正規化できる。
+- `Depth-Anything-3` repo clone、必要 dependency install、`depth_anything_3.api` import が通る。
+- `T4` 上で `DA3METRIC-LARGE` の `1 frame` 推論が通り、`summary.json`、`depth_preview.png`、`depth_raw.npy` を保存できる。
+- `conf`、`intrinsics`、`extrinsics` が `None` でも bootstrap pass として扱う。
+- この結果は `INITRL-1` / `mINITRL-1.2`、`MRL-11` / `mRL-11.1`、`MRL-12` / `mRL-12.2` の candidate evidence に反映済みである。
 
-## 完了条件
+## 未達
 
-- 外部参照が削除されても `prj-kisaragi_0002` の正本文書だけで再開判断ができる
-- `MRL-1` 着手に必要な terminal behavior と TDD task が矛盾なく接続している
-- `ux-b2t-hypo.md` の `current_state` 章から次の実装着手順が 3 件以内で読める
+- request 元画面から `Google Drive` input directory / result directory を指定する UX は未実装。
+- remote 実行中の `waiting ring`、現在 stage、更新時刻表示は未実装。
+- `modeling/job_status.json` の厳密 schema と更新 timing は未固定。
+- remote 完了後の `download URL` 返却導線は未実装。
+- `single-frame` を超える複数 frame 実行、sampling / intrinsics route 比較、`benchmark_summary.json`、`selected_route.json` の本機能 close は未達。
+
+## 次にやること
+
+1. [sharedlogs_da3-colab.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\sharedlogs_da3-colab.md) の最下部を読んで、最新の `# codex v**` と `# admin` を確認する。
+2. [ux-b2t-hypo.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\ux-b2t-hypo.md) の `MRL-11`、`MRL-12`、`MRL-13` を確認し、次段の target を `bootstrap` ではなく `request 起点 UX` 側へ合わせる。
+3. `modeling/job_status.json` の schema、stage 名、waiting ring 更新条件、download URL 返却条件を正本へ落とす。
+4. `Colab` 側では `single-frame` の次として、`multi-frame` 実行と result zip / URL 返却の最小 route を設計する。
+5. request 元の app / script 側では、`input directory`、`result directory`、`route id` を束ねた request 生成 UX を設計する。
+
+## 重要な判断
+
+- shared log は main collaborative log だが、truth / plan / evidence の代替ではない。
+- shared log で決まった持続事項は、同じ task 内で必ず正本へ反映する。
+- shared log は header 以外を通常編集せず、下へ追記する。
+- `# codex` 追記には `v**` を必ず付ける。
+- `Colab` のような揮発 runtime では、trial の回避策を shared log に積むだけで終わらせず、真に必要だった最短 bootstrap を product 正本へ昇格する。
+
+## 再開時の禁止事項
+
+- `single-frame bootstrap pass` を `modeling 完成` と誤認しない。
+- shared log だけを見て gate 判定を動かさない。
+- `COLMAP 4.0 + nerfstudio splatfacto` の旧 notebook を truth として再採用しない。
+- shared log の途中へ要約や code を差し込まない。
