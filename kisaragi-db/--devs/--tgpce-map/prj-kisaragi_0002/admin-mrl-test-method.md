@@ -47,6 +47,7 @@
 24. Android 端末で app `trajectreview-modeling` を起動する。
 25. `bundle を選択` を押し、統合 app などで作られた `trajectreview_export/<session_id>` folder を選ぶ。
 26. `軽量 model を実行` を押し、`spaceQuality`、`trajectoryQuality`、`colab_job_request.json` を含む出力一覧が見えることを確認する。
+27. `DA3Metric-Large` の `Colab bootstrap` は [da3_colab_clean_bootstrap_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_clean_bootstrap_runbook.md) を正本として扱う。この runbook の admin 実行は `INITRL-1` / `mINITRL-1.2`、`MRL-11` / `mRL-11.1`、`MRL-12` / `mRL-12.2` の candidate evidence を兼ねる。
 27. PC browser で [Google Colab](https://colab.research.google.com/) を開き、Google account で sign in する。
 28. `ファイル` -> `ノートブックをアップロード` を選び、[trajectreview_da3metric_large_colab.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\trajectreview_da3metric_large_colab.ipynb) を開く。menu 名が違う時は `Upload notebook` 相当を探す。
 29. `ランタイム` -> `ランタイムのタイプを変更` で `GPU` を選ぶ。候補に `T4`、`L4`、`A100` などが見えた時は、その表示を記録する。

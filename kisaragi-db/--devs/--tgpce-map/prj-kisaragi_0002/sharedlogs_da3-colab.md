@@ -1274,3 +1274,32 @@ Step 4:
 blocker:
 
 ```
+
+# codex
+
+2026-03-29 v26。
+
+- この shared log に貼り戻している `Candidate Bootstrap v1` の進捗は、技術確認だけでなく次の candidate evidence でもあります。
+  - `INITRL-1`
+  - `mINITRL-1.2`
+  - `MRL-11`
+  - `mRL-11.1`
+  - `MRL-12`
+  - `mRL-12.2`
+- したがって、admin は失敗結果でも省略せず、`Step 1` から `Step 4` のどこで止まったかをこの shared log に残してください。
+
+# admin
+
+```text
+# Candidate Bootstrap v1 progress res
+Step 1:
+
+Step 2:
+
+Step 3:
+
+Step 4:
+
+blocker:
+
+```

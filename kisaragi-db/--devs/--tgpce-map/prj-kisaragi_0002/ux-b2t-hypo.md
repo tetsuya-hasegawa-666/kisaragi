@@ -56,6 +56,7 @@
 - 上記 route では、trial 往復の shared worklog と別に、`--products/prj-kisaragi_0002/modeling/` 配下へ `最小 clean bootstrap runbook` を保持し、admin が次回は先頭から再実行できる形に収束させる
 - `最小 clean bootstrap runbook` は `candidate` と `adopted` を分け、admin 実測で end-to-end が通った手順のみを `truly pass` 扱いにする
 - 現在の `DA3Metric-Large` `Colab bootstrap` の正本は `--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md` とする
+- 現在の `DA3Metric-Large` `Colab bootstrap` 実行は、`INITRL-1` / `mINITRL-1.2`、`MRL-11` / `mRL-11.1`、`MRL-12` / `mRL-12.2` の candidate evidence 収集中でもある
 - `ISS-003` の unzip / 配置正規化責務は `modeling` の `Colab bootstrap package` が担う
 - `INITRL-1` は `modeling` の `Colab bootstrap package`、source 配置、config、auto-install package を追跡する
 - `INITRL-2` は `correcting` の PC install package 準備と artifact 互換性を追跡する
@@ -399,9 +400,9 @@
 ### 利用者手動の補助 UX gate
 | INITRL | mINITRL | 補助 UX test 項目 | 関連 story-id | 関連 behavior-id | 関連 task-id | 現在 gate | UX評価状態 | admin UX確認手順 | admin evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `INITRL-1` | `-` | `Colab all-in modeling` package の bootstrap 導線を成立させる | `sd6`,`sd7`,`su12` | `bd13`,`bd14`,`bu16` | `td12`,`td13`,`tu20` | `active` | `active` | `modeling batch 操作手順 1-6` | `modeling batch 定義` |
+| `INITRL-1` | `-` | `Colab all-in modeling` package の bootstrap 導線を成立させる | `sd6`,`sd7`,`su12` | `bd13`,`bd14`,`bu16` | `td12`,`td13`,`tu20` | `active` | `active` | `modeling batch 操作手順 1-6` と `da3_colab_clean_bootstrap_runbook.md` | `modeling batch 定義` |
 | `INITRL-1` | `mINITRL-1.1` | 抽出済み bundle snapshot を手動で選んで読めることを確認する | `sd6` | `bd13` | `td12` | `p-done` | `ready` | `未収載` | `2026-03-25 candidate evidence` |
-| `INITRL-1` | `mINITRL-1.2` | local sample modeling と handoff request を手動で作れることを確認する | `sd7`,`su12` | `bd14`,`bu16` | `td13`,`tu20` | `active` | `active` | `modeling batch 操作手順 4-6` | `2026-03-25 \`MRL-10\` candidate evidence` |
+| `INITRL-1` | `mINITRL-1.2` | local sample modeling と handoff request を手動で作れることを確認する | `sd7`,`su12` | `bd14`,`bu16` | `td13`,`tu20` | `active` | `active` | `modeling batch 操作手順 4-6` と `da3_colab_clean_bootstrap_runbook.md` | `2026-03-25 \`MRL-10\` candidate evidence` |
 | `INITRL-2` | `-` | `correcting` 側の PC install / package 補助導線を成立させる | `sd1`,`sd4`,`sd5` | `bd2`,`bd9`,`bd10`,`bd11`,`bd12` | `td2`,`td3`,`td9`,`td10`,`td11` | `active` | `ready` | `未収載` | `2026-03-25 candidate evidence` |
 | `INITRL-2` | `mINITRL-2.1` | project 境界 scan と dependency hygiene を確認する | `sd1` | `bd2` | `td2`,`td3` | `p-done` | `ready` | `未収載` | `2026-03-25 candidate evidence` |
 | `INITRL-2` | `mINITRL-2.2` | 4 app module build と初期表示導線を確認する | `sd4`,`sd5` | `bd9`,`bd10`,`bd11`,`bd12` | `td9`,`td10`,`td11` | `p-done` | `ready` | `未収載` | `2026-03-25 candidate evidence` |
@@ -420,13 +421,13 @@
 | `MRL-10` | `-` | request 起点の local sample modeling と実 bundle 読込を成立させる | `sd6`,`sd7`,`su12` | `bd13`,`bd14`,`bu16` | `td12`,`td13`,`tu20` | `active` | `active` | `modeling batch 操作手順 1-6` | `modeling batch 定義`, `2026-03-25 \`MRL-10\` candidate evidence` |
 | `MRL-10` | `mRL-10.1` | 実 bundle snapshot 読込を確認する | `sd6` | `bd13` | `td12` | `active` | `active` | `modeling batch 操作手順 1-3` | `2026-03-25 \`MRL-10\` candidate evidence` |
 | `MRL-10` | `mRL-10.2` | request preflight 生成を確認する | `sd7`,`su12` | `bd14`,`bu16` | `td13`,`tu20` | `active` | `active` | `modeling batch 操作手順 4-6` | `2026-03-25 \`MRL-10\` candidate evidence` |
-| `MRL-11` | `-` | `Google Drive` directory intake と waiting UX を成立させる | `su10`,`su11`,`su13`,`sd8`,`sd11` | `bu14`,`bu15`,`bu17`,`bd16`,`bd20` | `tu18`,`tu19`,`tu21`,`td14`,`td15`,`td23` | `active` | `active` | `modeling batch 操作手順 7-12, p-done / i-pass の判断, fail の判断` | `modeling batch 定義` |
-| `MRL-11` | `mRL-11.1` | `Google Drive` directory bootstrap を確認する | `sd8`,`su12` | `bd16`,`bu16` | `td14`,`tu20` | `active` | `active` | `modeling batch 操作手順 7-9` | `modeling batch 定義` |
+| `MRL-11` | `-` | `Google Drive` directory intake と waiting UX を成立させる | `su10`,`su11`,`su13`,`sd8`,`sd11` | `bu14`,`bu15`,`bu17`,`bd16`,`bd20` | `tu18`,`tu19`,`tu21`,`td14`,`td15`,`td23` | `active` | `active` | `modeling batch 操作手順 7-12, p-done / i-pass の判断, fail の判断` と `da3_colab_clean_bootstrap_runbook.md` の `事前準備` / `準備確認` | `modeling batch 定義` |
+| `MRL-11` | `mRL-11.1` | `Google Drive` directory bootstrap を確認する | `sd8`,`su12` | `bd16`,`bu16` | `td14`,`tu20` | `active` | `active` | `modeling batch 操作手順 7-9` と `da3_colab_clean_bootstrap_runbook.md` の `事前準備` / `準備確認` | `modeling batch 定義` |
 | `MRL-11` | `mRL-11.2` | waiting ring と status 更新を確認する | `su10`,`su13` | `bu14`,`bu17` | `tu18`,`tu21`,`td15` | `ready` | `active` | `modeling batch 操作手順 10-12` | `modeling batch 定義` |
 | `MRL-11` | `mRL-11.3` | remote modeling 安全 gate を確認する | `su11`,`sd11` | `bu15`,`bd20` | `tu19`,`td23` | `ready` | `ready` | `未収載` | `2026-03-28 \`MRL-11\` candidate evidence` |
-| `MRL-12` | `-` | `DA3Metric-Large` 実行と result download 導線を成立させる | `su14`,`su15`,`sd9`,`sd11` | `bu18`,`bu19`,`bd17`,`bd20` | `tu22`,`tu23`,`td16`,`td17`,`td18`,`td23` | `active` | `active` | `modeling batch 操作手順 13-18, p-done / i-pass の判断, fail の判断` | `modeling batch 定義`, `2026-03-28 \`MRL-12\` candidate evidence` |
+| `MRL-12` | `-` | `DA3Metric-Large` 実行と result download 導線を成立させる | `su14`,`su15`,`sd9`,`sd11` | `bu18`,`bu19`,`bd17`,`bd20` | `tu22`,`tu23`,`td16`,`td17`,`td18`,`td23` | `active` | `active` | `modeling batch 操作手順 13-18, p-done / i-pass の判断, fail の判断` と `da3_colab_clean_bootstrap_runbook.md` の `Candidate Bootstrap v1` | `modeling batch 定義`, `2026-03-28 \`MRL-12\` candidate evidence` |
 | `MRL-12` | `mRL-12.1` | `DA3` input manifest と route export を確認する | `sd9` | `bd17` | `td16` | `active` | `active` | `modeling batch 操作手順 13-14` | `2026-03-28 \`MRL-12\` candidate evidence` |
-| `MRL-12` | `mRL-12.2` | `Colab` 上の metric depth 実行を確認する | `sd9`,`su14` | `bd17`,`bu18` | `td17`,`tu22` | `ready` | `active` | `modeling batch 操作手順 15-17` | `modeling batch 定義` |
+| `MRL-12` | `mRL-12.2` | `Colab` 上の metric depth 実行を確認する | `sd9`,`su14` | `bd17`,`bu18` | `td17`,`tu22` | `ready` | `active` | `modeling batch 操作手順 15-17` と `da3_colab_clean_bootstrap_runbook.md` の `Candidate Bootstrap v1` | `modeling batch 定義` |
 | `MRL-12` | `mRL-12.3` | `depth_estimation_report.json` と主空間要約を確認する | `su15`,`sd9` | `bu19`,`bd17` | `tu23`,`td18` | `ready` | `ready` | `未収載` | `2026-03-28 \`MRL-12\` candidate evidence` |
 | `MRL-13` | `-` | route 比較と採用 route の運用化を成立させる | `sd9`,`sd10`,`sd11` | `bd18`,`bd19`,`bd20` | `td19`,`td20`,`td21`,`td23` | `active` | `ready` | `未収載` | `2026-03-28 \`MRL-13\` candidate evidence` |
 | `MRL-13` | `mRL-13.1` | sampling route 比較を確認する | `sd9` | `bd18` | `td19` | `active` | `ready` | `未収載` | `2026-03-28 \`MRL-13\` candidate evidence` |

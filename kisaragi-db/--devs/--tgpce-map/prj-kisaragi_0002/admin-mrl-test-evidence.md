@@ -58,6 +58,9 @@
 
 ## modeling batch 定義
 
+- 補助 UX gate 兼用:
+  - `INITRL-1`
+  - `mINITRL-1.2`
 - 対象 `MRL`:
   - `MRL-8`
   - `MRL-10`
@@ -71,6 +74,7 @@
   - `mRL-12.1` から `mRL-12.3`
   - `mRL-13.1` から `mRL-13.3`
 - admin 操作観点:
+  - [da3_colab_clean_bootstrap_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_clean_bootstrap_runbook.md) を fresh runtime から実行し、bootstrap UX が再現可能である
   - `trajectreview-modeling` で実 bundle を読み、request 元、input directory、result directory を含む `colab_job_request.json` を生成できる
   - `Google Drive` directory 指定で `Colab` route を起動できる
   - waiting ring、現在段階、`job_status.json` の更新を request 元画面で読める
@@ -85,6 +89,8 @@
 - 実施者: `admin`
 - 端末 / 環境:
 - 対象 `MRL` / `mRL`:
+  - `INITRL-1`
+  - `mINITRL-1.2`
   - `MRL-8`
   - `MRL-10`
   - `MRL-11`
