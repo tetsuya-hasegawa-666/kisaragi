@@ -259,6 +259,11 @@ kisaragi-tree/
 - 上記の task では、Codex は回答前に shared worklog の最新追記を先に確認し、chat では「どの worklog を基準に答えるか」を明示する。
 - shared worklog は context window の代替ではなく、誤送信と文脈取り違えを減らすための canonical な往復面として使う。main code、実行順、admin の raw response は原則そこで管理する。
 - chat には要点、判断、次 action を短く返し、長い code block や長い error 全文は shared worklog を基準に扱う。
+- `Colab`、remote notebook、揮発 container のように runtime state が消える系の task では、途中修復を正にせず、fresh runtime からの最短 clean bootstrap を canonical route とする。
+- 上記の task では、shared worklog の trial 往復とは別に、真に必要だった command と file 操作だけを合成した `最小 clean bootstrap runbook` を product 系文書として保持することを必須とする。
+- `最小 clean bootstrap runbook` は、`いま最短で再現できる候補` と `admin 実測で truly pass 済みの採用手順` を明確に分け、後者だけを `truly pass` と表現する。
+- 揮発 runtime task で 1 回の session で完了しなかった時は、原則として partial recovery の説明を積み増すより `最小 clean bootstrap runbook` を更新し、次回は先頭から再実行できる形へ収束させる。
+- product 系文書に未反映のまま shared worklog だけへ bootstrap 手順を積み続けることを禁止する。最短再現経路が見えた時点で、同じ task 内で product 系文書へ昇格させる。
 
 ## 並行作業
 - 共有制御ファイル編集時は、同じ task で `AGENTS.md` と `AGENTSmd-RH.md` を更新し、変更理由を追跡可能にする。

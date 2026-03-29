@@ -12,6 +12,20 @@
 
 ## 更新履歴
 
+### 2026-03-29 AGENTS.md 揮発 runtime の clean bootstrap 正本化
+
+- 日時: `2026-03-29`
+- 文書名: `AGENTS.md`
+- 標題: `Colab` など揮発 runtime task の最小 clean bootstrap runbook を product 文書へ必須化
+- 背景: `Colab` 上の DA3 実装では runtime が揮発しやすく、shared worklog に partial recovery 手順を積み増すだけでは、次回の最短再現経路が見えにくかった。
+- 目的: 揮発 runtime task は途中修復ではなく fresh runtime からの最短 clean bootstrap を正にし、その手順を product 系文書として維持する。
+- 対処方法: `協調原則` に、揮発 runtime task の canonical route、`最小 clean bootstrap runbook` の必須化、candidate と adopted の分離、shared worklog のみへ bootstrap を残す運用の禁止を追加した。
+- 対応内容: `Colab`、remote notebook、揮発 container を例示し、shared worklog と product 文書の役割分担を強く明記した。
+- 更新結果: 今後は runtime 揮発系 task で最短再現経路が見えた時点で、product 系文書へ昇格され、admin は先頭から再実行可能な runbook を参照できる。
+- 新旧比較:
+  - 旧: shared worklog が bootstrap 手順の主な保持場所になりやすかった。
+  - 新: shared worklog は trial 往復、product 文書は最小 clean bootstrap runbook という役割分担が強制される。
+
 ### 2026-03-29 AGENTS.md 前提節の再整理
 
 - 日時: `2026-03-29`

@@ -52,6 +52,10 @@
 - 現在の `DA3Metric-Large` `Colab` thread の main worklog は `sharedlogs_da3-colab.md` である
 - shared worklog は読みやすさのために定型 header を持ち、header より下は `# codex` または `# admin` 見出しで末尾追記のみとする
 - 採用判断、gate 状態、contract 変更、manual 変更は必ず対応する正本文書へ別途反映する
+- `Colab` のように runtime が揮発する route では、partial recovery の積み上げではなく fresh runtime からの最短 clean bootstrap を canonical route とする
+- 上記 route では、trial 往復の shared worklog と別に、`--products/prj-kisaragi_0002/modeling/` 配下へ `最小 clean bootstrap runbook` を保持し、admin が次回は先頭から再実行できる形に収束させる
+- `最小 clean bootstrap runbook` は `candidate` と `adopted` を分け、admin 実測で end-to-end が通った手順のみを `truly pass` 扱いにする
+- 現在の `DA3Metric-Large` `Colab` runbook は `--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md` とする
 - `ISS-003` の unzip / 配置正規化責務は `modeling` の `Colab bootstrap package` が担う
 - `INITRL-1` は `modeling` の `Colab bootstrap package`、source 配置、config、auto-install package を追跡する
 - `INITRL-2` は `correcting` の PC install package 準備と artifact 互換性を追跡する
@@ -98,6 +102,7 @@
 - 現在の blocker は data path ではなく、`Cell D` 実行時の kernel 側で `depth_anything_3` module 解決が外れている点である
 - `/content/Depth-Anything-3` の repo path 自体が消えていたため、原因は import 文脈だけでなく `Colab` 揮発 runtime による repo / custom install の消失と判断する
 - 次段の `Colab` probe は、repo clone と custom dependency 再投入をまとめて再bootstrap し、その後に import check と 1 frame 推論を再実行する
+- `Colab` 側の partial recovery を延々と積むより、ここまでで真に必要だった command を再合成した `最小 clean bootstrap runbook` を product 文書として維持する方針へ切り替える
 - `DA3Metric-Large` の最適な package / module 構成、weight 配布元、download URL の返却方式は未決定である
 - 人物 path の視覚再拘束に使う実データ条件が未確定である
 - `ReviewArtifact` の最終 viewer 実装先は Android 固定ではない
