@@ -37,6 +37,27 @@
 # admin
 
 ```text
+# 準備確認 1 res
+
+```
+
+# admin
+
+```text
+# 準備確認 2 res
+
+```
+
+# admin
+
+```text
+# 準備確認 3 res
+
+```
+
+# admin
+
+```text
 # Candidate Bootstrap v1 progress res
 Step 1:
 
