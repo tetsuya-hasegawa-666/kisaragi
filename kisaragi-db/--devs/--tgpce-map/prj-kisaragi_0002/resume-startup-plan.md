@@ -3,7 +3,7 @@
 ## 目的
 
 - 今回の session 以後に引き継ぐ時、`prj-kisaragi_0002` の次の主作業だけを短く共有できるようにする。
-- `MRL-4` は `p-done` とし、次段の `MRL-5` へ迷わず移るための補助メモとする。
+- `MRL-5` は `p-done` とし、次段の `MRL-6` へ迷わず移るための補助メモとする。
 
 ## 次回の基準文書
 
@@ -18,8 +18,8 @@
 
 - `DA3Metric-Large` の `Colab` bootstrap は、`2026-03-29` に `T4` 上で `Step 1` から `Step 4` まで end-to-end 通過した。
 - 成立済みなのは `single-frame bootstrap` であり、これは最終目標ではなく `modeling 本機能` への通過点である。
-- `MRL-4` は、`correcting` 実 data から `3DGS` 系主空間モデル候補を smoke 生成し、admin が notebook / local download で生成物を取得できることを根拠に `p-done` とした。
-- 現在の main target は `MRL-5` であり、`10s` 前後の整った実動画を使った `multi-frame` densify で、利用者が主空間の見え方と主カメラ経路を粗く把握できる再現モデルを admin がまず `PLY` viewer で確認する水準へ進めることである。
+- `MRL-5` は、`correcting` 実 data から `3DGS` 系主空間モデル候補を smoke 生成し、admin が notebook / local download で生成物を取得できることを根拠に `p-done` とした。
+- 現在の main target は `MRL-6` であり、`10s` 前後の整った実動画を使った `multi-frame` densify で、利用者が主空間の見え方と主カメラ経路を粗く把握できる再現モデルを admin がまず `PLY` viewer で確認する水準へ進めることである。
 - `MRL-**` は細かく固定せず大まかな順番だけを置き、実測で見えた課題の大小に応じて `MRL` / `mRL` を切り直す。
 - ただし後続 `MRL` でも UX 到達品質は元の目標に沿わせる。特に modeling では、利用者が主空間の見え方、主カメラ経路、処理状態、次 action を迷わず把握できる方向を維持する。
 - 後続 `MRL-**` で最低限残る項目は、`multi-route` 比較、`selected_route.json` 固定、request 起点 UX、`job_status.json` と waiting ring、download URL を含む result 返却、`SpacePackage` / `TrajectoryPackage` / `ReviewArtifact` handoff、reviewing viewer 実装である。
@@ -32,7 +32,7 @@
 - `T4` 上で `DA3METRIC-LARGE` の `1 frame` 推論が通り、`summary.json`、`depth_preview.png`、`depth_raw.npy` を保存できる。
 - `conf`、`intrinsics`、`extrinsics` が `None` でも bootstrap pass として扱う。
 - `correcting` 実 data を使い、world back-projection、point export、`gsplat` rasterization、`gs_model` / `space_quality` / `SpacePackage` smoke artifact 生成、local download evidence 化まで通過した。
-- この結果は `MRL-4` / `mRL-4.1` から `mRL-4.3` の `p-done` 根拠として正本へ反映済みである。
+- この結果は `MRL-5` / `mRL-5.1` から `mRL-5.3` の `p-done` 根拠として正本へ反映済みである。
 
 ## 次回の主残件
 
@@ -47,9 +47,9 @@
 ## 次回の最初の 5 手
 
 1. [sharedlogs_da3-colab.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\sharedlogs_da3-colab.md) の最下部を読んで、最新の `# codex v**` と `# admin` を確認する。
-2. [ux-b2t-hypo.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\ux-b2t-hypo.md) の `MRL-5` を確認し、次段の target を `10s` 前後の整った実動画による `multi-frame` densify に合わせる。
+2. [ux-b2t-hypo.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\ux-b2t-hypo.md) の `MRL-6` を確認し、次段の target を `10s` 前後の整った実動画による `multi-frame` densify に合わせる。
 3. `Colab` 側で `single-frame` の次として、複数 frame を sampling して world point cloud を統合し、`PLY` でぼんやり見える再現モデルを出す最小 route を設計する。
-4. `MRL-5` で本当に必要になった追加確認だけを `mRL-5.**` として切り出し、後続の route 比較や UX 統合は `MRL-**` 側へ送る。
+4. `MRL-6` で本当に必要になった追加確認だけを `mRL-6.**` として切り出し、後続の route 比較や UX 統合は `MRL-**` 側へ送る。
 5. その後に `modeling/job_status.json` の schema、stage 名、waiting ring 更新条件、download URL 返却条件と、request 元の `input directory`、`result directory`、`route id` を束ねた request 生成 UX を設計する。
 
 ## 引き継ぎ上の重要判断
@@ -62,7 +62,7 @@
 
 ## 引き継ぎ時の禁止事項
 
-- `MRL-4 p-done` を `modeling 完成` や `3DGS` 高品質 viewer 完成と誤認しない。
+- `MRL-5 p-done` を `modeling 完成` や `3DGS` 高品質 viewer 完成と誤認しない。
 - shared log だけを見て gate 判定を動かさない。
 - `COLMAP 4.0 + nerfstudio splatfacto` の旧 notebook を truth として再採用しない。
 - shared log の途中へ要約や code を差し込まない。

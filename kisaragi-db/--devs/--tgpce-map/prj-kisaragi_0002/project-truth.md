@@ -208,7 +208,7 @@
 - 上記 route では、shared worklog の trial 往復とは別に、`--products/prj-kisaragi_0002/` 配下へ `最小 clean bootstrap runbook` を保持することを必須とする。
 - `最小 clean bootstrap runbook` は `candidate` と `adopted` を分け、admin 実測で end-to-end 完了した手順だけを `truly pass` 扱いとする。
 - 現在の `DA3Metric-Large` `Colab bootstrap` の正本は `--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md` とする。
-- 上記 runbook の admin 実行は、`MRL-0` / `mRL-0.2` の bootstrap UX、`MRL-3` / `mRL-3.2` の `Google Drive` directory bootstrap、`MRL-4` / `mRL-4.2` の `Colab` metric depth 実行の candidate evidence を兼ねる。
+- 上記 runbook の admin 実行は、`MRL-1` / `mRL-1.2` の bootstrap UX、`MRL-4` / `mRL-4.2` の `Google Drive` directory bootstrap、`MRL-5` / `mRL-5.2` の `Colab` metric depth 実行の candidate evidence を兼ねる。
 - 現段階の DA3 bootstrap は、`GPU` を選べても最初は `CPU` で bootstrap / import / `1 frame` 推論確認を進めてよい。
 - bootstrap 仕様が未確定な間は、blank restart だけに固定せず、同一 runtime で blocker を潰しながら `最小 clean bootstrap runbook` へ反映してよい。
 - `2026-03-29` 時点で、admin 実測により `T4` 上の `Adopted Bootstrap v1` が成立し、single-frame の `DA3Metric-Large` metric depth 推論と `summary.json` 出力は end-to-end で通過した。

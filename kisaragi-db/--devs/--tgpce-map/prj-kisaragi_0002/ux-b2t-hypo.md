@@ -29,10 +29,11 @@
 ### 現在の重点
 
 - `tu1` から `tu16` と `td1` から `td8` は contract 実装、test、routing 実行で成立したが、admin `UX check` 未完のため対応 `MRL` / `mRL` は `p-done` または `i-pass` に上げず `active` として扱う
-- 旧 `MRL-1` から `MRL-4`、旧 `MRL-9` から `MRL-14` は、前段実績との重複または後続 `MRL-**` 送りが必要になったため、実ユーザーフロー基準の `MRL-1` から `MRL-5` へ再編する
-- `MRL-1` では `trajectreview-correcting` 単体の現場記録、`data-check`、correction guidance、calibration 診断までを扱う
-- `MRL-2` では `Google Drive` 転送と `SpaceReconstruction` handoff bundle を扱う
-- `MRL-3` では `trajectreview-modeling` の実 bundle 読込、request preflight、`Google Drive` directory intake、waiting ring / status 基盤を扱う
+- 旧 `MRL-1` から `MRL-4`、旧 `MRL-9` から `MRL-14` は、前段実績との重複または後続 `MRL-**` 送りが必要になったため、実ユーザーフロー基準の `MRL-1` から `MRL-6` へ再編する
+- `MRL-1` では install / bootstrap / `Colab` 入口の準備 UX を扱う
+- `MRL-2` では `trajectreview-correcting` 単体の現場記録、`data-check`、correction guidance、calibration 診断までを扱う
+- `MRL-3` では `Google Drive` 転送と `SpaceReconstruction` handoff bundle を扱う
+- `MRL-4` では `trajectreview-modeling` の実 bundle 読込、request preflight、`Google Drive` directory intake、waiting ring / status 基盤を扱う
 - 4 app 骨格、role-specific UX、統合 app overview は独立 `MRL` ではなく、各 flow の補助要素または後続 `MRL-**` の統合 UX として扱う
 - `trajectreview-correcting` の現在 focus は、収録停止後の待ち時間短縮と、`品質確認` / 一覧更新 / 転送 UX の安定化である
 - `品質確認` は lightweight 判定を先に返し、`frame画像群` は転送要求時だけ生成する構成へ切り替えた
@@ -48,8 +49,8 @@
 - 既存の `COLMAP 4.0 + nerfstudio splatfacto` notebook は参考ひな形であり、`DA3Metric-Large` modeling の truth ではない
 - `DA3Metric-Large` の `Colab` 実装は greenfield とし、`Codex` が script / notebook を作成し、admin が `Colab` 実行結果を shared worklog に貼り戻す往復で詰める
 - `2026-03-29` 時点で、`trajectreview-correcting` で取得した session `session-20260328-103250.zip` を入力に、`DA3Metric-Large` single-frame depth、world back-projection、point export、`gsplat` rasterization、`gs_model` / `space_quality` / `SpacePackage` smoke artifact 生成まで通過した
-- 上記により、`MRL-4` はこの段では `p-done` とし、「ある程度整った correcting 実データから `3DGS` 系主空間モデル候補を再現でき、admin が notebook / local download の両方で生成物を取得できること」を到達基準として扱う
-- `MRL-5` は `10s` 前後の整った動画を使う `multi-frame` densify と `ぼんやり見える再現モデル` の確認に絞り、`trajectreview-modeling` 本体への正式統合と `multi-route` 比較は後続 `MRL-**` へ送る
+- 上記により、`MRL-5` はこの段では `p-done` とし、「ある程度整った correcting 実データから `3DGS` 系主空間モデル候補を再現でき、admin が notebook / local download の両方で生成物を取得できること」を到達基準として扱う
+- `MRL-6` は `10s` 前後の整った動画を使う `multi-frame` densify と `ぼんやり見える再現モデル` の確認に絞り、`trajectreview-modeling` 本体への正式統合と `multi-route` 比較は後続 `MRL-**` へ送る
 - shared worklog は project に対する truth / plan / evidence の正本ではないが、共同作業の保持情報としては authoritative な log であり、正本反映の根拠として保持する
 - shared worklog の置き場は `--tgpce-map/prj-kisaragi_0002/` 直下とし、file 名は `sharedlogs_<thema>.md` 形式に統一する
 - 現在の `DA3Metric-Large` `Colab` thread の main worklog は `sharedlogs_da3-colab.md` である
@@ -60,9 +61,9 @@
 - 上記 route では、trial 往復の shared worklog と別に、`--products/prj-kisaragi_0002/modeling/` 配下へ `最小 clean bootstrap runbook` を保持し、admin が次回は先頭から再実行できる形に収束させる
 - `最小 clean bootstrap runbook` は `candidate` と `adopted` を分け、admin 実測で end-to-end が通った手順のみを `truly pass` 扱いにする
 - 現在の `DA3Metric-Large` `Colab bootstrap` の正本は `--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md` とする
-- 現在の `DA3Metric-Large` `Colab bootstrap` 実行は、`MRL-0` / `mRL-0.2`、`MRL-3` / `mRL-3.2`、`MRL-4` / `mRL-4.2` の candidate evidence 収集中でもある
+- 現在の `DA3Metric-Large` `Colab bootstrap` 実行は、`MRL-1` / `mRL-1.2`、`MRL-4` / `mRL-4.2`、`MRL-5` / `mRL-5.2` の candidate evidence 収集中でもある
 - `ISS-003` の unzip / 配置正規化責務は `modeling` の `Colab bootstrap package` が担う
-- `MRL-0` は利用者が install / bootstrap / app 起動入口へ到達する準備 UX を追跡し、旧 `INITRL` をここへ吸収する
+- `MRL-1` は利用者が install / bootstrap / app 起動入口へ到達する準備 UX を追跡し、旧 `INITRL` をここへ吸収する
 - `trajectreview-modeling` の本機能 gate は、単一 route の一括 close ではなく、`比較基盤`、`比較実験`、`採用 route の運用化` の 3 段で閉じる
 - `trajectreview-reviewing` は summary と stub 読込までは持つが、実 `ReviewArtifact` viewer と同時刻ハイライト操作は未実装である
 
@@ -114,7 +115,7 @@
 - `Step 4` では T4 上で core 推論自体は通過し、現在の blocker は `prediction.conf` を必須扱いした保存処理が `None` で落ちる点である
 - `HF_TOKEN` warning は public model download では optional であり、現段階の blocker ではない
 - `conf` / `intrinsics` / `extrinsics` を optional 扱いへ修正した結果、`2026-03-29` に T4 上で `1 frame` 推論は end-to-end で完了した
-- 現在の次段は、single-frame bootstrap 成立を踏まえて `MRL-5` として `10s` 前後の整った実動画を使う `multi-frame` densify と、`PLY` viewer でぼんやり見える再現モデルを確認することである
+- 現在の次段は、single-frame bootstrap 成立を踏まえて `MRL-6` として `10s` 前後の整った実動画を使う `multi-frame` densify と、`PLY` viewer でぼんやり見える再現モデルを確認することである
 - `gsplat` warning は出るが、これは `3DGS rendering` 用の optional dependency であり、現段階の `DA3Metric-Large` metric depth bootstrap の blocker ではない
 - ここからは blank restart に戻さず、同じ runtime で blocker を 1 件ずつ解消しながら bootstrap 仕様へ反映する
 - `DA3Metric-Large` の最適な package / module 構成、weight 配布元、download URL の返却方式は未決定である
@@ -129,8 +130,8 @@
 
 1. `trajectreview-modeling` を `DA3Metric-Large` depth 推定 + `ARCore pose` / intrinsics 統合、multi-route 比較、採用 route 運用化の 3 段で閉じる
 2. `trajectreview-reviewing` を `ReviewArtifact` 実 viewer と same-time highlight 操作まで閉じる
-3. `MRL-0` として `Colab all-in modeling` package の source、config、auto-install 導線を固める
-4. `MRL-5` で `10s` 前後の整った実動画から複数 frame を sampling し、world point cloud を統合して `PLY` で粗い再現モデルを確認する
+3. `MRL-1` として `Colab all-in modeling` package の source、config、auto-install 導線を固める
+4. `MRL-6` で `10s` 前後の整った実動画から複数 frame を sampling し、world point cloud を統合して `PLY` で粗い再現モデルを確認する
 
 ### 作業所有権
 
@@ -338,26 +339,26 @@
 | `td23` | `bd20` | gate classification rule trace | `UX-only`、contract、sample、本機能の区別が `ux-b2t-hypo.md`、`admin-mrl-test-method.md`、`admin-mrl-test-evidence.md` で矛盾なく追える | ready | `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/` |
 
 ### 実行方針
-- `MRL-0` では install / bootstrap / `Colab` 入口の準備 UX を固める
-- `MRL-1` では `tu1` から `tu7`、`tu12`、`tu13`、`tu14` で correcting の intake、記録、`data-check`、calibration 診断を 1 app UX として固める
-- `MRL-2` では `tu8` から `tu11` と `td6` から `td8` で `Google Drive` transfer、raw video 維持、`SessionPackage` 正規化、`SpaceReconstruction` handoff gate を固める
-- `MRL-3` では `td12`、`td13`、`td14`、`td15`、`tu18`、`tu19`、`tu20`、`tu21`、`td23` で実 bundle 読込、request preflight、directory intake、waiting ring / status 基盤を固める
-- `MRL-4` では `td16` から `td18` と `tu22`、`tu23` で `DA3Metric-Large` 前処理、`DA3Metric-Large` による `3DGS` 系主空間モデル生成までの system 構築、smoke artifact 取得を固める
-- `MRL-5` では `td19` を中心に `10s` 前後の整った実動画から `multi-frame` densify を行い、ぼんやり見える再現モデルを得る
+- `MRL-1` では install / bootstrap / `Colab` 入口の準備 UX を固める
+- `MRL-2` では `tu1` から `tu7`、`tu12`、`tu13`、`tu14` で correcting の intake、記録、`data-check`、calibration 診断を 1 app UX として固める
+- `MRL-3` では `tu8` から `tu11` と `td6` から `td8` で `Google Drive` transfer、raw video 維持、`SessionPackage` 正規化、`SpaceReconstruction` handoff gate を固める
+- `MRL-4` では `td12`、`td13`、`td14`、`td15`、`tu18`、`tu19`、`tu20`、`tu21`、`td23` で実 bundle 読込、request preflight、directory intake、waiting ring / status 基盤を固める
+- `MRL-5` では `td16` から `td18` と `tu22`、`tu23` で `DA3Metric-Large` 前処理、`DA3Metric-Large` による `3DGS` 系主空間モデル生成までの system 構築、smoke artifact 取得を固める
+- `MRL-6` では `td19` を中心に `10s` 前後の整った実動画から `multi-frame` densify を行い、ぼんやり見える再現モデルを得る
 - 後続の利用者向け `MRL-**` では route 比較、採用 route 固定、request / status UX、remote result 返却、reviewing viewer、正式統合を、admin が手を動かす modeling 実態に合わせて順次切り出す
 
 ### 現在の見立て
 - `tu1` から `tu7` と `td1` から `td8` の基礎 task は、契約実装、project 境界 scan、output routing 実行で `p-done` になった
 - Python unittest、Android unit test、PowerShell script 実行により、入口契約から成果物 routing までの計画範囲を固定した
-- 旧 `MRL-1` から `MRL-4` と旧 `MRL-9` から `MRL-14` には、後続 gate と重複する内容や `MRL-**` へ送るべき内容が混在していたため、現在は `MRL-0` と `MRL-1` から `MRL-5` の一意な並びへ再編する
-- `MRL-1` と `MRL-2` は、`correcting` 実データ取得、`data-check`、`Google Drive` 転送、`SpaceReconstruction` handoff bundle までの admin evidence がそろったため、この段では `p-done` とする
+- 旧 `MRL-1` から `MRL-4` と旧 `MRL-9` から `MRL-14` には、後続 gate と重複する内容や `MRL-**` へ送るべき内容が混在していたため、現在は `MRL-1` から `MRL-6` の一意な並びへ再編する
+- `MRL-2` と `MRL-3` は、`correcting` 実データ取得、`data-check`、`Google Drive` 転送、`SpaceReconstruction` handoff bundle までの admin evidence がそろったため、この段では `p-done` とする
 - `td9` 以降の modeling / reviewing task は、基礎は通っているが本機能 close には未達である
-- `MRL-3` は実装と局所検証が通っているが、`i-pass` は admin `UX check` batch 実施後に再判定する
-- `MRL-2` は `correcting` の転送 close gate とし、`現場撮影データ保存 -> data-check -> Google Drive転送 -> handoff bundle` を 1 app UX として閉じる。転送 block 内の順番と popup UX を正本に固定する
-- `MRL-2` の事前設定は `転送先を選択 -> URL を確認または変更 -> 保存先fileを設定する -> Google Drive 上で保存先 file を選ぶ` を既定導線とし、既定 URL は `u/2` の指定 folder に固定する
+- `MRL-4` は実装と局所検証が通っているが、`i-pass` は admin `UX check` batch 実施後に再判定する
+- `MRL-3` は `correcting` の転送 close gate とし、`現場撮影データ保存 -> data-check -> Google Drive転送 -> handoff bundle` を 1 app UX として閉じる。転送 block 内の順番と popup UX を正本に固定する
+- `MRL-3` の事前設定は `転送先を選択 -> URL を確認または変更 -> 保存先fileを設定する -> Google Drive 上で保存先 file を選ぶ` を既定導線とし、既定 URL は `u/2` の指定 folder に固定する
 - `td9` から `td23` と `tu20` から `tu29` は multi-app 骨格、実 bundle summary、request preflight、remote status、route 比較、viewer 検証としては有効だが、本機能完成の証拠としては不十分である
-- `MRL-4` は、`correcting` 実データを使った `3DGS` 系主空間モデル候補の smoke 生成と生成 artifact 取得までを根拠に `p-done` とする
-- 次段は `MRL-5` とし、`10s` 前後の整った実動画から `multi-frame` depth / world projection を積み上げて、admin が `PLY` viewer でぼんやり見える再現モデルを確認できる水準を first target に置く
+- `MRL-5` は、`correcting` 実データを使った `3DGS` 系主空間モデル候補の smoke 生成と生成 artifact 取得までを根拠に `p-done` とする
+- 次段は `MRL-6` とし、`10s` 前後の整った実動画から `multi-frame` depth / world projection を積み上げて、admin が `PLY` viewer でぼんやり見える再現モデルを確認できる水準を first target に置く
 - `MRL-**` は後続残件群として置き、task 実測で課題の大小が見えた時点で `MRL` / `mRL` の切り方を調整する
 - 後続 `MRL-**` では、少なくとも `multi-route` 比較、`selected_route.json` 固定、request 起点 UX、`job_status.json` と waiting ring、download URL を含む result 返却、`SpacePackage` / `TrajectoryPackage` / `ReviewArtifact` handoff、reviewing viewer 実装、主空間 / 主カメラ経路 / 人物経路 / same-time highlight を同じ review 文脈で扱う統合 UX を順に残す
 - modeling は admin の手作業を含むため、後続 `MRL` の達成基準は都度「いま実際に進めやすい粒度」へ合わせて更新する
@@ -378,28 +379,28 @@
 ### 利用者主導 gate
 | MRL | mRL | gate test 項目 | 関連 story-id | 関連 behavior-id | 関連 task-id | 現在 gate | UX評価状態 | admin UX確認手順 | admin evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `MRL-0` | `-` | 利用者が install / bootstrap / app 起動入口へ到達できる準備 UX を成立させる | `su12`,`sd6`,`sd7` | `bd13`,`bd14`,`bu16` | `td12`,`td13`,`tu20` | `active` | `active` | `modeling batch 操作手順 1-6` と `da3_colab_clean_bootstrap_runbook.md` | `modeling batch 定義`, `2026-03-29 modeling bootstrap candidate evidence` |
-| `MRL-0` | `mRL-0.1` | 抽出済み bundle snapshot を手動で選んで読めることを確認する | `sd6` | `bd13` | `td12` | `p-done` | `ready` | `modeling batch 操作手順 1-3` | `2026-03-26 \`MRL-3\` candidate evidence` |
-| `MRL-0` | `mRL-0.2` | `Colab` 実行前の package / config / runbook 導線を手動でたどれることを確認する | `sd7`,`su12` | `bd14`,`bu16` | `td13`,`tu20` | `active` | `active` | `modeling batch 操作手順 4-6` と `da3_colab_clean_bootstrap_runbook.md` | `2026-03-29 modeling bootstrap candidate evidence` |
-| `MRL-1` | `-` | `trajectreview-correcting` で現場記録、受理、診断、calibration 診断までを 1 app UX として成立させる | `su1`,`su2`,`su3`,`su4`,`su6` | `bu1`,`bu2`,`bu3`,`bu4`,`bu5`,`bu6`,`bu10` | `tu1`,`tu2`,`tu3`,`tu4`,`tu5`,`tu6`,`tu7`,`tu12`,`tu13`,`tu14` | `p-done` | `p-done` | `操作手順 1-8, p-done / i-pass の判断, fail の判断` | `correcting batch 定義`, `2026-03-29 correcting batch \`MRL-1\` と \`MRL-2\` close evidence` |
-| `MRL-1` | `mRL-1.1` | session source 読込、raw / derived 分離 export、現場記録から export までの一連実行を確認する | `su1`,`su3`,`sd2` | `bu1`,`bu2`,`bu5` | `tu1`,`tu2`,`tu5` | `p-done` | `p-done` | `操作手順 1-8` | `2026-03-25 \`MRL-1\` candidate evidence`, `2026-03-29 correcting batch \`MRL-1\` と \`MRL-2\` close evidence` |
-| `MRL-1` | `mRL-1.2` | quality 数値表示、`data-check` artifact、recommended correction を確認する | `su2`,`su4` | `bu3`,`bu4`,`bu6` | `tu3`,`tu4`,`tu6`,`tu7`,`tu12` | `p-done` | `p-done` | `操作手順 7-8` | `2026-03-26 \`MRL-1\` candidate evidence`, `2026-03-29 correcting batch \`MRL-1\` と \`MRL-2\` close evidence` |
-| `MRL-1` | `mRL-1.3` | calibration capture 診断の切り分けと shared camera route の intrinsics 実収集を確認する | `su6` | `bu10` | `tu13`,`tu14` | `p-done` | `p-done` | `操作手順 11-15, p-done / i-pass の判断` | `2026-03-28 calibration diagnostic candidate evidence`, `2026-03-29 correcting batch \`MRL-1\` と \`MRL-2\` close evidence` |
-| `MRL-2` | `-` | `trajectreview-correcting` で `Google Drive` 転送と `SpaceReconstruction` handoff bundle 生成までを成立させる | `su3`,`su5`,`sd3`,`sd11` | `bu5`,`bu7`,`bu8`,`bu9`,`bd5`,`bd6`,`bd7`,`bd8`,`bd20` | `tu5`,`tu8`,`tu9`,`tu10`,`tu11`,`td6`,`td7`,`td8` | `p-done` | `p-done` | `操作手順 8-15, p-done / i-pass の判断, fail の判断` | `correcting batch 定義`, `2026-03-29 correcting batch \`MRL-1\` と \`MRL-2\` close evidence` |
-| `MRL-2` | `mRL-2.1` | `1 回以上 data-check` 後の転送 gate と `Google Drive` 転送を確認する | `su5` | `bu7`,`bu8` | `tu8`,`tu9`,`tu10` | `p-done` | `p-done` | `操作手順 8-13` | `2026-03-27 \`MRL-2\` candidate evidence`, `2026-03-29 correcting batch \`MRL-1\` と \`MRL-2\` close evidence` |
-| `MRL-2` | `mRL-2.2` | Drive folder 同期 contract と zip 転送結果を確認する | `su5`,`sd11` | `bu9`,`bd20` | `tu11` | `p-done` | `p-done` | `操作手順 10-13` | `2026-03-27 \`MRL-2\` candidate evidence`, `2026-03-29 correcting batch \`MRL-1\` と \`MRL-2\` close evidence` |
-| `MRL-2` | `mRL-2.3` | raw video を含む `SessionPackage` と `space_handoff_manifest` により `SpaceReconstruction` handoff を確認する | `sd3`,`su3` | `bd5`,`bd6`,`bd7`,`bd8`,`bu5` | `td6`,`td7`,`td8`,`tu5` | `p-done` | `p-done` | `modeling batch 前提確認 1-4` | `2026-03-25 \`MRL-2\` candidate evidence`, `2026-03-29 correcting batch \`MRL-1\` と \`MRL-2\` close evidence` |
-| `MRL-3` | `-` | `trajectreview-modeling` で実 bundle 読込、request preflight、`Google Drive` directory intake、status 基盤までを成立させる | `sd6`,`sd7`,`sd8`,`su10`,`su11`,`su12`,`su13`,`sd11` | `bd13`,`bd14`,`bd15`,`bd16`,`bu14`,`bu15`,`bu16`,`bu17`,`bd20` | `td12`,`td13`,`td14`,`td15`,`tu18`,`tu19`,`tu20`,`tu21`,`td23` | `active` | `active` | `modeling batch 操作手順 1-12` | `modeling batch 定義`, `2026-03-26 \`MRL-3\` candidate evidence`, `2026-03-29 modeling bootstrap candidate evidence` |
-| `MRL-3` | `mRL-3.1` | 実 bundle snapshot 読込と request preflight 生成を確認する | `sd6`,`sd7`,`su12` | `bd13`,`bd14`,`bu16` | `td12`,`td13`,`tu20` | `active` | `active` | `modeling batch 操作手順 1-6` | `2026-03-26 \`MRL-3\` candidate evidence` |
-| `MRL-3` | `mRL-3.2` | `Google Drive` directory bootstrap を確認する | `sd8`,`su12` | `bd16`,`bu16` | `td14`,`tu20` | `active` | `active` | `modeling batch 操作手順 7-9` と `da3_colab_clean_bootstrap_runbook.md` の `事前準備` / `準備確認` | `2026-03-29 modeling bootstrap candidate evidence` |
-| `MRL-3` | `mRL-3.3` | waiting ring、status 更新、安全 gate を確認する | `su10`,`su11`,`su13`,`sd11` | `bd15`,`bu14`,`bu15`,`bu17`,`bd20` | `td15`,`tu18`,`tu19`,`tu21`,`td23` | `ready` | `active` | `modeling batch 操作手順 10-12` | `modeling batch 定義` |
-| `MRL-4` | `-` | `DA3Metric-Large` による single-frame `3DGS` 系主空間モデル生成 smoke を成立させる | `su14`,`su15`,`sd9`,`sd11` | `bd17`,`bu18`,`bu19`,`bd20` | `td16`,`td17`,`td18`,`tu22`,`tu23`,`td23` | `p-done` | `p-done` | `modeling batch 操作手順 13-18, p-done / i-pass の判断, fail の判断` と `da3_colab_clean_bootstrap_runbook.md` の `Candidate Bootstrap v1` | `modeling batch 定義`, `2026-03-29 \`MRL-4\` \`3DGS\` smoke candidate evidence` |
-| `MRL-4` | `mRL-4.1` | `DA3` input manifest と route export を確認する | `sd9` | `bd17` | `td16` | `p-done` | `p-done` | `modeling batch 操作手順 13-14` | `2026-03-29 \`MRL-4\` \`3DGS\` smoke candidate evidence` |
-| `MRL-4` | `mRL-4.2` | `Colab` 上の metric depth と `3DGS` 系主空間モデル生成を確認する | `sd9`,`su14` | `bd17`,`bu18` | `td17`,`tu22` | `p-done` | `p-done` | `modeling batch 操作手順 15-17` と `da3_colab_clean_bootstrap_runbook.md` の `Candidate Bootstrap v1` | `2026-03-29 \`MRL-4\` \`3DGS\` smoke candidate evidence` |
-| `MRL-4` | `mRL-4.3` | `depth_estimation_report.json`、`space_quality.json`、`gs_model` を含む主空間要約を確認する | `su15`,`sd9` | `bu19`,`bd17` | `tu23`,`td18` | `p-done` | `p-done` | `未収載` | `2026-03-29 \`MRL-4\` \`3DGS\` smoke candidate evidence` |
-| `MRL-5` | `-` | `10s` 前後の整った実動画から `multi-frame` で、利用者が主空間の見え方と主カメラ経路を粗くでも把握できる再現モデルを得る | `sd9`,`su15`,`sd11` | `bd18`,`bu19`,`bd20` | `td19`,`td23` | `active` | `ready` | `未収載` | `未収載` |
-| `MRL-5` | `mRL-5.1` | `10s` 前後の整った実動画から `multi-frame` sampling route を回し、`PLY` でぼんやり見える再現モデルと主カメラ path の対応を確認する | `sd9`,`su15` | `bd18`,`bu19` | `td19` | `active` | `ready` | `未収載` | `未収載` |
-| `MRL-5` | `mRL-5.**` | 補助比較や追加確認が必要なら、実測に応じて `multi-frame` 内の追加確認を切り出す | `sd9`,`sd11` | `bd18`,`bd20` | `td19`,`td23` | `ready` | `ready` | `未収載` | `未収載` |
+| `MRL-1` | `-` | 利用者が install / bootstrap / app 起動入口へ到達できる準備 UX を成立させる | `su12`,`sd6`,`sd7` | `bd13`,`bd14`,`bu16` | `td12`,`td13`,`tu20` | `active` | `active` | `modeling batch 操作手順 1-6` と `da3_colab_clean_bootstrap_runbook.md` | `modeling batch 定義`, `2026-03-29 modeling bootstrap candidate evidence` |
+| `MRL-1` | `mRL-1.1` | 抽出済み bundle snapshot を手動で選んで読めることを確認する | `sd6` | `bd13` | `td12` | `p-done` | `ready` | `modeling batch 操作手順 1-3` | `2026-03-26 \`MRL-4\` candidate evidence` |
+| `MRL-1` | `mRL-1.2` | `Colab` 実行前の package / config / runbook 導線を手動でたどれることを確認する | `sd7`,`su12` | `bd14`,`bu16` | `td13`,`tu20` | `active` | `active` | `modeling batch 操作手順 4-6` と `da3_colab_clean_bootstrap_runbook.md` | `2026-03-29 modeling bootstrap candidate evidence` |
+| `MRL-2` | `-` | `trajectreview-correcting` で現場記録、受理、診断、calibration 診断までを 1 app UX として成立させる | `su1`,`su2`,`su3`,`su4`,`su6` | `bu1`,`bu2`,`bu3`,`bu4`,`bu5`,`bu6`,`bu10` | `tu1`,`tu2`,`tu3`,`tu4`,`tu5`,`tu6`,`tu7`,`tu12`,`tu13`,`tu14` | `p-done` | `p-done` | `操作手順 1-8, p-done / i-pass の判断, fail の判断` | `correcting batch 定義`, `2026-03-29 correcting batch \`MRL-2\` と \`MRL-3\` close evidence` |
+| `MRL-2` | `mRL-2.1` | session source 読込、raw / derived 分離 export、現場記録から export までの一連実行を確認する | `su1`,`su3`,`sd2` | `bu1`,`bu2`,`bu5` | `tu1`,`tu2`,`tu5` | `p-done` | `p-done` | `操作手順 1-8` | `2026-03-25 \`MRL-2\` candidate evidence`, `2026-03-29 correcting batch \`MRL-2\` と \`MRL-3\` close evidence` |
+| `MRL-2` | `mRL-2.2` | quality 数値表示、`data-check` artifact、recommended correction を確認する | `su2`,`su4` | `bu3`,`bu4`,`bu6` | `tu3`,`tu4`,`tu6`,`tu7`,`tu12` | `p-done` | `p-done` | `操作手順 7-8` | `2026-03-26 \`MRL-2\` candidate evidence`, `2026-03-29 correcting batch \`MRL-2\` と \`MRL-3\` close evidence` |
+| `MRL-2` | `mRL-2.3` | calibration capture 診断の切り分けと shared camera route の intrinsics 実収集を確認する | `su6` | `bu10` | `tu13`,`tu14` | `p-done` | `p-done` | `操作手順 11-15, p-done / i-pass の判断` | `2026-03-28 calibration diagnostic candidate evidence`, `2026-03-29 correcting batch \`MRL-2\` と \`MRL-3\` close evidence` |
+| `MRL-3` | `-` | `trajectreview-correcting` で `Google Drive` 転送と `SpaceReconstruction` handoff bundle 生成までを成立させる | `su3`,`su5`,`sd3`,`sd11` | `bu5`,`bu7`,`bu8`,`bu9`,`bd5`,`bd6`,`bd7`,`bd8`,`bd20` | `tu5`,`tu8`,`tu9`,`tu10`,`tu11`,`td6`,`td7`,`td8` | `p-done` | `p-done` | `操作手順 8-15, p-done / i-pass の判断, fail の判断` | `correcting batch 定義`, `2026-03-29 correcting batch \`MRL-2\` と \`MRL-3\` close evidence` |
+| `MRL-3` | `mRL-3.1` | `1 回以上 data-check` 後の転送 gate と `Google Drive` 転送を確認する | `su5` | `bu7`,`bu8` | `tu8`,`tu9`,`tu10` | `p-done` | `p-done` | `操作手順 8-13` | `2026-03-27 \`MRL-3\` candidate evidence`, `2026-03-29 correcting batch \`MRL-2\` と \`MRL-3\` close evidence` |
+| `MRL-3` | `mRL-3.2` | Drive folder 同期 contract と zip 転送結果を確認する | `su5`,`sd11` | `bu9`,`bd20` | `tu11` | `p-done` | `p-done` | `操作手順 10-13` | `2026-03-27 \`MRL-3\` candidate evidence`, `2026-03-29 correcting batch \`MRL-2\` と \`MRL-3\` close evidence` |
+| `MRL-3` | `mRL-3.3` | raw video を含む `SessionPackage` と `space_handoff_manifest` により `SpaceReconstruction` handoff を確認する | `sd3`,`su3` | `bd5`,`bd6`,`bd7`,`bd8`,`bu5` | `td6`,`td7`,`td8`,`tu5` | `p-done` | `p-done` | `modeling batch 前提確認 1-4` | `2026-03-25 \`MRL-3\` candidate evidence`, `2026-03-29 correcting batch \`MRL-2\` と \`MRL-3\` close evidence` |
+| `MRL-4` | `-` | `trajectreview-modeling` で実 bundle 読込、request preflight、`Google Drive` directory intake、status 基盤までを成立させる | `sd6`,`sd7`,`sd8`,`su10`,`su11`,`su12`,`su13`,`sd11` | `bd13`,`bd14`,`bd15`,`bd16`,`bu14`,`bu15`,`bu16`,`bu17`,`bd20` | `td12`,`td13`,`td14`,`td15`,`tu18`,`tu19`,`tu20`,`tu21`,`td23` | `active` | `active` | `modeling batch 操作手順 1-12` | `modeling batch 定義`, `2026-03-26 \`MRL-4\` candidate evidence`, `2026-03-29 modeling bootstrap candidate evidence` |
+| `MRL-4` | `mRL-4.1` | 実 bundle snapshot 読込と request preflight 生成を確認する | `sd6`,`sd7`,`su12` | `bd13`,`bd14`,`bu16` | `td12`,`td13`,`tu20` | `active` | `active` | `modeling batch 操作手順 1-6` | `2026-03-26 \`MRL-4\` candidate evidence` |
+| `MRL-4` | `mRL-4.2` | `Google Drive` directory bootstrap を確認する | `sd8`,`su12` | `bd16`,`bu16` | `td14`,`tu20` | `active` | `active` | `modeling batch 操作手順 7-9` と `da3_colab_clean_bootstrap_runbook.md` の `事前準備` / `準備確認` | `2026-03-29 modeling bootstrap candidate evidence` |
+| `MRL-4` | `mRL-4.3` | waiting ring、status 更新、安全 gate を確認する | `su10`,`su11`,`su13`,`sd11` | `bd15`,`bu14`,`bu15`,`bu17`,`bd20` | `td15`,`tu18`,`tu19`,`tu21`,`td23` | `ready` | `active` | `modeling batch 操作手順 10-12` | `modeling batch 定義` |
+| `MRL-5` | `-` | `DA3Metric-Large` による single-frame `3DGS` 系主空間モデル生成 smoke を成立させる | `su14`,`su15`,`sd9`,`sd11` | `bd17`,`bu18`,`bu19`,`bd20` | `td16`,`td17`,`td18`,`tu22`,`tu23`,`td23` | `p-done` | `p-done` | `modeling batch 操作手順 13-18, p-done / i-pass の判断, fail の判断` と `da3_colab_clean_bootstrap_runbook.md` の `Candidate Bootstrap v1` | `modeling batch 定義`, `2026-03-29 \`MRL-5\` \`3DGS\` smoke candidate evidence` |
+| `MRL-5` | `mRL-5.1` | `DA3` input manifest と route export を確認する | `sd9` | `bd17` | `td16` | `p-done` | `p-done` | `modeling batch 操作手順 13-14` | `2026-03-29 \`MRL-5\` \`3DGS\` smoke candidate evidence` |
+| `MRL-5` | `mRL-5.2` | `Colab` 上の metric depth と `3DGS` 系主空間モデル生成を確認する | `sd9`,`su14` | `bd17`,`bu18` | `td17`,`tu22` | `p-done` | `p-done` | `modeling batch 操作手順 15-17` と `da3_colab_clean_bootstrap_runbook.md` の `Candidate Bootstrap v1` | `2026-03-29 \`MRL-5\` \`3DGS\` smoke candidate evidence` |
+| `MRL-5` | `mRL-5.3` | `depth_estimation_report.json`、`space_quality.json`、`gs_model` を含む主空間要約を確認する | `su15`,`sd9` | `bu19`,`bd17` | `tu23`,`td18` | `p-done` | `p-done` | `未収載` | `2026-03-29 \`MRL-5\` \`3DGS\` smoke candidate evidence` |
+| `MRL-6` | `-` | `10s` 前後の整った実動画から `multi-frame` で、利用者が主空間の見え方と主カメラ経路を粗くでも把握できる再現モデルを得る | `sd9`,`su15`,`sd11` | `bd18`,`bu19`,`bd20` | `td19`,`td23` | `active` | `ready` | `未収載` | `未収載` |
+| `MRL-6` | `mRL-6.1` | `10s` 前後の整った実動画から `multi-frame` sampling route を回し、`PLY` でぼんやり見える再現モデルと主カメラ path の対応を確認する | `sd9`,`su15` | `bd18`,`bu19` | `td19` | `active` | `ready` | `未収載` | `未収載` |
+| `MRL-6` | `mRL-6.**` | 補助比較や追加確認が必要なら、実測に応じて `multi-frame` 内の追加確認を切り出す | `sd9`,`sd11` | `bd18`,`bd20` | `td19`,`td23` | `ready` | `ready` | `未収載` | `未収載` |
 
 ### 利用者向け後続 `MRL-**` に紐づく運営者補助 gate
 | MRL | mRL | gate test 項目 | 関連 story-id | 関連 behavior-id | 関連 task-id | 現在 gate | UX評価状態 | admin UX確認手順 | admin evidence |

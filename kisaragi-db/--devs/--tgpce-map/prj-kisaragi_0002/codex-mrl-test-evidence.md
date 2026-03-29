@@ -9,41 +9,41 @@
 - `MRL` または `mRL` が `pass` になったら 1 entry を追加する
 - entry には issue、cause、resolution、recurrence prevention、remaining work、evidence path を含める
 - planning 基線の再作成や大きな再開判断も entry として残してよい
-- `2026-03-29` の再編以後は、現行 gate を `MRL-0` と `MRL-1` から `MRL-5`、および後続 `MRL-**` で読む。再編前 entry は必要に応じて現行対応を本文へ補記する
+- `2026-03-29` の再編以後は、現行 gate を `MRL-1` から `MRL-6`、および後続 `MRL-**` で読む。再編前 entry は必要に応じて現行対応を本文へ補記する
 
 ## Entries
 
 - record date: `2026-03-29`
-  target MRL: `MRL-1`、`MRL-2`
-  target mRL: `mRL-1.1` から `mRL-1.3`、`mRL-2.1` から `mRL-2.3`
+  target MRL: `MRL-2`、`MRL-3`
+  target mRL: `mRL-2.1` から `mRL-2.3`、`mRL-3.1` から `mRL-3.3`
   gate change: `p-done`
-  issue: `correcting` 側は実データ取得と `Google Drive` 転送を完了し、その data が `MRL-4` の `3DGS` smoke 生成へ実際に使われていたが、gate 表では `active` / `ready` が多く残っていた
+  issue: `correcting` 側は実データ取得と `Google Drive` 転送を完了し、その data が `MRL-5` の `3DGS` smoke 生成へ実際に使われていたが、gate 表では `active` / `ready` が多く残っていた
   cause: `candidate evidence` は個別に蓄積されていた一方で、`correcting -> modeling` handoff 実績をまとめて `p-done` 判定へ昇格する close 記録が不足していた
-  resolution: `MRL-1` と `MRL-2` を、実 session 記録、`data-check`、calibration 診断、`Google Drive` 転送、`session_package.json` / `space_handoff_manifest.json` による handoff bundle 生成、さらにその転送済み data が `MRL-4` で実利用された事実を根拠に `p-done` へ更新した
+  resolution: `MRL-2` と `MRL-3` を、実 session 記録、`data-check`、calibration 診断、`Google Drive` 転送、`session_package.json` / `space_handoff_manifest.json` による handoff bundle 生成、さらにその転送済み data が `MRL-5` で実利用された事実を根拠に `p-done` へ更新した
   recurrence prevention: `correcting` 側の実データ取得と転送が後段 gate の実行証跡へ接続した時は、個別 candidate evidence のまま残さず、前段 gate 群をまとめて `p-done` 判定へ引き上げる
-  remaining work: `MRL-3` は request 起点 modeling と waiting ring / status 基盤を継続し、reviewing viewer や multi-app 統合は後続 `MRL-**` で扱う
+  remaining work: `MRL-4` は request 起点 modeling と waiting ring / status 基盤を継続し、reviewing viewer や multi-app 統合は後続 `MRL-**` で扱う
   evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-evidence.md`
 
 - record date: `2026-03-29`
-  target MRL: `MRL-4`
-  target mRL: `mRL-4.1`、`mRL-4.2`、`mRL-4.3`
+  target MRL: `MRL-5`
+  target mRL: `mRL-5.1`、`mRL-5.2`、`mRL-5.3`
   gate change: `p-done`
-  issue: `MRL-4` を depth bootstrap の延長で扱っていたため、この段で何をもって close し、何を後続 `MRL-5` へ送るかが曖昧だった
+  issue: `MRL-5` を depth bootstrap の延長で扱っていたため、この段で何をもって close し、何を後続 `MRL-6` へ送るかが曖昧だった
   cause: `3DGS` 系 smoke artifact と local downloaded evidence が揃った後も、plan 上の gate 状態と次段の焦点を更新し切れていなかった
-  resolution: `correcting` 実 data から `DA3Metric-Large` single-frame depth、world back-projection、point export、`gsplat` rasterization、`gs_model` / `space_quality` / `SpacePackage` smoke artifact 生成、notebook evidence、local downloaded evidence bundle 取得までを `MRL-4 p-done` の根拠へ正規化し、`10s` 前後の整った実動画を使う `multi-frame` densify と `ぼんやり見える再現モデル` の確認を `MRL-5` へ移した
+  resolution: `correcting` 実 data から `DA3Metric-Large` single-frame depth、world back-projection、point export、`gsplat` rasterization、`gs_model` / `space_quality` / `SpacePackage` smoke artifact 生成、notebook evidence、local downloaded evidence bundle 取得までを `MRL-5 p-done` の根拠へ正規化し、`10s` 前後の整った実動画を使う `multi-frame` densify と `ぼんやり見える再現モデル` の確認を `MRL-6` へ移した
   recurrence prevention: stage が切り替わる時は、evidence 追加だけで終わらせず、`ux-b2t-hypo.md` の gate 状態、次段の焦点、補助再開メモを同じ task で更新する
-  remaining work: `MRL-5` として `multi-frame` densify と `PLY` viewer での可視化確認へ進み、route 比較と `selected_route.json` 生成は後続の利用者向け `MRL-**` に紐づく補助 gate で扱う
+  remaining work: `MRL-6` として `multi-frame` densify と `PLY` viewer での可視化確認へ進み、route 比較と `selected_route.json` 生成は後続の利用者向け `MRL-**` に紐づく補助 gate で扱う
   evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/da3_smoke_v05/`
 
 - record date: `2026-03-29`
-  target MRL: `MRL-4`
-  target mRL: `mRL-4.2`、`mRL-4.3`
+  target MRL: `MRL-5`
+  target mRL: `mRL-5.2`、`mRL-5.3`
   gate change: `candidate evidence strengthened`
-  issue: `MRL-4` は depth bootstrap までは通っていたが、`correcting` 実 data から `3DGS` 系主空間モデル候補を再現できるか、また smoke artifact を `SpacePackage` 形へ接続できるかが未記録だった
+  issue: `MRL-5` は depth bootstrap までは通っていたが、`correcting` 実 data から `3DGS` 系主空間モデル候補を再現できるか、また smoke artifact を `SpacePackage` 形へ接続できるかが未記録だった
   cause: 初期 closeout は single-frame depth bootstrap の成立確認を優先し、world projection、point export、`gsplat` rasterization、contract artifact 生成の結果を正本へ昇格し切れていなかった
-  resolution: `DA3Metric-Large` single-frame depth、world back-projection、point export、`gsplat` rasterization、`gs_model_smoke.json`、`space_quality_smoke.json`、`space_package_smoke.json`、contract 名 artifact 生成までを `Candidate Bootstrap v1` と `admin-mrl-test-evidence.md` へ反映し、`MRL-4` の candidate proof を「correcting 実 data から `3DGS` 系主空間モデル候補を再現できる」水準まで引き上げた
+  resolution: `DA3Metric-Large` single-frame depth、world back-projection、point export、`gsplat` rasterization、`gs_model_smoke.json`、`space_quality_smoke.json`、`space_package_smoke.json`、contract 名 artifact 生成までを `Candidate Bootstrap v1` と `admin-mrl-test-evidence.md` へ反映し、`MRL-5` の candidate proof を「correcting 実 data から `3DGS` 系主空間モデル候補を再現できる」水準まで引き上げた
   recurrence prevention: Colab 往復で得た持続価値のある結果は、shared worklog のみへ残さず、runbook、admin evidence、必要なら closeout 記録へ同じ task で反映する
-  remaining work: `admin-mrl-test-evidence.md` を根拠に `MRL-4 p-done` 判定を行うか判断し、後続 gate では `trajectreview-modeling` 正式統合と `multi-frame` / `multi-route` を別 MRL として進める
+  remaining work: `admin-mrl-test-evidence.md` を根拠に `MRL-5 p-done` 判定を行うか判断し、後続 gate では `trajectreview-modeling` 正式統合と `multi-frame` / `multi-route` を別 MRL として進める
   evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md`
 
 - record date: `2026-03-26`
