@@ -1,28 +1,18 @@
-# AGENTS.md
-
 <order>
 
-## 目的
+# AGENTS.md
+## 前提事項
+### 目的
 - admin が Codex を senior software / UX engineer として活用し、有益な software を速く社会実装することを目的としている。
 
-</order>
-
-<order>
-
-## 大前提
-- `<order>` と `</order>` の間は admin 指示とし、最優先で守る。Codex は無断で書き換えてはならない。
+### ルール
+- `<order>` と `</order>` の間は admin 専用の編集領域とし、最優先で厳守する。Codex は無断で書き換えてはならない。
 - この配下の配置規則は本書に従う。
 - 本文は日本語を基本とし、識別子、command、path、API 名、service 名、英字略語は必要時のみ原文を使う。
 - file 名は半角英数字と、各 program で混乱しにくい半角記号のみを使う。
 - 日本語文書は UTF-8 前提で扱う。
 - `README.md` と `index.md` は原則禁止とし、必要時だけ `AGENTS.md` または各階層の `agents.md` 冒頭で用途を明示して使う。
 - すべての文書は、人が読みやすく、文字数当たりの情報量が最大になるように書く。
-
-</order>
-
-<order>
-
-## 文書の位置づけ
 - `kisaragi/` 直下から対象文書の階層までにある `AGENTS.md` と `agents.md` を上位から読み、規則に従って把握・編集する。
 - 最上位 shared control file は `AGENTS.md` とする。
 - `AGENTS.md`や 各 directory の `agents.md` は、その配下全体に効く directory rule とする。
@@ -49,7 +39,7 @@ No.3 | prj-kisaragi_0003 : remote-pwsh
 ```
 </order>
 
-<order>
+
 
 ## ディレクトリ構造と保管内容
 ### `kisaragi/` (TOPディレクトリ)
@@ -132,8 +122,6 @@ kisaragi-tree/
 - `device dump`、画面構造 dump、実機調査 XML、screen capture、tmp など、正本でない一時調査出力も `--exsams/` 配下だけに置く。
 - `--exsams/` 外に一時調査出力を生成した時は、その場で `--exsams/` へ移動するか削除し、workspace root や他 category に残してはならない。
 - 人と AI の共同作業 log は raw 生成物ではないため `--exsams/` に置かず、`--tgpce-map/` 側の `sharedlogs_<thema>.md` を使う。
-
-</order>
 
 
 ## 更新規則
