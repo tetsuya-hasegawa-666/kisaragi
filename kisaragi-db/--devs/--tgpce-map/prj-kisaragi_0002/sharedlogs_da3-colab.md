@@ -540,3 +540,57 @@ if shortcut_root.exists():
   - その URL の folder をブラウザで開いたとき、`マイドライブにショートカットを追加` 済みか
   - Colab で mount している Google account と、その URL を開ける Google account が同じか
 - 上の 2 cell の結果と、account / shortcut の確認結果を最下部へ追記してください。
+
+# admin
+
+```text
+# shortcut/account check res
+ショートカットを追加し、アカウントも正しいことを確認しました
+```
+
+# codex
+
+2026-03-29 v20。
+
+- `マイドライブにショートカット追加` 済みで、account も正しいなら、次は Colab mount 上で `.shortcut-targets-by-id` 配下にその folder が見えるかを直接確認します。
+- ここで見えれば、その実 path を `session_root` 候補として扱えます。
+
+```python
+# Shortcut root inspect v20
+from pathlib import Path
+
+root = Path("/content/drive/.shortcut-targets-by-id")
+print("exists", root.exists(), root)
+if root.exists():
+    for p in sorted(root.iterdir()):
+        print(p.name, "dir" if p.is_dir() else "file")
+```
+
+```python
+# Folder id direct inspect v20
+from pathlib import Path
+
+folder_id = "1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_"
+target = Path("/content/drive/.shortcut-targets-by-id") / folder_id
+print("target_exists", target.exists(), target)
+if target.exists():
+    for p in sorted(target.rglob("*")):
+        print(p)
+```
+
+- もし `target_exists True` なら、その配下に `session_package.json` や `images/` があるかを見て `SESSION_ROOT` を確定します。
+- 上の 2 cell の結果を返してください。
+
+# admin
+
+```text
+# Shortcut root inspect v20 res
+
+```
+
+# admin
+
+```text
+# Folder id direct inspect v20 res
+
+```
