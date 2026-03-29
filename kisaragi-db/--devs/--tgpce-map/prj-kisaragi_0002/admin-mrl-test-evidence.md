@@ -133,7 +133,7 @@
 - 実施環境:
   - `Google Colab`
   - `T4`
-  - notebook evidence: `kisaragi-db/--exsams/prj-kisaragi_0002/modeling-colab-evidence/trajectreview_modeling_20260329_gpu-evidence.ipynb`
+  - notebook evidence: `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/trajectreview_modeling_20260329_gpu-evidence.ipynb`
 - 入力 data:
   - `trajectreview-correcting` で取得した `session-20260328-103250.zip`
   - `Google Drive` shortcut 配下 `trajectreview/correcting/session-20260328-103250.zip`
@@ -161,7 +161,7 @@
 - evidence path:
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md`
   - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/sharedlogs_da3-colab.md`
-  - `kisaragi-db/--exsams/prj-kisaragi_0002/modeling-colab-evidence/trajectreview_modeling_20260329_gpu-evidence.ipynb`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/trajectreview_modeling_20260329_gpu-evidence.ipynb`
 
 ## reviewing batch 定義
 
