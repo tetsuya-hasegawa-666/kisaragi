@@ -89,6 +89,8 @@
 - 現在の blocker は、`MyDrive` 上のどこに実 session data があるか未特定な点であり、`Data_Correcting_System.zip` と `Colab Notebooks` を含む実 path 探索へ移っている
 - `MyDrive` 直下探索では `session_package.json` などは 0 件で、`Data_Correcting_System.zip` は見つかったが無関係 file と判明した
 - 次段の `Colab` probe は、`Colab Notebooks` 配下と `MyDrive` 全体から `trajectreview`、`session`、`camera_calibration_summary.json`、`frame_pose_index.csv`、`session_package.json` を手掛かりに実 data path を再探索する
+- admin 提示の Google Drive folder URL があり、その folder が `共有アイテム` 側または shortcut 側にだけ存在して `MyDrive` 直下へ見えていない可能性がある
+- 次段の `Colab` probe は `.shortcut-targets-by-id` と account / shortcut 状態を確認し、mount account と実 folder 可視性を切り分ける
 - `DA3Metric-Large` の最適な package / module 構成、weight 配布元、download URL の返却方式は未決定である
 - 人物 path の視覚再拘束に使う実データ条件が未確定である
 - `ReviewArtifact` の最終 viewer 実装先は Android 固定ではない

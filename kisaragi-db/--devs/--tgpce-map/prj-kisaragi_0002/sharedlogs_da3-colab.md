@@ -486,3 +486,57 @@ for hint in hints:
 # Broad hint search v18 res
 
 ```
+
+# admin
+
+```text
+# Drive folder hint
+マイドライブの
+https://drive.google.com/drive/folders/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_?usp=sharing
+ここにあります、見えていない可能性があります
+```
+
+# codex
+
+2026-03-29 v19。
+
+- その URL は重要な手掛かりです。
+- こちらからは Google login redirect になり、folder 中身は直接確認できませんでした。したがって、いま切り分けるべきなのは「Colab で mount した `MyDrive` に shortcut として見えているか」「`共有アイテム` 側にだけあって `MyDrive` に入っていないか」です。
+- `MyDrive` 直下に見えていないなら、次のどちらかの可能性が高いです。
+  - その folder は `共有アイテム` にだけあり、`MyDrive` へショートカット追加されていない
+  - mount している account と、その URL を持つ account が違う
+
+```python
+# Shortcut / shared root inspect v19
+from pathlib import Path
+
+paths = [
+    Path("/content/drive/MyDrive"),
+    Path("/content/drive/.shortcut-targets-by-id"),
+]
+
+for p in paths:
+    print("path", p, "exists", p.exists())
+    if p.exists():
+        for child in list(p.iterdir())[:30]:
+            print(" ", child)
+```
+
+```python
+# Folder id search hint v19
+from pathlib import Path
+
+shortcut_root = Path("/content/drive/.shortcut-targets-by-id")
+folder_id = "1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_"
+print("shortcut_root_exists", shortcut_root.exists(), shortcut_root)
+
+if shortcut_root.exists():
+    for p in shortcut_root.rglob("*"):
+        if folder_id in str(p):
+            print("hit", p)
+```
+
+- admin 側の確認項目:
+  - その URL の folder をブラウザで開いたとき、`マイドライブにショートカットを追加` 済みか
+  - Colab で mount している Google account と、その URL を開ける Google account が同じか
+- 上の 2 cell の結果と、account / shortcut の確認結果を最下部へ追記してください。
