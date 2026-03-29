@@ -14,6 +14,17 @@
 
 - record date: `2026-03-29`
   target MRL: `MRL-12`
+  target mRL: `mRL-12.1`、`mRL-12.2`、`mRL-12.3`
+  gate change: `p-done`
+  issue: `MRL-12` を depth bootstrap の延長で扱っていたため、この段で何をもって close し、何を後続 `MRL-13` へ送るかが曖昧だった
+  cause: `3DGS` 系 smoke artifact と local downloaded evidence が揃った後も、plan 上の gate 状態と次段の焦点を更新し切れていなかった
+  resolution: `correcting` 実 data から `DA3Metric-Large` single-frame depth、world back-projection、point export、`gsplat` rasterization、`gs_model` / `space_quality` / `SpacePackage` smoke artifact 生成、notebook evidence、local downloaded evidence bundle 取得までを `MRL-12 p-done` の根拠へ正規化し、`10s` 前後の整った実動画を使う `multi-frame` densify と `ぼんやり見える再現モデル` の確認を `MRL-13` へ移した
+  recurrence prevention: stage が切り替わる時は、evidence 追加だけで終わらせず、`ux-b2t-hypo.md` の gate 状態、次段の焦点、補助再開メモを同じ task で更新する
+  remaining work: `MRL-13` として `multi-frame` densify、`PLY` viewer での可視化確認、route 比較、`selected_route.json` 生成へ進む
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/da3_smoke_v05/`
+
+- record date: `2026-03-29`
+  target MRL: `MRL-12`
   target mRL: `mRL-12.2`、`mRL-12.3`
   gate change: `candidate evidence strengthened`
   issue: `MRL-12` は depth bootstrap までは通っていたが、`correcting` 実 data から `3DGS` 系主空間モデル候補を再現できるか、また smoke artifact を `SpacePackage` 形へ接続できるかが未記録だった

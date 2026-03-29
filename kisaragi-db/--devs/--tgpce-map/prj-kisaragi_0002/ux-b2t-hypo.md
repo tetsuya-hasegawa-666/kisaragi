@@ -48,8 +48,8 @@
 - 既存の `COLMAP 4.0 + nerfstudio splatfacto` notebook は参考ひな形であり、`DA3Metric-Large` modeling の truth ではない
 - `DA3Metric-Large` の `Colab` 実装は greenfield とし、`Codex` が script / notebook を作成し、admin が `Colab` 実行結果を shared worklog に貼り戻す往復で詰める
 - `2026-03-29` 時点で、`trajectreview-correcting` で取得した session `session-20260328-103250.zip` を入力に、`DA3Metric-Large` single-frame depth、world back-projection、point export、`gsplat` rasterization、`gs_model` / `space_quality` / `SpacePackage` smoke artifact 生成まで通過した
-- 上記は `MRL-12` の candidate proof として有効であり、この段の `p-done` 判断は「ある程度整った correcting 実データから `3DGS` 系主空間モデル候補を再現でき、admin が生成物を取得できること」を中心基準に置く
-- `trajectreview-modeling` 本体への正式統合と `multi-frame` / `multi-route` 比較は、この段の `MRL-12 p-done` 必須条件には置かず、後続 `MRL` で扱う
+- 上記により、`MRL-12` はこの段では `p-done` とし、「ある程度整った correcting 実データから `3DGS` 系主空間モデル候補を再現でき、admin が notebook / local download の両方で生成物を取得できること」を到達基準として扱う
+- `trajectreview-modeling` 本体への正式統合、`10s` 前後の整った動画を使う `multi-frame` densify、`ぼんやり見える再現モデル` の確認、`multi-route` 比較は `MRL-13` へ送る
 - shared worklog は project に対する truth / plan / evidence の正本ではないが、共同作業の保持情報としては authoritative な log であり、正本反映の根拠として保持する
 - shared worklog の置き場は `--tgpce-map/prj-kisaragi_0002/` 直下とし、file 名は `sharedlogs_<thema>.md` 形式に統一する
 - 現在の `DA3Metric-Large` `Colab` thread の main worklog は `sharedlogs_da3-colab.md` である
@@ -350,8 +350,8 @@
 - `MRL-9` では `td9` から `td11` で 4 app 骨格、role-specific UX、統合 app overview を固める
 - `MRL-10` では `td12`、`td13`、`tu20` で実 bundle 読込と request preflight を固める
 - `MRL-11` では `td14`、`td15`、`tu18`、`tu19`、`tu21` で `Google Drive` directory intake、waiting UX、安全 gate、status 更新を固める
-- `MRL-12` では `td16` から `td18` と `tu22`、`tu23` で `DA3Metric-Large` 前処理、`DA3Metric-Large` による `3DGS` 系主空間モデル生成までの system 構築、download URL 付き result 受理を固める
-- `MRL-13` では `td19` から `td21` で route 比較と採用 route 固定を固める
+- `MRL-12` では `td16` から `td18` と `tu22`、`tu23` で `DA3Metric-Large` 前処理、`DA3Metric-Large` による `3DGS` 系主空間モデル生成までの system 構築、smoke artifact 取得を固める
+- `MRL-13` では `td19` から `td21` で `10s` 前後の整った実動画から `multi-frame` densify を行い、ぼんやり見える再現モデルを得たうえで route 比較と採用 route 固定を固める
 - `MRL-14` では `td22`、`td23`、`tu28`、`tu29` で reviewing 実 bundle summary と実 `ReviewArtifact` viewer を固める
 
 ### 現在の見立て
@@ -362,8 +362,9 @@
 - `MRL-7` は `correcting` の次 gate とし、`現場撮影データ保存 -> data-check -> Google Drive転送` を 1 app UX として閉じる。転送 block 内の順番と popup UX を正本に固定する
 - `MRL-7` の事前設定は `転送先を選択 -> URL を確認または変更 -> 保存先fileを設定する -> Google Drive 上で保存先 file を選ぶ` を既定導線とし、既定 URL は `u/2` の指定 folder に固定する
 - `td9` から `td23` と `tu20` から `tu29` は multi-app 骨格、実 bundle summary、request preflight、remote status、route 比較、viewer 検証としては有効だが、本機能完成の証拠としては不十分である
-- `MRL-12` は、現段階では `correcting` 実データを使った `3DGS` 系主空間モデル候補の smoke 生成を `p-done` 候補の中心根拠とし、`trajectreview-modeling` 本体への正式統合や route 比較の完了は後続 gate へ分離する
-- 次段は `td14` から `td23` と `tu20` から `tu29` を中心に、`Google Drive` directory intake、waiting ring、download URL、`DA3Metric-Large` 前処理、`3DGS` 系主空間モデル生成、multi-route 比較、採用 route 固定、実 `ReviewArtifact` viewer、gate 分類を詰める
+- `MRL-12` は、`correcting` 実データを使った `3DGS` 系主空間モデル候補の smoke 生成と生成 artifact 取得までを根拠に `p-done` とする
+- 次段は `MRL-13` とし、`10s` 前後の整った実動画から `multi-frame` depth / world projection を積み上げて、admin が `PLY` viewer でぼんやり見える再現モデルを確認できる水準を first target に置く
+- `MRL-13` の後半では、その `multi-frame` route を基準に sampling / intrinsics / projection route 比較と採用 route 固定を進める
 
 ## `MRL`, `INITRL` 対応表
 - `MRL`, `INITRL` は `BDD` の story / behavior と `TDD` の task を束ね、admin がどの gate test 項目を `UX check` すべきかを定義する。
@@ -440,14 +441,14 @@
 | `MRL-11` | `mRL-11.1` | `Google Drive` directory bootstrap を確認する | `sd8`,`su12` | `bd16`,`bu16` | `td14`,`tu20` | `active` | `active` | `modeling batch 操作手順 7-9` と `da3_colab_clean_bootstrap_runbook.md` の `事前準備` / `準備確認` | `modeling batch 定義` |
 | `MRL-11` | `mRL-11.2` | waiting ring と status 更新を確認する | `su10`,`su13` | `bu14`,`bu17` | `tu18`,`tu21`,`td15` | `ready` | `active` | `modeling batch 操作手順 10-12` | `modeling batch 定義` |
 | `MRL-11` | `mRL-11.3` | remote modeling 安全 gate を確認する | `su11`,`sd11` | `bu15`,`bd20` | `tu19`,`td23` | `ready` | `ready` | `未収載` | `2026-03-28 \`MRL-11\` candidate evidence` |
-| `MRL-12` | `-` | `DA3Metric-Large` による `3DGS` 系主空間モデル生成までの system 構築と result download 導線を成立させる | `su14`,`su15`,`sd9`,`sd11` | `bu18`,`bu19`,`bd17`,`bd20` | `tu22`,`tu23`,`td16`,`td17`,`td18`,`td23` | `active` | `active` | `modeling batch 操作手順 13-18, p-done / i-pass の判断, fail の判断` と `da3_colab_clean_bootstrap_runbook.md` の `Candidate Bootstrap v1` | `modeling batch 定義`, `2026-03-28 \`MRL-12\` candidate evidence` |
-| `MRL-12` | `mRL-12.1` | `DA3` input manifest と route export を確認する | `sd9` | `bd17` | `td16` | `active` | `active` | `modeling batch 操作手順 13-14` | `2026-03-28 \`MRL-12\` candidate evidence` |
-| `MRL-12` | `mRL-12.2` | `Colab` 上の metric depth と `3DGS` 系主空間モデル生成を確認する | `sd9`,`su14` | `bd17`,`bu18` | `td17`,`tu22` | `ready` | `active` | `modeling batch 操作手順 15-17` と `da3_colab_clean_bootstrap_runbook.md` の `Candidate Bootstrap v1` | `modeling batch 定義` |
-| `MRL-12` | `mRL-12.3` | `depth_estimation_report.json`、`space_quality.json`、`gs_model` を含む主空間要約を確認する | `su15`,`sd9` | `bu19`,`bd17` | `tu23`,`td18` | `ready` | `ready` | `未収載` | `2026-03-28 \`MRL-12\` candidate evidence` |
-| `MRL-13` | `-` | route 比較と採用 route の運用化を成立させる | `sd9`,`sd10`,`sd11` | `bd18`,`bd19`,`bd20` | `td19`,`td20`,`td21`,`td23` | `active` | `ready` | `未収載` | `2026-03-28 \`MRL-13\` candidate evidence` |
-| `MRL-13` | `mRL-13.1` | sampling route 比較を確認する | `sd9` | `bd18` | `td19` | `active` | `ready` | `未収載` | `2026-03-28 \`MRL-13\` candidate evidence` |
+| `MRL-12` | `-` | `DA3Metric-Large` による `3DGS` 系主空間モデル生成までの system 構築と smoke artifact 取得を成立させる | `su14`,`su15`,`sd9`,`sd11` | `bu18`,`bu19`,`bd17`,`bd20` | `tu22`,`tu23`,`td16`,`td17`,`td18`,`td23` | `p-done` | `p-done` | `modeling batch 操作手順 13-18, p-done / i-pass の判断, fail の判断` と `da3_colab_clean_bootstrap_runbook.md` の `Candidate Bootstrap v1` | `modeling batch 定義`, `2026-03-29 \`MRL-12\` \`3DGS\` smoke candidate evidence` |
+| `MRL-12` | `mRL-12.1` | `DA3` input manifest と route export を確認する | `sd9` | `bd17` | `td16` | `p-done` | `p-done` | `modeling batch 操作手順 13-14` | `2026-03-29 \`MRL-12\` \`3DGS\` smoke candidate evidence` |
+| `MRL-12` | `mRL-12.2` | `Colab` 上の metric depth と `3DGS` 系主空間モデル生成を確認する | `sd9`,`su14` | `bd17`,`bu18` | `td17`,`tu22` | `p-done` | `p-done` | `modeling batch 操作手順 15-17` と `da3_colab_clean_bootstrap_runbook.md` の `Candidate Bootstrap v1` | `2026-03-29 \`MRL-12\` \`3DGS\` smoke candidate evidence` |
+| `MRL-12` | `mRL-12.3` | `depth_estimation_report.json`、`space_quality.json`、`gs_model` を含む主空間要約を確認する | `su15`,`sd9` | `bu19`,`bd17` | `tu23`,`td18` | `p-done` | `p-done` | `未収載` | `2026-03-29 \`MRL-12\` \`3DGS\` smoke candidate evidence` |
+| `MRL-13` | `-` | `10s` 前後の整った実動画から `multi-frame` でぼんやり見える再現モデルを得て、route 比較と採用 route の運用化を成立させる | `sd9`,`sd10`,`sd11` | `bd18`,`bd19`,`bd20` | `td19`,`td20`,`td21`,`td23` | `active` | `ready` | `未収載` | `2026-03-28 \`MRL-13\` candidate evidence` |
+| `MRL-13` | `mRL-13.1` | `10s` 前後の整った実動画から `multi-frame` sampling route を回し、`PLY` でぼんやり見える再現モデルを確認する | `sd9` | `bd18` | `td19` | `active` | `ready` | `未収載` | `2026-03-28 \`MRL-13\` candidate evidence` |
 | `MRL-13` | `mRL-13.2` | intrinsics / projection route 比較を確認する | `sd9` | `bd18` | `td20` | `ready` | `ready` | `未収載` | `2026-03-28 \`MRL-13\` candidate evidence` |
-| `MRL-13` | `mRL-13.3` | `selected_route.json` 生成を確認する | `sd10` | `bd19` | `td21` | `active` | `ready` | `未収載` | `2026-03-28 \`MRL-13\` candidate evidence` |
+| `MRL-13` | `mRL-13.3` | `selected_route.json` 生成を確認する | `sd10` | `bd19` | `td21` | `ready` | `ready` | `未収載` | `2026-03-28 \`MRL-13\` candidate evidence` |
 | `MRL-14` | `-` | reviewing 本機能を成立させる | `sd6`,`su19`,`sd11` | `bd15`,`bu23`,`bu24`,`bd20` | `td22`,`tu28`,`tu29`,`td23` | `ready` | `ready` | `未収載` | `reviewing batch 定義` |
 | `MRL-14` | `mRL-14.1` | modeling 結果の reviewing 読込を確認する | `sd6` | `bd15` | `td22` | `active` | `ready` | `未収載` | `2026-03-25 \`MRL-14\` candidate evidence` |
 | `MRL-14` | `mRL-14.2` | 実 `ReviewArtifact` viewer 操作を確認する | `su19` | `bu23` | `tu28` | `ready` | `ready` | `未収載` | `reviewing batch 定義` |
