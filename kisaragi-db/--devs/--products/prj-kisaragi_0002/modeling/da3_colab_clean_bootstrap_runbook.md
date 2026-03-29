@@ -25,6 +25,7 @@
 - `adopted` は未成立
 - 現在の blocker は、`Step 3` は通過し、次に `Step 4` の `1 frame` 推論が end-to-end で通るか未確認な点である
 - 現在は blank restart を強制せず、同じ runtime で blocker を潰しながら bootstrap 仕様を確定する段階である
+- `gsplat` warning は出るが、これは `3DGS rendering` 用の optional dependency であり、現在の `DA3Metric-Large` `1 frame` 推論の blocker ではない
 
 ## 事前準備
 
@@ -174,6 +175,12 @@ if src_str not in sys.path:
 from depth_anything_3.api import DepthAnything3
 print("import_ok", DepthAnything3)
 ```
+
+補足:
+
+- `Dependency gsplat is required for rendering 3DGS` の warning は、`DepthAnything3` import 時に `3DGS rendering` 系 code path が見えていることを示す。
+- 現在の runbook では `DA3Metric-Large` の metric depth 推論を主目的にしているため、`gsplat` は必須 dependency に含めない。
+- 後段で `3DGS rendering` までこの runbook に含める段階になったら、その時点で `gsplat` を追加する。
 
 ### Step 4: `1 frame` 推論を実行する
 

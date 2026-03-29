@@ -110,6 +110,7 @@
 - 次段の `Colab` probe は `repo_root/src` を `sys.path` へ入れる修正版 `Step 3` で import check をやり直す
 - `Step 3` 再試行では `src_root`、`plyfile`、`trimesh` の blocker を越え、`depth_anything_3.api` import は通過した
 - 現在の次段は `Step 4` の `1 frame` 推論を end-to-end で通し、保存 artifact と runtime 実測を確認することである
+- `gsplat` warning は出るが、これは `3DGS rendering` 用の optional dependency であり、現段階の `DA3Metric-Large` metric depth bootstrap の blocker ではない
 - ここからは blank restart に戻さず、同じ runtime で blocker を 1 件ずつ解消しながら bootstrap 仕様へ反映する
 - `DA3Metric-Large` の最適な package / module 構成、weight 配布元、download URL の返却方式は未決定である
 - 人物 path の視覚再拘束に使う実データ条件が未確定である
