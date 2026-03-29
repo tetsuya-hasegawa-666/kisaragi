@@ -96,7 +96,8 @@
 - zip 展開と `session_package.json` 探索により、実 `session_root` は `/content/trajectreview_input/session-20260328-103250/trajectreview` と確定した
 - `images/` existence check は通過し、`image_count 182`、`first_image frame_000009.jpg` まで確認できた
 - 現在の blocker は data path ではなく、`Cell D` 実行時の kernel 側で `depth_anything_3` module 解決が外れている点である
-- 次段の `Colab` probe は install 全再実行ではなく、`/content/Depth-Anything-3` を runtime `sys.path` へ再接続して import context を戻し、その後に 1 frame 推論を再実行する
+- `/content/Depth-Anything-3` の repo path 自体が消えていたため、原因は import 文脈だけでなく `Colab` 揮発 runtime による repo / custom install の消失と判断する
+- 次段の `Colab` probe は、repo clone と custom dependency 再投入をまとめて再bootstrap し、その後に import check と 1 frame 推論を再実行する
 - `DA3Metric-Large` の最適な package / module 構成、weight 配布元、download URL の返却方式は未決定である
 - 人物 path の視覚再拘束に使う実データ条件が未確定である
 - `ReviewArtifact` の最終 viewer 実装先は Android 固定ではない
@@ -110,7 +111,7 @@
 1. `trajectreview-modeling` を `DA3Metric-Large` depth 推定 + `ARCore pose` / intrinsics 統合、multi-route 比較、採用 route 運用化の 3 段で閉じる
 2. `trajectreview-reviewing` を `ReviewArtifact` 実 viewer と same-time highlight 操作まで閉じる
 3. `INITRL-1` として `Colab all-in modeling` package の source、config、auto-install 導線を固める
-4. `DA3Metric-Large` の `Colab` 実装は実 `session_root` と `images/` 特定まで通過したので、次は runtime に repo path を再接続し、1 frame 推論を成立させる
+4. `DA3Metric-Large` の `Colab` 実装は実 `session_root` と `images/` 特定まで通過したので、次は DA3 repo と custom dependency を runtime へ再bootstrap し、1 frame 推論を成立させる
 
 ### 作業所有権
 
