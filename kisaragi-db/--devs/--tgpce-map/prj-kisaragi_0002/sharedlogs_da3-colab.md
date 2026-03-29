@@ -736,5 +736,54 @@ print("first_images", [p.name for p in images[:5]])
 
 ```text
 # Step 5f frame alignment probe res
+session_root_exists True /content/trajectreview_input/session-20260328-103250/trajectreview
+images_dir_exists True /content/trajectreview_input/session-20260328-103250/trajectreview/images
+frame_pose_index_exists True /content/trajectreview_input/session-20260328-103250/trajectreview/frame_pose_index.csv
+camera_summary_exists True /content/trajectreview_input/session-20260328-103250/trajectreview/camera_calibration_summary.json
+arcore_pose_exists False /content/trajectreview_input/session-20260328-103250/isensorium/arcore_pose.jsonl
+frame_pose_index_head [{'frame_index': '0', 'image_file_name': '', 'frame_timestamp_ns': '916764341604734', 'pose_record_index': '1', 'pose_timestamp_ns': '916764623999078', 'time_delta_ms': '282.394', 'image_intrinsics_mode': 'session_fixed', 'tracking_state': 'PAUSED'}, {'frame_index': '1', 'image_file_name': '', 'frame_timestamp_ns': '916764374968796', 'pose_record_index': '1', 'pose_timestamp_ns': '916764623999078', 'time_delta_ms': '249.030', 'image_intrinsics_mode': 'session_fixed', 'tracking_state': 'PAUSED'}, {'frame_index': '2', 'image_file_name': '', 'frame_timestamp_ns': '916764408332807', 'pose_record_index': '1', 'pose_timestamp_ns': '916764623999078', 'time_delta_ms': '215.666', 'image_intrinsics_mode': 'session_fixed', 'tracking_state': 'PAUSED'}, {'frame_index': '3', 'image_file_name': '', 'frame_timestamp_ns': '916764441696869', 'pose_record_index': '1', 'pose_timestamp_ns': '916764623999078', 'time_delta_ms': '182.302', 'image_intrinsics_mode': 'session_fixed', 'tracking_state': 'PAUSED'}, {'frame_index': '4', 'image_file_name': '', 'frame_timestamp_ns': '916764475060880', 'pose_record_index': '1', 'pose_timestamp_ns': '916764623999078', 'time_delta_ms': '148.938', 'image_intrinsics_mode': 'session_fixed', 'tracking_state': 'PAUSED'}]
+camera_summary_keys ['blockers', 'calibrationFrameCount', 'captureDiagnostics', 'coordinateSystem', 'imageIntrinsicsCount', 'imageIntrinsicsCoverageRatio', 'intrinsicsChangedDuringRecording', 'intrinsicsModeCandidate', 'legacySessionWithoutCalibration', 'lensDistortionCount', 'lensDistortionCoverageRatio', 'possiblePreCalibrationImplementationData', 'recommendedModelingRoutes', 'recordCount', 'sessionId', 'specVersion', 'textureIntrinsicsCount', 'textureIntrinsicsCoverageRatio', 'timestampEndNs', 'timestampStartNs', 'validPoseCount', 'warnings']
+arcore_pose_head_keys []
+image_count 182
+first_images ['frame_000009.jpg', 'frame_000012.jpg', 'frame_000013.jpg', 'frame_000014.jpg', 'frame_000021.jpg']
+
+```
+
+# codex
+
+2026-03-29 v13 next action。
+
+- `Step 5f` は部分成功です。`frame_pose_index.csv`、`camera_calibration_summary.json`、`images/` は揃っています。
+- 現在の blocker は `arcore_pose.jsonl` の path 仮定が外れている点です。
+- 次は zip 展開後の実配置を列挙して、`arcore_pose` 実体 file と `session_manifest` の実 path を確定します。
+
+```python
+# Step 5g bundle layout probe
+from pathlib import Path
+
+root = Path("/content/trajectreview_input/session-20260328-103250")
+
+print("ROOT", root, root.exists())
+
+for path in sorted(root.rglob("*")):
+    rel = path.relative_to(root)
+    if path.is_dir():
+        print("DIR ", rel)
+    else:
+        name = path.name.lower()
+        if (
+            "arcore" in name
+            or "pose" in name
+            or "manifest" in name
+            or name.endswith(".jsonl")
+            or name.endswith(".csv")
+        ):
+            print("FILE", rel)
+```
+
+# admin
+
+```text
+# Step 5g bundle layout probe res
 
 ```
