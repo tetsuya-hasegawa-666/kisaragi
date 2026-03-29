@@ -855,5 +855,66 @@ if target is not None:
 
 ```text
 # Step 5h pose record probe res
+frame_pose_index_count_sample 10
+arcore_pose_count 182
+target_found True
+frame_pose_row {'frame_index': '0', 'image_file_name': '', 'frame_timestamp_ns': '916764341604734', 'pose_record_index': '1', 'pose_timestamp_ns': '916764623999078', 'time_delta_ms': '282.394', 'image_intrinsics_mode': 'session_fixed', 'tracking_state': 'PAUSED'}
+pose_keys ['captureDiagnostics', 'captureTimestampNs', 'elapsedRealtimeNanos', 'frameTimestampNs', 'imageIntrinsics', 'lensDistortion', 'pose', 'recordIndex', 'sessionId', 'textureIntrinsics', 'trackingFailureReason', 'trackingState', 'wallTimeMillis']
+pose_field elapsedRealtimeNanos 916764772753921
+pose_field trackingState PAUSED
+pose_field imageIntrinsics dict
+pose_field textureIntrinsics dict
+pose_field lensDistortion dict
+
+```
+
+# codex
+
+2026-03-29 v15 next action。
+
+- `Step 5h` は成功です。world projection に必要な pose record は実在し、`imageIntrinsics` と `textureIntrinsics` も取れています。
+- 次は `pose`、`imageIntrinsics`、`textureIntrinsics`、`lensDistortion` の内部 key と値 shape を確認し、world projection の最小入力を確定します。
+
+```python
+# Step 5i pose payload probe
+import csv
+import json
+from pathlib import Path
+
+root = Path("/content/trajectreview_input/session-20260328-103250")
+session_root = root / "trajectreview"
+frame_pose_index_path = session_root / "frame_pose_index.csv"
+arcore_pose_path = root / "arcore_pose.jsonl"
+
+with frame_pose_index_path.open("r", encoding="utf-8") as f:
+    row = next(csv.DictReader(f))
+
+pose_idx = int(row["pose_record_index"])
+with arcore_pose_path.open("r", encoding="utf-8") as f:
+    poses = [json.loads(line) for line in f]
+
+pose = poses[pose_idx]
+
+for field in ["pose", "imageIntrinsics", "textureIntrinsics", "lensDistortion", "captureDiagnostics"]:
+    value = pose.get(field)
+    print("FIELD", field, type(value).__name__)
+    if isinstance(value, dict):
+        print("KEYS", sorted(value.keys()))
+        for k, v in value.items():
+            if isinstance(v, dict):
+                print("SUBDICT", k, sorted(v.keys()))
+            elif isinstance(v, list):
+                print("LIST", k, len(v), v[:8])
+            else:
+                print("VALUE", k, v)
+    else:
+        print("RAW", value)
+    print("---")
+```
+
+# admin
+
+```text
+# Step 5i pose payload probe res
 
 ```
