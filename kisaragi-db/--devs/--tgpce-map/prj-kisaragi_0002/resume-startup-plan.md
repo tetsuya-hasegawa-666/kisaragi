@@ -19,7 +19,7 @@
 - `DA3Metric-Large` の `Colab` bootstrap は、`2026-03-29` に `T4` 上で `Step 1` から `Step 4` まで end-to-end 通過した。
 - 成立済みなのは `single-frame bootstrap` であり、これは最終目標ではなく `modeling 本機能` への通過点である。
 - `MRL-12` は、`correcting` 実 data から `3DGS` 系主空間モデル候補を smoke 生成し、admin が notebook / local download で生成物を取得できることを根拠に `p-done` とした。
-- 現在の main target は `MRL-13` であり、`10s` 前後の整った実動画を使った `multi-frame` densify で、admin が `PLY` viewer からぼんやり見える再現モデルを確認できる水準へ進めることである。
+- 現在の main target は `MRL-13` であり、`10s` 前後の整った実動画を使った `multi-frame` densify で、利用者が主空間の見え方と主カメラ経路を粗く把握できる再現モデルを admin がまず `PLY` viewer で確認する水準へ進めることである。
 - `MRL-14` 以降は細かく固定せず `MRL-**` として大まかな順番だけを置き、実測で見えた課題の大小に応じて `MRL` / `mRL` を切り直す。
 - ただし後続 `MRL` でも UX 到達品質は元の目標に沿わせる。特に modeling では、利用者が主空間の見え方、主カメラ経路、処理状態、次 action を迷わず把握できる方向を維持する。
 

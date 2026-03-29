@@ -22,7 +22,7 @@
 | `ISS-001` | `InputPackaging` の入口を `correcting` 中心へ寄せた後、統合 app / legacy intake をどこまで同格に扱うか | `InputPackaging` の UX、truth、後段説明 | admin 判断により、開発中から実使用まで全入口を開けたまま併存させ、説明順だけを運用上の既定に留める | `close` | `project-truth.md`, `admin-mrl-test-method.md` |
 | `ISS-002` | `Google Drive` 転送先の document grant を持続前提にするか | `MRL-7` の実運用可否 | admin 判断により grant 持続前提を捨て、`転送先を選択` を毎回必須にする | `close` | `project-truth.md`, `admin-mrl-test-evidence.md` |
 | `ISS-003` | `Google Drive` 側は zip、端末側は `<session_id>/` であり、どの段階で unzip を正規化するか | handoff 運用、admin 手順、実装分担 | `modeling` の `Colab bootstrap package` が unzip と配置正規化を担う方針へ決定した | `close` | `project-truth.md`, `admin-mrl-test-method.md` |
-| `ISS-005` | `Colab all-in modeling` package と `correcting` の PC install package の配布形式をどこまで共通化するか | `INITRL` の粒度、導入 UX | `INITRL` を分離導入し、package 構成は `0002` 内で設計を開始する | `small-open` | `project-truth.md`, `ux-b2t-hypo.md` |
+| `ISS-005` | `Colab all-in modeling` package と `correcting` の PC install package の配布形式をどこまで共通化するか | install / bootstrap UX の粒度、導入 UX | 利用者主導 `MRL` 配下の準備 UX として扱い、package 構成は `0002` 内で設計を継続する | `small-open` | `project-truth.md`, `ux-b2t-hypo.md` |
 | `ISS-004` | `疑問点不整合一覧` の粒度を `MRL` closeout と同じ粒度まで細かくするか | 文書運用コスト | 現在は admin 判断が要るものと Codex の小疑問だけを集約する | `no judge` | `AGENTS.md`, `ux-b2t-hypo.md` |
 | `ISS-006` | Android 標準保存画面で `Google Drive` provider へ切り替える操作が初見利用者に分かりにくい | 多人数展開時の導入 UX | 現時点は手順明記のみ。利用者が増えたら help 導線を追加する | `small-open` | `admin-mrl-test-method.md`, `project-truth.md` |
 
@@ -49,7 +49,7 @@
 - `DA3Metric-Large` の `Colab` 実装は greenfield とし、`Codex` が script / notebook を作成し、admin が `Colab` 実行結果を shared worklog に貼り戻す往復で詰める
 - `2026-03-29` 時点で、`trajectreview-correcting` で取得した session `session-20260328-103250.zip` を入力に、`DA3Metric-Large` single-frame depth、world back-projection、point export、`gsplat` rasterization、`gs_model` / `space_quality` / `SpacePackage` smoke artifact 生成まで通過した
 - 上記により、`MRL-12` はこの段では `p-done` とし、「ある程度整った correcting 実データから `3DGS` 系主空間モデル候補を再現でき、admin が notebook / local download の両方で生成物を取得できること」を到達基準として扱う
-- `trajectreview-modeling` 本体への正式統合、`10s` 前後の整った動画を使う `multi-frame` densify、`ぼんやり見える再現モデル` の確認、`multi-route` 比較は `MRL-13` へ送る
+- `MRL-13` は `10s` 前後の整った動画を使う `multi-frame` densify と `ぼんやり見える再現モデル` の確認に絞り、`trajectreview-modeling` 本体への正式統合と `multi-route` 比較は後続 `MRL-**` へ送る
 - shared worklog は project に対する truth / plan / evidence の正本ではないが、共同作業の保持情報としては authoritative な log であり、正本反映の根拠として保持する
 - shared worklog の置き場は `--tgpce-map/prj-kisaragi_0002/` 直下とし、file 名は `sharedlogs_<thema>.md` 形式に統一する
 - 現在の `DA3Metric-Large` `Colab` thread の main worklog は `sharedlogs_da3-colab.md` である
@@ -60,10 +60,9 @@
 - 上記 route では、trial 往復の shared worklog と別に、`--products/prj-kisaragi_0002/modeling/` 配下へ `最小 clean bootstrap runbook` を保持し、admin が次回は先頭から再実行できる形に収束させる
 - `最小 clean bootstrap runbook` は `candidate` と `adopted` を分け、admin 実測で end-to-end が通った手順のみを `truly pass` 扱いにする
 - 現在の `DA3Metric-Large` `Colab bootstrap` の正本は `--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md` とする
-- 現在の `DA3Metric-Large` `Colab bootstrap` 実行は、`INITRL-1` / `mINITRL-1.2`、`MRL-11` / `mRL-11.1`、`MRL-12` / `mRL-12.2` の candidate evidence 収集中でもある
+- 現在の `DA3Metric-Large` `Colab bootstrap` 実行は、`MRL-0` / `mRL-0.2`、`MRL-11` / `mRL-11.1`、`MRL-12` / `mRL-12.2` の candidate evidence 収集中でもある
 - `ISS-003` の unzip / 配置正規化責務は `modeling` の `Colab bootstrap package` が担う
-- `INITRL-1` は `modeling` の `Colab bootstrap package`、source 配置、config、auto-install package を追跡する
-- `INITRL-2` は `correcting` の PC install package 準備と artifact 互換性を追跡する
+- `MRL-0` は利用者が install / bootstrap / app 起動入口へ到達する準備 UX を追跡し、旧 `INITRL` をここへ吸収する
 - `trajectreview-modeling` の本機能 gate は、単一 route の一括 close ではなく、`比較基盤`、`比較実験`、`採用 route の運用化` の 3 段で閉じる
 - `trajectreview-reviewing` は summary と stub 読込までは持つが、実 `ReviewArtifact` viewer と同時刻ハイライト操作は未実装である
 
@@ -115,7 +114,7 @@
 - `Step 4` では T4 上で core 推論自体は通過し、現在の blocker は `prediction.conf` を必須扱いした保存処理が `None` で落ちる点である
 - `HF_TOKEN` warning は public model download では optional であり、現段階の blocker ではない
 - `conf` / `intrinsics` / `extrinsics` を optional 扱いへ修正した結果、`2026-03-29` に T4 上で `1 frame` 推論は end-to-end で完了した
-- 現在の次段は、single-frame bootstrap 成立を踏まえて request 起点 UX、waiting ring、download URL、複数 frame / route 比較へ進むことである
+- 現在の次段は、single-frame bootstrap 成立を踏まえて `MRL-13` として `10s` 前後の整った実動画を使う `multi-frame` densify と、`PLY` viewer でぼんやり見える再現モデルを確認することである
 - `gsplat` warning は出るが、これは `3DGS rendering` 用の optional dependency であり、現段階の `DA3Metric-Large` metric depth bootstrap の blocker ではない
 - ここからは blank restart に戻さず、同じ runtime で blocker を 1 件ずつ解消しながら bootstrap 仕様へ反映する
 - `DA3Metric-Large` の最適な package / module 構成、weight 配布元、download URL の返却方式は未決定である
@@ -130,8 +129,8 @@
 
 1. `trajectreview-modeling` を `DA3Metric-Large` depth 推定 + `ARCore pose` / intrinsics 統合、multi-route 比較、採用 route 運用化の 3 段で閉じる
 2. `trajectreview-reviewing` を `ReviewArtifact` 実 viewer と same-time highlight 操作まで閉じる
-3. `INITRL-1` として `Colab all-in modeling` package の source、config、auto-install 導線を固める
-4. `DA3Metric-Large` の `Colab` 実装は実 `session_root` と `images/` 特定まで通過したので、次は DA3 repo と custom dependency を runtime へ再bootstrap し、1 frame 推論を成立させる
+3. `MRL-0` として `Colab all-in modeling` package の source、config、auto-install 導線を固める
+4. `MRL-13` で `10s` 前後の整った実動画から複数 frame を sampling し、world point cloud を統合して `PLY` で粗い再現モデルを確認する
 
 ### 作業所有権
 
@@ -348,6 +347,7 @@
 - `MRL-7` では `tu8` から `tu11` で `correcting` 単体の `Google Drive` transfer を固める
 - `MRL-8` では `td6` から `td8` と `tu5` で raw video 維持、`SessionPackage` 正規化、`SpaceReconstruction` handoff gate を固める
 - `MRL-9` では `td9` から `td11` で 4 app 骨格、role-specific UX、統合 app overview を固める
+- `MRL-0` では install / bootstrap / `Colab` 入口の準備 UX を固める
 - `MRL-10` では `td12`、`td13`、`tu20` で実 bundle 読込と request preflight を固める。ここは app から request を作る本機能側とする
 - `MRL-11` では `td14`、`td15`、`tu18`、`tu19`、`tu21` で `Google Drive` directory intake、waiting UX、安全 gate、status 更新を固める
 - `MRL-12` では `td16` から `td18` と `tu22`、`tu23` で `DA3Metric-Large` 前処理、`DA3Metric-Large` による `3DGS` 系主空間モデル生成までの system 構築、smoke artifact 取得を固める
@@ -368,8 +368,8 @@
 - modeling は admin の手作業を含むため、後続 `MRL` の達成基準は都度「いま実際に進めやすい粒度」へ合わせて更新する
 - ただし `MRL` の達成品質として求める UX 自体は薄めず、元の north star である「利用者が主空間の見え方と主カメラ経路を確認できる」「処理状態と次 action を迷わず把握できる」方向に沿って各段の到達像を明記する
 
-## `MRL`, `INITRL` 対応表
-- `MRL`, `INITRL` は `BDD` の story / behavior と `TDD` の task を束ね、admin がどの gate test 項目を `UX check` すべきかを定義する。
+## `MRL` 対応表
+- `MRL` は `BDD` の story / behavior と `TDD` の task を束ね、admin がどの gate test 項目を `UX check` すべきかを定義する。
 - 各 row は「この gate で何を確認するか」を 1 つの test 項目として持ち、`関連 task-id` が空でない限り、下の `TDD` と追跡可能でなければならない。
 - `admin UX確認手順` は [admin-mrl-test-method.md](/Users/tetsuya/kisaragi/kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-method.md) の章名または操作手順番号をそのまま書く。
 - `admin evidence` は [admin-mrl-test-evidence.md](/Users/tetsuya/kisaragi/kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-evidence.md) の章名をそのまま書く。
@@ -383,6 +383,9 @@
 ### 利用者主導 gate
 | MRL | mRL | gate test 項目 | 関連 story-id | 関連 behavior-id | 関連 task-id | 現在 gate | UX評価状態 | admin UX確認手順 | admin evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `MRL-0` | `-` | 利用者が install / bootstrap / app 起動入口へ到達できる準備 UX を成立させる | `su12`,`sd6`,`sd7` | `bd13`,`bd14`,`bu16` | `td12`,`td13`,`tu20` | `active` | `active` | `modeling batch 操作手順 1-6` と `da3_colab_clean_bootstrap_runbook.md` | `modeling batch 定義`, `2026-03-29 modeling bootstrap candidate evidence` |
+| `MRL-0` | `mRL-0.1` | 抽出済み bundle snapshot を手動で選んで読めることを確認する | `sd6` | `bd13` | `td12` | `p-done` | `ready` | `modeling batch 操作手順 1-3` | `2026-03-25 \`MRL-10\` candidate evidence` |
+| `MRL-0` | `mRL-0.2` | `Colab` 実行前の package / config / runbook 導線を手動でたどれることを確認する | `sd7`,`su12` | `bd14`,`bu16` | `td13`,`tu20` | `active` | `active` | `modeling batch 操作手順 4-6` と `da3_colab_clean_bootstrap_runbook.md` | `2026-03-29 modeling bootstrap candidate evidence` |
 | `MRL-1` | `-` | 受理と診断の基礎線を成立させる | `su7`,`su8`,`su9` | `bu11`,`bu12`,`bu13`,`bd1`,`bd3`,`bd4` | `td1`,`td4`,`td5`,`tu15`,`tu16`,`tu17` | `active` | `ready` | `未収載` | `2026-03-25 candidate evidence` |
 | `MRL-1` | `mRL-1.1` | 主入力の受理契約を確認する | `su7` | `bu11`,`bd1`,`bd3` | `td1`,`td4`,`tu15` | `active` | `ready` | `未収載` | `2026-03-25 candidate evidence` |
 | `MRL-1` | `mRL-1.2` | 人物映り込みを含む診断基線を確認する | `su8` | `bu12` | `tu16` | `active` | `ready` | `未収載` | `2026-03-25 candidate evidence` |
@@ -414,20 +417,6 @@
 | `MRL-7` | `mRL-7.1` | `1 回以上 data-check` 後の転送 gate を確認する | `su5` | `bu7`,`bu8` | `tu8`,`tu9` | `active` | `active` | `操作手順 8-13` | `2026-03-27 \`MRL-7\` candidate evidence` |
 | `MRL-7` | `mRL-7.2` | Google Drive への session 転送を確認する | `su5` | `bu8` | `tu10` | `active` | `active` | `操作手順 10-13` | `2026-03-27 \`MRL-7\` candidate evidence` |
 | `MRL-7` | `mRL-7.3` | Drive folder 同期 contract を確認する | `su5` | `bu9` | `tu11` | `active` | `active` | `操作手順 10-13` | `2026-03-27 \`MRL-7\` candidate evidence` |
-
-### 利用者手動の補助 UX gate
-| INITRL | mINITRL | 補助 UX test 項目 | 関連 story-id | 関連 behavior-id | 関連 task-id | 現在 gate | UX評価状態 | admin UX確認手順 | admin evidence |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `INITRL-1` | `-` | `Colab all-in modeling` package の bootstrap 導線を成立させる | `sd6`,`sd7`,`su12` | `bd13`,`bd14`,`bu16` | `td12`,`td13`,`tu20` | `active` | `active` | `modeling batch 操作手順 1-6` と `da3_colab_clean_bootstrap_runbook.md` | `modeling batch 定義` |
-| `INITRL-1` | `mINITRL-1.1` | 抽出済み bundle snapshot を手動で選んで読めることを確認する | `sd6` | `bd13` | `td12` | `p-done` | `ready` | `未収載` | `2026-03-25 candidate evidence` |
-| `INITRL-1` | `mINITRL-1.2` | `Colab` 実行前の package / config / runbook 導線を手動でたどれることを確認する | `sd7`,`su12` | `bd14`,`bu16` | `td13`,`tu20` | `active` | `active` | `modeling batch 操作手順 4-6` と `da3_colab_clean_bootstrap_runbook.md` | `2026-03-25 \`MRL-10\` candidate evidence` |
-| `INITRL-2` | `-` | `correcting` 側の PC install / package 補助導線を成立させる | `sd1`,`sd4`,`sd5` | `bd2`,`bd9`,`bd10`,`bd11`,`bd12` | `td2`,`td3`,`td9`,`td10`,`td11` | `active` | `ready` | `未収載` | `2026-03-25 candidate evidence` |
-| `INITRL-2` | `mINITRL-2.1` | project 境界 scan と dependency hygiene を確認する | `sd1` | `bd2` | `td2`,`td3` | `p-done` | `ready` | `未収載` | `2026-03-25 candidate evidence` |
-| `INITRL-2` | `mINITRL-2.2` | 4 app module build と初期表示導線を確認する | `sd4`,`sd5` | `bd9`,`bd10`,`bd11`,`bd12` | `td9`,`td10`,`td11` | `p-done` | `ready` | `未収載` | `2026-03-25 candidate evidence` |
-
-### 運営者主導 gate
-| MRL | mRL | gate test 項目 | 関連 story-id | 関連 behavior-id | 関連 task-id | 現在 gate | UX評価状態 | admin UX確認手順 | admin evidence |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `MRL-8` | `-` | `SpaceReconstruction` handoff bundle を成立させる | `sd3`,`su3` | `bd5`,`bd6`,`bd7`,`bd8`,`bu5` | `td6`,`td7`,`td8`,`tu5` | `active` | `active` | `modeling batch 前提確認 1-4` | `modeling batch 定義` |
 | `MRL-8` | `mRL-8.1` | raw video を含む bundle 維持を確認する | `sd3` | `bd5` | `td6` | `active` | `ready` | `未収載` | `2026-03-25 candidate evidence` |
 | `MRL-8` | `mRL-8.2` | `SessionPackage` と handoff manifest 正規化を確認する | `sd3` | `bd6`,`bd7` | `td7` | `active` | `active` | `modeling batch 前提確認 1-4` | `modeling batch 定義` |
@@ -450,4 +439,8 @@
 | `MRL-13` | `-` | `10s` 前後の整った実動画から `multi-frame` で、利用者が主空間の見え方と主カメラ経路を粗くでも把握できる再現モデルを得る | `sd9`,`su15`,`sd11` | `bd18`,`bu19`,`bd20` | `td19`,`td23` | `active` | `ready` | `未収載` | `2026-03-28 \`MRL-13\` candidate evidence` |
 | `MRL-13` | `mRL-13.1` | `10s` 前後の整った実動画から `multi-frame` sampling route を回し、`PLY` でぼんやり見える再現モデルと主カメラ path の対応を確認する | `sd9`,`su15` | `bd18`,`bu19` | `td19` | `active` | `ready` | `未収載` | `2026-03-28 \`MRL-13\` candidate evidence` |
 | `MRL-13` | `mRL-13.**` | 補助比較や追加確認が必要なら、実測に応じて route 差分確認を切り出す | `sd9`,`sd11` | `bd18`,`bd20` | `td20`,`td21`,`td23` | `ready` | `ready` | `未収載` | `未収載` |
+
+### 運営者主導 gate
+| MRL | mRL | gate test 項目 | 関連 story-id | 関連 behavior-id | 関連 task-id | 現在 gate | UX評価状態 | admin UX確認手順 | admin evidence |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `MRL-**` | `-` | route 比較、採用 route 固定、request / status UX、reviewing viewer、正式統合を実測に応じて順次切り出す。ただし UX 目標は常に元の north star に沿って明記する | `sd6`,`sd9`,`sd10`,`su19`,`sd11` | `bd15`,`bd18`,`bd19`,`bu23`,`bu24`,`bd20` | `td20`,`td21`,`td22`,`tu28`,`tu29`,`td23` | `ready` | `ready` | `未収載` | `未収載` |
