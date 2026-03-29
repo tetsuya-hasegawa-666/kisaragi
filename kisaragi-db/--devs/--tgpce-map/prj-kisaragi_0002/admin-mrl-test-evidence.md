@@ -158,10 +158,13 @@
   - `gs_model.contract.json`
   - `space_quality.contract.json`
   - `space_package.contract.json`
+- local downloaded evidence:
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/da3_smoke_v05/`
 - evidence path:
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md`
   - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/sharedlogs_da3-colab.md`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/trajectreview_modeling_20260329_gpu-evidence.ipynb`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/da3_smoke_v05/`
 
 ## reviewing batch 定義
 

@@ -377,4 +377,5 @@ print("saved:", OUTPUT_ROOT)
   - `space_package.contract.json`
 - この段階は `MRL-12` の `gs_model` 候補 artifact と `SpacePackage` smoke contract を作れることの candidate proof である。
 - admin が `Google Colab` の `T4` で実行した notebook 証跡は `modeling/evidence/trajectreview_modeling_20260329_gpu-evidence.ipynb` に置き、candidate closeout を裏づける product 側 evidence として扱う。
+- admin が Colab から download した smoke artifact 一式は `modeling/evidence/da3_smoke_v05/` に置き、local 可視化確認と `MRL-12` candidate evidence の bundle として扱う。
 - まだ admin evidence 正本と `MRL-12` closeout への反映は別途必要であり、この runbook 単独で `i-pass` を意味しない。

@@ -1,0 +1,12 @@
+{
+  "artifact_type": "gs_model_smoke",
+  "renderer": "gsplat",
+  "point_source": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05/world_points_smoke.npy",
+  "render_png": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05/gsplat_render_smoke.png",
+  "num_points": 128,
+  "device": "cuda",
+  "image_size": [
+    640,
+    480
+  ]
+}
