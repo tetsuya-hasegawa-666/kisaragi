@@ -303,6 +303,15 @@ kisaragi-tree/
 - shared worklog は、truth / current / plan / evidence へ反映する時の根拠 log として保持し、shared rule 変更は `AGENTS.md`、project truth / plan / gate 影響は project 正本文書、gate 判定根拠は admin 証跡正本へ必ず別途反映する。
 - shared worklog は、原則として「固定 header」と「時系列本文」に分け、header より下は `# codex` または `# admin` 見出しによる末尾追記だけを許可する。途中挿入、途中修正、本文中ほどへの要約追記は禁止とする。
 - admin / Codex が次に読む場所を迷わないよう、shared worklog の運用上の正規読み順は「最下部から上へ」とする。Codex は回答前に最下部の最新 `# admin` / `# codex` を先に確認する。
+- `# admin` の入力欄は admin の入力時間短縮を優先し、原則として次の template を最下部に置いて引き渡す。
+```text
+# admin
+
+```text
+# <コードブロックのタイトル> res
+
+```
+```
 
 ## 文書の役割境界
 - `project-truth.md` は、目的、完成判定、利用入口、UX 原則、段階構造、app 責務、artifact 契約、外部連携境界のような恒久事項だけを持つ。

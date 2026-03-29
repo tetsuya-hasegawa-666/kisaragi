@@ -121,5 +121,302 @@ print("saved:", OUTPUT_ROOT)
 # admin
 
 ```text
+# Inspect Cell res
+root_exists False /content/drive/MyDrive/trajectreview/input
+```
+
+# codex
+
+2026-03-29 v13。
+
+- `root_exists False` なので、`/content/drive/MyDrive/trajectreview/input` という想定 path 自体が外れています。
+- 現在の blocker は `session_root` 未設定より前段の「Google Drive 上の input root が別の場所にある」点です。
+- 次は `MyDrive` 直下と `session_package.json` の所在を探索して、実 `session_root` 候補を特定します。
+
+```python
+# Drive root inspect v13
+from pathlib import Path
+
+drive_root = Path("/content/drive/MyDrive")
+print("drive_root_exists", drive_root.exists(), drive_root)
+if drive_root.exists():
+    for p in sorted(drive_root.iterdir()):
+        print(p.name, "dir" if p.is_dir() else "file")
+```
+
+```python
+# Recursive session hint inspect v13
+from pathlib import Path
+
+drive_root = Path("/content/drive/MyDrive")
+patterns = [
+    "session_package.json",
+    "camera_calibration_summary.json",
+    "frame_pose_index.csv",
+]
+
+for pattern in patterns:
+    found = list(drive_root.rglob(pattern))
+    print("pattern", pattern, "count", len(found))
+    for p in found[:10]:
+        print(" ", p)
+```
+
+- `session_package.json` が見つかった folder が実 `session_root` 候補です。
+- この 2 つの結果を最下部へ追記してください。こちらで `SESSION_ROOT` の実値を確定します。
+
+# admin
+
+```text
+falseです、admin側の設定の問題かどうかも検討してください
+```
+
+# codex
+
+2026-03-29 v14。
+
+- はい、その可能性があります。ここでの `False` は code ではなく、admin 側の `Google Drive mount`、使用 account、または保存先想定の問題である可能性があります。
+- 切り分けるべき候補は 3 つです。
+  - `drive.mount('/content/drive')` が未実行、または mount 失敗
+  - Colab で開いている Google account と、data を置いた Google Drive account が違う
+  - data 自体がまだ Google Drive に置かれていない、または想定外の folder にある
+- 次は path 探索ではなく、mount と account 側を先に確認します。
+
+```python
+# Drive mount state check v14
+from pathlib import Path
+
+paths = [
+    Path("/content/drive"),
+    Path("/content/drive/MyDrive"),
+    Path("/content/drive/Shareddrives"),
+]
+
+for p in paths:
+    print(p, p.exists(), p.is_dir() if p.exists() else None)
+    if p.exists():
+        try:
+            children = list(p.iterdir())[:10]
+            print(" children:", [c.name for c in children])
+        except Exception as e:
+            print(" children_error:", repr(e))
+```
+
+```python
+# Remount if needed v14
+from google.colab import drive
+drive.mount('/content/drive', force_remount=True)
+```
+
+```python
+# Post-remount quick check v14
+from pathlib import Path
+
+root = Path("/content/drive/MyDrive")
+print("mydrive_exists", root.exists(), root)
+if root.exists():
+    for p in sorted(root.iterdir()):
+        print(p.name, "dir" if p.is_dir() else "file")
+```
+
+- さらに admin 側で確認してほしいこと:
+  - Colab 右上の account と、Drive に data を置いた account が同じか
+  - `Google Drive` 上に session zip または session folder を本当に置いたか
+  - `correcting` から転送した先が `マイドライブ` なのか、共有ドライブなのか
+- 上の 3 cell の結果と、account / 保存先の確認結果を最下部へ追記してください。
+
+# admin
+
+```text
+# Drive root inspect v13 res
+drive_root_exists False /content/drive/MyDrive
+```
+
+# codex
+
+2026-03-29 v15。
+
+- `/content/drive/MyDrive` 自体が `False` なので、現段階では path 仮定ではなく `Drive mount` 自体が成立していない可能性が高いです。
+- この場合、`session_root` 探索を続けても意味が薄いので、先に `drive.mount('/content/drive', force_remount=True)` を実行して mount を成立させる必要があります。
+- したがって、いま優先すべき切り分けは次の順です。
+  1. `drive.mount('/content/drive', force_remount=True)` の実行結果
+  2. 実行後に `/content/drive/MyDrive` が `True` になるか
+  3. それでも `False` なら account / browser auth 側の問題
+
+```python
+# Remount now v15
+from google.colab import drive
+drive.mount('/content/drive', force_remount=True)
+```
+
+```python
+# Recheck after remount v15
+from pathlib import Path
+
+paths = [
+    Path("/content/drive"),
+    Path("/content/drive/MyDrive"),
+    Path("/content/drive/Shareddrives"),
+]
+
+for p in paths:
+    print(p, p.exists(), p.is_dir() if p.exists() else None)
+    if p.exists():
+        try:
+            print(" children:", [c.name for c in list(p.iterdir())[:10]])
+        except Exception as e:
+            print(" children_error:", repr(e))
+```
+
+- もし remount 実行時に認証画面が出たら、その account が data を置いた Google account と同じか確認してください。
+- remount 後の 2 cell の結果を最下部へ追記してください。
+
+# admin
+
+```text
+# Remount now v15 res
+Mounted at /content/drive
+```
+
+```text
+# Recheck after remount v15 res
+/content/drive True True
+ children: ['MyDrive', '.shortcut-targets-by-id', '.Trash-0', '.Encrypted']
+/content/drive/MyDrive True True
+ children: ['SiMa.aiのフィジカルAI解説.gdoc', 'MCP技術の最先端と未来.gdoc', 'PVPフレームワークと開発ツール調査.gdoc', '作りたいものの本質を研究検討して定義するための情報構築.gdoc', '屋外で作業する人をリアルタイムに地図上に表現するシステム.gdoc', '抽象化した作りたいものについて（仮説の前提）.gdoc', '実現パターンの提示.gdoc', '現場地図条件追加.gdoc', 'Data_Correcting_System.zip', 'Colab Notebooks']
+/content/drive/Shareddrives False None
+```
+
+# codex
+
+2026-03-29 v16。
+
+- `Drive mount` は成立しました。`/content/drive/MyDrive` も見えています。
+- したがって、現在の blocker は mount ではなく、「実データが `MyDrive` のどこにあるか未特定」である点です。
+- いま見えている候補は少なくとも 2 つです。
+  - `Data_Correcting_System.zip`
+  - `Colab Notebooks`
+- 次は `session_package.json` を実際に含む path を特定します。まず zip か folder かを切り分けます。
+
+```python
+# Candidate inspect v16
+from pathlib import Path
+
+candidates = [
+    Path("/content/drive/MyDrive/Data_Correcting_System.zip"),
+    Path("/content/drive/MyDrive/Colab Notebooks"),
+]
+
+for p in candidates:
+    print("path", p)
+    print(" exists", p.exists())
+    print(" is_file", p.is_file() if p.exists() else None)
+    print(" is_dir", p.is_dir() if p.exists() else None)
+```
+
+```python
+# Search session files in MyDrive v16
+from pathlib import Path
+
+drive_root = Path("/content/drive/MyDrive")
+patterns = [
+    "session_package.json",
+    "camera_calibration_summary.json",
+    "frame_pose_index.csv",
+]
+
+for pattern in patterns:
+    found = list(drive_root.rglob(pattern))
+    print("pattern", pattern, "count", len(found))
+    for p in found[:20]:
+        print(" ", p)
+```
+
+- `session_package.json` が見つかった folder が実 `session_root` 候補です。
+- もし search が 0 件で、`Data_Correcting_System.zip` が存在するなら、次段はその zip の中身確認へ進みます。
+- まずは上の 2 cell の結果を最下部へ追記してください。
+
+# admin
+
+```text
+# Candidate inspect v16 res
+path /content/drive/MyDrive/Data_Correcting_System.zip
+ exists True
+ is_file True
+ is_dir False
+path /content/drive/MyDrive/Colab Notebooks
+ exists True
+ is_file False
+ is_dir True
+```
+
+# admin
+
+```text
+# Search session files in MyDrive v16 res
+pattern session_package.json count 0
+pattern camera_calibration_summary.json count 0
+pattern frame_pose_index.csv count 0
+```
+
+# codex
+
+2026-03-29 v17。
+
+- `MyDrive` 直下では `session_package.json` が 0 件で、`Data_Correcting_System.zip` は実在しています。
+- したがって、現時点の最有力仮説は「実データは zip 内にあり、まだ unzip / 正規化されていない」です。
+- 次は zip の中身を確認して、`session_package.json` や `images/` が zip 内にあるかを見ます。
+
+```python
+# Zip inspect v17
+from pathlib import Path
+import zipfile
+
+zip_path = Path("/content/drive/MyDrive/Data_Correcting_System.zip")
+print("zip_exists", zip_path.exists(), zip_path)
+
+with zipfile.ZipFile(zip_path, "r") as zf:
+    names = zf.namelist()
+    print("entry_count", len(names))
+    for name in names[:100]:
+        print(name)
+```
+
+```python
+# Zip target search v17
+from pathlib import Path
+import zipfile
+
+zip_path = Path("/content/drive/MyDrive/Data_Correcting_System.zip")
+targets = [
+    "session_package.json",
+    "camera_calibration_summary.json",
+    "frame_pose_index.csv",
+    "/images/",
+]
+
+with zipfile.ZipFile(zip_path, "r") as zf:
+    names = zf.namelist()
+    for target in targets:
+        hits = [name for name in names if target in name]
+        print("target", target, "count", len(hits))
+        for hit in hits[:20]:
+            print(" ", hit)
+```
+
+- もし zip 内に `session_package.json` があるなら、次段はその zip を Colab 作業用 directory へ unzip して `session_root` を正規化します。
+- まずは上の 2 cell の結果を返してください。
+
+# admin
+
+```text
+# Zip inspect v17 res
+
+```
+
+# admin
+
+```text
+# Zip target search v17 res
 
 ```

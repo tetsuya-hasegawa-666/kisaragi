@@ -81,7 +81,14 @@
 - `addict` は install 済みとなり、現在の blocker は `depth_anything_3.utils.pose_align` が要求する `evo` の未install である
 - 次段の `Colab` probe は install をやり直さず、`evo` を追加 install して import / 1 frame 推論確認を続行する
 - `evo` は install 済みとなり、`Cell C` の import check は通過した。現在の blocker は `Cell D` の `SESSION_ROOT` が placeholder のままで、`images/` 実 path を指していない点である
-- 次段の `Colab` probe は code 修正ではなく、実 `session_root` を特定して `images/` の存在確認を行ったうえで 1 frame 推論へ進む
+- `Inspect Cell` 実行により `/content/drive/MyDrive/trajectreview/input` は存在しないことが分かった。現在の blocker は `Google Drive` 上の input root path 仮定が外れている点である
+- 次段の `Colab` probe は code 修正ではなく、`Drive mount` 状態、使用 account、`MyDrive` / shared drive 上の実保存先を切り分け、`session_package.json` 所在確認により実 `session_root` を特定したうえで 1 frame 推論へ進む
+- `/content/drive/MyDrive` 自体が `False` と判明したため、現在の最優先 blocker は `Drive mount` 未成立または auth 不整合である
+- 次段の `Colab` probe は `force_remount` の再実行と mount 後 path 再確認を先に行い、その後に実 `session_root` 特定へ戻る
+- `force_remount` 後に `/content/drive/MyDrive` は可視化されたため、`Drive mount` blocker は解消した
+- 現在の blocker は、`MyDrive` 上のどこに実 session data があるか未特定な点であり、`Data_Correcting_System.zip` と `Colab Notebooks` を含む実 path 探索へ移っている
+- `MyDrive` 直下探索では `session_package.json` などは 0 件で、`Data_Correcting_System.zip` が実在することが分かった
+- 次段の `Colab` probe は、zip 内に `session_package.json`、`frame_pose_index.csv`、`images/` があるかを確認し、必要なら Colab 作業用 directory へ unzip / 正規化して `session_root` を作る
 - `DA3Metric-Large` の最適な package / module 構成、weight 配布元、download URL の返却方式は未決定である
 - 人物 path の視覚再拘束に使う実データ条件が未確定である
 - `ReviewArtifact` の最終 viewer 実装先は Android 固定ではない

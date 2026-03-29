@@ -26,6 +26,20 @@
   - 旧: `目的`、`大前提`、文書位置づけが複数の section に分かれていた。
   - 新: 冒頭が `前提事項` にまとまり、目的と共通 rule を連続して読める構成になった。
 
+### 2026-03-29 AGENTS.md shared worklog の admin 入力 template 固定
+
+- 日時: `2026-03-29`
+- 文書名: `AGENTS.md`
+- 標題: `# admin` 入力欄 template の固定
+- 背景: shared worklog で admin が毎回見出しや `res` 行を手入力すると負担が大きく、入力形式も揺れやすかった。
+- 目的: admin の入力時間を短縮し、shared worklog の追記形式を一定に保つ。
+- 対処方法: shared worklog rule に、Codex が次の引き渡し時に `# admin` 用 template を最下部へ置くことを追加した。
+- 対応内容: `# admin` の既定 template を `# <コードブロックのタイトル> res` を含む code block 形式で明記した。
+- 更新結果: admin は最下部の template にそのまま貼るだけで返答でき、shared worklog の見た目も安定する。
+- 新旧比較:
+  - 旧: `# admin` の入力形式は都度揺れていた。
+  - 新: Codex が最下部へ固定 template を置く shared rule になった。
+
 ### 2026-03-29 AGENTS.md shared worklog の `--tgpce-map` 移管と命名簡素化
 
 - 日時: `2026-03-29`
