@@ -208,6 +208,7 @@
 - `最小 clean bootstrap runbook` は `candidate` と `adopted` を分け、admin 実測で end-to-end 完了した手順だけを `truly pass` 扱いとする。
 - 現在の `DA3Metric-Large` `Colab bootstrap` の正本は `--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md` とする。
 - 上記 runbook の admin 実行は、`INITRL-1` / `mINITRL-1.2` の bootstrap UX、`MRL-11` / `mRL-11.1` の `Google Drive` directory bootstrap、`MRL-12` / `mRL-12.2` の `Colab` metric depth 実行の candidate evidence を兼ねる。
+- 現段階の DA3 bootstrap は、`GPU` を選べても最初は `CPU` で bootstrap / import / `1 frame` 推論確認を進めてよい。
 - `trajectreview-correcting` は Android app を正本実行入口としつつ、PC install package も別 process で設計し、artifact 互換性、保存先構成、導線を固定する。
 
 ### modeling route

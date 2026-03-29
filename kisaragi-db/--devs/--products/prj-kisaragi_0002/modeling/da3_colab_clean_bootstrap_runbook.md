@@ -30,6 +30,7 @@
 - `Runtime` は可能なら `T4` 以上の GPU を選ぶ
 - `Google Drive` を mount できる account で入る
 - 対象 folder id `1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_` への access があることを確認する
+- `GPU` を選べても、初回は `CPU` で bootstrap / import / 1 frame まで進めてよい
 
 ## 準備確認
 
@@ -55,7 +56,7 @@ OK 条件:
 - `drive_exists True`
 - `mydrive_exists True`
 - `shortcut_root_exists True`
-- `cuda_available` は `True` が理想。`False` でも bootstrap は進められるが、推論は遅くなる
+- `cuda_available` は `True` が理想。`False` でも bootstrap は進められる。今回の初回確認は `CPU` 前提でもよい
 
 ### 準備確認 2: 対象 folder と zip の存在確認
 
@@ -158,9 +159,13 @@ from pathlib import Path
 REPO_ROOT = Path("/content/Depth-Anything-3")
 assert REPO_ROOT.exists(), f"repo not found: {REPO_ROOT}"
 
-repo_str = str(REPO_ROOT)
-if repo_str not in sys.path:
-    sys.path.insert(0, repo_str)
+src_root = REPO_ROOT / "src"
+print("src_root_exists", src_root.exists(), src_root)
+assert src_root.exists(), f"src not found: {src_root}"
+
+src_str = str(src_root)
+if src_str not in sys.path:
+    sys.path.insert(0, src_str)
 
 from depth_anything_3.api import DepthAnything3
 print("import_ok", DepthAnything3)
@@ -225,6 +230,7 @@ print("saved:", OUTPUT_ROOT)
 - `session_root_exists True`
 - `images_dir_exists True`
 - `image_count >= 1`
+- `src_root_exists True`
 - `import_ok` が出る
 - `summary.json` が生成される
 - `depth_preview.png`、`depth_raw.npy`、`conf_raw.npy`、`intrinsics.npy`、`extrinsics.npy` が保存される

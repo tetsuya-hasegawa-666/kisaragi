@@ -1277,6 +1277,47 @@ blocker:
 
 # codex
 
+2026-03-29 v27。
+
+- `Step 2` は通過しています。
+- `Step 3` の blocker は repo 不在ではなく、Python path の向き先です。
+- official codebase は `src/depth_anything_3` 配下なので、`repo root` ではなく `repo_root/src` を `sys.path` に入れる必要があります。
+- `GPU` は選択可能でも、初回確認は `CPU` 前提で問題ありません。
+
+- 次にやること:
+  1. 正本 [da3_colab_clean_bootstrap_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_clean_bootstrap_runbook.md) の `Step 3` を最新版で見直す
+  2. 下の修正版 `Step 3 retry v27`
+  3. 通れば `Step 4`
+
+```python
+# Step 3 retry v27
+import sys
+from pathlib import Path
+
+REPO_ROOT = Path("/content/Depth-Anything-3")
+assert REPO_ROOT.exists(), f"repo not found: {REPO_ROOT}"
+
+src_root = REPO_ROOT / "src"
+print("src_root_exists", src_root.exists(), src_root)
+assert src_root.exists(), f"src not found: {src_root}"
+
+src_str = str(src_root)
+if src_str not in sys.path:
+    sys.path.insert(0, src_str)
+
+from depth_anything_3.api import DepthAnything3
+print("import_ok", DepthAnything3)
+```
+
+# admin
+
+```text
+# Step 3 retry v27 res
+
+```
+
+# codex
+
 2026-03-29 v26。
 
 - この shared log に貼り戻している `Candidate Bootstrap v1` の進捗は、技術確認だけでなく次の candidate evidence でもあります。
@@ -1293,10 +1334,36 @@ blocker:
 ```text
 # Candidate Bootstrap v1 progress res
 Step 1:
+Mounted at /content/drive
+cwd /content
+cuda_available False
+drive_exists True
+mydrive_exists True
+shortcut_root_exists True
 
 Step 2:
+RUN git clone https://github.com/ByteDance-Seed/Depth-Anything-3.git /content/Depth-Anything-3
+RUN python -m pip install --quiet addict evo moviepy==1.0.3 pygame pycolmap
+bootstrap_done True /content/Depth-Anything-3
 
 Step 3:
+---------------------------------------------------------------------------
+ModuleNotFoundError                       Traceback (most recent call last)
+/tmp/ipykernel_30560/3532536310.py in <cell line: 0>()
+      9     sys.path.insert(0, repo_str)
+     10 
+---> 11 from depth_anything_3.api import DepthAnything3
+     12 print("import_ok", DepthAnything3)
+
+ModuleNotFoundError: No module named 'depth_anything_3'
+
+---------------------------------------------------------------------------
+NOTE: If your import is failing due to a missing package, you can
+manually install dependencies using either !pip or !apt.
+
+To view examples of installing some common dependencies, click the
+"Open Examples" button below.
+---------------------------------------------------------------------------
 
 Step 4:
 

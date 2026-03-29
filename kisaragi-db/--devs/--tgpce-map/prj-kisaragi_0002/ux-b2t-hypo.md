@@ -104,6 +104,9 @@
 - `/content/Depth-Anything-3` の repo path 自体が消えていたため、原因は import 文脈だけでなく `Colab` 揮発 runtime による repo / custom install の消失と判断する
 - 次段の `Colab` probe は、repo clone と custom dependency 再投入をまとめて再bootstrap し、その後に import check と 1 frame 推論を再実行する
 - `Colab` 側の partial recovery を延々と積むより、ここまでで真に必要だった command を再合成した `最小 clean bootstrap runbook` を product 文書として維持する方針へ切り替える
+- admin は `GPU` を選べるが、現段階は `CPU` 前提で bootstrap / import / `1 frame` 推論確認を進める
+- `Step 2` は通過し、現在の blocker は install 不足ではなく、official codebase が `src/depth_anything_3` 配下であるのに `repo root` を `sys.path` へ入れていた点である
+- 次段の `Colab` probe は `repo_root/src` を `sys.path` へ入れる修正版 `Step 3` で import check をやり直す
 - `DA3Metric-Large` の最適な package / module 構成、weight 配布元、download URL の返却方式は未決定である
 - 人物 path の視覚再拘束に使う実データ条件が未確定である
 - `ReviewArtifact` の最終 viewer 実装先は Android 固定ではない
