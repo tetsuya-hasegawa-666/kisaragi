@@ -35,7 +35,8 @@
 - `2026-03-29` の `Step 5m` により、`gsplat_render_smoke.png`、`gs_model_smoke.json`、`space_quality_smoke.json` を保存できることを確認した
 - `2026-03-29` の `Step 5n` により、`space_package_smoke.json` を生成し、`gs_model` 候補 artifact と `quality` を `SpacePackage` 形へ接続できることを確認した
 - `2026-03-29` の `Step 5o` により、`space_package.contract.json`、`space_quality.contract.json`、`gs_model.contract.json` を生成し、smoke artifact を contract 名へ寄せられることを確認した
-- 現在の次 block は `Candidate Bootstrap v1` の closeout であり、single-frame bootstrap から `3DGS` 系主空間モデル生成 smoke までを 1 route として整理する
+- `2026-03-29` の `Step 5p` により、single-frame bootstrap から `3DGS` 系主空間モデル生成 smoke までの到達 artifact 一式がそろっていることを確認した
+- 現在の次 block は `Candidate Bootstrap v1` の closeout を admin evidence と `MRL-12` closeout へ接続することだが、runbook の candidate 自体は `3DGS` 生成 smoke まで拡張可能な状態になった
 
 ## 事前準備
 
@@ -108,14 +109,14 @@ OK 条件:
 
 ### 目的
 
-- `Google Drive` shortcut 配下の session zip を読み、`session_root` を正規化し、`DA3Metric-Large` の `1 frame` 推論まで進む。
+- `Google Drive` shortcut 配下の session zip を読み、`session_root` を正規化し、`DA3Metric-Large` の `1 frame` 推論、world back-projection、point export、`gsplat` rasterization、`gs_model` / `SpacePackage` smoke artifact 生成まで進む。
 
 ### 前提
 
 - `事前準備` と `準備確認` が済んでいる
 - 対象 folder id は `1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_`
 - 対象 zip は `trajectreview/correcting/session-20260328-103250.zip`
-- 結果出力先は `trajectreview/results/da3_smoke_v24/`
+- 結果出力先は `trajectreview/results/da3_smoke_v05/`
 
 ### Step 1: session zip を unzip して `session_root` を正規化する
 
@@ -329,6 +330,9 @@ print("saved:", OUTPUT_ROOT)
 - `summary.json` が生成される
 - `depth_preview.png` と `depth_raw.npy` が保存される
 - `conf_raw.npy`、`intrinsics.npy`、`extrinsics.npy` は `None` でなければ保存される
+- `world_points_smoke.npy` と `world_points_smoke.ply` が保存される
+- `gsplat_render_smoke.png`、`gs_model_smoke.json`、`space_quality_smoke.json` が保存される
+- `space_package_smoke.json`、`gs_model.contract.json`、`space_quality.contract.json`、`space_package.contract.json` が保存される
 
 ## Adopted Bootstrap
 
@@ -355,3 +359,21 @@ print("saved:", OUTPUT_ROOT)
   - `extrinsics_shape`: `null`
   - `depth_min`: `0.31544607877731323`
   - `depth_max`: `4.0310516357421875`
+
+## Candidate 拡張状況
+
+- `2026-03-29` 時点で、`Candidate Bootstrap v1` は single-frame depth bootstrap だけでなく、以下の `3DGS` 系主空間モデル生成 smoke まで到達済みである。
+- 到達 artifact:
+  - `depth_raw.npy`
+  - `depth_preview.png`
+  - `world_points_smoke.npy`
+  - `world_points_smoke.ply`
+  - `gsplat_render_smoke.png`
+  - `gs_model_smoke.json`
+  - `space_quality_smoke.json`
+  - `space_package_smoke.json`
+  - `gs_model.contract.json`
+  - `space_quality.contract.json`
+  - `space_package.contract.json`
+- この段階は `MRL-12` の `gs_model` 候補 artifact と `SpacePackage` smoke contract を作れることの candidate proof である。
+- まだ admin evidence 正本と `MRL-12` closeout への反映は別途必要であり、この runbook 単独で `i-pass` を意味しない。

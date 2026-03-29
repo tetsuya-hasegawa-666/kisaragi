@@ -1506,5 +1506,65 @@ print(json.dumps(summary, indent=2))
 
 ```text
 # Step 5p candidate closeout summary res
+{
+  "depth_raw.npy": {
+    "exists": true,
+    "size": 762176
+  },
+  "depth_preview.png": {
+    "exists": true,
+    "size": 22524
+  },
+  "world_points_smoke.npy": {
+    "exists": true,
+    "size": 4160
+  },
+  "world_points_smoke.ply": {
+    "exists": true,
+    "size": 19923
+  },
+  "gsplat_render_smoke.png": {
+    "exists": true,
+    "size": 34086
+  },
+  "gs_model_smoke.json": {
+    "exists": true,
+    "size": 449
+  },
+  "space_quality_smoke.json": {
+    "exists": true,
+    "size": 559
+  },
+  "space_package_smoke.json": {
+    "exists": true,
+    "size": 1420
+  },
+  "gs_model.contract.json": {
+    "exists": true,
+    "size": 449
+  },
+  "space_quality.contract.json": {
+    "exists": true,
+    "size": 559
+  },
+  "space_package.contract.json": {
+    "exists": true,
+    "size": 1420
+  }
+}
+```
+
+# codex
+
+2026-03-29 v23 next action。
+
+- `Step 5p` は成功です。single-frame bootstrap から `3DGS` 系主空間モデル生成 smoke までの到達 artifact 一式がそろいました。
+- `Candidate Bootstrap v1` は `3DGS` 生成 smoke まで拡張可能な状態です。
+- 次は chat 側で正本へ反映した内容を基準に、`admin-mrl-test-evidence.md` と `MRL-12` closeout へどう接続するかを整理します。
+
+# admin
+
+```text
+# MRL-12 closeout handoff res
 
 ```
