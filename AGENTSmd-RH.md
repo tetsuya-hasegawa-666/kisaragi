@@ -12,6 +12,20 @@
 
 ## 更新履歴
 
+### 2026-03-29 AGENTS.md `MRL-**` の使いどころ明確化
+
+- 日時: `2026-03-29`
+- 文書名: `AGENTS.md`
+- 標題: 直近の visible target と後続残件の `MRL` 書き分け rule 追加
+- 背景: `prj-kisaragi_0002` の modeling 計画で、`MRL-13` の直近 target と、最終目標へ向かう後続残件群をどう書き分けるかが project ごとの運用に依存していた。
+- 目的: 直近で具体的に検証する target は番号付き `MRL` / `mRL`、粒度未確定の後続残件は `MRL-**` / `mRL-**` として束ねる shared rule を明文化する。
+- 対処方法: `開発計画` と `plan 文書の標準 2 点セット` に、`MRL-**` / `mRL-**` の使用条件と、north star に対する未達項目の明記義務を追記した。
+- 対応内容: visible target は番号付き gate、後続で順番未確定の残件は wildcard gate として扱うこと、ただし内容をぼかさず未達項目を列挙することを shared rule 化した。
+- 更新結果: 今後は各 project で、直近の検証段と最終目標へ向かう残件群を同じ読み方で計画書へ置ける。
+- 新旧比較:
+  - 旧: `MRL-**` の使いどころは project ごとの判断に依存していた。
+  - 新: 直近 visible target は番号付き `MRL`、粒度未確定の後続残件は `MRL-**` として置く shared rule が追加された。
+
 ### 2026-03-29 AGENTS.md 揮発 runtime の clean bootstrap 正本化
 
 - 日時: `2026-03-29`

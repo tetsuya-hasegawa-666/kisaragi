@@ -173,6 +173,8 @@ kisaragi-tree/
 - gate 状態語は `ready`、`active`、`p-done`、`i-pass` の 4 値を使う。
 - `ready` は未着手または開始待ち、`active` は実装・検証・評価の進行中、`p-done` は当該 phase 範囲で成立確認済み、`i-pass` は関連統合範囲まで成立確認済みを表す。
 - `aspass` は「現時点では合格相当」を表す補助語として会話や短い補足メモで使ってよいが、正本文書の状態語には使わず、`p-done` または `i-pass` へ正規化する。
+- 直近で具体的に検証する visible target は番号付き `MRL` / `mRL` で置き、最終目標へ向かう後続残件は粒度や順番が未確定な間だけ `MRL-**` / `mRL-**` で束ねてよい。
+- `MRL-**` / `mRL-**` を使う時も、元の north star に対して何が未達かを項目として明記し、単なる「後でやること」へぼかしてはならない。
 - `MRL` または `mRL` が `p-done` または `i-pass` になったら、その project の admin 証跡正本に記録する。`--tgpce-map/` 採用 project は `admin-mrl-test-evidence.md` を使う。
 - `INITL` または `mINITL` が `p-done` または `i-pass` になった時も、準備 UX と install / bootstrap 証跡を同じ admin 証跡正本に記録する。
 - UX 検証成果は同じ admin 証跡正本に集約する。
@@ -191,6 +193,7 @@ kisaragi-tree/
 - `MRL` 対応表は `MRL`、`mRL`、目的、関連 `s-id`、関連 `b-id`、現在 gate の表で持つ。
 - `MRL` 対応表の gate 状態語は `ready`、`active`、`p-done`、`i-pass` を使う。
 - `MRL` 対応表の記載順は、`ready` から `i-pass` への時系列ではなく、既定で運用順 `correcting`、`modeling`、`reviewing` を優先する。
+- `MRL` 対応表では、直近の visible target は番号付き `MRL` / `mRL` で明記し、後続で粒度未確定の残件だけを `MRL-**` / `mRL-**` で置いてよい。
 - `INITL` 対応表は、`MRL` 対応表の直下に別 subsection として置き、`INITL`、`mINITL`、目的、関連 `MRL` または関連段階、現在 gate を少なくとも持つ。
 - `INITL-*` と `mINITL-*` は、package、install、bootstrap、実行環境、account 準備、remote 配置、配布導線などの準備 UX を表す識別子とする。
 - `INITL` は機能 behavior そのものではないため、`Purpose Story` / `System Behaviors` へ無理に混ぜず、対応する `MRL` を滑らかに開始する別 process として扱う。
