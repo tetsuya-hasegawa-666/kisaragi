@@ -36,7 +36,7 @@
 - `2026-03-29` の `Step 5n` により、`space_package_smoke.json` を生成し、`gs_model` 候補 artifact と `quality` を `SpacePackage` 形へ接続できることを確認した
 - `2026-03-29` の `Step 5o` により、`space_package.contract.json`、`space_quality.contract.json`、`gs_model.contract.json` を生成し、smoke artifact を contract 名へ寄せられることを確認した
 - `2026-03-29` の `Step 5p` により、single-frame bootstrap から `3DGS` 系主空間モデル生成 smoke までの到達 artifact 一式がそろっていることを確認した
-- 現在の次 block は `Candidate Bootstrap v1` の closeout を admin evidence と `MRL-12` closeout へ接続することだが、runbook の candidate 自体は `3DGS` 生成 smoke まで拡張可能な状態になった
+- 現在の次 block は `Candidate Bootstrap v1` の closeout を admin evidence と `MRL-4` closeout へ接続することだが、runbook の candidate 自体は `3DGS` 生成 smoke まで拡張可能な状態になった
 
 ## 事前準備
 
@@ -191,7 +191,7 @@ print("import_ok", DepthAnything3)
 
 - `Dependency gsplat is required for rendering 3DGS` の warning は、`DepthAnything3` import 時に `3DGS rendering` 系 code path が見えていることを示す。
 - 現在の runbook では `DA3Metric-Large` の metric depth 推論を主目的にしているため、`gsplat` は必須 dependency に含めない。
-- `MRL-12` の次段では、この warning を放置せず、`gsplat` import probe と実データ `3DGS` 生成 smoke test を shared worklog で詰める。
+- `MRL-4` の次段では、この warning を放置せず、`gsplat` import probe と実データ `3DGS` 生成 smoke test を shared worklog で詰める。
 
 ## 次段の shared worklog 運用
 
@@ -375,7 +375,7 @@ print("saved:", OUTPUT_ROOT)
   - `gs_model.contract.json`
   - `space_quality.contract.json`
   - `space_package.contract.json`
-- この段階は `MRL-12` の `gs_model` 候補 artifact と `SpacePackage` smoke contract を作れることの candidate proof である。
+- この段階は `MRL-4` の `gs_model` 候補 artifact と `SpacePackage` smoke contract を作れることの candidate proof である。
 - admin が `Google Colab` の `T4` で実行した notebook 証跡は `modeling/evidence/trajectreview_modeling_20260329_gpu-evidence.ipynb` に置き、candidate closeout を裏づける product 側 evidence として扱う。
-- admin が Colab から download した smoke artifact 一式は `modeling/evidence/da3_smoke_v05/` に置き、local 可視化確認と `MRL-12` candidate evidence の bundle として扱う。
-- まだ admin evidence 正本と `MRL-12` closeout への反映は別途必要であり、この runbook 単独で `i-pass` を意味しない。
+- admin が Colab から download した smoke artifact 一式は `modeling/evidence/da3_smoke_v05/` に置き、local 可視化確認と `MRL-4` candidate evidence の bundle として扱う。
+- まだ admin evidence 正本と `MRL-4` closeout への反映は別途必要であり、この runbook 単独で `i-pass` を意味しない。

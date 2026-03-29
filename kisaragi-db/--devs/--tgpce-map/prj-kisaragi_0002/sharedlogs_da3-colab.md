@@ -32,8 +32,8 @@
 - notebook 証跡と local downloaded artifact は product 側へ移設済みです。
   - `modeling/evidence/trajectreview_modeling_20260329_gpu-evidence.ipynb`
   - `modeling/evidence/da3_smoke_v05/`
-- この log 本文はいったん reset し、次回は `MRL-13` の `multi-frame` densify から再開します。
-- 次回は fresh runtime 前提で、まず runbook と `MRL-13` の target を確認したうえで、必要な command block だけをここへ再追記してください。
+- この log 本文はいったん reset し、次回は `MRL-5` の `multi-frame` densify から再開します。
+- 次回は fresh runtime 前提で、まず runbook と `MRL-5` の target を確認したうえで、必要な command block だけをここへ再追記してください。
 
 # admin
 

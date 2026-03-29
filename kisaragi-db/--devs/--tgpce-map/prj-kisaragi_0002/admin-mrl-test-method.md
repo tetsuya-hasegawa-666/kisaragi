@@ -47,7 +47,7 @@
 24. Android 端末で app `trajectreview-modeling` を起動する。
 25. `bundle を選択` を押し、統合 app などで作られた `trajectreview_export/<session_id>` folder を選ぶ。
 26. `軽量 model を実行` を押し、`spaceQuality`、`trajectoryQuality`、`colab_job_request.json` を含む出力一覧が見えることを確認する。
-27. `DA3Metric-Large` の `Colab bootstrap` は [da3_colab_clean_bootstrap_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_clean_bootstrap_runbook.md) を正本として扱う。この runbook の admin 実行は `MRL-0` / `mRL-0.2`、`MRL-11` / `mRL-11.1`、`MRL-12` / `mRL-12.2` の candidate evidence を兼ねるが、`gs_model` を含む `SpacePackage` 実生成確認は別途 `MRL-12` 本体で確認する。`MRL-13` は 10s 前後の整った実動画からの `multi-frame` densify による粗い再現モデル段として別扱いにし、route 比較と採用固定は後続 `MRL-**` の課題とする。
+27. `DA3Metric-Large` の `Colab bootstrap` は [da3_colab_clean_bootstrap_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_clean_bootstrap_runbook.md) を正本として扱う。この runbook の admin 実行は `MRL-0` / `mRL-0.2`、`MRL-3` / `mRL-3.2`、`MRL-4` / `mRL-4.2` の candidate evidence を兼ねるが、`gs_model` を含む `SpacePackage` 実生成確認は別途 `MRL-4` 本体で確認する。`MRL-5` は 10s 前後の整った実動画からの `multi-frame` densify による粗い再現モデル段として別扱いにし、route 比較と採用固定は後続 `MRL-**` の課題とする。
 27. PC browser で [Google Colab](https://colab.research.google.com/) を開き、Google account で sign in する。
 28. `ファイル` -> `ノートブックをアップロード` を選び、[trajectreview_da3metric_large_colab.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\trajectreview_da3metric_large_colab.ipynb) を開く。menu 名が違う時は `Upload notebook` 相当を探す。
 29. `ランタイム` -> `ランタイムのタイプを変更` で `GPU` を選ぶ。候補に `T4`、`L4`、`A100` などが見えた時は、その表示を記録する。

@@ -8,9 +8,9 @@
 
 - 判定:
   - admin `UX check 完了` を `i-pass` 必須条件にする shared rule へ更新したため、既存の `pass` 解釈は全件再評価対象になった
-  - `MRL-1` から `MRL-10` の既存 `pass` は、admin `UX check` 記録が明示されるまで `active` または `ready` として扱う
+  - 旧番号時代の `MRL` 既存 `pass` は、admin `UX check` 記録が明示されるまで `active` または `ready` として扱う
   - admin `UX check` は app 運用順に沿って、関連 gate をまとめた batch で実施してよい
-  - 2026-03-25 から 2026-03-26 に記録した `MRL-5` から `MRL-8` の一部は、`UX-only`、`build / install`、`local sample`、summary 読込の確認としては有効だった
+  - 2026-03-25 から 2026-03-26 に記録した旧番号時代の一部 gate は、`UX-only`、`build / install`、`local sample`、summary 読込の確認としては有効だった
   - ただし、これらは `本来機能が app として完成した証拠` ではないため、対応する `MRL` / `mRL` の一部を `active` / `ready` へ戻した
 - 維持する evidence:
   - 記録画面への到達、bundle 読込、request 生成、summary 表示、multi-app build は中間成果として引き続き有効である
@@ -29,13 +29,11 @@
 ## correcting batch 定義
 
 - 対象 `MRL`:
-  - `MRL-5`
-  - `MRL-6`
-  - `MRL-7`
+  - `MRL-1`
+  - `MRL-2`
 - 対象 `mRL`:
-  - `mRL-5.1` から `mRL-5.4`
-  - `mRL-6.1` から `mRL-6.5`
-  - `mRL-7.1` から `mRL-7.3`
+  - `mRL-1.1` から `mRL-1.3`
+  - `mRL-2.1` から `mRL-2.3`
 - admin 操作観点:
   - `trajectreview-correcting` で記録開始、停止、session 保存ができる
   - `data-check` に readiness、blocker、recommended correction が出る
@@ -49,9 +47,8 @@
 - 実施者: `admin`
 - 端末 / 環境:
 - 対象 `MRL` / `mRL`:
-  - `MRL-5`
-  - `MRL-6`
-  - `MRL-7`
+  - `MRL-1`
+  - `MRL-2`
 - 結果: `ready / active / p-done / i-pass / fail`
 - fail の時の要点:
 - evidence path:
@@ -63,18 +60,16 @@
   - `mRL-0.2`
 - 対象 `MRL`:
   - `MRL-0`
-  - `MRL-8`
-  - `MRL-10`
-  - `MRL-11`
-  - `MRL-12`
-  - `MRL-13`
+  - `MRL-3`
+  - `MRL-4`
+  - `MRL-5`
+  - `MRL-**`
 - 対象 `mRL`:
   - `mRL-0.2`
-  - `mRL-8.1` から `mRL-8.3`
-  - `mRL-10.1` から `mRL-10.2`
-  - `mRL-11.1` から `mRL-11.3`
-  - `mRL-12.1` から `mRL-12.3`
-  - `mRL-13.1` から `mRL-13.3`
+  - `mRL-3.1` から `mRL-3.3`
+  - `mRL-4.1` から `mRL-4.3`
+  - `mRL-5.1`
+  - `mRL-**.1` から `mRL-**.5`
 - admin 操作観点:
   - [da3_colab_clean_bootstrap_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_clean_bootstrap_runbook.md) を fresh runtime から実行し、bootstrap UX が再現可能である
   - `trajectreview-correcting` 由来の実 data を入力に、`DA3Metric-Large` から `3DGS` 系主空間モデル候補を smoke 生成できる
@@ -84,7 +79,7 @@
   - 完了後に download URL と result summary が表示される
   - remote result import 後に `SpacePackage`、`TrajectoryPackage`、`modeling_handoff_manifest.json` が更新される
   - `benchmark_summary.json` と `selected_route.json` による route 比較と採用固定は後続 `MRL-**` の課題とする
-  - `MRL-13` は 10s 前後の整った実動画から `multi-frame` densify で粗い再現モデルを得る段とし、route 比較本体には含めない
+  - `MRL-5` は 10s 前後の整った実動画から `multi-frame` densify で粗い再現モデルを得る段とし、route 比較本体には含めない
 
 ### modeling batch 記録テンプレート
 
@@ -95,11 +90,10 @@
 - 対象 `MRL` / `mRL`:
   - `MRL-0`
   - `mRL-0.2`
-  - `MRL-8`
-  - `MRL-10`
-  - `MRL-11`
-  - `MRL-12`
-  - `MRL-13`
+  - `MRL-3`
+  - `MRL-4`
+  - `MRL-5`
+  - `MRL-**`
 - 結果: `ready / active / p-done / i-pass / fail`
 - fail の時の要点:
 - evidence path:
@@ -109,10 +103,10 @@
 - 対象 gate:
   - `MRL-0`
   - `mRL-0.2`
-  - `MRL-11`
-  - `mRL-11.1`
-  - `MRL-12`
-  - `mRL-12.2`
+  - `MRL-3`
+  - `mRL-3.2`
+  - `MRL-4`
+  - `mRL-4.2`
 - 実施環境:
   - `Google Colab`
   - `T4`
@@ -121,17 +115,44 @@
   - `summary.json`、`depth_preview.png`、`depth_raw.npy` が生成された
   - `prediction.conf`、`intrinsics`、`extrinsics` は `None` を許容し、single-frame の end-to-end 完了を確認した
   - `HF_TOKEN` warning は public model download の範囲では blocker ではなかった
-  - `MRL-13` の route 比較や採用固定はこの bootstrap candidate には含めず、後続 `MRL-**` の課題とした
+  - `MRL-5` の route 比較や採用固定はこの bootstrap candidate には含めず、後続 `MRL-**` の課題とした
 - evidence path:
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md`
   - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/sharedlogs_da3-colab.md`
 
-## 2026-03-29 `MRL-12` `3DGS` smoke candidate evidence
+## 2026-03-29 correcting batch `MRL-1` と `MRL-2` close evidence
 
 - 対象 gate:
-  - `MRL-12`
-  - `mRL-12.2`
-  - `mRL-12.3`
+  - `MRL-1`
+  - `mRL-1.1` から `mRL-1.3`
+  - `MRL-2`
+  - `mRL-2.1` から `mRL-2.3`
+- 実施者:
+  - `admin`
+- 判定:
+  - この batch は `correcting` の実データ取得、`data-check`、`Google Drive` 転送、`SpaceReconstruction` handoff bundle 生成までを根拠に `p-done`
+- 結果要点:
+  - `trajectreview-correcting` で実 session 記録、停止、session 保存が通っている
+  - `data-check` に readiness、blocker、recommended correction が出る
+  - `sensor_quality.json`、`session_package.json`、`space_handoff_manifest.json`、`frame_pose_index.csv`、`camera_calibration_summary.json` が実 session から生成されている
+  - calibration capture 診断と intrinsics 実収集の candidate evidence がそろっている
+  - `Google Drive` 転送先選択、zip 転送、既存 data 再転送の UX が candidate evidence として確認されている
+  - 転送済み data が `MRL-4` の `DA3Metric-Large` `3DGS` smoke 生成に実際に使われており、`correcting -> modeling` の handoff 実績がある
+  - `session_package.json` と `space_handoff_manifest.json` により `SpaceReconstruction` 着手可否を後段へ渡せている
+- 補足:
+  - この batch は `p-done` 判定であり、admin `UX check 完了` を伴う `i-pass` ではない
+  - multi-app UX、request 起点 modeling、waiting ring、remote result import は `MRL-3` と後続 `MRL-**` に別置きした
+- evidence path:
+  - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-method.md`
+  - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/ux-b2t-hypo.md`
+  - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-evidence.md`
+
+## 2026-03-29 `MRL-4` `3DGS` smoke candidate evidence
+
+- 対象 gate:
+  - `MRL-4`
+  - `mRL-4.2`
+  - `mRL-4.3`
 - 実施者:
   - `admin`
 - 実施環境:
@@ -148,7 +169,7 @@
   - `gsplat` install / import / callable 確認を通し、`gsplat.rasterization` を `cuda` 上で返せた
   - `gsplat_render_smoke.png`、`gs_model_smoke.json`、`space_quality_smoke.json`、`space_package_smoke.json` を生成できた
   - `gs_model.contract.json`、`space_quality.contract.json`、`space_package.contract.json` を生成し、smoke artifact を contract 名へ寄せられた
-  - この段の `MRL-12 p-done` 候補判断は、「ある程度整った correcting 実 data から `3DGS` 系主空間モデル候補を再現でき、admin が生成 artifact を取得できること」を基準に置く
+  - この段の `MRL-4 p-done` 候補判断は、「ある程度整った correcting 実 data から `3DGS` 系主空間モデル候補を再現でき、admin が生成 artifact を取得できること」を基準に置く
   - `trajectreview-modeling` 本体への正式統合と `multi-frame` / `multi-route` 比較は、この candidate evidence の必須条件から分離し、後続 gate へ送る
 - 主要 artifact:
   - `depth_raw.npy`
@@ -173,11 +194,10 @@
 ## reviewing batch 定義
 
 - 対象 `MRL`:
-  - `MRL-9`
-  - `MRL-14`
+  - `MRL-**`
 - 対象 `mRL`:
-  - `mRL-9.1` から `mRL-9.3`
-  - `mRL-14.1` から `mRL-14.3`
+  - `mRL-**.4`
+  - `mRL-**.5`
 - admin 操作観点:
   - `trajectreview-reviewing` で実 `ReviewArtifact` を読み、verify / review 状態を確認できる
   - same-time highlight と `attention point` 操作ができる
@@ -191,17 +211,16 @@
 - 実施者: `admin`
 - 端末 / 環境:
 - 対象 `MRL` / `mRL`:
-  - `MRL-9`
-  - `MRL-14`
+  - `MRL-**`
 - 結果: `ready / active / p-done / i-pass / fail`
 - fail の時の要点:
 - evidence path:
 
-## 2026-03-26 `MRL-6` candidate evidence
+## 2026-03-26 `MRL-1` candidate evidence
 
 - 対象 gate:
-  - `MRL-6`
-  - `mRL-6.1` から `mRL-6.5`
+  - `MRL-1`
+  - `mRL-1.1` から `mRL-1.3`
 - UX 観点:
   - `trajectreview-correcting` で `現場撮影データ保存を開始` と `現場撮影データ保存を停止` が動く
   - 1 つ目の block で `データ保存先ディレクトリ選択` から同期先 folder を選び、その保持状態を app 内で確認できる
@@ -235,11 +254,11 @@
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/res/layout/activity_main.xml`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/test/java/com/isensorium/app/CorrectingDataCheckServiceSmokeTest.java`
 
-## 2026-03-27 `MRL-7` candidate evidence
+## 2026-03-27 `MRL-2` candidate evidence
 
 - 対象 gate:
-  - `MRL-7`
-  - `mRL-7.1` から `mRL-7.3`
+  - `MRL-2`
+  - `mRL-2.1` から `mRL-2.3`
 - UX 観点:
   - preview 直下の状態表示には `現場の風景と経路を記録します。1. 条件設定⇒2. 収録⇒3. 転送` が表示される
   - `端末保存先` が未設定の間は `Data収録開始` が非活性で、`端末保存先：未設定` が表示される
@@ -284,7 +303,7 @@
     - `:correcting:installDebug`
 - 制約:
   - `Google Drive` app または provider が端末上で選択可能である必要がある
-  - そのため `MRL-7` は admin 実機 UX check 前の `candidate evidence` として扱う
+  - そのため `MRL-2` は admin 実機 UX check 前の `candidate evidence` として扱う
 - 主要 evidence:
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/MainActivity.kt`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/res/layout/activity_main.xml`
@@ -335,11 +354,11 @@
   - Android: `--exsams/prj-kisaragi_0002/gradle-user-home/daemon/8.10.2/registry.bin.lock` などの Gradle raw artifact が `2026-03-25 19:12:08` に更新された
 - 判定: `prj-kisaragi_0002` は、最も最近実施した test の raw data を `--exsams` 側へ出力できる
 
-## 2026-03-25 `MRL-5` candidate evidence
+## 2026-03-25 `MRL-1` candidate evidence
 
 - 対象 gate:
-  - `MRL-5`
-  - `mRL-5.1` から `mRL-5.3`
+  - `MRL-1`
+  - `mRL-1.1`
 - UX 観点:
   - app 起動直後に `入力セッションを選択` が `Next Action` として見える
   - `Extraction` card で抽出元、抽出先、`ready_for_diagnose`、欠落入力、quality 数値を 1 画面で読める
@@ -363,11 +382,11 @@
   - `kisaragi-db/--devs/--testlogs/prj-kisaragi_0002/reports/python-unittest-summary.md`
   - `kisaragi-db/--devs/--testlogs/prj-kisaragi_0002/reports/android-test-summary.md`
 
-## 2026-03-25 `MRL-8` candidate evidence
+## 2026-03-25 `MRL-2` candidate evidence
 
 - 対象 gate:
-  - `MRL-8`
-  - `mRL-8.1` から `mRL-8.3`
+  - `MRL-2`
+  - `mRL-2.3`
 - UX 観点:
   - 抽出結果画面で `ready_for_space_reconstruction` と blocker を確認できる
   - raw bundle に主カメラ動画を保持したまま、後段着手判断を 1 画面で行える
@@ -386,11 +405,11 @@
   - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ISensoriumExtractionServiceTest.kt`
   - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_session_parser.py`
 - 
-## 2026-03-26 `MRL-9` candidate evidence
+## 2026-03-26 `MRL-**` support candidate evidence
 
 - 対象 gate:
-  - `MRL-9`
-  - `mRL-9.1` から `mRL-9.3`
+  - `MRL-**`
+  - `mRL-**.5`
 - UX 観点:
   - `trajectreview-correcting`、`trajectreview-modeling`、`trajectreview-reviewing`、統合 app がそれぞれ自分の役割だけを主表示にする
   - 統合 app は `correcting / modeling / reviewing` を 1 画面で俯瞰できる
@@ -412,11 +431,11 @@
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/MainActivity.kt`
   - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt`
 
-## 2026-03-26 `MRL-10` candidate evidence
+## 2026-03-26 `MRL-3` candidate evidence
 
 - 対象 gate:
-  - `MRL-8`
-  - `mRL-8.1` から `mRL-8.3`
+  - `MRL-3`
+  - `mRL-3.1` から `mRL-3.2`
 - UX 観点:
   - `correcting` と統合 app は抽出した実 bundle を再読込して実データ状態を表示する
   - `modeling` は `Colab` account 未取得でも local sample model と `colab_job_request.json` を生成する

@@ -9,33 +9,45 @@
 - `MRL` または `mRL` が `pass` になったら 1 entry を追加する
 - entry には issue、cause、resolution、recurrence prevention、remaining work、evidence path を含める
 - planning 基線の再作成や大きな再開判断も entry として残してよい
+- `2026-03-29` の再編以後は、現行 gate を `MRL-0` と `MRL-1` から `MRL-5`、および後続 `MRL-**` で読む。再編前 entry は必要に応じて現行対応を本文へ補記する
 
 ## Entries
 
 - record date: `2026-03-29`
-  target MRL: `MRL-12`
-  target mRL: `mRL-12.1`、`mRL-12.2`、`mRL-12.3`
+  target MRL: `MRL-1`、`MRL-2`
+  target mRL: `mRL-1.1` から `mRL-1.3`、`mRL-2.1` から `mRL-2.3`
   gate change: `p-done`
-  issue: `MRL-12` を depth bootstrap の延長で扱っていたため、この段で何をもって close し、何を後続 `MRL-13` へ送るかが曖昧だった
+  issue: `correcting` 側は実データ取得と `Google Drive` 転送を完了し、その data が `MRL-4` の `3DGS` smoke 生成へ実際に使われていたが、gate 表では `active` / `ready` が多く残っていた
+  cause: `candidate evidence` は個別に蓄積されていた一方で、`correcting -> modeling` handoff 実績をまとめて `p-done` 判定へ昇格する close 記録が不足していた
+  resolution: `MRL-1` と `MRL-2` を、実 session 記録、`data-check`、calibration 診断、`Google Drive` 転送、`session_package.json` / `space_handoff_manifest.json` による handoff bundle 生成、さらにその転送済み data が `MRL-4` で実利用された事実を根拠に `p-done` へ更新した
+  recurrence prevention: `correcting` 側の実データ取得と転送が後段 gate の実行証跡へ接続した時は、個別 candidate evidence のまま残さず、前段 gate 群をまとめて `p-done` 判定へ引き上げる
+  remaining work: `MRL-3` は request 起点 modeling と waiting ring / status 基盤を継続し、reviewing viewer や multi-app 統合は後続 `MRL-**` で扱う
+  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-evidence.md`
+
+- record date: `2026-03-29`
+  target MRL: `MRL-4`
+  target mRL: `mRL-4.1`、`mRL-4.2`、`mRL-4.3`
+  gate change: `p-done`
+  issue: `MRL-4` を depth bootstrap の延長で扱っていたため、この段で何をもって close し、何を後続 `MRL-5` へ送るかが曖昧だった
   cause: `3DGS` 系 smoke artifact と local downloaded evidence が揃った後も、plan 上の gate 状態と次段の焦点を更新し切れていなかった
-  resolution: `correcting` 実 data から `DA3Metric-Large` single-frame depth、world back-projection、point export、`gsplat` rasterization、`gs_model` / `space_quality` / `SpacePackage` smoke artifact 生成、notebook evidence、local downloaded evidence bundle 取得までを `MRL-12 p-done` の根拠へ正規化し、`10s` 前後の整った実動画を使う `multi-frame` densify と `ぼんやり見える再現モデル` の確認を `MRL-13` へ移した
+  resolution: `correcting` 実 data から `DA3Metric-Large` single-frame depth、world back-projection、point export、`gsplat` rasterization、`gs_model` / `space_quality` / `SpacePackage` smoke artifact 生成、notebook evidence、local downloaded evidence bundle 取得までを `MRL-4 p-done` の根拠へ正規化し、`10s` 前後の整った実動画を使う `multi-frame` densify と `ぼんやり見える再現モデル` の確認を `MRL-5` へ移した
   recurrence prevention: stage が切り替わる時は、evidence 追加だけで終わらせず、`ux-b2t-hypo.md` の gate 状態、次段の焦点、補助再開メモを同じ task で更新する
-  remaining work: `MRL-13` として `multi-frame` densify と `PLY` viewer での可視化確認へ進み、route 比較と `selected_route.json` 生成は後続の利用者向け `MRL-**` に紐づく補助 gate で扱う
+  remaining work: `MRL-5` として `multi-frame` densify と `PLY` viewer での可視化確認へ進み、route 比較と `selected_route.json` 生成は後続の利用者向け `MRL-**` に紐づく補助 gate で扱う
   evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/da3_smoke_v05/`
 
 - record date: `2026-03-29`
-  target MRL: `MRL-12`
-  target mRL: `mRL-12.2`、`mRL-12.3`
+  target MRL: `MRL-4`
+  target mRL: `mRL-4.2`、`mRL-4.3`
   gate change: `candidate evidence strengthened`
-  issue: `MRL-12` は depth bootstrap までは通っていたが、`correcting` 実 data から `3DGS` 系主空間モデル候補を再現できるか、また smoke artifact を `SpacePackage` 形へ接続できるかが未記録だった
+  issue: `MRL-4` は depth bootstrap までは通っていたが、`correcting` 実 data から `3DGS` 系主空間モデル候補を再現できるか、また smoke artifact を `SpacePackage` 形へ接続できるかが未記録だった
   cause: 初期 closeout は single-frame depth bootstrap の成立確認を優先し、world projection、point export、`gsplat` rasterization、contract artifact 生成の結果を正本へ昇格し切れていなかった
-  resolution: `DA3Metric-Large` single-frame depth、world back-projection、point export、`gsplat` rasterization、`gs_model_smoke.json`、`space_quality_smoke.json`、`space_package_smoke.json`、contract 名 artifact 生成までを `Candidate Bootstrap v1` と `admin-mrl-test-evidence.md` へ反映し、`MRL-12` の candidate proof を「correcting 実 data から `3DGS` 系主空間モデル候補を再現できる」水準まで引き上げた
+  resolution: `DA3Metric-Large` single-frame depth、world back-projection、point export、`gsplat` rasterization、`gs_model_smoke.json`、`space_quality_smoke.json`、`space_package_smoke.json`、contract 名 artifact 生成までを `Candidate Bootstrap v1` と `admin-mrl-test-evidence.md` へ反映し、`MRL-4` の candidate proof を「correcting 実 data から `3DGS` 系主空間モデル候補を再現できる」水準まで引き上げた
   recurrence prevention: Colab 往復で得た持続価値のある結果は、shared worklog のみへ残さず、runbook、admin evidence、必要なら closeout 記録へ同じ task で反映する
-  remaining work: `admin-mrl-test-evidence.md` を根拠に `MRL-12 p-done` 判定を行うか判断し、後続 gate では `trajectreview-modeling` 正式統合と `multi-frame` / `multi-route` を別 MRL として進める
+  remaining work: `admin-mrl-test-evidence.md` を根拠に `MRL-4 p-done` 判定を行うか判断し、後続 gate では `trajectreview-modeling` 正式統合と `multi-frame` / `multi-route` を別 MRL として進める
   evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md`
 
 - record date: `2026-03-26`
-  target MRL: `MRL-1` から `MRL-10`
+  target MRL: `旧番号時代の全 gate`
   target mRL: `current pass entries all`
   gate change: `reverted to active/planned`
   issue: admin `UX check 完了` 前でも、test、contract、build、local sample、局所 device 確認を根拠に `pass` を付けていた
@@ -45,8 +57,8 @@
   remaining work: admin 向け batch `UX check` の対象範囲、手順、結果記録を `admin-mrl-test-evidence.md` へ追加し、各 gate を再 closeout する
   evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/ux-b2t-hypo.md`
 - record date: `2026-03-26`
-  target MRL: `MRL-6`
-  target mRL: `mRL-6.1`、`mRL-6.2`、`mRL-6.3`
+  target MRL: `MRL-1`
+  target mRL: `mRL-1.1`、`mRL-1.2`、`mRL-1.3`
   gate change: `pass`
   issue: `trajectreview-correcting` は記録画面だけで、同じ app 内の `data-check` と correction guidance が不足していた
   cause: `correcting` は verified mirror の recording screen に依存しており、session 停止後の intake / diagnose を app 内で閉じていなかった
@@ -55,8 +67,8 @@
   remaining work: `modeling` 側の `Colab` handoff と `reviewing` 側の実 `ReviewArtifact` viewer を継続する
   evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-evidence.md`
 - record date: `2026-03-26`
-  target MRL: `MRL-5` から `MRL-10`
-  target mRL: `mRL-5.3`、`mRL-5.4`、`mRL-6.3`、`mRL-6.4`、`mRL-7.x`、`mRL-8.3`、`mRL-9.x`、`mRL-10.3`
+  target MRL: `旧番号時代の correcting / modeling / multi-app 補助 gate`
+  target mRL: `旧番号時代の sample / build / summary 系 mRL`
   gate change: `reverted to active/planned`
   issue: `UX 確認`、`build / install`、`local sample`、summary 読込を本来機能完成に近い意味で扱い、app の完成度を過大に closeout していた
   cause: `UX-only` gate と本機能 gate を分離せず、multi-app 骨格と実 app 機能の境界を `MRL` 表へ十分に反映していなかった
@@ -145,8 +157,8 @@
   remaining work: 抽出 bundle を後段の実空間再構成と viewer 実装へ接続する
   evidence path: `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ISensoriumExtractionServiceTest.kt`
 - record date: `2026-03-25`
-  target MRL: `MRL-8`
-  target mRL: `mRL-8.1` から `mRL-8.3`
+  target MRL: `MRL-2`
+  target mRL: `mRL-2.3`
   gate change: `pass`
   issue: 抽出 bundle は生成できても、`SpaceReconstruction` がそのまま消費できる concrete handoff artifact と主カメラ動画保持が不足していた
   cause: `MRL-5` までは intake と quality summary を優先し、`SessionPackage` 実体と stage-2 gate を抽象契約のまま残していた
@@ -155,8 +167,8 @@
   remaining work: `space_handoff_manifest.json` を実 `SpaceReconstruction` engine の入口へ接続する
   evidence path: `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ISensoriumExtractionServiceTest.kt`
 - record date: `2026-03-26`
-  target MRL: `MRL-9`
-  target mRL: `mRL-9.1` から `mRL-9.3`
+  target MRL: `MRL-**`
+  target mRL: `mRL-**.5`
   gate change: `pass`
   issue: 4 app 分割の骨格は入ったが、build、install、role-specific UX の成立を closeout できていなかった
   cause: module 追加と共通 source 再利用までは進んでいた一方、統合 app との関係と app 単位切り分け表示の evidence が不足していた
@@ -165,8 +177,8 @@
   remaining work: 実 bundle 読込と local modeling による mock 依存の解消
   evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/settings.gradle.kts`
 - record date: `2026-03-26`
-  target MRL: `MRL-10`
-  target mRL: `mRL-10.1` から `mRL-10.3`
+  target MRL: `MRL-3`
+  target mRL: `mRL-3.1` から `mRL-3.2`
   gate change: `pass`
   issue: 4 app が mock snapshot 固定だと、実データでの UX 確認と `Colab` 前提 modeling handoff を進められなかった
   cause: extracting 後の bundle を再読込する service と、`Colab` account 未取得期間の local sample modeling route が未実装だった
