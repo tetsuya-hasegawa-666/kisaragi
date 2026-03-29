@@ -450,3 +450,132 @@ saved: /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/
   - `MRL-12`
   - `mRL-12.2`
 - 次段は bootstrap そのものではなく、request 起点 UX、waiting ring、download URL、複数 frame / route 比較です。
+
+# codex
+
+2026-03-29 v07 next action。
+
+- 次段の主目標は、`DA3Metric-Large` による `3DGS` 系主空間モデル生成までの system 構築です。
+- 最初の action は `gsplat` import probe を通し、runtime 上で必要 package と import path を確定することです。
+- その後に `ARCore pose` / intrinsics と depth の整列確認、world projection、実データ由来の最小 `3DGS` 系主空間モデル生成へ進みます。
+- 実行結果を返してもらえれば、次の block を出します。
+
+```python
+# Step 5a gsplat import probe
+import importlib
+import sys
+
+targets = ["gsplat", "gsplat.rendering", "gsplat.rasterization"]
+
+for name in targets:
+    try:
+        mod = importlib.import_module(name)
+        print("IMPORT_OK", name, getattr(mod, "__file__", "no_file"))
+        print("VERSION", getattr(mod, "__version__", "no_version"))
+    except Exception as exc:
+        print("IMPORT_NG", name, type(exc).__name__, str(exc))
+
+print("python", sys.version)
+```
+
+# admin
+
+```text
+# Step 5a gsplat import probe res
+IMPORT_NG gsplat ModuleNotFoundError No module named 'gsplat'
+IMPORT_NG gsplat.rendering ModuleNotFoundError No module named 'gsplat'
+IMPORT_NG gsplat.rasterization ModuleNotFoundError No module named 'gsplat'
+python 3.12.13 (main, Mar  4 2026, 09:23:07) [GCC 11.4.0]
+```
+
+# codex
+
+2026-03-29 v08 next action。
+
+- `gsplat` は未 install であることが確認できました。
+- 次は、`pip` でそのまま入るか、wheel / build blocker があるかを切り分けます。
+- 目的は install 成功そのものではなく、`Colab Python 3.12 + 現 runtime` で採れる最短 route を確定することです。
+
+```python
+# Step 5b gsplat install probe
+import subprocess
+import sys
+
+cmds = [
+    [sys.executable, "-m", "pip", "show", "gsplat"],
+    [sys.executable, "-m", "pip", "install", "-q", "gsplat"],
+    [sys.executable, "-m", "pip", "show", "gsplat"],
+]
+
+for cmd in cmds:
+    print("RUN", " ".join(cmd))
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    print("RETURN_CODE", proc.returncode)
+    if proc.stdout:
+        print("STDOUT")
+        print(proc.stdout)
+    if proc.stderr:
+        print("STDERR")
+        print(proc.stderr)
+```
+
+# admin
+
+```text
+# Step 5b gsplat install probe res
+RUN /usr/bin/python3 -m pip show gsplat
+RETURN_CODE 1
+STDERR
+WARNING: Package(s) not found: gsplat
+
+RUN /usr/bin/python3 -m pip install -q gsplat
+RETURN_CODE 0
+STDOUT
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.5/6.5 MB 60.3 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 56.3/56.3 kB 5.8 MB/s eta 0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 180.7/180.7 kB 20.4 MB/s eta 0:00:00
+
+RUN /usr/bin/python3 -m pip show gsplat
+RETURN_CODE 0
+STDOUT
+Name: gsplat
+Version: 1.5.3
+Summary: Python package for differentiable rasterization of gaussians
+Home-page: https://github.com/nerfstudio-project/gsplat
+Author: 
+Author-email: 
+License: 
+Location: /usr/local/lib/python3.12/dist-packages
+Requires: jaxtyping, ninja, numpy, rich, torch
+Required-by: 
+```
+
+# codex
+
+2026-03-29 v09 next action。
+
+- `Step 5b` は成功です。`gsplat 1.5.3` の install までは current runtime で通りました。
+- 次は install 後の import 再確認を行い、module path と version が runtime から読めるかを確認します。
+- これが通ったら world projection probe へ進みます。
+
+```python
+# Step 5c gsplat import reprobe
+import importlib
+
+targets = ["gsplat", "gsplat.rendering", "gsplat.rasterization"]
+
+for name in targets:
+    try:
+        mod = importlib.import_module(name)
+        print("IMPORT_OK", name, getattr(mod, "__file__", "no_file"))
+        print("VERSION", getattr(mod, "__version__", "no_version"))
+    except Exception as exc:
+        print("IMPORT_NG", name, type(exc).__name__, str(exc))
+```
+
+# admin
+
+```text
+# Step 5c gsplat import reprobe res
+
+```

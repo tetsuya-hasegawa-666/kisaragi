@@ -27,6 +27,8 @@
 - 現在の次段は、single-frame bootstrap 成立を踏まえて `gsplat` import、world projection、実データによる `3DGS` 系主空間モデル生成を通し、その後に request 起点 UX、waiting ring、download URL、複数 frame / route 比較へ広げる点である
 - `HF_TOKEN` warning は public model の download では optional であり、現段階の blocker ではない
 - `gsplat` warning は single-frame bootstrap では blocker ではなかったが、今後の `3DGS` 系主空間モデル生成では import と実行可否を明示確認する必要がある
+- `2026-03-29` の `Step 5b gsplat install probe` では、`Python 3.12` の `Colab` runtime 上で `pip install gsplat` が成功し、`gsplat 1.5.3` が `/usr/local/lib/python3.12/dist-packages` に入ることを確認した
+- 現在の次 block は install 後の `gsplat` import 再確認であり、成功したら world projection と最小 `3DGS` 系主空間モデル生成 probe へ進む
 
 ## 事前準備
 
@@ -194,11 +196,13 @@ print("import_ok", DepthAnything3)
 ## 次段でやること
 
 - `Step 5a`: `gsplat` import probe を通し、runtime 上で必要 package と import path を確定する。
-- `Step 5b`: `session_package.json`、`arcore_pose.jsonl`、`frame_pose_index.csv`、image 群から、`DA3Metric-Large` depth と `ARCore pose` を同一 frame 集合へ揃える。
-- `Step 5c`: world projection smoke test を通し、depth を主 `ARCore` 空間へ戻した point 群を保存できることを確認する。
-- `Step 5d`: point 群または `DA3Metric-Large` 出力を入力として、実データ由来の最小 `3DGS` 系主空間モデル生成を試す。
-- `Step 5e`: `gs_model` の保存先、`space_quality.json` の記録項目、`SpacePackage` への組み込み方を確定する。
-- `Step 5f`: 上記が 1 route で通ったら、runbook の `candidate` を `3DGS` 生成まで拡張する。
+- `Step 5b`: `gsplat` install probe を通し、`pip install gsplat` が current runtime で成立するかを確認する。
+- `Step 5c`: install 後の `gsplat` import probe を通し、runtime 上で import path と version を確定する。
+- `Step 5d`: `session_package.json`、`arcore_pose.jsonl`、`frame_pose_index.csv`、image 群から、`DA3Metric-Large` depth と `ARCore pose` を同一 frame 集合へ揃える。
+- `Step 5e`: world projection smoke test を通し、depth を主 `ARCore` 空間へ戻した point 群を保存できることを確認する。
+- `Step 5f`: point 群または `DA3Metric-Large` 出力を入力として、実データ由来の最小 `3DGS` 系主空間モデル生成を試す。
+- `Step 5g`: `gs_model` の保存先、`space_quality.json` の記録項目、`SpacePackage` への組み込み方を確定する。
+- `Step 5h`: 上記が 1 route で通ったら、runbook の `candidate` を `3DGS` 生成まで拡張する。
 
 ## shared worklog へ出す command block の単位
 
