@@ -11,7 +11,7 @@
 | 項目 | 状況 |
 | --- | --- |
 | `correcting` | `MRL-1` と `MRL-2` の実装と証跡はそろっている。長時間収録では screen off は抑止済みで、`shared-camera` 動画化の `OutOfMemoryError` は逐次 encode 化で解消した。残る主因は停止時の `MediaCodec` 終端 drain が抜けず finalize しない点で、bounded stop を入れたうえで `MRL-2S` の `10min` 実収録確認へ進む |
-| `modeling` | `MRL-3` から `MRL-8` は `p-done` である。`MRL-7` は `mRL-7.1` と `mRL-7.2` が `p-done` になり、multi-frame point cloud から gaussian short optimization まで到達した。`MRL-8` では runbook 本体の前段に Drive input candidate scan / widget select を追加し、selected input を bootstrap 本体と `MRL-7` one-block の両方へ handoff できる状態を閉じた。次は `MRL-2S` と後続 `MRL-**` の gaussian formalization / viewer 寄せへ進む |
+| `modeling` | `MRL-3` から `MRL-8` は `p-done` である。`MRL-7` は `mRL-7.1` と `mRL-7.2` が `p-done` になり、multi-frame point cloud から gaussian short optimization まで到達した。`MRL-8` では runbook 本体の前段に Drive input candidate scan / widget select を追加し、selected input を bootstrap 本体と `MRL-7` one-block の両方へ handoff できる状態を閉じた。運用形は notebook 全体の `Run all` ではなく、widget 選択を 1 回挟んでから残りを上から順に流す方式である。次は `MRL-2S` と後続 `MRL-**` の gaussian formalization / viewer 寄せへ進む |
 | `reviewing` | summary と stub 読込まではあるが、実 `ReviewArtifact` viewer と same-time highlight 操作は未実装である |
 
 ### 現在の blocker
@@ -350,7 +350,7 @@
 | `MRL-7` | `mRL-7.2` | multi-frame point cloud から gaussian parameter を初期化し、短い optimization を通して正式 gaussian artifact へ寄せる。admin の目視で取得背景に近い構図への改善を確認する | `su15`,`sd11` | `bd18`,`bd20` | `td19`,`td23` | `p-done` | `p-done` | 操作手順 27-33 と<br>gaussian artifact 確認 | 2026-03-30 `mRL-7.2` gaussian short-optimization candidate evidence |
 | `MRL-8` | `-` | `Colab` 上で Drive 内の<br>session zip / session folder 候補を列挙し、<br>選んだ input を runbook 本体と<br>`MRL-7` one-block が共通参照できる状態を固める | `su12`,`sd8`,<br>`sd11` | `bd16`,`bd16a`,<br>`bd20` | `td14`,`td14a`,<br>`td23` | `p-done` | `p-done` | runbook の<br>準備確認 2-4 と<br>`Step 8d`-`8e` | 2026-03-31 `MRL-8`<br>Drive input select close evidence |
 | `MRL-8` | `mRL-8.1` | Drive input candidate scan により session zip / session folder 候補を index 付きで列挙し、selected input を固定できる | `su12`,`sd8` | `bd16a` | `td14a` | `p-done` | `p-done` | runbook の<br>準備確認 2-3 と<br>`Step 8a4` | 2026-03-31 `MRL-8`<br>Drive input select close evidence |
-| `MRL-8` | `mRL-8.2` | selected input を `Step 1` と `MRL-7` one-block の両方が共通に読み、hardcoded path なしで `session_root` 正規化へ進める | `su12`,`sd8`,<br>`sd11` | `bd16`,`bd16a`,<br>`bd20` | `td14`,`td14a`,<br>`td23` | `p-done` | `p-done` | runbook の<br>準備確認 4、<br>`Step 8d`、<br>`Step 8e` | 2026-03-31 `MRL-8`<br>Drive input select close evidence |
+| `MRL-8` | `mRL-8.2` | selected input を `Step 1` と `MRL-7` one-block の両方が共通に読み、hardcoded path なしで `session_root` 正規化へ進める。現時点の運用は `Run all` ではなく、widget 選択を 1 回挟んでから残りを順次実行する | `su12`,`sd8`,<br>`sd11` | `bd16`,`bd16a`,<br>`bd20` | `td14`,`td14a`,<br>`td23` | `p-done` | `p-done` | runbook の<br>準備確認 4、<br>`Step 8d`、<br>`Step 8e` | 2026-03-31 `MRL-8`<br>Drive input select close evidence |
 
 ### 利用者向け後続 `MRL-**` に紐づく運営者補助 MRL
 | MRL | mRL | gate test 項目 | story-id | behavior-id | task-id | 現在 gate | UX評価状態 | admin UX確認手順 | admin evidence |

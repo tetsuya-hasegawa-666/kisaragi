@@ -20,6 +20,23 @@
 - `truly pass` と表現してよいのは、fresh runtime からこの runbook の `adopted` 手順で end-to-end 完了した時だけとする。
 - ただし、bootstrap 仕様の未確定点を詰めている途中は、現在の runtime を維持したまま blocker を 1 件ずつ解消し、その結果をこの文書へ反映してよい。
 
+## 実行案内
+
+- この runbook は notebook 全体の `Run all` を前提にしない。
+- 実行順は「上から順に」であり、`準備確認 3` の widget 選択だけ admin の手操作を挟む。
+- 実施順は次の 3 block として扱う。
+  - `A`: `準備確認 1` から `準備確認 2`
+  - `B`: `準備確認 3` で input を 1 件選び、`selected input を保存` を押す
+  - `C`: `準備確認 4` 以降を上から順に実行する
+- `selected input` 未保存のまま `Step 1` 以降へ進んではならない。
+- `Run all` が許容できるのは、将来 widget 選択を不要にする完全自動化へ切り替わった後だけとする。
+
+## 実測済み運用
+
+- `2026-03-31` admin 実測では、`準備確認 3` で widget から `[2] trajectreview-correcting-session-20260331-034831 [zip]` を選択した後、`Step 2` から `Step 4.5`、さらに `MRL-7 adopted one-block` まで成功した。
+- この時点の採用運用は「widget 選択を 1 回挟んでから、残りを上から順に流す」である。
+- よって現時点の canonical 実行パターンは `Run all` ではなく、「選択介入ありの順次実行」である。
+
 ## 事前準備
 
 - `Google Colab` notebook を新規に開く
