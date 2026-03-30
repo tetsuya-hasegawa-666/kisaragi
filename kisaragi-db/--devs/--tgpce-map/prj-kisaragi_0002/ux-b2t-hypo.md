@@ -300,11 +300,11 @@
 | 後続 backlog | `tu24`-`tu29`, `td20`-`td23` | `multi-route` 比較、`selected_route.json` 固定、request / status UX、result 返却、viewer 実装、統合 UX は後続 `MRL-**` へ残っている | `MRL-**` | task 実測で課題の大小が見えた時点で `MRL` / `mRL` の切り方を調整する |
 | 共通方針 | `TDD` 全体 | `MRL` の達成品質として求める UX は薄めず、north star に沿って各段の到達像を明記し続ける | 全体 | modeling は admin の手作業を含むため、後続 `MRL` の粒度は実測に合わせて更新する |
 
-## `MRL` 対応表
+## `Main Release Line` 対応表
 - `admin UX確認手順` は [admin-mrl-test-method.md](/Users/tetsuya/kisaragi/kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-method.md) の章名または操作手順番号をそのまま書く。
 - `admin evidence` は [admin-mrl-test-evidence.md](/Users/tetsuya/kisaragi/kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-evidence.md) の章名をそのまま書く。
 
-### 利用者主導 gate
+### 利用者主導 MRL
 | MRL | mRL | gate test 項目 | story-id | behavior-id | task-id | 現在 gate | UX評価状態 | admin UX確認手順 | admin evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `MRL-1` | `-` | `trajectreview-correcting` で<br>現場記録、受理、診断、<br>calibration 診断までを<br>1 app UX として成立させる | `su1`,`su2`,<br>`su3`,`su4`,<br>`su6` | `bu1`,`bu2`,<br>`bu3`,`bu4`,<br>`bu5`,`bu6`,<br>`bu10` | `tu1`,`tu2`,<br>`tu3`,`tu4`,<br>`tu5`,`tu6`,<br>`tu7`,`tu12`,<br>`tu13`,`tu14` | `p-done` | `p-done` | 操作手順 1-8<br>p-done / i-pass の判断<br>fail の判断 | correcting batch 定義,<br>2026-03-29 correcting batch MRL-1 と MRL-2 close evidence |
@@ -317,8 +317,8 @@
 | `MRL-2` | `mRL-2.3` | raw video を含む<br>`SessionPackage` と<br>`space_handoff_manifest` により<br>`SpaceReconstruction` handoff を確認する | `sd3`,`su3` | `bd5`,`bd6`,<br>`bd7`,`bd8`,<br>`bu5` | `td6`,`td7`,<br>`td8`,`tu5` | `p-done` | `p-done` | modeling batch<br>前提確認 1-4 | 2026-03-25 MRL-3 candidate evidence,<br>2026-03-29 correcting batch MRL-1 と MRL-2 close evidence |
 | `MRL-3` | `-` | `Colab` 実行前の<br>package / config / runbook 導線と<br>bootstrap / install を<br>たどれることを確認する | `sd7`,`su12` | `bd14`,`bu16` | `td13`,`tu20` | `p-done` | `p-done` | modeling batch<br>操作手順 4-6<br>da3_colab_<br>clean_bootstrap_<br>runbook.md | modeling batch 定義,<br>2026-03-29 modeling bootstrap candidate evidence |
 | `MRL-3` | `mRL-3.1` | `Colab` 実行前の package / config / runbook 導線を手動でたどれることを確認する | `sd7`,`su12` | `bd14`,`bu16` | `td13`,`tu20` | `p-done` | `p-done` | modeling batch <br>操作手順 4-6 と<br>da3_colab_<br>clean_bootstrap_<br>runbook.md | 2026-03-29 modeling bootstrap candidate evidence |
-| `MRL-4` | `-` | `trajectreview-modeling` で<br>実 bundle 読込、<br>request preflight、<br>`Google Drive` directory intake までを成立させる | `sd6`,`sd7`,<br>`sd8`,`su12`,<br>`sd11` | `bd13`,`bd14`,<br>`bd16`,`bu16`,<br>`bd20` | `td12`,`td13`,<br>`td14`,`tu20`,<br>`td23` | `p-done` | `p-done` | modeling batch<br>操作手順 1-9 | modeling batch 定義,<br>2026-03-29 modeling preflight close evidence |
-| `MRL-4` | `mRL-4.1` | 実 bundle snapshot 読込と request preflight 生成を確認する | `sd6`,`sd7`,<br>`su12` | `bd13`,`bd14`,<br>`bu16` | `td12`,`td13`,<br>`tu20` | `p-done` | `p-done` | modeling batch<br>操作手順 1-6 | 2026-03-26 MRL-4 candidate evidence,<br>2026-03-29 modeling preflight close evidence |
+| `MRL-4` | `-` | `trajectreview-modeling` で<br>実 bundle 読込、<br>request preflight、<br>review 側 state 組立て、<br>`Google Drive` directory intake までを成立させる | `sd6`,`sd7`,<br>`sd8`,`su12`,<br>`su19`,`sd11` | `bd13`,`bd14`,<br>`bd15`,`bd16`,<br>`bu16`,`bd20` | `td12`,`td13`,<br>`td22`,`td14`,<br>`tu20`,`td23` | `p-done` | `p-done` | modeling batch<br>操作手順 1-9 | modeling batch 定義,<br>2026-03-29 modeling preflight close evidence |
+| `MRL-4` | `mRL-4.1` | 実 bundle snapshot 読込、request preflight 生成、review 側 state 組立てを確認する | `sd6`,`sd7`,<br>`su12`,`su19` | `bd13`,`bd14`,<br>`bd15`,`bu16` | `td12`,`td13`,<br>`td22`,`tu20` | `p-done` | `p-done` | modeling batch<br>操作手順 1-6 | 2026-03-26 MRL-4 candidate evidence,<br>2026-03-29 modeling preflight close evidence |
 | `MRL-4` | `mRL-4.2` | `Google Drive` directory<br>bootstrap を確認する | `sd8`,`su12` | `bd16`,`bu16` | `td14`,`tu20` | `p-done` | `p-done` | modeling batch<br>操作手順 7-9<br>runbook の<br>事前準備 / 準備確認 | 2026-03-29 modeling bootstrap candidate evidence,<br>2026-03-29 modeling preflight close evidence |
 | `MRL-5` | `-` | `DA3Metric-Large` による<br>single-frame `3DGS` 系<br>主空間モデル生成 smoke を<br>成立させる | `su14`,`su15`,<br>`sd9`,`sd11` | `bd17`,`bu18`,<br>`bu19`,`bd20` | `td16`,`td17`,<br>`td18`,`tu22`,<br>`tu23`,`td23` | `p-done` | `p-done` | modeling batch<br>操作手順 13-18<br>p-done / i-pass の判断<br>fail の判断<br>runbook の <br>Candidate Bootstrap v1 | modeling batch 定義,<br>2026-03-29 MRL-5 3DGS smoke candidate evidence |
 | `MRL-5` | `mRL-5.1` | `DA3` input manifest と route export を確認する | `sd9` | `bd17` | `td16` | `p-done` | `p-done` | modeling batch <br>操作手順 13-14 | 2026-03-29 MRL-5 3DGS smoke candidate evidence |
@@ -331,12 +331,12 @@
 | `MRL-7` | `mRL-7.1` | `10s` 前後の整った実動画から `multi-frame` sampling route を回し、`GNSS` なしでも主空間、主カメラ path、人軌跡を重ねた `TraceCore` 最小表示で、全体俯瞰、時系列、相対表示、滞留や交錯の兆候の価値を確認する | `sd9`,`su15` | `bd18`,`bu19` | `td19` | `active` | `ready` | `未収載` | `未収載` |
 | `MRL-7` | `mRL-7.**` | 補助比較や追加確認が必要なら、実測に応じて `multi-frame` 内の追加確認を切り出す | `sd9`,`sd11` | `bd18`,`bd20` | `td19`,`td23` | `ready` | `ready` | `未収載` | `未収載` |
 
-### 利用者向け後続 `MRL-**` に紐づく運営者補助 gate
+### 利用者向け後続 `MRL-**` に紐づく運営者補助 MRL
 | MRL | mRL | gate test 項目 | story-id | behavior-id | task-id | 現在 gate | UX評価状態 | admin UX確認手順 | admin evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `MRL-**` | `-` | 利用者向け後続 `MRL-**` を支える<br>補助 gate として、route 比較、採用 route 固定、<br>request / status UX、reviewing viewer、正式統合を<br>実測に応じて順次切り出す | `sd6`,`sd9`,<br>`sd10`,`su19`,<br>`sd11` | `bd15`,`bd18`,<br>`bd19`,`bu23`,<br>`bu24`,`bd20` | `td20`,`td21`,<br>`td22`,`tu28`,<br>`tu29`,`td23` | `ready` | `ready` | `未収載` | `未収載` |
+| `MRL-**` | `-` | 利用者向け後続 `MRL-**` を支える<br>補助 MRL として、route 比較、採用 route 固定、<br>request / status UX、result 返却、reviewing viewer、正式統合を<br>実測に応じて順次切り出す | `sd6`,`sd9`,<br>`sd10`,`su10`,<br>`su12`,`su13`,<br>`su18`,`su19`,<br>`sd11` | `bd16`,`bd18`,<br>`bd19`,`bu14`,<br>`bu16`,`bu17`,<br>`bu18`,`bu22`,<br>`bu23`,`bu24`,<br>`bd20` | `td20`,`td21`,<br>`td15`,`tu18`,<br>`tu20`,`tu21`,<br>`tu22`,`tu26`,<br>`tu27`,`tu28`,<br>`tu29`,`td23` | `ready` | `ready` | `未収載` | `未収載` |
 | `MRL-**` | `mRL-**.1` | `multi-route` 比較を行い、quality、runtime、resource usage、failure reason を同一 session 上で比較できる | `sd9`,`sd11` | `bd18`,`bd20` | `td20`,`td23` | `ready` | `ready` | `未収載` | `未収載` |
 | `MRL-**` | `mRL-**.2` | 暫定採用 route を `selected_route.json` として固定し、research route と再評価条件を追える | `sd9` | `bd19` | `td21` | `ready` | `ready` | `未収載` | `未収載` |
-| `MRL-**` | `mRL-**.3` | request 元から input directory、result directory、route id を束ねて remote 実行 request を作り、waiting ring と `job_status.json` を読み続けられる | `sd6`,`su10`,<br>`su13` | `bd15`,`bu14`,<br>`bu17` | `td22`,`tu28`,<br>`td23` | `ready` | `ready` | `未収載` | `未収載` |
-| `MRL-**` | `mRL-**.4` | remote 完了後に download URL と result summary を返し、`SpacePackage`、`TrajectoryPackage`、`ReviewArtifact` handoff を後段へ渡せる | `sd10`,`su19` | `bu23`,`bu24` | `tu28`,`tu29` | `ready` | `ready` | `未収載` | `未収載` |
-| `MRL-**` | `mRL-**.5` | reviewing viewer で主空間、主カメラ経路、人物経路、same-time highlight、`attention point` を同じ review 文脈で扱える | `su18`,`su19` | `bu22`,`bu24` | `tu27`,`tu29` | `ready` | `ready` | `未収載` | `未収載` |
+| `MRL-**` | `mRL-**.3` | request 元から input directory、result directory、route id を束ねて remote 実行 request を作り、waiting ring と `job_status.json` を読み続けられる | `su10`,`su12`,<br>`su13` | `bd16`,`bu14`,<br>`bu16`,`bu17` | `td15`,`tu18`,<br>`tu20`,`tu21` | `ready` | `ready` | `未収載` | `未収載` |
+| `MRL-**` | `mRL-**.4` | remote 完了後に download URL と result summary を返し、`SpacePackage`、`TrajectoryPackage`、`ReviewArtifact` handoff を後段へ渡せる | `sd10`,`su14`,<br>`su19` | `bu18`,`bu23`,<br>`bu24` | `tu22`,`tu28`,<br>`tu29` | `ready` | `ready` | `未収載` | `未収載` |
+| `MRL-**` | `mRL-**.5` | reviewing viewer で主空間、主カメラ経路、人物経路、same-time highlight、`attention point`、滞留や交錯の兆候を同じ review 文脈で扱える | `su18`,`su19` | `bu22`,`bu23`,<br>`bu24` | `tu26`,`tu27`,<br>`tu28`,`tu29` | `ready` | `ready` | `未収載` | `未収載` |
