@@ -2232,5 +2232,212 @@ print(json.dumps(result, indent=2, ensure_ascii=False))
 
 ```text
 # Step 7i3 arcore-pose-path-fix res
+---------------------------------------------------------------------------
+AssertionError                            Traceback (most recent call last)
+/tmp/ipykernel_3356/3487645675.py in <cell line: 0>()
+    154 
+    155 optimizer.zero_grad(set_to_none=True)
+--> 156 pred0, alpha0 = render_once()
+    157 loss0 = torch.mean((pred0 - target) ** 2)
+    158 loss0.backward()
+
+1 frames
+/usr/local/lib/python3.12/dist-packages/gsplat/rendering.py in rasterization(means, quats, scales, opacities, colors, viewmats, Ks, width, height, near_plane, far_plane, radius_clip, eps2d, sh_degree, packed, tile_size, backgrounds, render_mode, sparse_grad, absgrad, rasterize_mode, channel_chunk, distributed, camera_model, segmented, covars, with_ut, with_eval3d, radial_coeffs, tangential_coeffs, thin_prism_coeffs, ftheta_coeffs, rolling_shutter, viewmats_rs)
+    283         tri_indices = ([0, 0, 0, 1, 1, 2], [0, 1, 2, 1, 2, 2])
+    284         covars = covars[..., tri_indices[0], tri_indices[1]]
+--> 285     assert opacities.shape == batch_dims + (N,), opacities.shape
+    286     assert viewmats.shape == batch_dims + (C, 4, 4), viewmats.shape
+    287     assert Ks.shape == batch_dims + (C, 3, 3), Ks.shape
+
+AssertionError: torch.Size([1024, 1])
+```
+
+# codex
+
+2026-03-30 v41 step-7i4 opacity-shape-fix。
+
+- 判定: 今回は `gsplat.rasterization` の実引数 shape mismatch。
+- 原因:
+  - `opacities` を `(N, 1)` で渡していた
+  - `gsplat` 側の期待は `(N,)`
+- 目的: shape だけ直して、同じ `gaussian init + 1 step optim` を retry する。
+- 成功条件:
+  - `backward_ok = true`
+  - `loss_before`、`loss_after` を返せる
+  - `gaussian_one_step_probe.json` を保存できる
+
+```python
+# Step 7i4 opacity-shape-fix
+from pathlib import Path
+import json
+import math
+import numpy as np
+import torch
+import imageio.v3 as iio
+import pandas as pd
+import gsplat
+
+probe_dir = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01")
+world_dir = probe_dir / "world_fusion_v01"
+window_path = probe_dir / "mrl7_window_probe.json"
+session_root = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+session_outer = session_root.parent
+
+points_path = world_dir / "world_points_multiframe.npy"
+summary_out = world_dir / "gaussian_init_summary.json"
+probe_out = world_dir / "gaussian_one_step_probe.json"
+
+window_info = json.loads(window_path.read_text(encoding="utf-8"))
+sampled = (
+    window_info.get("sampled_frames")
+    or window_info.get("sample_frames")
+    or window_info.get("sampled_images")
+    or window_info.get("sampled")
+    or window_info.get("sampled_frame_names")
+)
+assert sampled, "sampled list not found"
+
+first_item = sampled[0]
+if isinstance(first_item, dict):
+    first_frame = (
+        first_item.get("frame_name")
+        or first_item.get("image_file_name")
+        or first_item.get("name")
+    )
+else:
+    first_frame = str(first_item)
+
+arcore_pose_candidates = [
+    session_root / "arcore_pose.jsonl",
+    session_outer / "arcore_pose.jsonl",
+]
+arcore_pose_path = next((p for p in arcore_pose_candidates if p.exists()), None)
+assert arcore_pose_path is not None, "arcore_pose.jsonl not found"
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+points_np = np.load(points_path).astype(np.float32)
+max_points = 1024
+if len(points_np) > max_points:
+    pick = np.linspace(0, len(points_np) - 1, max_points).astype(np.int64)
+    points_np = points_np[pick]
+
+image_path = session_root / "images" / first_frame
+image = iio.imread(image_path)
+if image.ndim == 2:
+    image = np.stack([image, image, image], axis=-1)
+image = image[..., :3]
+target_h, target_w = image.shape[:2]
+target = torch.from_numpy(image.astype(np.float32) / 255.0).to(device)
+
+frame_pose_df = pd.read_csv(session_root / "frame_pose_index.csv")
+row = frame_pose_df.loc[frame_pose_df["image_file_name"] == first_frame].iloc[0]
+pose_index = int(row["pose_record_index"])
+
+records = []
+with arcore_pose_path.open("r", encoding="utf-8") as f:
+    for line in f:
+        records.append(json.loads(line))
+pose_rec = records[pose_index]
+
+intr = pose_rec["imageIntrinsics"]
+pose = pose_rec["pose"]
+
+fx = float(intr["fx"])
+fy = float(intr["fy"])
+cx = float(intr["cx"])
+cy = float(intr["cy"])
+
+tx = float(pose["tx"])
+ty = float(pose["ty"])
+tz = float(pose["tz"])
+qx = float(pose["qx"])
+qy = float(pose["qy"])
+qz = float(pose["qz"])
+qw = float(pose["qw"])
+
+def quat_to_rot(qx, qy, qz, qw):
+    xx, yy, zz = qx*qx, qy*qy, qz*qz
+    xy, xz, yz = qx*qy, qx*qz, qy*qz
+    wx, wy, wz = qw*qx, qw*qy, qw*qz
+    return np.array([
+        [1 - 2*(yy + zz), 2*(xy - wz), 2*(xz + wy)],
+        [2*(xy + wz), 1 - 2*(xx + zz), 2*(yz - wx)],
+        [2*(xz - wy), 2*(yz + wx), 1 - 2*(xx + yy)],
+    ], dtype=np.float32)
+
+R_wc = quat_to_rot(qx, qy, qz, qw)
+t_wc = np.array([tx, ty, tz], dtype=np.float32)
+R_cw = R_wc.T
+t_cw = -R_cw @ t_wc
+
+viewmat = np.eye(4, dtype=np.float32)
+viewmat[:3, :3] = R_cw
+viewmat[:3, 3] = t_cw
+viewmat = torch.from_numpy(viewmat).to(device)
+
+K = torch.tensor([
+    [fx, 0.0, cx],
+    [0.0, fy, cy],
+    [0.0, 0.0, 1.0],
+], dtype=torch.float32, device=device)
+
+means = torch.nn.Parameter(torch.from_numpy(points_np).to(device))
+scales = torch.nn.Parameter(torch.full((len(points_np), 3), math.log(0.03), dtype=torch.float32, device=device))
+quats = torch.nn.Parameter(torch.tensor([[0.0, 0.0, 0.0, 1.0]], dtype=torch.float32, device=device).repeat(len(points_np), 1))
+opacities = torch.nn.Parameter(torch.full((len(points_np),), 0.1, dtype=torch.float32, device=device))
+colors = torch.nn.Parameter(torch.full((len(points_np), 3), 0.7, dtype=torch.float32, device=device))
+
+summary_out.write_text(json.dumps({
+    "point_count": int(len(points_np)),
+    "target_frame": first_frame,
+    "target_hw": [int(target_h), int(target_w)],
+    "arcore_pose_path": str(arcore_pose_path),
+}, indent=2, ensure_ascii=False), encoding="utf-8")
+
+optimizer = torch.optim.Adam([means, scales, quats, opacities, colors], lr=1e-2)
+
+def render_once():
+    render_colors, render_alphas, meta = gsplat.rasterization(
+        means=means,
+        quats=torch.nn.functional.normalize(quats, dim=-1),
+        scales=torch.exp(scales),
+        opacities=torch.sigmoid(opacities),
+        colors=colors,
+        viewmats=viewmat[None, ...],
+        Ks=K[None, ...],
+        width=target_w,
+        height=target_h,
+        packed=False,
+    )
+    return render_colors[0], render_alphas[0]
+
+optimizer.zero_grad(set_to_none=True)
+pred0, alpha0 = render_once()
+loss0 = torch.mean((pred0 - target) ** 2)
+loss0.backward()
+optimizer.step()
+
+optimizer.zero_grad(set_to_none=True)
+pred1, alpha1 = render_once()
+loss1 = torch.mean((pred1 - target) ** 2)
+
+result = {
+    "backward_ok": True,
+    "point_count": int(len(points_np)),
+    "target_frame": first_frame,
+    "loss_before": float(loss0.detach().cpu().item()),
+    "loss_after": float(loss1.detach().cpu().item()),
+    "alpha_mean_after": float(alpha1.mean().detach().cpu().item()),
+    "summary_path": str(summary_out),
+    "probe_path": str(probe_out),
+}
+probe_out.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
+print(json.dumps(result, indent=2, ensure_ascii=False))
+```
+
+# admin
+
+```text
+# Step 7i4 opacity-shape-fix res
 
 ```
