@@ -1623,5 +1623,197 @@ print(json.dumps(result, indent=2, ensure_ascii=False))
 
 ```text
 # Step 7i gaussian-init-and-one-step-optim probe res
+---------------------------------------------------------------------------
+KeyError                                  Traceback (most recent call last)
+/tmp/ipykernel_3356/2166920141.py in <cell line: 0>()
+     25 points_np = np.load(points_path).astype(np.float32)
+     26 window_info = json.loads(window_path.read_text(encoding="utf-8"))
+---> 27 sampled = window_info["sampled_frames"]
+     28 assert sampled, "sampled_frames empty"
+     29 
+
+KeyError: 'sampled_frames'
+```
+
+# codex
+
+2026-03-30 v38 step-7i1 window-schema-fix-and-retry。
+
+- 判定: `Step 7i` の失敗は gaussian 最適化本体ではなく、`mrl7_window_probe.json` の key 想定違い。
+- 目的: まず window probe の実 key を確認し、その場で sampled list を吸収して `gaussian init + 1 step optim` を retry する。
+- 成功条件:
+  - `window_keys` を表示できる
+  - sampled frame list を実 key から取得できる
+  - `gaussian_one_step_probe.json` を保存できる
+
+```python
+# Step 7i1 window-schema-fix-and-retry
+from pathlib import Path
+import json
+import math
+import numpy as np
+import torch
+import imageio.v3 as iio
+import pandas as pd
+import gsplat
+
+probe_dir = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01")
+world_dir = probe_dir / "world_fusion_v01"
+window_path = probe_dir / "mrl7_window_probe.json"
+session_root = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+
+points_path = world_dir / "world_points_multiframe.npy"
+summary_out = world_dir / "gaussian_init_summary.json"
+probe_out = world_dir / "gaussian_one_step_probe.json"
+
+window_info = json.loads(window_path.read_text(encoding="utf-8"))
+window_keys = sorted(window_info.keys())
+
+sampled = (
+    window_info.get("sampled_frames")
+    or window_info.get("sampled_images")
+    or window_info.get("sampled")
+    or window_info.get("sampled_frame_names")
+)
+assert sampled, {"window_keys": window_keys, "error": "sampled list not found"}
+
+first_item = sampled[0]
+if isinstance(first_item, dict):
+    first_frame = first_item.get("frame_name") or first_item.get("image_file_name") or first_item.get("name")
+else:
+    first_frame = str(first_item)
+assert first_frame, {"window_keys": window_keys, "sampled_example": first_item}
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+points_np = np.load(points_path).astype(np.float32)
+max_points = 1024
+if len(points_np) > max_points:
+    pick = np.linspace(0, len(points_np) - 1, max_points).astype(np.int64)
+    points_np = points_np[pick]
+
+image_path = session_root / "images" / first_frame
+assert image_path.exists(), {"image_not_found": str(image_path), "first_frame": first_frame}
+image = iio.imread(image_path)
+if image.ndim == 2:
+    image = np.stack([image, image, image], axis=-1)
+image = image[..., :3]
+target_h, target_w = image.shape[:2]
+target = torch.from_numpy(image.astype(np.float32) / 255.0).to(device)
+
+frame_pose_df = pd.read_csv(session_root / "frame_pose_index.csv")
+row = frame_pose_df.loc[frame_pose_df["image_file_name"] == first_frame].iloc[0]
+pose_index = int(row["pose_record_index"])
+
+records = []
+with (session_root / "arcore_pose.jsonl").open("r", encoding="utf-8") as f:
+    for line in f:
+        records.append(json.loads(line))
+pose_rec = records[pose_index]
+
+intr = pose_rec["imageIntrinsics"]
+pose = pose_rec["pose"]
+
+fx = float(intr["fx"])
+fy = float(intr["fy"])
+cx = float(intr["cx"])
+cy = float(intr["cy"])
+
+tx = float(pose["tx"])
+ty = float(pose["ty"])
+tz = float(pose["tz"])
+qx = float(pose["qx"])
+qy = float(pose["qy"])
+qz = float(pose["qz"])
+qw = float(pose["qw"])
+
+def quat_to_rot(qx, qy, qz, qw):
+    xx, yy, zz = qx*qx, qy*qy, qz*qz
+    xy, xz, yz = qx*qy, qx*qz, qy*qz
+    wx, wy, wz = qw*qx, qw*qy, qw*qz
+    return np.array([
+        [1 - 2*(yy + zz), 2*(xy - wz), 2*(xz + wy)],
+        [2*(xy + wz), 1 - 2*(xx + zz), 2*(yz - wx)],
+        [2*(xz - wy), 2*(yz + wx), 1 - 2*(xx + yy)],
+    ], dtype=np.float32)
+
+R_wc = quat_to_rot(qx, qy, qz, qw)
+t_wc = np.array([tx, ty, tz], dtype=np.float32)
+R_cw = R_wc.T
+t_cw = -R_cw @ t_wc
+
+viewmat = np.eye(4, dtype=np.float32)
+viewmat[:3, :3] = R_cw
+viewmat[:3, 3] = t_cw
+viewmat = torch.from_numpy(viewmat).to(device)
+
+K = torch.tensor([
+    [fx, 0.0, cx],
+    [0.0, fy, cy],
+    [0.0, 0.0, 1.0],
+], dtype=torch.float32, device=device)
+
+means = torch.nn.Parameter(torch.from_numpy(points_np).to(device))
+scales = torch.nn.Parameter(torch.full((len(points_np), 3), math.log(0.03), dtype=torch.float32, device=device))
+quats = torch.nn.Parameter(torch.tensor([[0.0, 0.0, 0.0, 1.0]], dtype=torch.float32, device=device).repeat(len(points_np), 1))
+opacities = torch.nn.Parameter(torch.full((len(points_np), 1), 0.1, dtype=torch.float32, device=device))
+colors = torch.nn.Parameter(torch.full((len(points_np), 3), 0.7, dtype=torch.float32, device=device))
+
+summary_out.write_text(json.dumps({
+    "window_keys": window_keys,
+    "point_count": int(len(points_np)),
+    "target_frame": first_frame,
+    "target_hw": [int(target_h), int(target_w)],
+    "fx": fx,
+    "fy": fy,
+    "cx": cx,
+    "cy": cy,
+}, indent=2, ensure_ascii=False), encoding="utf-8")
+
+optimizer = torch.optim.Adam([means, scales, quats, opacities, colors], lr=1e-2)
+
+def render_once():
+    render_colors, render_alphas, meta = gsplat.rasterization(
+        means=means,
+        quats=torch.nn.functional.normalize(quats, dim=-1),
+        scales=torch.exp(scales),
+        opacities=torch.sigmoid(opacities),
+        colors=colors,
+        viewmats=viewmat[None, ...],
+        Ks=K[None, ...],
+        width=target_w,
+        height=target_h,
+        packed=False,
+    )
+    return render_colors[0], render_alphas[0]
+
+optimizer.zero_grad(set_to_none=True)
+pred0, alpha0 = render_once()
+loss0 = torch.mean((pred0 - target) ** 2)
+loss0.backward()
+optimizer.step()
+
+optimizer.zero_grad(set_to_none=True)
+pred1, alpha1 = render_once()
+loss1 = torch.mean((pred1 - target) ** 2)
+
+result = {
+    "backward_ok": True,
+    "window_keys": window_keys,
+    "point_count": int(len(points_np)),
+    "target_frame": first_frame,
+    "loss_before": float(loss0.detach().cpu().item()),
+    "loss_after": float(loss1.detach().cpu().item()),
+    "alpha_mean_after": float(alpha1.mean().detach().cpu().item()),
+    "summary_path": str(summary_out),
+    "probe_path": str(probe_out),
+}
+probe_out.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
+print(json.dumps(result, indent=2, ensure_ascii=False))
+```
+
+# admin
+
+```text
+# Step 7i1 window-schema-fix-and-retry res
 
 ```
