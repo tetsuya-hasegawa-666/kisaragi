@@ -13,6 +13,28 @@
 
 ## Entries
 
+- record date: `2026-03-31`
+  target MRL: `MRL-2S`
+  target mRL: `mRL-2S.1`、`mRL-2S.2`
+  gate change: `active`
+  issue: `通常計測` の長時間収録は screen off 抑止だけでは閉じず、`1min15s` 前後で app crash が起きていた
+  cause: 実機 crash log で `isensorium-shared-camera-trial` thread の `OutOfMemoryError` を確認した。`TrialCpuImageVideoRecorder` が収録中の全 YUV frame を RAM に保持し、停止時にまとめて encode していた
+  resolution: `MainActivity` 側で keep-awake を追加済みの前提で、`TrialCpuImageVideoRecorder` を逐次 encode 方式へ変更し、収録中に `MediaCodec` / `MediaMuxer` へ流し込む構成へ切り替えた。frame をメモリへ蓄積しないため、長時間側は frame drop 許容で連続稼働を優先する
+  recurrence prevention: `correcting` の長時間収録問題は screen off と crash を分離して扱い、実機 crash 時は `exit-info` と crash buffer を必ず取得してから route 切替や sampling 仮説へ進む
+  remaining work: 修正 build を実機で `10min` 収録し、落ちないこと、session が `finalized` になること、`video.mp4` が残ることを admin 手順で確認する
+  evidence path: `kisaragi-db/--exsams/prj-kisaragi_0002/device-debug/`
+
+- record date: `2026-03-31`
+  target MRL: `MRL-2S`
+  target mRL: `mRL-2S.2`
+  gate change: `active`
+  issue: `OOM` 修正後の `2min30s` 実収録では crash しなくなったが、`撮影停止` 後に session が `recording` のまま止まり、停止処理が完了しなかった
+  cause: 実機 session `session-20260331-044636` では `video.mp4` が `26MB` まで伸びていた一方、`session_manifest.json` は `status=recording` のまま、`video_events.jsonl` も空だった。`TrialCpuImageVideoRecorder.finishEncoding()` は `MediaCodec.INFO_TRY_AGAIN_LATER` が続いた時に終端 drain の抜け条件がなく、`stopAndRelease()` が無限待ちになる経路を持っていた
+  resolution: `CoreCameraTrialRuntime.kt` の `drainCodec(endOfStream=true)` に `5s` の `STOP_DRAIN_TIMEOUT_NS` を追加し、`EOS` が返らない時は timeout で抜けて finalize を進める bounded stop に変更した
+  recurrence prevention: 停止不良は `video.mp4` の成長有無、`session_manifest.json` の `status`、`video_events.jsonl` の有無を同時に見て、crash と finalize hang を分離して扱う
+  remaining work: bounded stop 版を実機へ入れ直し、`2min30s` 以上と `10min` の両方で `撮影停止` 後に session が `finalized` まで進むかを admin 手順で確認する
+  evidence path: `kisaragi-db/--exsams/prj-kisaragi_0002/device-debug/`
+
 - record date: `2026-03-29`
   target MRL: `MRL-1`、`MRL-2`
   target mRL: `mRL-1.1` から `mRL-1.3`、`mRL-2.1` から `mRL-2.3`
@@ -67,6 +89,17 @@
   recurrence prevention: Colab 上で `3DGS` 本体へ進む時は、最初に `1 step` backward probe を通し、引数 shape や path 解決を潰してから短い optimization loop と目視確認へ進む
   remaining work: viewer で読む正式 gaussian scene 形式の固定、artifact download の標準化、multi-view 条件の拡張、人軌跡重畳を含む `TraceCore` 最小表示は後続 `MRL-**` で進める
   evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-evidence.md`
+
+- record date: `2026-03-31`
+  target MRL: `MRL-8`
+  target mRL: `mRL-8.1`、`mRL-8.2`
+  gate change: `p-done`
+  issue: `DA3 Colab` runbook は特定 zip path を hardcode しており、fresh runtime で別 session を試すたびに手編集が必要だった
+  cause: input candidate scan は文字列 path ベースで重複し、`shortcut-targets-by-id` と `MyDrive` の同一実体 zip を canonical に 1 件へ寄せられていなかった。また selected input を runbook 本体と `MRL-7` one-block の両方へ handoff する closeout が未記録だった
+  resolution: candidate scan を `session_id + size_bytes` と path rank で canonical 化し、widget で selected input を保存する前段を runbook 正本へ組み込んだ。admin は `[2] trajectreview-correcting-session-20260331-034831 [zip]` を選択し、`Step 8d` で `Step 2` から `Step 4.5`、`Step 8e` で `MRL-7 adopted one-block` を同じ input から end-to-end で実行できた
+  recurrence prevention: Drive mount で同一実体が複数 path に見える時は `resolve()` だけに頼らず、session-level key と優先順位で canonical candidate list を作ってから widget UX を確定する
+  remaining work: `MRL-8` で確立した selected input handoff を、後続 `job_status.json`、request UX、result download、viewer formalization へ接続する
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md`
 
 - record date: `2026-03-26`
   target MRL: `旧番号時代の全 gate`

@@ -36,8 +36,42 @@
   - `mRL-2.1` から `mRL-2.3`
 - admin 操作観点:
   - `trajectreview-correcting` で記録開始、停止、session 保存ができる
-  - `data-check` に readiness、blocker、recommended correction が出る
-  - export 後の bundle に `session_package.json`、`space_handoff_manifest.json`、`sensor_quality.json` が出る
+- `data-check` に readiness、blocker、recommended correction が出る
+- export 後の bundle に `session_package.json`、`space_handoff_manifest.json`、`sensor_quality.json` が出る
+
+## 2026-03-31 `MRL-8` close evidence
+
+- 対象 gate:
+  - `MRL-8`
+  - `mRL-8.1`
+  - `mRL-8.2`
+- UX 観点:
+  - `Colab` 上で Drive 内の session zip 候補が重複なしに 3 件だけ列挙される
+  - admin が dropdown widget で 1 件を選び、`selected input` を保存できる
+  - 選んだ input がそのまま bootstrap 本体と `MRL-7 adopted one-block` の両方へ流れる
+- 実行観点:
+  - `Step 8a4 canonical candidate rescan`:
+    - `candidate_count = 3`
+    - canonical path は `shortcut-targets-by-id` 側だけを残す
+  - `Step 8d retry after canonical candidate rescan`:
+    - admin は `[2] trajectreview-correcting-session-20260331-034831 [zip]` を widget で選択
+    - `selected_exists = true`
+    - `session_root = /content/trajectreview_input/session-20260331-034831/trajectreview`
+    - `image_count = 26`
+    - `Step 2` から `Step 4.5` が `cuda` で成功
+  - `Step 8e selected-input mrl7 adopted one-block`:
+    - 同じ selected input を使って `MRL-7 adopted one-block` が成功
+    - `processed_frames = 12`
+    - `skipped_frames = 0`
+    - `total_points = 4608`
+- 判定:
+  - hardcoded zip path を編集せず、fresh runtime から任意 session input を選んで runbook 本体と `MRL-7` one-block へ handoff できる
+  - `MRL-8`、`mRL-8.1`、`mRL-8.2` を `p-done` とする
+- 主要 evidence:
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/`
+  - `trajectreview/results/trajectreview-correcting-session-20260331-034831_da3_smoke_v24/`
+  - `trajectreview/results/trajectreview-correcting-session-20260331-034831_da3_multiframe_probe_v01/world_fusion_v01/`
   - `Google Drive` 転送と handoff bundle を 1 回の収録から読める
 
 ### correcting batch 記録テンプレート

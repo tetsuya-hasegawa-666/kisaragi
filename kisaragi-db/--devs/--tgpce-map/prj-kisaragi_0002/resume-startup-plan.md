@@ -3,7 +3,7 @@
 ## 目的
 
 - 今回の session 以後に引き継ぐ時、`prj-kisaragi_0002` の次の主作業だけを短く共有できるようにする。
-- `MRL-1` から `MRL-6` は `p-done` とし、次段の `MRL-7` へ迷わず移るための補助メモとする。
+- `MRL-1` から `MRL-8` は `p-done` とし、次段の `MRL-2S` と後続 `MRL-**` へ迷わず移るための補助メモとする。
 
 ## 次回の基準文書
 
@@ -20,7 +20,9 @@
 - 成立済みなのは `single-frame bootstrap` であり、これは最終目標ではなく `modeling 本機能` への通過点である。
 - `MRL-1` と `MRL-2` は `correcting` phase の `p-done` であり、実 session 記録、`data-check`、calibration、`Google Drive` 転送、handoff bundle まで閉じている。
 - `MRL-3` から `MRL-6` は `modeling` phase の `p-done` であり、bootstrap / install、bundle 読込、single-frame `3DGS` smoke、evidence bundle 取得まで閉じている。
-- 現在の main target は `MRL-7` であり、`10s` 前後の整った実動画を使った `TraceCore` の `multi-frame` densify で、利用者が主空間、主カメラ経路、人軌跡の見え方を自然に重ねて見られ、全体俯瞰、時系列、camera と人の相対表示の価値を検討できる最小表示を admin がまず確認する水準へ進めることである。
+- `MRL-7` は `multi-frame` densify と gaussian short optimization まで `p-done` である。
+- `MRL-8` は `p-done` であり、`DA3 Colab` runbook 本体の前段で Drive 上の任意 session zip / session folder を script だけで選び、selected input を bootstrap 本体と `MRL-7` one-block の両方へ渡せる状態を閉じた。
+- 現在の main target は `MRL-2S` と後続 `MRL-**` であり、`correcting` の `10min` 実収録安定化と、gaussian parameter の formalization / viewer 寄せを進めることである。
 - `MRL-**` は細かく固定せず大まかな順番だけを置き、実測で見えた課題の大小に応じて `MRL` / `mRL` を切り直す。
 - ただし後続 `MRL` でも UX 到達品質は元の目標に沿わせる。特に modeling では、利用者が主空間の見え方、主カメラ経路、処理状態、次 action を迷わず把握できる方向を維持する。
 - 後続 `MRL-**` で最低限残る項目は、`multi-route` 比較、`selected_route.json` 固定、request 起点 UX、`job_status.json` と waiting ring、download URL を含む result 返却、`SpacePackage` / `TrajectoryPackage` / `ReviewArtifact` handoff、reviewing viewer 実装である。
@@ -37,7 +39,7 @@
 
 ## 次回の主残件
 
-- `10s` 前後の整った実動画から `multi-frame` で point cloud を densify し、`TraceCore` として価値が高い見方を検討できる最小表示を確認する route は未着手。
+- runbook は Drive 上の特定 path を hardcode していたため、任意 input を script だけで差し替える前段 block が未完成である。
 - `sampling` / `intrinsics` / `projection` の route 比較、`benchmark_summary.json`、`selected_route.json` の本機能 close は `MRL-**` 側の後続課題として未達。
 - request 元画面から `Google Drive` input directory / result directory を指定する UX は未実装。
 - remote 実行中の `waiting ring`、現在 stage、更新時刻表示は未実装。
@@ -48,10 +50,10 @@
 ## 次回の最初の 5 手
 
 1. [sharedlogs_da3-colab.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\sharedlogs_da3-colab.md) の最下部を読んで、最新の `# codex v**` と `# admin` を確認する。
-2. [ux-b2t-hypo.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\ux-b2t-hypo.md) の `MRL-7` を確認し、次段の target を `TraceCore` の `multi-frame` densify と review 価値仮説を見据えた最小表示に合わせる。
-3. `Colab` 側で `single-frame` の次として、複数 frame を sampling して world point cloud を統合し、全体俯瞰、時系列、camera と人の相対表示の価値を検討できる `TraceCore` 最小表示 route を設計する。
-4. `MRL-7` で本当に必要になった追加確認だけを `mRL-7.**` として切り出し、後続の route 比較や UX 統合は `MRL-**` 側へ送る。
-5. その後に `modeling/job_status.json` の schema、stage 名、waiting ring 更新条件、download URL 返却条件と、request 元の `input directory`、`result directory`、`route id` を束ねた request 生成 UX を設計する。
+2. [ux-b2t-hypo.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\ux-b2t-hypo.md) で `MRL-2S` と後続 `MRL-**` の current_state を確認する。
+3. [da3_colab_clean_bootstrap_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_clean_bootstrap_runbook.md) の `準備確認 2` から `準備確認 4` を使えば、任意 selected input から blank runtime を再開できることを前提にする。
+4. gaussian parameter の formalization、viewer で読む scene 形式、multi-view / 長時間 optimization のどこを次の visible target に置くかを決める。
+5. 並行して `modeling/job_status.json` の schema、stage 名、waiting ring 更新条件、download URL 返却条件と、request 元の `input directory`、`result directory`、`route id` を束ねた request 生成 UX を設計する。
 
 ## 引き継ぎ上の重要判断
 

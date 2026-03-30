@@ -2945,3 +2945,1303 @@ files.download(str(bundle_zip))
 
 
 ```
+
+# codex v44
+
+`MRL-8` の first block として、runbook 本体へ入る前に Drive 上の input 候補を列挙し、selected input を固定する。fresh runtime では `drive.mount('/content/drive')` の後に実行する。
+
+```python
+# Step 8a drive input candidate scan and select
+from pathlib import Path
+import json
+
+shortcut_root = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_")
+scan_roots = [
+    shortcut_root / "trajectreview",
+    Path("/content/drive/MyDrive/trajectreview"),
+]
+results_root_candidates = [
+    shortcut_root / "trajectreview" / "results",
+    Path("/content/drive/MyDrive/trajectreview/results"),
+]
+results_root = next((p for p in results_root_candidates if p.exists()), results_root_candidates[0])
+candidate_doc_path = Path("/content/runbook_drive_candidates.json")
+selected_doc_path = Path("/content/runbook_selected_input.json")
+
+def infer_session_id(path: Path) -> str:
+    return path.stem if path.suffix.lower() == ".zip" else path.name
+
+candidates = []
+seen = set()
+for root in scan_roots:
+    if not root.exists():
+        continue
+    for zip_path in sorted(root.rglob("*.zip")):
+        key = ("zip", str(zip_path))
+        if key in seen:
+            continue
+        seen.add(key)
+        candidates.append({
+            "kind": "zip",
+            "session_id": infer_session_id(zip_path),
+            "label": f"{infer_session_id(zip_path)} [zip]",
+            "path": str(zip_path),
+        })
+    for pkg_path in sorted(root.rglob("session_package.json")):
+        session_root = pkg_path.parent
+        key = ("dir", str(session_root))
+        if key in seen:
+            continue
+        seen.add(key)
+        candidates.append({
+            "kind": "dir",
+            "session_id": infer_session_id(session_root),
+            "label": f"{infer_session_id(session_root)} [dir]",
+            "path": str(session_root),
+        })
+
+candidate_doc = {
+    "scan_roots": [str(p) for p in scan_roots if p.exists()],
+    "results_root": str(results_root),
+    "candidate_count": len(candidates),
+    "candidates": candidates,
+}
+candidate_doc_path.write_text(json.dumps(candidate_doc, indent=2, ensure_ascii=False), encoding="utf-8")
+
+print("candidate_doc_path", candidate_doc_path)
+print("results_root", results_root)
+print("candidate_count", len(candidates))
+for idx, item in enumerate(candidates):
+    print(f"[{idx}] {item['label']}: {item['path']}")
+
+assert candidates, "no input candidates found"
+
+SELECTED_INDEX = 0
+selected = candidates[SELECTED_INDEX]
+selected_doc = {
+    "selected_index": SELECTED_INDEX,
+    "kind": selected["kind"],
+    "session_id": selected["session_id"],
+    "label": selected["label"],
+    "path": selected["path"],
+    "results_root": str(results_root),
+}
+selected_doc_path.write_text(json.dumps(selected_doc, indent=2, ensure_ascii=False), encoding="utf-8")
+
+print("selected_doc_path", selected_doc_path)
+print(json.dumps(selected_doc, indent=2, ensure_ascii=False))
+print("selected_exists", Path(selected["path"]).exists())
+```
+
+# admin
+
+```text
+# Step 8a drive input candidate scan and select res
+candidate_doc_path /content/runbook_drive_candidates.json
+results_root /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results
+candidate_count 0
+---------------------------------------------------------------------------
+AssertionError                            Traceback (most recent call last)
+/tmp/ipykernel_7424/229012291.py in <cell line: 0>()
+     62     print(f"[{idx}] {item['label']}: {item['path']}")
+     63 
+---> 64 assert candidates, "no input candidates found"
+     65 
+     66 SELECTED_INDEX = 0
+
+AssertionError: no input candidates found
+```
+
+# codex v45
+
+blank runtime では `Drive` 再接続が必要なので、先に remount と scan root 実在確認を行う。`scan_root_exists` が全部 `False` なら mount 問題、`scan_root_exists` があるのに `candidate_count 0` なら Drive 配下に対象 data が無い。
+
+```python
+# Step 8a1 drive remount and scan-root diagnostic
+from pathlib import Path
+import json
+from google.colab import drive
+
+drive.mount("/content/drive", force_remount=True)
+
+shortcut_root = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_")
+scan_roots = [
+    shortcut_root / "trajectreview",
+    Path("/content/drive/MyDrive/trajectreview"),
+]
+results_root_candidates = [
+    shortcut_root / "trajectreview" / "results",
+    Path("/content/drive/MyDrive/trajectreview/results"),
+]
+results_root = next((p for p in results_root_candidates if p.exists()), results_root_candidates[0])
+
+diag = {
+    "shortcut_root_exists": shortcut_root.exists(),
+    "scan_root_exists": {str(p): p.exists() for p in scan_roots},
+    "results_root_exists": results_root.exists(),
+    "results_root": str(results_root),
+}
+print(json.dumps(diag, indent=2, ensure_ascii=False))
+```
+
+# admin
+
+```text
+# Step 8a1 drive remount and scan-root diagnostic res
+candidate_doc_path /content/runbook_drive_candidates.json
+results_root /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results
+candidate_count 6
+[0] session-20260328-103250 [zip]: /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/session-20260328-103250.zip
+[1] trajectreview-correcting-export [zip]: /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/trajectreview-correcting-export.zip
+[2] trajectreview-correcting-session-20260331-034831 [zip]: /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/trajectreview-correcting-session-20260331-034831.zip
+[3] session-20260328-103250 [zip]: /content/drive/MyDrive/trajectreview/correcting/session-20260328-103250.zip
+[4] trajectreview-correcting-export [zip]: /content/drive/MyDrive/trajectreview/correcting/trajectreview-correcting-export.zip
+[5] trajectreview-correcting-session-20260331-034831 [zip]: /content/drive/MyDrive/trajectreview/correcting/trajectreview-correcting-session-20260331-034831.zip
+selected_doc_path /content/runbook_selected_input.json
+{
+  "selected_index": 0,
+  "kind": "zip",
+  "session_id": "session-20260328-103250",
+  "label": "session-20260328-103250 [zip]",
+  "path": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/session-20260328-103250.zip",
+  "results_root": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results"
+}
+selected_exists True
+```
+
+# codex v46
+
+`MRL-8.2` へ進む。selected input は固定できたので、次はその selected input を `Step 1` と同じ logic で展開し、`session_root`、`images/`、`runbook_session_context.json` まで生成する。
+
+```python
+# Step 8b selected-input extract and context build
+from pathlib import Path
+import json
+import shutil
+import zipfile
+
+selected_doc = json.loads(Path("/content/runbook_selected_input.json").read_text(encoding="utf-8"))
+selected_path = Path(selected_doc["path"])
+selected_kind = selected_doc["kind"]
+session_id = selected_doc["session_id"]
+results_root = Path(selected_doc["results_root"])
+extract_root = Path("/content/trajectreview_input")
+
+if extract_root.exists():
+    shutil.rmtree(extract_root)
+extract_root.mkdir(parents=True, exist_ok=True)
+
+if selected_kind == "zip":
+    with zipfile.ZipFile(selected_path, "r") as zf:
+        zf.extractall(extract_root)
+else:
+    dest_root = extract_root / selected_path.name
+    shutil.copytree(selected_path, dest_root)
+
+pkg_hits = sorted(extract_root.rglob("session_package.json"))
+assert pkg_hits, f"session_package.json not found under {extract_root}"
+session_pkg = next((p for p in pkg_hits if p.parent.name == "trajectreview"), pkg_hits[0])
+
+session_root = session_pkg.parent
+session_outer = session_root.parent
+images_dir = session_root / "images"
+files = sorted(images_dir.glob("*.png")) + sorted(images_dir.glob("*.jpg")) + sorted(images_dir.glob("*.jpeg"))
+
+smoke_output_root = results_root / f"{session_id}_da3_smoke_v24"
+multiframe_probe_root = results_root / f"{session_id}_da3_multiframe_probe_v01"
+context = {
+    "selected_path": str(selected_path),
+    "selected_kind": selected_kind,
+    "session_id": session_id,
+    "session_root": str(session_root),
+    "session_outer": str(session_outer),
+    "images_dir": str(images_dir),
+    "results_root": str(results_root),
+    "da3_smoke_output_root": str(smoke_output_root),
+    "multiframe_probe_root": str(multiframe_probe_root),
+}
+Path("/content/runbook_session_context.json").write_text(json.dumps(context, indent=2, ensure_ascii=False), encoding="utf-8")
+
+result = {
+    "selected_kind": selected_kind,
+    "selected_path": str(selected_path),
+    "session_root_exists": session_root.exists(),
+    "session_root": str(session_root),
+    "images_dir_exists": images_dir.exists(),
+    "images_dir": str(images_dir),
+    "image_count": len(files),
+    "first_image": None if not files else str(files[0]),
+    "context_path": "/content/runbook_session_context.json",
+}
+print(json.dumps(result, indent=2, ensure_ascii=False))
+```
+
+# admin
+
+```text
+# Step 8b selected-input extract and context build res
+{
+  "selected_kind": "zip",
+  "selected_path": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/session-20260328-103250.zip",
+  "session_root_exists": true,
+  "session_root": "/content/trajectreview_input/session-20260328-103250/trajectreview",
+  "images_dir_exists": true,
+  "images_dir": "/content/trajectreview_input/session-20260328-103250/trajectreview/images",
+  "image_count": 182,
+  "first_image": "/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000009.jpg",
+  "context_path": "/content/runbook_session_context.json"
+}
+```
+
+# codex v47
+
+`MRL-8` の接続確認として、selected input をそのまま使って `Step 2` から `Step 4.5` を一気に流す。ここが通れば、runbook 前段の Drive input select と本体 bootstrap は接続済みと判断できる。
+
+```python
+# Step 8c selected-input startup-to-step4p5
+import sys
+import json
+import shutil
+import subprocess
+from pathlib import Path
+
+import numpy as np
+from PIL import Image
+import torch
+
+context = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
+SESSION_ROOT = Path(context["session_root"])
+OUTPUT_ROOT = Path(context["da3_smoke_output_root"])
+OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+
+def run(cmd):
+    print("RUN", " ".join(cmd))
+    subprocess.run(cmd, check=True)
+
+repo_root = Path("/content/Depth-Anything-3")
+if repo_root.exists():
+    shutil.rmtree(repo_root)
+
+run(["git", "clone", "https://github.com/ByteDance-Seed/Depth-Anything-3.git", str(repo_root)])
+run(["python", "-m", "pip", "install", "--quiet", "addict", "evo", "moviepy==1.0.3", "pygame", "pycolmap", "plyfile", "trimesh", "gsplat"])
+
+src_root = repo_root / "src"
+assert src_root.exists(), f"src not found: {src_root}"
+if str(src_root) not in sys.path:
+    sys.path.insert(0, str(src_root))
+
+from depth_anything_3.api import DepthAnything3
+import gsplat
+
+images = sorted((SESSION_ROOT / "images").glob("*.png")) + sorted((SESSION_ROOT / "images").glob("*.jpg")) + sorted((SESSION_ROOT / "images").glob("*.jpeg"))
+assert images, f"images not found under {SESSION_ROOT / 'images'}"
+image_path = images[0]
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = DepthAnything3.from_pretrained("depth-anything/DA3METRIC-LARGE").to(device=device)
+prediction = model.inference([str(image_path)])
+
+depth = np.asarray(prediction.depth[0])
+conf = None if prediction.conf is None else np.asarray(prediction.conf[0])
+intrinsics = None if prediction.intrinsics is None else np.asarray(prediction.intrinsics[0])
+extrinsics = None if prediction.extrinsics is None else np.asarray(prediction.extrinsics[0])
+
+depth_min = float(depth.min())
+depth_max = float(depth.max())
+depth_norm = np.zeros_like(depth, dtype=np.float32) if depth_max <= depth_min else (depth - depth_min) / (depth_max - depth_min)
+Image.fromarray((depth_norm * 255).astype(np.uint8)).save(OUTPUT_ROOT / "depth_preview.png")
+np.save(OUTPUT_ROOT / "depth_raw.npy", depth)
+if conf is not None:
+    np.save(OUTPUT_ROOT / "conf_raw.npy", conf)
+if intrinsics is not None:
+    np.save(OUTPUT_ROOT / "intrinsics.npy", intrinsics)
+if extrinsics is not None:
+    np.save(OUTPUT_ROOT / "extrinsics.npy", extrinsics)
+
+summary = {
+    "selected_path": context["selected_path"],
+    "session_root": str(SESSION_ROOT),
+    "image_path": str(image_path),
+    "device": str(device),
+    "depth_shape": list(depth.shape),
+    "conf_shape": None if conf is None else list(conf.shape),
+    "intrinsics_shape": None if intrinsics is None else list(intrinsics.shape),
+    "extrinsics_shape": None if extrinsics is None else list(extrinsics.shape),
+    "depth_min": depth_min,
+    "depth_max": depth_max,
+    "output_root": str(OUTPUT_ROOT),
+    "gsplat_version": getattr(gsplat, "__version__", "unknown"),
+    "rasterization_type": type(gsplat.rasterization).__name__,
+}
+(OUTPUT_ROOT / "summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+print(json.dumps(summary, indent=2, ensure_ascii=False))
+```
+
+# admin
+
+```text
+# Step 8c selected-input startup-to-step4p5 res
+RUN git clone https://github.com/ByteDance-Seed/Depth-Anything-3.git /content/Depth-Anything-3
+RUN python -m pip install --quiet addict evo moviepy==1.0.3 pygame pycolmap plyfile trimesh gsplat
+/usr/local/lib/python3.12/dist-packages/moviepy/config_defaults.py:47: SyntaxWarning: invalid escape sequence '\P'
+  IMAGEMAGICK_BINARY = r"C:\Program Files\ImageMagick-6.8.8-Q16\magick.exe"
+/usr/local/lib/python3.12/dist-packages/moviepy/video/io/ffmpeg_reader.py:294: SyntaxWarning: invalid escape sequence '\d'
+  lines_video = [l for l in lines if ' Video: ' in l and re.search('\d+x\d+', l)]
+/usr/local/lib/python3.12/dist-packages/moviepy/video/io/ffmpeg_reader.py:367: SyntaxWarning: invalid escape sequence '\d'
+  rotation_lines = [l for l in lines if 'rotate          :' in l and re.search('\d+$', l)]
+/usr/local/lib/python3.12/dist-packages/moviepy/video/io/ffmpeg_reader.py:370: SyntaxWarning: invalid escape sequence '\d'
+  match = re.search('\d+$', rotation_line)
+WARNING:py.warnings:/usr/local/lib/python3.12/dist-packages/moviepy/video/io/sliders.py:61: SyntaxWarning: "is" with 'str' literal. Did you mean "=="?
+  if event.key is 'enter':
+
+WARNING:py.warnings:/usr/local/lib/python3.12/dist-packages/huggingface_hub/utils/_auth.py:94: UserWarning: 
+The secret `HF_TOKEN` does not exist in your Colab secrets.
+To authenticate with the Hugging Face Hub, create a token in your settings tab (https://huggingface.co/settings/tokens), set it as secret in your Google Colab and restart your session.
+You will be able to reuse this secret in all of your notebooks.
+Please note that authentication is recommended but still optional to access public models or datasets.
+  warnings.warn(
+
+config.json: 100%
+ 847/847 [00:00<00:00, 49.3kB/s]
+[INFO ] using MLP layer as FFN
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+WARNING:huggingface_hub.utils._http:Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+model.safetensors: 100%
+ 1.34G/1.34G [00:09<00:00, 118MB/s]
+[INFO ] Processed Images Done taking 0.09908866882324219 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 1.7259190082550049 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0018324851989746094 seconds
+{
+  "selected_path": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/session-20260328-103250.zip",
+  "session_root": "/content/trajectreview_input/session-20260328-103250/trajectreview",
+  "image_path": "/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000009.jpg",
+  "device": "cuda",
+  "depth_shape": [
+    378,
+    504
+  ],
+  "conf_shape": null,
+  "intrinsics_shape": null,
+  "extrinsics_shape": null,
+  "depth_min": 0.31544607877731323,
+  "depth_max": 4.0310516357421875,
+  "output_root": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/session-20260328-103250_da3_smoke_v24",
+  "gsplat_version": "1.5.3",
+  "rasterization_type": "function"
+}
+```
+
+# codex v48
+
+現在の `Step 8a` は `SELECTED_INDEX = 0` 固定で、admin が画面で選べる状態ではなかった。ここを widget 選択へ差し替える。dropdown で候補を選び、button を押した時だけ `/content/runbook_selected_input.json` を保存する。
+
+```python
+# Step 8a2 widget-based input selection
+from pathlib import Path
+import json
+import ipywidgets as widgets
+from IPython.display import display
+
+candidate_doc_path = Path("/content/runbook_drive_candidates.json")
+selected_doc_path = Path("/content/runbook_selected_input.json")
+candidate_doc = json.loads(candidate_doc_path.read_text(encoding="utf-8"))
+assert candidate_doc["candidate_count"] >= 1, candidate_doc
+
+options = [(f"[{idx}] {item['label']}", idx) for idx, item in enumerate(candidate_doc["candidates"])]
+dropdown = widgets.Dropdown(options=options, description="input", layout=widgets.Layout(width="95%"))
+button = widgets.Button(description="selected input を保存", button_style="success")
+output = widgets.Output()
+
+def on_click(_):
+    selected_index = dropdown.value
+    selected = candidate_doc["candidates"][selected_index]
+    selected_doc = {
+        "selected_index": selected_index,
+        "kind": selected["kind"],
+        "session_id": selected["session_id"],
+        "label": selected["label"],
+        "path": selected["path"],
+        "results_root": candidate_doc["results_root"],
+    }
+    selected_doc_path.write_text(json.dumps(selected_doc, indent=2, ensure_ascii=False), encoding="utf-8")
+    with output:
+        output.clear_output()
+        print(json.dumps(selected_doc, indent=2, ensure_ascii=False))
+        print("selected_exists", Path(selected["path"]).exists())
+
+button.on_click(on_click)
+display(dropdown, button, output)
+print("操作: dropdown で 1 件選び、`selected input を保存` を押す")
+```
+
+# admin
+
+```text
+# Step 8a2 widget-based input selection res
+skip
+```
+
+# codex v49
+
+直前の `Step 8c` は成功しており、Drive input select 後の bootstrap 本体接続は通っている。未確認なのは「admin が widget で選んだ input が、そのまま extract / context build / startup-to-step4p5 へ流れるか」だけなので、ここを 1 block で確認する。
+
+```python
+# Step 8d widget-select to startup-to-step4p5
+from pathlib import Path
+import json
+import shutil
+import subprocess
+import sys
+import zipfile
+
+import ipywidgets as widgets
+from IPython.display import display
+import numpy as np
+from PIL import Image
+import torch
+
+candidate_doc_path = Path("/content/runbook_drive_candidates.json")
+selected_doc_path = Path("/content/runbook_selected_input.json")
+context_doc_path = Path("/content/runbook_session_context.json")
+extract_root = Path("/content/trajectreview_input")
+
+candidate_doc = json.loads(candidate_doc_path.read_text(encoding="utf-8"))
+assert candidate_doc["candidate_count"] >= 1, candidate_doc
+
+options = [(f"[{idx}] {item['label']}", idx) for idx, item in enumerate(candidate_doc["candidates"])]
+dropdown = widgets.Dropdown(options=options, description="input", layout=widgets.Layout(width="95%"))
+button = widgets.Button(description="選択して Step 8d を実行", button_style="success")
+output = widgets.Output()
+display(dropdown, button, output)
+print("操作: dropdown で 1 件選び、`選択して Step 8d を実行` を押す")
+
+def run(cmd):
+    print("RUN", " ".join(cmd))
+    subprocess.run(cmd, check=True)
+
+def on_click(_):
+    selected_index = dropdown.value
+    selected = candidate_doc["candidates"][selected_index]
+    selected_doc = {
+        "selected_index": selected_index,
+        "kind": selected["kind"],
+        "session_id": selected["session_id"],
+        "label": selected["label"],
+        "path": selected["path"],
+        "results_root": candidate_doc["results_root"],
+    }
+    selected_doc_path.write_text(json.dumps(selected_doc, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    selected_path = Path(selected_doc["path"])
+    selected_kind = selected_doc["kind"]
+    session_id = selected_doc["session_id"]
+    results_root = Path(selected_doc["results_root"])
+
+    if extract_root.exists():
+        shutil.rmtree(extract_root)
+    extract_root.mkdir(parents=True, exist_ok=True)
+
+    if selected_kind == "zip":
+        with zipfile.ZipFile(selected_path, "r") as zf:
+            zf.extractall(extract_root)
+    else:
+        dest_root = extract_root / selected_path.name
+        shutil.copytree(selected_path, dest_root)
+
+    pkg_hits = sorted(extract_root.rglob("session_package.json"))
+    assert pkg_hits, f"session_package.json not found under {extract_root}"
+    session_pkg = next((p for p in pkg_hits if p.parent.name == "trajectreview"), pkg_hits[0])
+
+    session_root = session_pkg.parent
+    session_outer = session_root.parent
+    images_dir = session_root / "images"
+    files = sorted(images_dir.glob("*.png")) + sorted(images_dir.glob("*.jpg")) + sorted(images_dir.glob("*.jpeg"))
+
+    smoke_output_root = results_root / f"{session_id}_da3_smoke_v24"
+    context = {
+        "selected_path": str(selected_path),
+        "selected_kind": selected_kind,
+        "session_id": session_id,
+        "session_root": str(session_root),
+        "session_outer": str(session_outer),
+        "images_dir": str(images_dir),
+        "results_root": str(results_root),
+        "da3_smoke_output_root": str(smoke_output_root),
+    }
+    context_doc_path.write_text(json.dumps(context, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    repo_root = Path("/content/Depth-Anything-3")
+    if repo_root.exists():
+        shutil.rmtree(repo_root)
+
+    run(["git", "clone", "https://github.com/ByteDance-Seed/Depth-Anything-3.git", str(repo_root)])
+    run(["python", "-m", "pip", "install", "--quiet", "addict", "evo", "moviepy==1.0.3", "pygame", "pycolmap", "plyfile", "trimesh", "gsplat"])
+
+    src_root = repo_root / "src"
+    assert src_root.exists(), f"src not found: {src_root}"
+    if str(src_root) not in sys.path:
+        sys.path.insert(0, str(src_root))
+
+    from depth_anything_3.api import DepthAnything3
+    import gsplat
+
+    smoke_output_root.mkdir(parents=True, exist_ok=True)
+    image_path = files[0]
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = DepthAnything3.from_pretrained("depth-anything/DA3METRIC-LARGE").to(device=device)
+    prediction = model.inference([str(image_path)])
+
+    depth = np.asarray(prediction.depth[0])
+    conf = None if prediction.conf is None else np.asarray(prediction.conf[0])
+    intrinsics = None if prediction.intrinsics is None else np.asarray(prediction.intrinsics[0])
+    extrinsics = None if prediction.extrinsics is None else np.asarray(prediction.extrinsics[0])
+
+    depth_min = float(depth.min())
+    depth_max = float(depth.max())
+    depth_norm = np.zeros_like(depth, dtype=np.float32) if depth_max <= depth_min else (depth - depth_min) / (depth_max - depth_min)
+    Image.fromarray((depth_norm * 255).astype(np.uint8)).save(smoke_output_root / "depth_preview.png")
+    np.save(smoke_output_root / "depth_raw.npy", depth)
+    if conf is not None:
+        np.save(smoke_output_root / "conf_raw.npy", conf)
+    if intrinsics is not None:
+        np.save(smoke_output_root / "intrinsics.npy", intrinsics)
+    if extrinsics is not None:
+        np.save(smoke_output_root / "extrinsics.npy", extrinsics)
+
+    result = {
+        "selected_index": selected_index,
+        "selected_path": str(selected_path),
+        "selected_exists": selected_path.exists(),
+        "session_root": str(session_root),
+        "image_count": len(files),
+        "first_image": str(image_path),
+        "device": str(device),
+        "depth_shape": list(depth.shape),
+        "depth_min": depth_min,
+        "depth_max": depth_max,
+        "output_root": str(smoke_output_root),
+        "gsplat_version": getattr(gsplat, "__version__", "unknown"),
+        "rasterization_type": type(gsplat.rasterization).__name__,
+    }
+
+    with output:
+        output.clear_output()
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+
+button.on_click(on_click)
+```
+
+# admin
+
+```text
+# Step 8d widget-select to startup-to-step4p5 res
+skip
+```
+
+# codex v50
+
+dropdown に同じ `zip` が 2 回出るのは正常ではない。`shortcut-targets-by-id` と `MyDrive` が同じ実体を別 path 文字列として返していた。candidate scan を `resolve()` ベースで dedupe し、widget 候補を再生成する。
+
+```python
+# Step 8a3 deduped candidate rescan
+from pathlib import Path
+import json
+
+shortcut_root = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_")
+scan_roots = [
+    shortcut_root / "trajectreview",
+    Path("/content/drive/MyDrive/trajectreview"),
+]
+results_root_candidates = [
+    shortcut_root / "trajectreview" / "results",
+    Path("/content/drive/MyDrive/trajectreview/results"),
+]
+results_root = next((p for p in results_root_candidates if p.exists()), results_root_candidates[0])
+candidate_doc_path = Path("/content/runbook_drive_candidates.json")
+
+def infer_session_id(path: Path) -> str:
+    return path.stem if path.suffix.lower() == ".zip" else path.name
+
+candidates = []
+seen = set()
+for root in scan_roots:
+    if not root.exists():
+        continue
+    for zip_path in sorted(root.rglob("*.zip")):
+        real_zip = zip_path.resolve()
+        key = ("zip", str(real_zip))
+        if key in seen:
+            continue
+        seen.add(key)
+        candidates.append({
+            "kind": "zip",
+            "session_id": infer_session_id(zip_path),
+            "label": f"{infer_session_id(zip_path)} [zip]",
+            "path": str(real_zip),
+        })
+    for pkg_path in sorted(root.rglob("session_package.json")):
+        session_root = pkg_path.parent
+        real_session_root = session_root.resolve()
+        key = ("dir", str(real_session_root))
+        if key in seen:
+            continue
+        seen.add(key)
+        candidates.append({
+            "kind": "dir",
+            "session_id": infer_session_id(session_root),
+            "label": f"{infer_session_id(session_root)} [dir]",
+            "path": str(real_session_root),
+        })
+
+candidate_doc = {
+    "scan_roots": [str(p) for p in scan_roots if p.exists()],
+    "scan_root_exists": {str(p): p.exists() for p in scan_roots},
+    "results_root": str(results_root),
+    "candidate_count": len(candidates),
+    "candidates": candidates,
+}
+candidate_doc_path.write_text(json.dumps(candidate_doc, indent=2, ensure_ascii=False), encoding="utf-8")
+
+print("candidate_doc_path", candidate_doc_path)
+print("candidate_count", len(candidates))
+for idx, item in enumerate(candidates):
+    print(f"[{idx}] {item['label']}: {item['path']}")
+```
+
+# admin
+
+```text
+# Step 8a3 deduped candidate rescan res
+candidate_doc_path /content/runbook_drive_candidates.json
+candidate_count 6
+[0] session-20260328-103250 [zip]: /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/session-20260328-103250.zip
+[1] trajectreview-correcting-export [zip]: /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/trajectreview-correcting-export.zip
+[2] trajectreview-correcting-session-20260331-034831 [zip]: /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/trajectreview-correcting-session-20260331-034831.zip
+[3] session-20260328-103250 [zip]: /content/drive/MyDrive/trajectreview/correcting/session-20260328-103250.zip
+[4] trajectreview-correcting-export [zip]: /content/drive/MyDrive/trajectreview/correcting/trajectreview-correcting-export.zip
+[5] trajectreview-correcting-session-20260331-034831 [zip]: /content/drive/MyDrive/trajectreview/correcting/trajectreview-correcting-session-20260331-034831.zip
+
+```
+
+# codex v51
+
+`resolve()` でも `shortcut-targets-by-id` と `MyDrive` が別 path のまま残るので、mount 実装上は同一実体と判定できなかった。次は `session_id + size_bytes` を同一 zip の key とみなし、同じ key が複数 root にある時は `shortcut-targets-by-id` 側を優先して 1 件だけ残す。
+
+```python
+# Step 8a4 canonical candidate rescan
+from pathlib import Path
+import json
+
+shortcut_root = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_")
+scan_roots = [
+    shortcut_root / "trajectreview",
+    Path("/content/drive/MyDrive/trajectreview"),
+]
+results_root_candidates = [
+    shortcut_root / "trajectreview" / "results",
+    Path("/content/drive/MyDrive/trajectreview/results"),
+]
+results_root = next((p for p in results_root_candidates if p.exists()), results_root_candidates[0])
+candidate_doc_path = Path("/content/runbook_drive_candidates.json")
+
+def infer_session_id(path: Path) -> str:
+    return path.stem if path.suffix.lower() == ".zip" else path.name
+
+def candidate_rank(path: Path) -> int:
+    s = str(path)
+    if ".shortcut-targets-by-id" in s:
+        return 0
+    if "/MyDrive/" in s:
+        return 1
+    return 9
+
+zip_map = {}
+dir_map = {}
+
+for root in scan_roots:
+    if not root.exists():
+        continue
+    for zip_path in sorted(root.rglob("*.zip")):
+        stat = zip_path.stat()
+        key = (infer_session_id(zip_path), stat.st_size)
+        cand = {
+            "kind": "zip",
+            "session_id": infer_session_id(zip_path),
+            "label": f"{infer_session_id(zip_path)} [zip]",
+            "path": str(zip_path),
+            "size_bytes": stat.st_size,
+        }
+        prev = zip_map.get(key)
+        if prev is None or candidate_rank(zip_path) < candidate_rank(Path(prev["path"])):
+            zip_map[key] = cand
+
+    for pkg_path in sorted(root.rglob("session_package.json")):
+        session_root = pkg_path.parent
+        key = infer_session_id(session_root)
+        cand = {
+            "kind": "dir",
+            "session_id": infer_session_id(session_root),
+            "label": f"{infer_session_id(session_root)} [dir]",
+            "path": str(session_root),
+        }
+        prev = dir_map.get(key)
+        if prev is None or candidate_rank(session_root) < candidate_rank(Path(prev["path"])):
+            dir_map[key] = cand
+
+candidates = sorted(
+    list(zip_map.values()) + list(dir_map.values()),
+    key=lambda x: (x["session_id"], x["kind"], x["path"]),
+)
+
+candidate_doc = {
+    "scan_roots": [str(p) for p in scan_roots if p.exists()],
+    "scan_root_exists": {str(p): p.exists() for p in scan_roots},
+    "results_root": str(results_root),
+    "candidate_count": len(candidates),
+    "candidates": candidates,
+}
+candidate_doc_path.write_text(json.dumps(candidate_doc, indent=2, ensure_ascii=False), encoding="utf-8")
+
+print("candidate_doc_path", candidate_doc_path)
+print("candidate_count", len(candidates))
+for idx, item in enumerate(candidates):
+    extra = f" size={item['size_bytes']}" if "size_bytes" in item else ""
+    print(f"[{idx}] {item['label']}: {item['path']}{extra}")
+```
+
+# admin
+
+```text
+# Step 8a4 canonical candidate rescan res
+candidate_doc_path /content/runbook_drive_candidates.json
+candidate_count 3
+[0] session-20260328-103250 [zip]: /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/session-20260328-103250.zip size=19941917
+[1] trajectreview-correcting-export [zip]: /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/trajectreview-correcting-export.zip size=45758075
+[2] trajectreview-correcting-session-20260331-034831 [zip]: /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/trajectreview-correcting-session-20260331-034831.zip size=11822606
+
+```
+
+# codex v52
+
+candidate の重複は解消した。次はこの 3 件だけを対象に、admin が widget で 1 件選び、その選択結果を使って `Step 2` から `Step 4.5` まで通す。`v49` と同じ目的だが、前提となる candidate list は `v51` の canonical rescan 後の 3 件版を使う。
+
+```python
+# Step 8d retry after canonical candidate rescan
+from pathlib import Path
+import json
+import shutil
+import subprocess
+import sys
+import zipfile
+
+import ipywidgets as widgets
+from IPython.display import display
+import numpy as np
+from PIL import Image
+import torch
+
+candidate_doc_path = Path("/content/runbook_drive_candidates.json")
+selected_doc_path = Path("/content/runbook_selected_input.json")
+context_doc_path = Path("/content/runbook_session_context.json")
+extract_root = Path("/content/trajectreview_input")
+
+candidate_doc = json.loads(candidate_doc_path.read_text(encoding="utf-8"))
+assert candidate_doc["candidate_count"] >= 1, candidate_doc
+
+options = [(f"[{idx}] {item['label']}", idx) for idx, item in enumerate(candidate_doc["candidates"])]
+dropdown = widgets.Dropdown(options=options, description="input", layout=widgets.Layout(width="95%"))
+button = widgets.Button(description="選択して Step 8d を実行", button_style="success")
+output = widgets.Output()
+display(dropdown, button, output)
+print("操作: dropdown で 1 件選び、`選択して Step 8d を実行` を押す")
+
+def run(cmd):
+    print("RUN", " ".join(cmd))
+    subprocess.run(cmd, check=True)
+
+def on_click(_):
+    selected_index = dropdown.value
+    selected = candidate_doc["candidates"][selected_index]
+    selected_doc = {
+        "selected_index": selected_index,
+        "kind": selected["kind"],
+        "session_id": selected["session_id"],
+        "label": selected["label"],
+        "path": selected["path"],
+        "results_root": candidate_doc["results_root"],
+    }
+    selected_doc_path.write_text(json.dumps(selected_doc, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    selected_path = Path(selected_doc["path"])
+    selected_kind = selected_doc["kind"]
+    session_id = selected_doc["session_id"]
+    results_root = Path(selected_doc["results_root"])
+
+    if extract_root.exists():
+        shutil.rmtree(extract_root)
+    extract_root.mkdir(parents=True, exist_ok=True)
+
+    if selected_kind == "zip":
+        with zipfile.ZipFile(selected_path, "r") as zf:
+            zf.extractall(extract_root)
+    else:
+        dest_root = extract_root / selected_path.name
+        shutil.copytree(selected_path, dest_root)
+
+    pkg_hits = sorted(extract_root.rglob("session_package.json"))
+    assert pkg_hits, f"session_package.json not found under {extract_root}"
+    session_pkg = next((p for p in pkg_hits if p.parent.name == "trajectreview"), pkg_hits[0])
+
+    session_root = session_pkg.parent
+    session_outer = session_root.parent
+    images_dir = session_root / "images"
+    files = sorted(images_dir.glob("*.png")) + sorted(images_dir.glob("*.jpg")) + sorted(images_dir.glob("*.jpeg"))
+
+    smoke_output_root = results_root / f"{session_id}_da3_smoke_v24"
+    context = {
+        "selected_path": str(selected_path),
+        "selected_kind": selected_kind,
+        "session_id": session_id,
+        "session_root": str(session_root),
+        "session_outer": str(session_outer),
+        "images_dir": str(images_dir),
+        "results_root": str(results_root),
+        "da3_smoke_output_root": str(smoke_output_root),
+    }
+    context_doc_path.write_text(json.dumps(context, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    repo_root = Path("/content/Depth-Anything-3")
+    if repo_root.exists():
+        shutil.rmtree(repo_root)
+
+    run(["git", "clone", "https://github.com/ByteDance-Seed/Depth-Anything-3.git", str(repo_root)])
+    run(["python", "-m", "pip", "install", "--quiet", "addict", "evo", "moviepy==1.0.3", "pygame", "pycolmap", "plyfile", "trimesh", "gsplat"])
+
+    src_root = repo_root / "src"
+    assert src_root.exists(), f"src not found: {src_root}"
+    if str(src_root) not in sys.path:
+        sys.path.insert(0, str(src_root))
+
+    from depth_anything_3.api import DepthAnything3
+    import gsplat
+
+    smoke_output_root.mkdir(parents=True, exist_ok=True)
+    assert files, f"images not found under {images_dir}"
+    image_path = files[0]
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = DepthAnything3.from_pretrained("depth-anything/DA3METRIC-LARGE").to(device=device)
+    prediction = model.inference([str(image_path)])
+
+    depth = np.asarray(prediction.depth[0])
+    conf = None if prediction.conf is None else np.asarray(prediction.conf[0])
+    intrinsics = None if prediction.intrinsics is None else np.asarray(prediction.intrinsics[0])
+    extrinsics = None if prediction.extrinsics is None else np.asarray(prediction.extrinsics[0])
+
+    depth_min = float(depth.min())
+    depth_max = float(depth.max())
+    depth_norm = np.zeros_like(depth, dtype=np.float32) if depth_max <= depth_min else (depth - depth_min) / (depth_max - depth_min)
+    Image.fromarray((depth_norm * 255).astype(np.uint8)).save(smoke_output_root / "depth_preview.png")
+    np.save(smoke_output_root / "depth_raw.npy", depth)
+    if conf is not None:
+        np.save(smoke_output_root / "conf_raw.npy", conf)
+    if intrinsics is not None:
+        np.save(smoke_output_root / "intrinsics.npy", intrinsics)
+    if extrinsics is not None:
+        np.save(smoke_output_root / "extrinsics.npy", extrinsics)
+
+    result = {
+        "selected_index": selected_index,
+        "selected_path": str(selected_path),
+        "selected_exists": selected_path.exists(),
+        "session_root": str(session_root),
+        "image_count": len(files),
+        "first_image": str(image_path),
+        "device": str(device),
+        "depth_shape": list(depth.shape),
+        "depth_min": depth_min,
+        "depth_max": depth_max,
+        "output_root": str(smoke_output_root),
+        "gsplat_version": getattr(gsplat, "__version__", "unknown"),
+        "rasterization_type": type(gsplat.rasterization).__name__,
+    }
+
+    with output:
+        output.clear_output()
+        print(json.dumps(result, indent=2, ensure_ascii=False))
+
+button.on_click(on_click)
+```
+
+# admin
+
+```text
+# Step 8d retry after canonical candidate rescan res
+input
+
+[2] trajectreview-correcting-session-20260331-034831 [zip]
+{
+  "selected_index": 2,
+  "selected_path": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/trajectreview-correcting-session-20260331-034831.zip",
+  "selected_exists": true,
+  "session_root": "/content/trajectreview_input/session-20260331-034831/trajectreview",
+  "image_count": 26,
+  "first_image": "/content/trajectreview_input/session-20260331-034831/trajectreview/images/frame_000052.jpg",
+  "device": "cuda",
+  "depth_shape": [
+    378,
+    504
+  ],
+  "depth_min": 0.8689900040626526,
+  "depth_max": 2.0749411582946777,
+  "output_root": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/trajectreview-correcting-session-20260331-034831_da3_smoke_v24",
+  "gsplat_version": "1.5.3",
+  "rasterization_type": "function"
+}
+操作: dropdown で 1 件選び、`選択して Step 8d を実行` を押す
+RUN git clone https://github.com/ByteDance-Seed/Depth-Anything-3.git /content/Depth-Anything-3
+RUN python -m pip install --quiet addict evo moviepy==1.0.3 pygame pycolmap plyfile trimesh gsplat
+[INFO ] using MLP layer as FFN
+[INFO ] Processed Images Done taking 0.01624274253845215 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.44126439094543457 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0010578632354736328 seconds
+```
+
+# codex v53
+
+`Step 8d` は成功で、admin が widget で選んだ session が `Step 2` から `Step 4.5` まで接続された。次は同じ selected input を使って、runbook の `MRL-7 adopted one-block` が hardcoded session ではなく選択済み session に対して end-to-end で通るかを確認する。
+
+```python
+# Step 8e selected-input mrl7 adopted one-block
+from pathlib import Path
+import json
+import math
+import shutil
+import subprocess
+import sys
+import zipfile
+
+import imageio.v3 as iio
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from PIL import Image
+import torch
+
+selected_doc = json.loads(Path("/content/runbook_selected_input.json").read_text(encoding="utf-8"))
+selected_path = Path(selected_doc["path"])
+selected_kind = selected_doc["kind"]
+session_id = selected_doc["session_id"]
+results_root = Path(selected_doc["results_root"])
+extract_root = Path("/content/trajectreview_input")
+probe_dir = results_root / f"{session_id}_da3_multiframe_probe_v01"
+world_dir = probe_dir / "world_fusion_v01"
+
+if extract_root.exists():
+    shutil.rmtree(extract_root)
+extract_root.mkdir(parents=True, exist_ok=True)
+probe_dir.mkdir(parents=True, exist_ok=True)
+world_dir.mkdir(parents=True, exist_ok=True)
+
+if selected_kind == "zip":
+    with zipfile.ZipFile(selected_path, "r") as zf:
+        zf.extractall(extract_root)
+else:
+    dest_root = extract_root / selected_path.name
+    shutil.copytree(selected_path, dest_root)
+
+pkg_hits = sorted(extract_root.rglob("session_package.json"))
+assert pkg_hits, f"session_package.json not found under {extract_root}"
+session_pkg = next((p for p in pkg_hits if p.parent.name == "trajectreview"), pkg_hits[0])
+session_root = session_pkg.parent
+session_outer = session_root.parent
+images_dir = session_root / "images"
+frame_pose_csv = session_root / "frame_pose_index.csv"
+assert frame_pose_csv.exists(), frame_pose_csv
+
+repo_root = Path("/content/Depth-Anything-3")
+if repo_root.exists():
+    shutil.rmtree(repo_root)
+
+def run(cmd):
+    print("RUN", " ".join(cmd))
+    subprocess.run(cmd, check=True)
+
+run(["git", "clone", "https://github.com/ByteDance-Seed/Depth-Anything-3.git", str(repo_root)])
+run(["python", "-m", "pip", "install", "--quiet", "addict", "evo", "moviepy==1.0.3", "pygame", "pycolmap", "plyfile", "trimesh", "gsplat"])
+
+src_root = repo_root / "src"
+assert src_root.exists(), f"src not found: {src_root}"
+if str(src_root) not in sys.path:
+    sys.path.insert(0, str(src_root))
+
+from depth_anything_3.api import DepthAnything3
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = DepthAnything3.from_pretrained("depth-anything/DA3METRIC-LARGE").to(device=device)
+
+df = pd.read_csv(frame_pose_csv)
+time_candidates = ["frame_timestamp_ns", "capture_timestamp_ns", "timestamp_ns", "captureTimestampNs"]
+time_col = next((c for c in time_candidates if c in df.columns), None)
+assert time_col is not None, {"columns": list(df.columns)}
+
+image_files = sorted(images_dir.glob("*.jpg")) + sorted(images_dir.glob("*.png")) + sorted(images_dir.glob("*.jpeg"))
+assert image_files, images_dir
+frame_names = [p.name for p in image_files]
+df = df.iloc[: len(frame_names)].copy()
+df["frame_name"] = frame_names[: len(df)]
+df = df.sort_values(time_col).reset_index(drop=True)
+df["delta_s"] = df[time_col].diff().fillna(0) / 1e9
+
+segments = []
+start = 0
+for i in range(1, len(df)):
+    if float(df.loc[i, "delta_s"]) > 0.5:
+        segments.append((start, i - 1))
+        start = i
+segments.append((start, len(df) - 1))
+best_seg = max(segments, key=lambda x: x[1] - x[0])
+seg_df = df.iloc[best_seg[0] : best_seg[1] + 1].reset_index(drop=True)
+
+sample_count = min(12, len(seg_df))
+sample_indices = np.linspace(0, len(seg_df) - 1, num=sample_count, dtype=int)
+sample_df = seg_df.iloc[sample_indices].reset_index(drop=True)
+sample_frames = sample_df["frame_name"].tolist()
+
+window_doc = {
+    "session_id": session_id,
+    "time_col": time_col,
+    "aligned_frame_count": int(len(df)),
+    "segment_start_index": int(best_seg[0]),
+    "segment_end_index": int(best_seg[1]),
+    "segment_duration_s": float((seg_df[time_col].iloc[-1] - seg_df[time_col].iloc[0]) / 1e9) if len(seg_df) >= 2 else 0.0,
+    "sample_frames": sample_frames,
+}
+(probe_dir / "mrl7_window_probe.json").write_text(json.dumps(window_doc, indent=2, ensure_ascii=False), encoding="utf-8")
+
+depth_rows = []
+depth_dir = probe_dir / "depth_batch_v01"
+depth_dir.mkdir(parents=True, exist_ok=True)
+
+for frame_name in sample_frames:
+    image_path = images_dir / frame_name
+    pred = model.inference([str(image_path)])
+    depth = np.asarray(pred.depth[0]).astype(np.float32)
+    depth_path = depth_dir / f"{Path(frame_name).stem}_depth.npy"
+    preview_path = depth_dir / f"{Path(frame_name).stem}_depth.png"
+    np.save(depth_path, depth)
+    dmin = float(depth.min())
+    dmax = float(depth.max())
+    dnorm = np.zeros_like(depth, dtype=np.float32) if dmax <= dmin else (depth - depth_min) / (dmax - dmin)
+    Image.fromarray((dnorm * 255).astype(np.uint8)).save(preview_path)
+    depth_rows.append({
+        "frame_name": frame_name,
+        "image_path": str(image_path),
+        "depth_path": str(depth_path),
+        "depth_preview_path": str(preview_path),
+        "depth_shape": list(depth.shape),
+        "depth_min": dmin,
+        "depth_max": dmax,
+    })
+
+depth_manifest = {
+    "session_id": session_id,
+    "processed_frames": len(depth_rows),
+    "failed_frames": 0,
+    "rows": depth_rows,
+}
+(probe_dir / "depth_batch_manifest.json").write_text(json.dumps(depth_manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+
+arcore_pose_candidates = [
+    session_root / "arcore_pose.jsonl",
+    session_outer / "arcore_pose.jsonl",
+]
+arcore_pose_path = next((p for p in arcore_pose_candidates if p.exists()), None)
+assert arcore_pose_path is not None, {"arcore_pose_candidates": [str(p) for p in arcore_pose_candidates]}
+
+with arcore_pose_path.open("r", encoding="utf-8") as f:
+    pose_rows = [json.loads(line) for line in f if line.strip()]
+
+def quat_to_rot(qx, qy, qz, qw):
+    xx, yy, zz = qx * qx, qy * qy, qz * qz
+    xy, xz, yz = qx * qy, qx * qz, qy * qz
+    wx, wy, wz = qw * qx, qw * qy, qw * qz
+    return np.array([
+        [1 - 2 * (yy + zz), 2 * (xy - wz), 2 * (xz + wy)],
+        [2 * (xy + wz), 1 - 2 * (xx + zz), 2 * (yz - wx)],
+        [2 * (xz - wy), 2 * (yz + wx), 1 - 2 * (xx + yy)],
+    ], dtype=np.float32)
+
+world_points = []
+processed = 0
+skipped = 0
+
+for row in depth_rows:
+    frame_name = row["frame_name"]
+    match = sample_df[sample_df["frame_name"] == frame_name]
+    if match.empty or "pose_record_index" not in match.columns:
+        skipped += 1
+        continue
+    pose_idx = int(match.iloc[0]["pose_record_index"])
+    if pose_idx < 0 or pose_idx >= len(pose_rows):
+        skipped += 1
+        continue
+    pose_rec = pose_rows[pose_idx]
+    pose = pose_rec.get("pose", {})
+    intr = pose_rec.get("imageIntrinsics", {})
+    if not pose or not intr:
+        skipped += 1
+        continue
+
+    depth = np.load(row["depth_path"]).astype(np.float32)
+    h, w = depth.shape
+    fx = float(intr["fx"])
+    fy = float(intr["fy"])
+    cx = float(intr["cx"])
+    cy = float(intr["cy"])
+
+    ys = np.linspace(0, h - 1, num=min(16, h), dtype=int)
+    xs = np.linspace(0, w - 1, num=min(24, w), dtype=int)
+    xv, yv = np.meshgrid(xs, ys)
+    zv = depth[yv, xv]
+    valid = np.isfinite(zv) & (zv > 0)
+    if not np.any(valid):
+        skipped += 1
+        continue
+
+    xv = xv[valid].astype(np.float32)
+    yv = yv[valid].astype(np.float32)
+    zv = zv[valid].astype(np.float32)
+
+    x_cam = (xv - cx) * zv / fx
+    y_cam = (yv - cy) * zv / fy
+    cam_pts = np.stack([x_cam, y_cam, zv], axis=1)
+
+    tx = float(pose["tx"])
+    ty = float(pose["ty"])
+    tz = float(pose["tz"])
+    qx = float(pose["qx"])
+    qy = float(pose["qy"])
+    qz = float(pose["qz"])
+    qw = float(pose["qw"])
+    rot = quat_to_rot(qx, qy, qz, qw)
+    trans = np.array([tx, ty, tz], dtype=np.float32)
+    world = (rot @ cam_pts.T).T + trans
+    world_points.append(world)
+    processed += 1
+
+assert world_points, "no world points generated"
+points_np = np.concatenate(world_points, axis=0).astype(np.float32)
+np.save(world_dir / "world_points_multiframe.npy", points_np)
+
+with (world_dir / "world_points_multiframe.ply").open("w", encoding="utf-8") as f:
+    f.write("ply\n")
+    f.write("format ascii 1.0\n")
+    f.write(f"element vertex {points_np.shape[0]}\n")
+    f.write("property float x\n")
+    f.write("property float y\n")
+    f.write("property float z\n")
+    f.write("end_header\n")
+    for x, y, z in points_np:
+        f.write(f"{x} {y} {z}\n")
+
+sample = points_np
+if len(sample) > 5000:
+    idx = np.linspace(0, len(sample) - 1, num=5000, dtype=int)
+    sample = sample[idx]
+fig = plt.figure(figsize=(6, 6))
+ax = fig.add_subplot(111, projection="3d")
+ax.scatter(sample[:, 0], sample[:, 1], sample[:, 2], s=1, alpha=0.6)
+ax.set_title("MRL-7 multiframe world points preview")
+ax.set_xlabel("x")
+ax.set_ylabel("y")
+ax.set_zlabel("z")
+plt.tight_layout()
+plt.savefig(world_dir / "world_points_multiframe_preview.png", dpi=180)
+plt.close(fig)
+
+world_summary = {
+    "session_id": session_id,
+    "processed_frames": processed,
+    "skipped_frames": skipped,
+    "total_points": int(points_np.shape[0]),
+    "world_points_npy": str(world_dir / "world_points_multiframe.npy"),
+    "world_points_ply": str(world_dir / "world_points_multiframe.ply"),
+    "preview_path": str(world_dir / "world_points_multiframe_preview.png"),
+}
+(world_dir / "world_fusion_summary.json").write_text(json.dumps(world_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+
+closeout = {
+    "status": "candidate-visible-proof",
+    "processed_frames": processed,
+    "skipped_frames": skipped,
+    "total_points": int(points_np.shape[0]),
+    "window_probe_path": str(probe_dir / "mrl7_window_probe.json"),
+    "depth_manifest_path": str(probe_dir / "depth_batch_manifest.json"),
+    "world_summary_path": str(world_dir / "world_fusion_summary.json"),
+}
+(world_dir / "mrl7_closeout_summary.json").write_text(json.dumps(closeout, indent=2, ensure_ascii=False), encoding="utf-8")
+
+print(json.dumps({
+    "selected_path": str(selected_path),
+    "session_id": session_id,
+    "processed_frames": processed,
+    "skipped_frames": skipped,
+    "total_points": int(points_np.shape[0]),
+    "world_dir": str(world_dir),
+}, indent=2, ensure_ascii=False))
+```
+
+# admin
+
+```text
+# Step 8e selected-input mrl7 adopted one-block res
+RUN git clone https://github.com/ByteDance-Seed/Depth-Anything-3.git /content/Depth-Anything-3
+RUN python -m pip install --quiet addict evo moviepy==1.0.3 pygame pycolmap plyfile trimesh gsplat
+[INFO ] using MLP layer as FFN
+[INFO ] Processed Images Done taking 0.015479326248168945 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.46178698539733887 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0010619163513183594 seconds
+[INFO ] Processed Images Done taking 0.015416383743286133 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.3542144298553467 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0008351802825927734 seconds
+[INFO ] Processed Images Done taking 0.011445045471191406 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.35576891899108887 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0011758804321289062 seconds
+[INFO ] Processed Images Done taking 0.021262407302856445 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.3544149398803711 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0011382102966308594 seconds
+[INFO ] Processed Images Done taking 0.02000594139099121 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.35317397117614746 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0010786056518554688 seconds
+[INFO ] Processed Images Done taking 0.01982259750366211 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.35514116287231445 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0012149810791015625 seconds
+[INFO ] Processed Images Done taking 0.018063068389892578 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.34446215629577637 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.002073049545288086 seconds
+[INFO ] Processed Images Done taking 0.01976180076599121 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.35852694511413574 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.00110626220703125 seconds
+[INFO ] Processed Images Done taking 0.019734621047973633 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.3572218418121338 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0010759830474853516 seconds
+[INFO ] Processed Images Done taking 0.01919698715209961 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.35421252250671387 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0011446475982666016 seconds
+[INFO ] Processed Images Done taking 0.024491548538208008 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.35954761505126953 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0010840892791748047 seconds
+[INFO ] Processed Images Done taking 0.012181758880615234 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.3527512550354004 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.001003265380859375 seconds
+{
+  "selected_path": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/trajectreview-correcting-session-20260331-034831.zip",
+  "session_id": "trajectreview-correcting-session-20260331-034831",
+  "processed_frames": 12,
+  "skipped_frames": 0,
+  "total_points": 4608,
+  "world_dir": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/trajectreview-correcting-session-20260331-034831_da3_multiframe_probe_v01/world_fusion_v01"
+}
+```

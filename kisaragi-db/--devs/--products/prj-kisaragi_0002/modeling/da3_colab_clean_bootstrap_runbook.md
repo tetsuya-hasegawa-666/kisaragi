@@ -9,6 +9,7 @@
 ## blank workspace 前提
 
 - この文書は、`Colab` の fresh runtime、つまり `/content/` 配下に前回の clone や install が残っていない状態から始める前提で書く。
+- fresh runtime では `Google Drive` も未接続に戻るため、blank start のたびに最初の cell で `drive.mount("/content/drive", force_remount=True)` を必ず再実行する。
 - admin は「前回の途中状態を引き継げる」と仮定せず、まずこの文書の `事前準備` と `準備確認` を実行する。
 - 途中状態から再開するのは、bootstrap 自体の failure を切り分ける時だけに限定する。
 
@@ -55,24 +56,157 @@ OK 条件:
 - `shortcut_root_exists True`
 - `cuda_available` は `True` が理想。`False` でも bootstrap は進められる。今回の初回確認は `CPU` 前提でもよい
 
-### 準備確認 2: 対象 folder と zip の存在確認
+### 準備確認 2: Drive 上の入力候補を探索する
 
 ```python
 from pathlib import Path
+import json
 
-folder_root = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_")
-zip_path = folder_root / "trajectreview" / "correcting" / "session-20260328-103250.zip"
+shortcut_root = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_")
+scan_roots = [
+    shortcut_root / "trajectreview",
+    Path("/content/drive/MyDrive/trajectreview"),
+]
+results_root_candidates = [
+    shortcut_root / "trajectreview" / "results",
+    Path("/content/drive/MyDrive/trajectreview/results"),
+]
+results_root = next((p for p in results_root_candidates if p.exists()), results_root_candidates[0])
+candidate_doc_path = Path("/content/runbook_drive_candidates.json")
 
-print("folder_root_exists", folder_root.exists(), folder_root)
-print("zip_exists", zip_path.exists(), zip_path)
+def infer_session_id(path: Path) -> str:
+    name = path.stem if path.suffix.lower() == ".zip" else path.name
+    return name
+
+candidates = []
+seen = set()
+for root in scan_roots:
+    if not root.exists():
+        continue
+    for zip_path in sorted(root.rglob("*.zip")):
+        real_zip = zip_path.resolve()
+        key = ("zip", str(real_zip))
+        if key in seen:
+            continue
+        seen.add(key)
+        candidates.append({
+            "kind": "zip",
+            "session_id": infer_session_id(zip_path),
+            "label": f"{infer_session_id(zip_path)} [zip]",
+            "path": str(real_zip),
+        })
+    for pkg_path in sorted(root.rglob("session_package.json")):
+        session_root = pkg_path.parent
+        real_session_root = session_root.resolve()
+        key = ("dir", str(real_session_root))
+        if key in seen:
+            continue
+        seen.add(key)
+        candidates.append({
+            "kind": "dir",
+            "session_id": infer_session_id(session_root),
+            "label": f"{infer_session_id(session_root)} [dir]",
+            "path": str(real_session_root),
+        })
+
+candidate_doc = {
+    "scan_roots": [str(p) for p in scan_roots if p.exists()],
+    "scan_root_exists": {str(p): p.exists() for p in scan_roots},
+    "results_root": str(results_root),
+    "candidate_count": len(candidates),
+    "candidates": candidates,
+}
+candidate_doc_path.write_text(json.dumps(candidate_doc, indent=2, ensure_ascii=False), encoding="utf-8")
+
+print("candidate_doc_path", candidate_doc_path)
+print("results_root", results_root)
+for root in scan_roots:
+    print("scan_root_exists", root.exists(), root)
+print("candidate_count", len(candidates))
+for idx, item in enumerate(candidates):
+    print(f"[{idx}] {item['label']}: {item['path']}")
 ```
 
 OK 条件:
 
-- `folder_root_exists True`
-- `zip_exists True`
+- `scan_root_exists True` が少なくとも 1 件ある
+- `candidate_count >= 1`
+- 使いたい session zip または session folder が index 付きで列挙される
 
-### 準備確認 3: blank workspace であることの確認
+NG 時の扱い:
+
+- `scan_root_exists` がすべて `False` の時は、blank runtime で `Drive` 再接続前の可能性が高い。`準備確認 1` を再実行してから、この cell をやり直す。
+- `scan_root_exists` は `True` だが `candidate_count = 0` の時は、その Drive 配下に対象 zip または `session_package.json` がまだ置かれていない。
+
+### 準備確認 3: 今回使う入力を画面で 1 件選ぶ
+
+```python
+from pathlib import Path
+import json
+import ipywidgets as widgets
+from IPython.display import display
+
+candidate_doc_path = Path("/content/runbook_drive_candidates.json")
+selected_doc_path = Path("/content/runbook_selected_input.json")
+
+candidate_doc = json.loads(candidate_doc_path.read_text(encoding="utf-8"))
+assert candidate_doc["candidate_count"] >= 1, candidate_doc
+
+options = [(f"[{idx}] {item['label']}", idx) for idx, item in enumerate(candidate_doc["candidates"])]
+dropdown = widgets.Dropdown(options=options, description="input", layout=widgets.Layout(width="95%"))
+button = widgets.Button(description="selected input を保存", button_style="success")
+output = widgets.Output()
+
+def on_click(_):
+    selected_index = dropdown.value
+    selected = candidate_doc["candidates"][selected_index]
+    selected_doc = {
+        "selected_index": selected_index,
+        "kind": selected["kind"],
+        "session_id": selected["session_id"],
+        "label": selected["label"],
+        "path": selected["path"],
+        "results_root": candidate_doc["results_root"],
+    }
+    selected_doc_path.write_text(json.dumps(selected_doc, indent=2, ensure_ascii=False), encoding="utf-8")
+    with output:
+        output.clear_output()
+        print(json.dumps(selected_doc, indent=2, ensure_ascii=False))
+        print("selected_exists", Path(selected["path"]).exists())
+
+button.on_click(on_click)
+display(dropdown, button, output)
+print("操作: dropdown で 1 件選び、`selected input を保存` を押す")
+```
+
+OK 条件:
+
+- dropdown で候補を切り替えられる
+- `selected input を保存` 後に `selected_exists True` が出る
+- `path` が今回使う session zip または session folder を指している
+
+### 準備確認 4: 選択結果の存在確認
+
+```python
+from pathlib import Path
+import json
+
+selected_doc = json.loads(Path("/content/runbook_selected_input.json").read_text(encoding="utf-8"))
+selected_path = Path(selected_doc["path"])
+results_root = Path(selected_doc["results_root"])
+
+print("selected_kind", selected_doc["kind"])
+print("selected_session_id", selected_doc["session_id"])
+print("selected_path_exists", selected_path.exists(), selected_path)
+print("results_root_parent_exists", results_root.parent.exists(), results_root.parent)
+```
+
+OK 条件:
+
+- `selected_path_exists True`
+- `results_root_parent_exists True`
+
+### 準備確認 5: blank workspace であることの確認
 
 ```python
 from pathlib import Path
@@ -148,40 +282,71 @@ OK 条件:
 ### 目的
 
 - `Google Drive` shortcut 配下の session zip を読み、`session_root` を正規化し、`DA3Metric-Large` の `1 frame` 推論、world back-projection、point export、`gsplat` rasterization、`gs_model` / `SpacePackage` smoke artifact 生成まで進む。
+- その前段として、Drive 上の任意 session zip または session folder を `Colab` 上の script だけで選び、後続 block が同じ selected input を参照できるようにする。
 
 ### 前提
 
 - `事前準備` と `準備確認` が済んでいる
-- 対象 folder id は `1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_`
-- 対象 zip は `trajectreview/correcting/session-20260328-103250.zip`
-- 結果出力先は `trajectreview/results/da3_smoke_v05/`
+- `/content/runbook_selected_input.json` に今回使う入力が保存されている
+- 結果出力先は、選択した `session_id` に応じて `trajectreview/results/<session_id>_da3_smoke_v24/` を使う
 
 ### Step 1: session zip を unzip して `session_root` を正規化する
 
 ```python
 from pathlib import Path
+import json
 import shutil
 import zipfile
 
-zip_path = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/session-20260328-103250.zip")
+selected_doc = json.loads(Path("/content/runbook_selected_input.json").read_text(encoding="utf-8"))
+selected_path = Path(selected_doc["path"])
+selected_kind = selected_doc["kind"]
+session_id = selected_doc["session_id"]
+results_root = Path(selected_doc["results_root"])
 extract_root = Path("/content/trajectreview_input")
 
 if extract_root.exists():
     shutil.rmtree(extract_root)
 extract_root.mkdir(parents=True, exist_ok=True)
 
-with zipfile.ZipFile(zip_path, "r") as zf:
-    zf.extractall(extract_root)
+if selected_kind == "zip":
+    with zipfile.ZipFile(selected_path, "r") as zf:
+        zf.extractall(extract_root)
+else:
+    dest_root = extract_root / selected_path.name
+    shutil.copytree(selected_path, dest_root)
 
-session_root = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+pkg_hits = sorted(extract_root.rglob("session_package.json"))
+assert pkg_hits, f"session_package.json not found under {extract_root}"
+session_pkg = next((p for p in pkg_hits if p.parent.name == "trajectreview"), pkg_hits[0])
+
+session_root = session_pkg.parent
+session_outer = session_root.parent
 images_dir = session_root / "images"
+smoke_output_root = results_root / f"{session_id}_da3_smoke_v24"
+multiframe_probe_root = results_root / f"{session_id}_da3_multiframe_probe_v01"
+context = {
+    "selected_path": str(selected_path),
+    "selected_kind": selected_kind,
+    "session_id": session_id,
+    "session_root": str(session_root),
+    "session_outer": str(session_outer),
+    "images_dir": str(images_dir),
+    "results_root": str(results_root),
+    "da3_smoke_output_root": str(smoke_output_root),
+    "multiframe_probe_root": str(multiframe_probe_root),
+}
+Path("/content/runbook_session_context.json").write_text(json.dumps(context, indent=2, ensure_ascii=False), encoding="utf-8")
 
+print("selected_kind", selected_kind)
+print("selected_path", selected_path)
 print("session_root_exists", session_root.exists(), session_root)
 print("images_dir_exists", images_dir.exists(), images_dir)
 files = sorted(images_dir.glob("*.png")) + sorted(images_dir.glob("*.jpg")) + sorted(images_dir.glob("*.jpeg"))
 print("image_count", len(files))
 if files:
     print("first_image", files[0])
+print("context_path", "/content/runbook_session_context.json")
 ```
 
 ### Step 2: DA3 repo と dependency を fresh runtime へ入れる
@@ -246,8 +411,9 @@ from PIL import Image
 import torch
 from depth_anything_3.api import DepthAnything3
 
-SESSION_ROOT = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
-OUTPUT_ROOT = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v24")
+context = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
+SESSION_ROOT = Path(context["session_root"])
+OUTPUT_ROOT = Path(context["da3_smoke_output_root"])
 OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
 
 images = sorted((SESSION_ROOT / "images").glob("*.png")) + sorted((SESSION_ROOT / "images").glob("*.jpg")) + sorted((SESSION_ROOT / "images").glob("*.jpeg"))
@@ -319,8 +485,10 @@ OK 条件:
 
 ```python
 from pathlib import Path
+import json
 
-SESSION_ROOT = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+context = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
+SESSION_ROOT = Path(context["session_root"])
 SESSION_BUNDLE_ROOT = SESSION_ROOT.parent
 arcore_pose_path = SESSION_ROOT / "arcore_pose.jsonl"
 if not arcore_pose_path.exists():
@@ -342,9 +510,10 @@ import json
 import numpy as np
 import pandas as pd
 
-SESSION_ROOT = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+context = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
+SESSION_ROOT = Path(context["session_root"])
 SESSION_BUNDLE_ROOT = SESSION_ROOT.parent
-OUTPUT_ROOT = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05")
+OUTPUT_ROOT = Path(context["da3_smoke_output_root"])
 arcore_pose_path = SESSION_ROOT / "arcore_pose.jsonl"
 if not arcore_pose_path.exists():
     arcore_pose_path = SESSION_BUNDLE_ROOT / "arcore_pose.jsonl"
@@ -397,9 +566,10 @@ from PIL import Image
 import torch
 import gsplat
 
-SESSION_ROOT = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+context = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
+SESSION_ROOT = Path(context["session_root"])
 SESSION_BUNDLE_ROOT = SESSION_ROOT.parent
-OUTPUT_ROOT = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05")
+OUTPUT_ROOT = Path(context["da3_smoke_output_root"])
 arcore_pose_path = SESSION_ROOT / "arcore_pose.jsonl"
 if not arcore_pose_path.exists():
     arcore_pose_path = SESSION_BUNDLE_ROOT / "arcore_pose.jsonl"
@@ -484,9 +654,11 @@ print("saved", OUTPUT_ROOT)
 
 ```python
 from pathlib import Path
+import json
 import shutil
 
-OUTPUT_ROOT = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v05")
+context = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
+OUTPUT_ROOT = Path(context["da3_smoke_output_root"])
 
 shutil.copy2(OUTPUT_ROOT / "gs_model_smoke.json", OUTPUT_ROOT / "gs_model.contract.json")
 shutil.copy2(OUTPUT_ROOT / "space_quality_smoke.json", OUTPUT_ROOT / "space_quality.contract.json")
@@ -539,9 +711,9 @@ for name in [
 ### 前提
 
 - `事前準備` と `準備確認` が済んでいる
+- `/content/runbook_selected_input.json` に今回使う入力が保存されている
 - `Step 1` から `Step 4.5` が通っている
-- `SESSION_ROOT = /content/trajectreview_input/session-20260328-103250/trajectreview`
-- `probe_dir = /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01`
+- `probe_dir` は選択した `session_id` に応じて `trajectreview/results/<session_id>_da3_multiframe_probe_v01/` を使う
 
 ### 目的
 
@@ -573,18 +745,30 @@ from PIL import Image
 import gsplat
 from depth_anything_3.api import DepthAnything3
 
-zip_path = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/session-20260328-103250.zip")
+selected_doc = json.loads(Path("/content/runbook_selected_input.json").read_text(encoding="utf-8"))
+selected_path = Path(selected_doc["path"])
+selected_kind = selected_doc["kind"]
+session_id = selected_doc["session_id"]
+results_root = Path(selected_doc["results_root"])
 extract_root = Path("/content/trajectreview_input")
-probe_dir = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01")
+probe_dir = results_root / f"{session_id}_da3_multiframe_probe_v01"
 world_dir = probe_dir / "world_fusion_v01"
 
 if extract_root.exists():
     shutil.rmtree(extract_root)
 extract_root.mkdir(parents=True, exist_ok=True)
-with zipfile.ZipFile(zip_path, "r") as zf:
-    zf.extractall(extract_root)
 
-session_root = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+if selected_kind == "zip":
+    with zipfile.ZipFile(selected_path, "r") as zf:
+        zf.extractall(extract_root)
+else:
+    dest_root = extract_root / selected_path.name
+    shutil.copytree(selected_path, dest_root)
+
+pkg_hits = sorted(extract_root.rglob("session_package.json"))
+assert pkg_hits, f"session_package.json not found under {extract_root}"
+session_pkg = next((p for p in pkg_hits if p.parent.name == "trajectreview"), pkg_hits[0])
+session_root = session_pkg.parent
 session_outer = session_root.parent
 images_dir = session_root / "images"
 frame_pose_path = session_root / "frame_pose_index.csv"
