@@ -34,6 +34,7 @@
 ## 実測済み運用
 
 - `2026-03-31` admin 実測では、`準備確認 3` で widget から `[2] trajectreview-correcting-session-20260331-034831 [zip]` を選択した後、`Step 2` から `Step 4.5`、さらに `MRL-7 adopted one-block` まで成功した。
+- 同日の別実測では、この session の `frame_pose_index.csv` が `image_file_name` 列を持ちながら全件空でも、`frame_index` 昇順と `images/` 実 file 列挙から `frame_name` を導出する schema 吸収で `MRL-7 adopted one-block` が通った。
 - この時点の採用運用は「widget 選択を 1 回挟んでから、残りを上から順に流す」である。
 - よって現時点の canonical 実行パターンは `Run all` ではなく、「選択介入ありの順次実行」である。
 
@@ -839,11 +840,30 @@ probe_dir.mkdir(parents=True, exist_ok=True)
 world_dir.mkdir(parents=True, exist_ok=True)
 
 frame_pose_df = pd.read_csv(frame_pose_path)
-assert "image_file_name" in frame_pose_df.columns
 assert "frame_timestamp_ns" in frame_pose_df.columns
 assert "pose_record_index" in frame_pose_df.columns
+image_files = sorted(images_dir.glob("*.png")) + sorted(images_dir.glob("*.jpg")) + sorted(images_dir.glob("*.jpeg"))
+assert image_files, images_dir
 
-rows = frame_pose_df[frame_pose_df["image_file_name"].notna()].copy()
+frame_name_col = "image_file_name" if "image_file_name" in frame_pose_df.columns else None
+has_named_frames = False
+if frame_name_col is not None:
+    frame_names = frame_pose_df[frame_name_col].fillna("").astype(str).str.strip()
+    has_named_frames = bool((frame_names != "").any())
+
+if has_named_frames:
+    rows = frame_pose_df.loc[frame_names != ""].copy()
+    rows["frame_name"] = rows[frame_name_col].astype(str).str.strip()
+    derived_frame_mapping = False
+else:
+    assert "frame_index" in frame_pose_df.columns, frame_pose_df.columns.tolist()
+    rows = frame_pose_df.sort_values("frame_index").reset_index(drop=True).copy()
+    assign_count = min(len(rows), len(image_files))
+    assert assign_count >= 1, {"rows": len(rows), "image_files": len(image_files)}
+    rows = rows.iloc[:assign_count].copy()
+    rows["frame_name"] = [p.name for p in image_files[:assign_count]]
+    derived_frame_mapping = True
+
 rows["timestamp_sec"] = rows["frame_timestamp_ns"].astype(np.float64) / 1e9
 rows = rows.sort_values("timestamp_sec").reset_index(drop=True)
 
@@ -872,7 +892,8 @@ sample_rows = g.iloc[pick].reset_index(drop=True)
 window_probe = {
     "session_root": str(session_root),
     "frame_index_path": str(frame_pose_path),
-    "frame_col": "image_file_name",
+    "frame_col": "frame_name",
+    "derived_frame_mapping": derived_frame_mapping,
     "time_col": "frame_timestamp_ns",
     "aligned_frame_count": int(len(rows)),
     "window_span_sec": float(best_window["span_sec"]),
@@ -880,9 +901,7 @@ window_probe = {
     "window_start_sec": float(g["timestamp_sec"].iloc[0]),
     "window_end_sec": float(g["timestamp_sec"].iloc[-1]),
     "sample_frame_count": int(len(sample_rows)),
-    "sample_frames": sample_rows[["image_file_name", "pose_record_index", "timestamp_sec"]].rename(
-        columns={"image_file_name": "frame_name"}
-    ).to_dict(orient="records"),
+    "sample_frames": sample_rows[["frame_name", "pose_record_index", "timestamp_sec"]].to_dict(orient="records"),
 }
 (probe_dir / "mrl7_window_probe.json").write_text(json.dumps(window_probe, indent=2, ensure_ascii=False), encoding="utf-8")
 
@@ -1008,6 +1027,7 @@ closeout = {
 (world_dir / "mrl7_closeout_summary.json").write_text(json.dumps(closeout, indent=2, ensure_ascii=False), encoding="utf-8")
 
 first_frame = window_probe["sample_frames"][0]["frame_name"]
+first_rec = window_probe["sample_frames"][0]
 image = iio.imread(images_dir / first_frame)
 if image.ndim == 2:
     image = np.stack([image, image, image], axis=-1)
@@ -1015,8 +1035,7 @@ image = image[..., :3]
 target_h, target_w = image.shape[:2]
 target = torch.from_numpy(image.astype(np.float32) / 255.0).to(device)
 
-row = frame_pose_df.loc[frame_pose_df["image_file_name"] == first_frame].iloc[0]
-pose_index = int(row["pose_record_index"])
+pose_index = int(first_rec["pose_record_index"])
 pose_rec = pose_records[pose_index]
 intr = pose_rec["imageIntrinsics"]
 pose = pose_rec["pose"]
@@ -1239,3 +1258,74 @@ OK 条件:
 - `gaussian_params_optim2500.pt`
 - `gaussian_render_optim2500.png`
 - `gaussian_optim2500_summary.json`
+
+### `MyDrive` 可視 folder への copy block
+
+- 用途:
+  - `world_dir` は `shortcut-targets-by-id` 配下なので、Drive UI 上で見えにくい時がある。
+  - admin が Drive UI から直接見える明示保存先へ成果物を copy したい時は、この block を使う。
+- 保存先:
+  - `/content/drive/MyDrive/trajectreview_visible_results/prj-kisaragi_0002/<session_id>/world_fusion_v01`
+- 前提:
+  - 上の adopted block が通っており、`world_dir` と `session_id` が同じ runtime に残っている。
+
+```python
+# copy artifacts to visible MyDrive folder
+from pathlib import Path
+import shutil
+import json
+
+visible_dir = Path("/content/drive/MyDrive/trajectreview_visible_results/prj-kisaragi_0002") / session_id / "world_fusion_v01"
+visible_dir.mkdir(parents=True, exist_ok=True)
+
+targets = [
+    "mrl7_window_probe.json",
+    "depth_batch_manifest.json",
+    "world_points_multiframe.npy",
+    "world_points_multiframe.ply",
+    "world_points_multiframe_preview.png",
+    "world_fusion_summary.json",
+    "mrl7_closeout_summary.json",
+    "gaussian_params_init.pt",
+    "gaussian_params_optim20.pt",
+    "gaussian_render_init.png",
+    "gaussian_render_optim20.png",
+    "gaussian_optim20_summary.json",
+    "gaussian_params_optim500.pt",
+    "gaussian_render_optim500.png",
+    "gaussian_optim500_summary.json",
+    "gaussian_params_optim1000.pt",
+    "gaussian_render_optim1000.png",
+    "gaussian_optim1000_summary.json",
+    "gaussian_params_optim2500.pt",
+    "gaussian_render_optim2500.png",
+    "gaussian_optim2500_summary.json",
+]
+
+copied = []
+missing = []
+for name in targets:
+    src = world_dir / name
+    if src.exists():
+        shutil.copy2(src, visible_dir / name)
+        copied.append(name)
+    else:
+        missing.append(name)
+
+summary = {
+    "source_world_dir": str(world_dir),
+    "visible_dir": str(visible_dir),
+    "copied_count": len(copied),
+    "missing_count": len(missing),
+    "copied": copied,
+    "missing": missing,
+}
+print(json.dumps(summary, indent=2, ensure_ascii=False))
+```
+
+OK 条件:
+
+- `visible_dir` が出る
+- `copied_count >= 1`
+- 少なくとも `world_points_multiframe.ply` または `gaussian_render_optim20.png` 以上が copy される
+- Drive UI の `MyDrive/trajectreview_visible_results/prj-kisaragi_0002/...` から対象 file を確認できる
