@@ -217,6 +217,42 @@
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/trajectreview_modeling_20260329_gpu-evidence.ipynb`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/da3_smoke_v05/`
 
+## 2026-03-30 `MRL-7` `TraceCore` multi-frame candidate evidence
+
+- 対象 gate:
+  - `MRL-7`
+  - `mRL-7.1`
+- 実施者:
+  - `admin`
+- 実施環境:
+  - `Google Colab`
+  - `T4`
+- 入力 data:
+  - `trajectreview-correcting` で取得した `session-20260328-103250.zip`
+  - `Google Drive` shortcut 配下 `trajectreview/correcting/session-20260328-103250.zip`
+- 判定:
+  - この段は `active` のまま candidate evidence を収載する
+- 結果要点:
+  - fresh runtime から input zip を再展開し、`session_package.json`、`frame_pose_index.csv`、`camera_calibration_summary.json`、`images/` を再発見できた
+  - `frame_pose_index.csv` の実列を基準に `aligned_frame_count = 182` を確認できた
+  - この session の最長連続 window は約 `3.95s` であり、`10s` 理想値には届かないため、今回の `mRL-7.1` は実 session の最長連続 window を正として進めた
+  - sampled `12 frame` に対して `DA3Metric-Large` depth batch を `cuda` で完走し、`failed_frames = 0` を確認できた
+  - world fusion では `11 frame` を主 `ARCore` 空間へ戻し、`1 frame` は skip した
+  - `world_points_multiframe.npy`、`world_points_multiframe.ply`、`world_fusion_summary.json` を保存できた
+  - `total_points = 3696` の multi-frame 点群を `world_points_multiframe_preview.png` と `mrl7_closeout_summary.json` へ閉じ、`candidate-visible-proof` を保存できた
+  - まだ `PLY` viewer での目視確認と、人軌跡重畳を含む `TraceCore` 最小表示までは未達であるため、`MRL-7` は `p-done` に上げていない
+- 主要 artifact:
+  - `mrl7_window_probe.json`
+  - `depth_batch_manifest.json`
+  - `world_points_multiframe.npy`
+  - `world_points_multiframe.ply`
+  - `world_fusion_summary.json`
+  - `world_points_multiframe_preview.png`
+  - `mrl7_closeout_summary.json`
+- evidence path:
+  - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/sharedlogs_da3-colab.md`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md`
+
 ## reviewing batch 定義
 
 - 対象 `MRL`:

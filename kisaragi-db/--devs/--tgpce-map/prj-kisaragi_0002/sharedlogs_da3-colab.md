@@ -1166,5 +1166,118 @@ print(json.dumps({
 
 ```text
 # Step 7d retry after syntax fix res
+WORLD_OK frame_000009.jpg 336 1
+WORLD_OK frame_000058.jpg 336 17
+WORLD_OK frame_000103.jpg 336 34
+WORLD_OK frame_000143.jpg 336 50
+WORLD_OK frame_000189.jpg 336 67
+WORLD_OK frame_000230.jpg 336 83
+WORLD_OK frame_000274.jpg 336 100
+WORLD_OK frame_000314.jpg 336 116
+WORLD_OK frame_000356.jpg 336 133
+WORLD_OK frame_000395.jpg 336 149
+WORLD_OK frame_000457.jpg 336 166
+{
+  "processed_frames": 11,
+  "skipped_frames": 1,
+  "total_points": 3696,
+  "first_frame": {
+    "frame_name": "frame_000009.jpg",
+    "pose_record_index": 1,
+    "point_count": 336,
+    "timestamp_sec": 916764.341604734
+  },
+  "last_frame": {
+    "frame_name": "frame_000457.jpg",
+    "pose_record_index": 166,
+    "point_count": 336,
+    "timestamp_sec": 916767.944921453
+  },
+  "saved_npy": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01/world_fusion_v01/world_points_multiframe.npy",
+  "saved_ply": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01/world_fusion_v01/world_points_multiframe.ply",
+  "saved_summary": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01/world_fusion_v01/world_fusion_summary.json"
+}
 
+```
+
+# codex
+
+2026-03-30 v33 step-7e closeout preview and summary。
+
+- 判定: `Step 7d` は実質成功。
+  - `processed_frames = 11`
+  - `skipped_frames = 1`
+  - `total_points = 3696`
+  - `world_points_multiframe.npy` と `world_points_multiframe.ply` 保存済み
+- 目的: admin が `PLY` viewer で確認する前に、最小 preview と `MRL-7` closeout 用 summary を保存する。
+- 成功条件:
+  - `world_points_multiframe_preview.png` を保存できる
+  - `mrl7_closeout_summary.json` を保存できる
+  - skipped frame を summary に残せる
+
+```python
+# Step 7e closeout preview and summary
+from pathlib import Path
+import json
+import numpy as np
+import matplotlib.pyplot as plt
+
+probe_dir = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01")
+world_dir = probe_dir / "world_fusion_v01"
+summary_path = world_dir / "world_fusion_summary.json"
+points_path = world_dir / "world_points_multiframe.npy"
+preview_path = world_dir / "world_points_multiframe_preview.png"
+closeout_path = world_dir / "mrl7_closeout_summary.json"
+
+summary = json.loads(summary_path.read_text(encoding="utf-8"))
+points = np.load(points_path)
+
+fig = plt.figure(figsize=(8, 6))
+ax = fig.add_subplot(111, projection="3d")
+sample = points[::4] if len(points) > 4000 else points
+ax.scatter(sample[:, 0], sample[:, 1], sample[:, 2], s=1, alpha=0.6)
+ax.set_title("MRL-7 multiframe world points preview")
+ax.set_xlabel("x")
+ax.set_ylabel("y")
+ax.set_zlabel("z")
+plt.tight_layout()
+plt.savefig(preview_path, dpi=180)
+plt.close(fig)
+
+closeout = {
+    "status": "candidate-visible-proof",
+    "processed_frames": summary["processed_frames"],
+    "skipped_frames": summary["skipped_frames"],
+    "total_points": summary["total_points"],
+    "preview_path": str(preview_path),
+    "ply_path": summary["ply_path"],
+    "npy_path": summary["npy_path"],
+    "per_frame_point_count": [x["point_count"] for x in summary["per_frame"]],
+}
+closeout_path.write_text(json.dumps(closeout, indent=2, ensure_ascii=False), encoding="utf-8")
+
+print(json.dumps({
+    "preview_exists": preview_path.exists(),
+    "closeout_exists": closeout_path.exists(),
+    "processed_frames": closeout["processed_frames"],
+    "skipped_frames": len(closeout["skipped_frames"]),
+    "total_points": closeout["total_points"],
+    "preview_path": str(preview_path),
+    "closeout_path": str(closeout_path),
+}, indent=2, ensure_ascii=False))
+```
+
+# admin
+
+```text
+# Step 7e closeout preview and summary res
+{
+  "preview_exists": true,
+  "closeout_exists": true,
+  "processed_frames": 11,
+  "skipped_frames": 1,
+  "total_points": 3696,
+  "preview_path": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01/world_fusion_v01/world_points_multiframe_preview.png",
+  "closeout_path": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01/world_fusion_v01/mrl7_closeout_summary.json"
+}
 ```
