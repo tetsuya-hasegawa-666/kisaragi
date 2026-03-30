@@ -92,39 +92,51 @@ results_root = next((p for p in results_root_candidates if p.exists()), results_
 candidate_doc_path = Path("/content/runbook_drive_candidates.json")
 
 def infer_session_id(path: Path) -> str:
-    name = path.stem if path.suffix.lower() == ".zip" else path.name
-    return name
+    return path.stem if path.suffix.lower() == ".zip" else path.name
 
-candidates = []
-seen = set()
+def candidate_rank(path: Path) -> int:
+    s = str(path)
+    if ".shortcut-targets-by-id" in s:
+        return 0
+    if "/MyDrive/" in s:
+        return 1
+    return 9
+
+zip_map = {}
+dir_map = {}
 for root in scan_roots:
     if not root.exists():
         continue
     for zip_path in sorted(root.rglob("*.zip")):
-        real_zip = zip_path.resolve()
-        key = ("zip", str(real_zip))
-        if key in seen:
-            continue
-        seen.add(key)
-        candidates.append({
+        stat = zip_path.stat()
+        key = (infer_session_id(zip_path), stat.st_size)
+        cand = {
             "kind": "zip",
             "session_id": infer_session_id(zip_path),
             "label": f"{infer_session_id(zip_path)} [zip]",
-            "path": str(real_zip),
-        })
+            "path": str(zip_path),
+            "size_bytes": stat.st_size,
+        }
+        prev = zip_map.get(key)
+        if prev is None or candidate_rank(zip_path) < candidate_rank(Path(prev["path"])):
+            zip_map[key] = cand
     for pkg_path in sorted(root.rglob("session_package.json")):
         session_root = pkg_path.parent
-        real_session_root = session_root.resolve()
-        key = ("dir", str(real_session_root))
-        if key in seen:
-            continue
-        seen.add(key)
-        candidates.append({
+        key = infer_session_id(session_root)
+        cand = {
             "kind": "dir",
             "session_id": infer_session_id(session_root),
             "label": f"{infer_session_id(session_root)} [dir]",
-            "path": str(real_session_root),
-        })
+            "path": str(session_root),
+        }
+        prev = dir_map.get(key)
+        if prev is None or candidate_rank(session_root) < candidate_rank(Path(prev["path"])):
+            dir_map[key] = cand
+
+candidates = sorted(
+    list(zip_map.values()) + list(dir_map.values()),
+    key=lambda x: (x["session_id"], x["kind"], x["path"]),
+)
 
 candidate_doc = {
     "scan_roots": [str(p) for p in scan_roots if p.exists()],
@@ -141,13 +153,15 @@ for root in scan_roots:
     print("scan_root_exists", root.exists(), root)
 print("candidate_count", len(candidates))
 for idx, item in enumerate(candidates):
-    print(f"[{idx}] {item['label']}: {item['path']}")
+    extra = f" size={item['size_bytes']}" if "size_bytes" in item else ""
+    print(f"[{idx}] {item['label']}: {item['path']}{extra}")
 ```
 
 OK 条件:
 
 - `scan_root_exists True` が少なくとも 1 件ある
 - `candidate_count >= 1`
+- 同じ session zip が `shortcut-targets-by-id` と `MyDrive` の 2 経路で重複表示されない
 - 使いたい session zip または session folder が index 付きで列挙される
 
 NG 時の扱い:
