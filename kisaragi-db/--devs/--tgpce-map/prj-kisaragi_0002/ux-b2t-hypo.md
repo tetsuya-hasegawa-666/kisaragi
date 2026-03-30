@@ -6,136 +6,30 @@
 
 ## current_state
 
-### 役割
+### 現在の開発状況
 
-- `project-truth`とgoalからBDDにより実現に必要なUXを分解抽出しマイルストーンを置き、末端周辺をTDDでテスト計画してBDDマイルストーンをさらに小分解した計画と、そのテスト結果および現在の状態（project 固有 decision 要約）を統合的に記載する
-- 基本的な考え方は上記だが、規模や内容によって柔軟に対応可能だが、要素の抜け漏れや忘れが起こらないように対応する
-- `prj-kisaragi_0002` は、主空間再構成と経路レビューを 4 段階一括処理で扱う project とする
-- 中核 UX は、`SessionPackage`、`SpacePackage`、`TrajectoryPackage`、`ReviewArtifact` が、屋外作業者や作業機の作業結果をレビューが平易な操作で臨場感あるレビュー体験とする
-- 恒久仕様、入口方針、app 責務、artifact 契約は `project-truth.md` を正本とし、この章では現在状態、未完 gate、優先順位、未解決論点だけを扱う
-- project 固有の current と decision はこの章へ集約し、shared governance 文書や他 category へ重複配置しない
+| 項目 | 状況 |
+| --- | --- |
+| `correcting` | `MRL-1` と `MRL-2` の実装と証跡はそろっている。現状は closeout 整理と admin `UX check` の扱いを文書側で揃える段階である |
+| `modeling` | `MRL-3` から `MRL-6` は bootstrap、bundle 読込、single-frame `3DGS` smoke、artifact 取得まで進んでいる。現在の主 target は `MRL-7` である |
+| `reviewing` | summary と stub 読込まではあるが、実 `ReviewArtifact` viewer と same-time highlight 操作は未実装である |
 
-### 疑問点不整合一覧
+### 現在の blocker
 
-| id | 論点 | 影響 | 現在の扱い | admin 状態 | 関連文書 |
-| --- | --- | --- | --- | --- | --- |
-| `ISS-001` | `InputPackaging` の入口を `correcting` 中心へ寄せた後、統合 app / legacy intake をどこまで同格に扱うか | `InputPackaging` の UX、truth、後段説明 | admin 判断により、開発中から実使用まで全入口を開けたまま併存させ、説明順だけを運用上の既定に留める | `close` | `project-truth.md`, `admin-mrl-test-method.md` |
-| `ISS-002` | `Google Drive` 転送先の document grant を持続前提にするか | `MRL-2` の実運用可否 | admin 判断により grant 持続前提を捨て、`転送先を選択` を毎回必須にする | `close` | `project-truth.md`, `admin-mrl-test-evidence.md` |
-| `ISS-003` | `Google Drive` 側は zip、端末側は `<session_id>/` であり、どの段階で unzip を正規化するか | handoff 運用、admin 手順、実装分担 | `modeling` の `Colab bootstrap package` が unzip と配置正規化を担う方針へ決定した | `close` | `project-truth.md`, `admin-mrl-test-method.md` |
-| `ISS-005` | `Colab all-in modeling` package と `correcting` の PC install package の配布形式をどこまで共通化するか | install / bootstrap UX の粒度、導入 UX | 利用者主導 `MRL` 配下の準備 UX として扱い、package 構成は `0002` 内で設計を継続する | `small-open` | `project-truth.md`, `ux-b2t-hypo.md` |
-| `ISS-004` | `疑問点不整合一覧` の粒度を `MRL` closeout と同じ粒度まで細かくするか | 文書運用コスト | 現在は admin 判断が要るものと Codex の小疑問だけを集約する | `no judge` | `AGENTS.md`, `ux-b2t-hypo.md` |
-| `ISS-006` | Android 標準保存画面で `Google Drive` provider へ切り替える操作が初見利用者に分かりにくい | 多人数展開時の導入 UX | 現時点は手順明記のみ。利用者が増えたら help 導線を追加する | `small-open` | `admin-mrl-test-method.md`, `project-truth.md` |
+| id | blocker | 影響 | 現在の扱い |
+| --- | --- | --- | --- |
+| `BLK-1` | `MRL-7` の範囲に `TraceCore` 最小表示、route 比較、viewer 後続論点が混在している | `MRL` closeout と `BDD` の焦点がぼける | `TraceCore` 最小表示だけを `MRL-7` の中心に寄せ、後続は `MRL-**` へ分離する |
+| `BLK-2` | sampling / intrinsics の最終採用 route が未決定 | `modeling` の採用 route 固定が止まる | 比較基盤、比較実験、採用 route 運用化の 3 段で閉じる前提を維持する |
+| `BLK-3` | 人物 path の視覚再拘束に必要な実データ条件が未確定 | `TrajectoryPackage` の安定化条件が読みにくい | `MRL-7` では最小表示を優先し、視覚再拘束条件は後続検証へ送る |
+| `BLK-4` | `ReviewArtifact` の最終 viewer 実装先と same-time highlight 実装が未完 | `reviewing` の本機能 gate を閉じられない | 後続 `MRL-**` として分離して扱う |
+| `BLK-5` | `UX-only`、contract、sample、本機能完成の gate が文書上で十分に分離されていない | closeout が過大になりやすい | `BDD` / `TDD` / `MRL` の再構成で gate 境界を明確にする |
 
-### 現在の重点
+### 次の一手
 
-- `tu1` から `tu16` と `td1` から `td8` は contract 実装、test、routing 実行で成立したが、admin `UX check` 未完のため対応 `MRL` / `mRL` は `p-done` または `i-pass` に上げず `active` として扱う
-- 旧 `MRL-1` から `MRL-14` は phase と手段が混在していたため、現在は `correcting`、`modeling`、`reviewing`、`system統合` の UX phase を見出しにし、その中へ複数 `MRL` を並べる
-- `correcting` は `MRL-1` と `MRL-2` で扱い、前者が現場記録 / `data-check` / calibration 診断、後者が `Google Drive` 転送 / handoff bundle を担当する
-- `modeling` は `MRL-3` から `MRL-7` で扱い、`MRL-3` が bootstrap / install、`MRL-4` が bundle 読込 / request preflight / directory intake、`MRL-5` が single-frame `3DGS` smoke、`MRL-6` が evidence bundle 取得、`MRL-7` が `multi-frame` densify を担当する
-- `reviewing` は後続 `MRL-**` で、実 `ReviewArtifact` 読込と viewer UX を扱う
-- `system統合` も後続 `MRL-**` で、4 app の end-to-end 導線と統合 UI を扱う
-- 4 app 骨格、role-specific UX、統合 app overview は独立 `MRL` ではなく、各 flow の補助要素または後続 `MRL-**` の統合 UX として扱う
-- `trajectreview-correcting` の現在 focus は、収録停止後の待ち時間短縮と、`品質確認` / 一覧更新 / 転送 UX の安定化である
-- `品質確認` は lightweight 判定を先に返し、`frame画像群` は転送要求時だけ生成する構成へ切り替えた
-- 保存済み data 一覧の `▲` は lightweight `品質確認` 再実行で更新し、軽微な項目や `images/` 未生成だけでは付けない運用へ切り替えた
-- `Google Drive` 転送は都度 `転送先を選択` 前提へ切り替え、転送 UX は成立したが、多人数向け help は未着手である
-- `MRL-1` の範囲では、`trajectreview-correcting` 単体で source session を保存し、`sensor_quality.json`、`session_package.json`、`space_handoff_manifest.json` を生成し、修正指示と calibration 診断を返せる実装がある
-- `MRL-1` の calibration export interface は、一時要件を吸収し、`arcore_pose.jsonl` nested schema、`camera_calibration_summary.json`、`frame_pose_index.csv`、`images/`、path pointer を含む handoff へ更新した
-- `MRL-1` では `intrinsics` 不足が `実取得失敗`、`集計上の見え方`、`calibration export 実装前 data` のどれかを切り分ける診断と、shared camera route の intrinsics 実収集までを扱う
-- `MRL-2` の範囲では、`trajectreview-correcting` 単体で `サンプリング条件設定 / スマホ内保存先選択 / 転送対象準備 -> 現場撮影データ保存 + data-check -> 品質確認済み data の複数選択 -> Google Drive 転送先選択 + 転送実行 -> handoff bundle` を閉じる
-- `trajectreview-modeling` は `Colab all-in` を主 route とし、PC 側は source、config、auto-install package、証跡の正本を保持する
-- `trajectreview-modeling` は preflight artifact として `experiment_manifest.json`、`da3_input_manifest.json`、`benchmark_summary.json`、`selected_route.json`、Colab notebook / import helper / bootstrap package を持つ
-- Colab notebook の `CONFIG` は `session_root` と `result_root` を最小入力とし、残りの route 情報は session bundle 内の artifact から自動で補完する
-- 既存の `COLMAP 4.0 + nerfstudio splatfacto` notebook は参考ひな形であり、`DA3Metric-Large` modeling の truth ではない
-- `DA3Metric-Large` の `Colab` 実装は greenfield とし、`Codex` が script / notebook を作成し、admin が `Colab` 実行結果を shared worklog に貼り戻す往復で詰める
-- `2026-03-29` 時点で、`trajectreview-correcting` で取得した session `session-20260328-103250.zip` を入力に、`DA3Metric-Large` single-frame depth、world back-projection、point export、`gsplat` rasterization、`gs_model` / `space_quality` / `SpacePackage` smoke artifact 生成まで通過した
-- 上記により、`correcting` phase は `MRL-1` と `MRL-2` が `p-done` で成立済みと読む
-- `modeling` phase では、bootstrap / install、実 bundle 読込、single-frame `3DGS` smoke、artifact 取得までを `MRL-3` から `MRL-6` の `p-done` として扱う
-- 現在の主作業は `modeling` phase の `MRL-7` であり、`10s` 前後の整った実動画による `multi-frame` densify を first target に置く
-- shared worklog は project に対する truth / plan / evidence の正本ではないが、共同作業の保持情報としては authoritative な log であり、正本反映の根拠として保持する
-- shared worklog の置き場は `--tgpce-map/prj-kisaragi_0002/` 直下とし、file 名は `sharedlogs_<thema>.md` 形式に統一する
-- 現在の `DA3Metric-Large` `Colab` thread の main worklog は `sharedlogs_da3-colab.md` である
-- shared worklog は読みやすさのために定型 header を持ち、header より下は `# codex` または `# admin` 見出しで末尾追記のみとする
-- 採用判断、gate 状態、contract 変更、manual 変更は必ず対応する正本文書へ別途反映する
-- shared worklog は定期的に振り返り、有益部分を正本や evidence へ反映済みなら old 本文を削除または reset してよい
-- `Colab` のように runtime が揮発する route では、partial recovery の積み上げではなく fresh runtime からの最短 clean bootstrap を canonical route とする
-- 上記 route では、trial 往復の shared worklog と別に、`--products/prj-kisaragi_0002/modeling/` 配下へ `最小 clean bootstrap runbook` を保持し、admin が次回は先頭から再実行できる形に収束させる
-- `最小 clean bootstrap runbook` は `candidate` と `adopted` を分け、admin 実測で end-to-end が通った手順のみを `truly pass` 扱いにする
-- 現在の `DA3Metric-Large` `Colab bootstrap` の正本は `--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md` とする
-- 現在の `DA3Metric-Large` `Colab bootstrap` 実行は、`MRL-3` の bootstrap / install、`MRL-4` の directory intake、`MRL-5` の single-frame `3DGS` smoke の candidate evidence 収集を兼ねる
-- `ISS-003` の unzip / 配置正規化責務は `modeling` の `Colab bootstrap package` が担う
-- `trajectreview-modeling` の本機能 gate は、単一 route の一括 close ではなく、`比較基盤`、`比較実験`、`採用 route の運用化` の 3 段で閉じる
-- `trajectreview-reviewing` は summary と stub 読込までは持つが、実 `ReviewArtifact` viewer と同時刻ハイライト操作は未実装である
+1. `MRL-7` を `TraceCore` の最小表示に限定し、route 比較と viewer 後続論点を `MRL-**` へ切り分ける
+2. `10s` 前後の整った実動画で `multi-frame` densify を行い、全体俯瞰、時系列、camera と人の相対表示の価値を確認する
+3. `reviewing` と admin `UX check` の後続 gate を整理し、`ux-b2t-hypo.md` と証跡文書の closeout 基準を揃える
 
-### 決定済み運用
-
-- `InputPackaging` の入口は `correcting`、統合 app、legacy intake を閉じずに併存させる
-- `Google Drive` 転送先 file の document grant は保持前提にせず、毎回 `転送先を選択` で指定する
-- `Google Drive` 転送 zip の既定名は `trajectreview-correcting-session-YYYYMMDD-HHMMSS.zip` とし、custom 名でも `-session-YYYYMMDD-HHMMSS` suffix を必須にする
-- `reference_isensorium_verified_20260325` 配下の recording 実装は吸収済みとし、現行正規は `correcting`、`python`、`correcting/scripts`、`correcting-test` とする
-- `prj-kisaragi_0002` の正本文書は `--tgpce-map/prj-kisaragi_0002/` に集約する
-
-### 阻害要因の境界
-
-- `DA3Metric-Large` を first target とする depth 基盤は定まったが、最終採用する sampling / intrinsics route は未決定である
-- `DA3Metric-Large` の初回 `Colab` probe は一時確認であり、最終採用 route や truth を意味しない
-- `DA3Metric-Large` の初回 `Colab` probe` は `numpy` ABI 不整合を越えたが、次段では probe cell 側の不要な `pkg_resources` import と runtime package 解決の不整合で `Cell C` import check が失敗している
-- 次段の `Colab` probe は official repo clone、`numpy<2` 固定、runtime restart を維持しつつ、`pkg_resources` を明示 import しない最小 import check と runtime site-packages の実測確認へ切り替える
-- runtime 実測により `Python 3.12` と `/usr/local/lib/python3.12/dist-packages` は整合していることが分かった。現在の blocker は `DepthAnything3` import 時に `export.gs -> moviepy -> pygame` を eager import して落ちる点である
-- 次段の `Colab` probe は、推論に不要な `gs` export import を lazy 化するため、`depth_anything_3/utils/export/__init__.py` を部分置換ではなく file 上書き patch で差し替え、import / 1 frame 推論を再確認する
-- `gs` eager import は外せたが、次段では `export.colmap -> pycolmap` の eager import が blocker になっている
-- 次段の `Colab` probe は export module 全体を lazy import 化し、推論確認時に `pycolmap`、`moviepy`、`pygame` などの export 依存を読まない形へ切り替える
-- export module 全体の lazy import 化は成立した。現在の blocker は `depth_anything_3.utils.io.output_processor` が要求する `addict` の未install である
-- 次段の `Colab` probe は install をやり直さず、`addict` を追加 install して import / 1 frame 推論確認を続行する
-- `addict` は install 済みとなり、現在の blocker は `depth_anything_3.utils.pose_align` が要求する `evo` の未install である
-- 次段の `Colab` probe は install をやり直さず、`evo` を追加 install して import / 1 frame 推論確認を続行する
-- `evo` は install 済みとなり、`Cell C` の import check は通過した。現在の blocker は `Cell D` の `SESSION_ROOT` が placeholder のままで、`images/` 実 path を指していない点である
-- `Inspect Cell` 実行により `/content/drive/MyDrive/trajectreview/input` は存在しないことが分かった。現在の blocker は `Google Drive` 上の input root path 仮定が外れている点である
-- 次段の `Colab` probe は code 修正ではなく、`Drive mount` 状態、使用 account、`MyDrive` / shared drive 上の実保存先を切り分け、`session_package.json` 所在確認により実 `session_root` を特定したうえで 1 frame 推論へ進む
-- `/content/drive/MyDrive` 自体が `False` と判明したため、現在の最優先 blocker は `Drive mount` 未成立または auth 不整合である
-- 次段の `Colab` probe は `force_remount` の再実行と mount 後 path 再確認を先に行い、その後に実 `session_root` 特定へ戻る
-- `force_remount` 後に `/content/drive/MyDrive` は可視化されたため、`Drive mount` blocker は解消した
-- 現在の blocker は、`MyDrive` 上のどこに実 session data があるか未特定な点であり、`Data_Correcting_System.zip` と `Colab Notebooks` を含む実 path 探索へ移っている
-- `MyDrive` 直下探索では `session_package.json` などは 0 件で、`Data_Correcting_System.zip` は見つかったが無関係 file と判明した
-- 次段の `Colab` probe は、`Colab Notebooks` 配下と `MyDrive` 全体から `trajectreview`、`session`、`camera_calibration_summary.json`、`frame_pose_index.csv`、`session_package.json` を手掛かりに実 data path を再探索する
-- admin 提示の Google Drive folder URL があり、その folder が `共有アイテム` 側または shortcut 側にだけ存在して `MyDrive` 直下へ見えていない可能性がある
-- 次段の `Colab` probe は `.shortcut-targets-by-id` と account / shortcut 状態を確認し、mount account と実 folder 可視性を切り分ける
-- admin から `ショートカット追加済み`、`account 正しい` が確認されたため、次段は `.shortcut-targets-by-id/<folder-id>/` の直接確認で実 path を特定する
-- `.shortcut-targets-by-id/<folder-id>/trajectreview/correcting/session-20260328-103250.zip` が実入力候補として見えたため、次段は Colab 作業用 directory への unzip / `session_root` 正規化へ進む
-- zip 展開と `session_package.json` 探索により、実 `session_root` は `/content/trajectreview_input/session-20260328-103250/trajectreview` と確定した
-- `images/` existence check は通過し、`image_count 182`、`first_image frame_000009.jpg` まで確認できた
-- 現在の blocker は data path ではなく、`Cell D` 実行時の kernel 側で `depth_anything_3` module 解決が外れている点である
-- `/content/Depth-Anything-3` の repo path 自体が消えていたため、原因は import 文脈だけでなく `Colab` 揮発 runtime による repo / custom install の消失と判断する
-- 次段の `Colab` probe は、repo clone と custom dependency 再投入をまとめて再bootstrap し、その後に import check と 1 frame 推論を再実行する
-- `Colab` 側の partial recovery を延々と積むより、ここまでで真に必要だった command を再合成した `最小 clean bootstrap runbook` を product 文書として維持する方針へ切り替える
-- admin は `GPU` を選べるが、現段階は `CPU` 前提で bootstrap / import / `1 frame` 推論確認を進める
-- `Step 2` は通過し、現在の blocker は install 不足ではなく、official codebase が `src/depth_anything_3` 配下であるのに `repo root` を `sys.path` へ入れていた点である
-- 次段の `Colab` probe は `repo_root/src` を `sys.path` へ入れる修正版 `Step 3` で import check をやり直す
-- `Step 3` 再試行では `src_root`、`plyfile`、`trimesh` の blocker を越え、`depth_anything_3.api` import は通過した
-- `Step 4` では T4 上で core 推論自体は通過し、現在の blocker は `prediction.conf` を必須扱いした保存処理が `None` で落ちる点である
-- `HF_TOKEN` warning は public model download では optional であり、現段階の blocker ではない
-- `conf` / `intrinsics` / `extrinsics` を optional 扱いへ修正した結果、`2026-03-29` に T4 上で `1 frame` 推論は end-to-end で完了した
-- 現在の次段は、`MRL-7` として `10s` 前後の整った実動画を使う `multi-frame` densify と、`PLY` viewer でぼんやり見える再現モデルを確認することである
-- `gsplat` warning は出るが、これは `3DGS rendering` 用の optional dependency であり、現段階の `DA3Metric-Large` metric depth bootstrap の blocker ではない
-- ここからは blank restart に戻さず、同じ runtime で blocker を 1 件ずつ解消しながら bootstrap 仕様へ反映する
-- `DA3Metric-Large` の最適な package / module 構成、weight 配布元、download URL の返却方式は未決定である
-- 人物 path の視覚再拘束に使う実データ条件が未確定である
-- `ReviewArtifact` の最終 viewer 実装先は Android 固定ではない
-- 取得元 app data の配置差分は実機ごとの差を吸収する必要がある
-- multi-app 化では共通 source を維持しつつ app role を分ける必要がある
-- `Colab` account 情報は未取得であり、remote 実行は後続 task とする
-- `UX-only` 確認と本機能完成 gate を plan 上で分離していなかったことに加え、admin `UX check` 完了前に `i-pass` を付けていたため、closeout が過大になった
-
-### 次の確認
-
-1. `trajectreview-modeling` を `DA3Metric-Large` depth 推定 + `ARCore pose` / intrinsics 統合、multi-route 比較、採用 route 運用化の 3 段で閉じる
-2. `trajectreview-reviewing` を `ReviewArtifact` 実 viewer と same-time highlight 操作まで閉じる
-3. `MRL-7` で `10s` 前後の整った実動画から複数 frame を sampling し、world point cloud を統合して `PLY` で粗い再現モデルを確認する
-4. その後に後続 `MRL-**` として request 起点 UX、`job_status.json`、waiting ring、download URL、reviewing viewer を順次切り出す
-
-### 作業所有権
-
-- Codex が `project-truth.md`、`ux-b2t-hypo.md`、admin test 関連文書の再開基線整備、`MRL` 再編整合作業、以後の `MRL` 継続作業を担当する
 
 ## BDD
 
@@ -143,104 +37,148 @@
 
 この章は `prj-kisaragi_0002` の提供価値、`Purpose Story`、`System Behaviors`、`MRL` / `mRL` の対応を定義する。
 
-### 目指す姿
+- `TraceCore` を `MRL-7` の最小成立像として扱い、何を見せれば review 価値が出るかを固定する。
+- 最小構成で直接扱う価値と、後続 `MRL-**` へ送る価値を分けて扱い、開発負荷を抑えながら付加価値を高める。
 
-- 利用者は、現場で記録した data を渡すだけで、次に何をすべきかを迷わず進められる
-- 利用者は、空間の見え方、主カメラの動き、人物の動き、同じ時刻の位置関係を 1 つの review 文脈で確認できる
-- 利用者は、成立しなかった処理を結果だけでなく理由付きで把握し、再取得や再実行の判断をすぐ行える
-- 運営者は、入力補正、モデル生成、レビューを段階ごとに切り分けつつ、同じ session 契約のまま開発と運用を継続できる
+### 利用者に提供するレビュー価値
 
-### 提供方針
+| 見方 | 分かること |
+| --- | --- |
+| 全体俯瞰 | どの範囲を主に使っていたか |
+| 時系列再生 | どの順で移動したか |
+| camera と人の相対表示 | 撮影者と人の位置関係 |
+| 滞留箇所の確認 | 長くいた場所、動きが集中した場所 |
+| 軌跡の重なり確認 | 交錯、往復、無駄な動線の兆候 |
 
-- 最適条件は 1 台の主カメラ動画、主カメラ側 `IMU`、人物側 `IMU`、および人物の映り込みである
-- `GNSS` は任意入力とし、なくても `ARCore` 空間を基準に成立させる
-- 主空間再構成は `DA3Metric-Large` と `ARCore pose` / intrinsics の統合を first target とする
-- remote modeling は `Google Drive` と `Colab` を使う route を主経路とし、sampling / intrinsics handling を比較運用する
-- 閲覧成果物は `3DGS` 系の空間表現、経路表示、同時刻ハイライト、`attention point` を一体で扱う
-- まず受理、診断、実行可否を固め、その後に空間、経路、閲覧を段階分離して実装する
+### 最終目標
+
+- 最終目標は、作業後に manager が現場空間における人、作業機の時系列の関係を視覚で確認でき、実施した作業 process が判読できるようにすることである。
+- ただし最小構成で直接扱うのは、現場空間の再現、移動軌跡、相対位置関係、時系列の把握である。
+- 人がその場で具体的に何をしていたかの理解は、この最小構成の範囲外とする。
+- 最終到達点は `10時間` 作業を一貫処理、一貫閲覧できることとし、当面は `1分` 程度の動画で成立させることを目標とする。
+
+### 最小構成
+
+- 利用者は、主空間、camera 軌跡、人軌跡を同じ時間軸で確認できる。
+- 利用者は、全体俯瞰、時系列、相対表示として review 価値を感じられる。
+- 利用者は、人の具体的作業内容まではまだ分からなくても、移動、位置関係、時系列は把握できる。
+- 人の個体 `ID` は取らない。
+- `3DGS` 上に camera 軌跡と映り込む人の軌跡が、安っぽく見えない見た目で表示される状態を成立条件とする。
+
+| 項目 | 内容 |
+| --- | --- |
+| camera 動画 | 屋外、屋内作業者が断続的に映る |
+| camera data | `ARCore` 相当の pose、camera parameter、時刻同期情報を取得できる |
+| 取得頻度 | `5` から `10fps` 程度 |
+| camera `IMU` | 動画撮影と同時取得できる |
+| 人物側条件 | カメラに映り込む人は `IMU` 付き smartphone を保持している |
+| 最適条件 | 1 台の主カメラ動画、主カメラ側 `IMU`、人物側 `IMU`、および人物の映り込みを前提にする |
+| `GNSS` | 任意入力とし、なくても `ARCore` 空間を基準に成立させる |
+| 移動速度 | 人、作業機とも `5km/h` 以下を最低限の実用前提とする |
+| 初期対象 | `1分` 程度の動画 |
+| 主空間再構成 | `DA3Metric-Large` と `ARCore pose` / intrinsics の統合を first target とする |
+| remote modeling | `Google Drive` と `Colab` を使う route を主経路とし、sampling / intrinsics handling を比較運用する |
+| 閲覧成果物 | `3DGS` 系の空間表現、経路表示、同時刻ハイライト、`attention point` を一体で扱う |
+| 実装順 | まず受理、診断、実行可否を固め、その後に空間、経路、閲覧を段階分離して実装する |
+| 空間理解 | 現場の見た目と位置関係が分かる |
+| 動き理解 | camera と人がどう動いたか分かる |
+| 相対理解 | 人と camera の関係が分かる |
+| 時系列理解 | どの順で動いたか分かる |
+| 信頼感 | 安っぽく見えず、確認に使える |
+
+| 後回し項目 | 理由 |
+| --- | --- |
+| 人物個体 `ID` の確定 | 最小価値に必須ではない |
+| 人物ごとの厳密再同定 | 初手で必要ない |
+| 人の具体的作業内容の理解 | 背景と軌跡だけでは扱えない |
+| 高度な `IMU` 融合 | 重く、初手に向かない |
+| `10時間` 対応 | 最終目標だが初手ではない |
+| 高度分析 `UI` | まずは見えることが先 |
+
 
 ### Purpose Story
-#### 利用者(user)
-- `su1`: 利用者は、入力セッション folder を選択し、抽出結果をその場で得られる
-- `su2`: 利用者は、抽出後に時刻整列とデータ確からしさを数値で確認できる
-- `su3`: 利用者は、現場記録開始、停止、session 保存、診断前 export までを 1 つの入口で進められる
-- `su4`: 利用者は、記録停止後に同じ入口で品質確認結果と修正指示を読める
-- `su5`: 利用者は、品質確認を通した session を遠隔の保存場所へ転送できる
-- `su6`: 利用者は、後段の空間再構成で使うカメラ校正情報と frame 対応情報を、記録時点で失わず残せる
-- `su7`: 利用者は、必要な入力がそろっているかを受理時点で把握できる
-- `su8`: 利用者は、人物の映り込みが十分かどうかを、不足入力や品質低下とあわせて診断で読める
-- `su9`: 利用者は、空間再構成と人物経路再構成に必要な条件を満たした時だけ `処理を開始` を受け取れる
-- `su10`: 利用者は、実行中に今どの段階を処理しているかを、思考コスト最小で把握できる
-- `su11`: 利用者は、空間再構成が成立しにくそうな時に、データの再取得を検討できる
-- `su12`: 利用者は、スマホまたは PC から model 生成 request を起点にし、対象 data directory を指定して処理を開始できる
-- `su13`: 利用者は、待ち時間に waiting ring と現在処理段階を見ながら、そのまま完了を待てる
-- `su14`: 利用者は、処理完了後に生成 data の download URL を受け取り、次の確認へ進める
-- `su15`: 利用者は、主空間の見え方と主カメラ経路を確認できる
-- `su16`: 利用者は、人物の動きが主空間へ同じ時刻で重ねられた結果を確認できる
-- `su17`: 利用者は、見失い区間と再拘束の不確実性を理由付きで把握できる
-- `su18`: 利用者は、同じ時刻の位置関係をハイライトし、注視すべき区間を絞り込める
-- `su19`: 利用者は、生成済みの閲覧成果物を操作し、空間と経路をレビューできる
-#### 運営者(developer)
-- `sd1`: 運営者は、4 分担の境界と出力契約だけで開発と運用を継続できる
-- `sd2`: 運営者は、抽出 bundle を見れば raw と `trajectreview` 派生出力の境界を追える
-- `sd3`: 運営者は、抽出直後の bundle だけで `SpaceReconstruction` 着手可否と blocker を判断できる
-- `sd4`: 運営者は、入力補正、モデル生成、レビュー操作を app 単位で分けて実行できる
-- `sd5`: 運営者は、統合 app からも同じ workflow を通しで扱え、手戻り時にどの app 範囲で問題が起きたかを即座に切り分けられる
-- `sd6`: 運営者は、4 app の各画面で mock ではなく直近の実 bundle を読み、同じ project truth で UX 確認できる
-- `sd7`: 運営者は、`trajectreview-modeling` から request 起点の local sample と handoff request を生成し、PC 上で logic を先に検証できる
-- `sd8`: 運営者は、指定した `Google Drive` directory を `Colab` 側が読み、実行状態と result URL を返す contract を維持できる
-- `sd9`: 運営者は、`trajectreview-modeling` だけで `DA3Metric-Large` の metric depth 推定、`ARCore pose` / intrinsics 統合、`3DGS` 系主空間モデル生成の成否を確認でき、必要になった時は複数 route 比較へ広げられる
-- `sd10`: 運営者は、比較結果から暫定採用 route を決め、以後の既定 route と research route を分けて運用できる
-- `sd11`: 運営者は、`UX-only` 確認、契約固定、local sample、本機能完成を別 gate として追跡できる
+
+| story-id | 区分 | 内容 |
+| --- | --- | --- |
+| `su1` | 利用者 | 入力セッション folder を選択し、抽出結果をその場で得られる |
+| `su2` | 利用者 | 抽出後に時刻整列とデータ確からしさを数値で確認できる |
+| `su3` | 利用者 | 現場記録開始、停止、session 保存、診断前 export までを 1 つの入口で進められる |
+| `su4` | 利用者 | 記録停止後に同じ入口で品質確認結果と修正指示を読める |
+| `su5` | 利用者 | 品質確認を通した session を遠隔の保存場所へ転送できる |
+| `su6` | 利用者 | 後段の空間再構成で使うカメラ校正情報と<br>frame 対応情報を、記録時点で失わず残せる |
+| `su7` | 利用者 | 必要な入力がそろっているかを受理時点で把握できる |
+| `su8` | 利用者 | 人物の映り込みが十分かどうかを、<br>不足入力や品質低下とあわせて診断で読める |
+| `su9` | 利用者 | 空間再構成と人物経路再構成に必要な条件を満たした時だけ、<br>`処理を開始` を受け取れる |
+| `su10` | 利用者 | 実行中に今どの段階を処理しているかを、思考コスト最小で把握できる |
+| `su11` | 利用者 | 空間再構成が成立しにくそうな時に、データの再取得を検討できる |
+| `su12` | 利用者 | スマホまたは PC から model 生成 request を起点にし、<br>対象 data directory を指定して処理を開始できる |
+| `su13` | 利用者 | 待ち時間に waiting ring と現在処理段階を見ながら、そのまま完了を待てる |
+| `su14` | 利用者 | 処理完了後に生成 data の download URL を受け取り、次の確認へ進める |
+| `su15` | 利用者 | `TraceCore` 上で主空間、主カメラ経路、人軌跡を見比べ、<br>全体俯瞰、時系列、相対表示に加え、滞留や交錯の兆候も確認できる |
+| `su16` | 利用者 | 人物の動きが個体 `ID` なしでも主空間へ同じ時刻で重ねられた結果を確認できる |
+| `su17` | 利用者 | 見失い区間と再拘束の不確実性を、理由付きで把握できる |
+| `su18` | 利用者 | 同じ時刻の位置関係をハイライトし、<br>`attention point` から注視区間、滞留箇所、往復や交錯の兆候を絞り込める |
+| `su19` | 利用者 | 生成済みの閲覧成果物を操作し、`3DGS` 空間表現、経路、<br>同時刻ハイライトを同じ review 文脈で扱える |
+| `sd1` | 運営者 | 4 分担の境界と出力契約だけで、開発と運用を継続できる |
+| `sd2` | 運営者 | 抽出 bundle を見れば raw と<br>`trajectreview` 派生出力の境界を追える |
+| `sd3` | 運営者 | 抽出直後の bundle だけで `SpaceReconstruction` 着手可否と<br>blocker を判断できる |
+| `sd4` | 運営者 | 入力補正、モデル生成、レビュー操作を、app 単位で分けて実行できる |
+| `sd5` | 運営者 | 統合 app からも同じ workflow を通しで扱え、<br>手戻り時にどの app 範囲で問題が起きたかを即座に切り分けられる |
+| `sd6` | 運営者 | 4 app の各画面で mock ではなく直近の実 bundle を読み、<br>同じ project truth で UX 確認できる |
+| `sd7` | 運営者 | `trajectreview-modeling` から request 起点の local sample と<br>handoff request を生成し、PC 上で logic を先に検証できる |
+| `sd8` | 運営者 | 指定した `Google Drive` directory を `Colab` 側が読み、<br>実行状態と result URL を返す contract を維持できる |
+| `sd9` | 運営者 | `trajectreview-modeling` だけで `DA3Metric-Large` の metric depth 推定、<br>`ARCore pose` / intrinsics 統合、`GNSS` なしでも成立する `3DGS` 系主空間モデル生成の成否を確認でき、<br>必要になった時は複数 route 比較へ広げられる |
+| `sd10` | 運営者 | 比較結果から暫定採用 route を決め、<br>以後の既定 route と research route を分けて運用できる |
+| `sd11` | 運営者 | `UX-only` 確認、契約固定、local sample、本機能完成を別 gate として追跡できる |
 
 ### System Behaviors
-#### 利用者起点
-- `bu1`: `InputPackaging` app は入力セッション folder またはその 1 段上の parent directory を選択し、`session_manifest.json` / `manifest.json`、`video_frame_timestamps.csv` / `frames.csv`、`imu.csv`、`bt.jsonl` / `ble_scan.jsonl` / `bt_events.csv` / `bt.csv`、`poses.jsonl` / `arcore_pose.jsonl` / `arcore_pose.csv` を読める
-- `bu2`: extractor は raw file を `isensorium/`、派生 file を `trajectreview/` に分離して app export dir へ出力する
-- `bu3`: extractor は `sensor_quality.json` に時刻整列 delta、completeness score、pose coverage ratio を含める
-- `bu4`: Android UI は抽出元、抽出先、`ready_for_diagnose`、欠落入力、主要 quality 数値を 1 画面で返す
-- `bu5`: `trajectreview-correcting` は現場記録開始、停止、session 保存、input export を app 内で完結し、後段が読む concrete bundle を生成する
-- `bu6`: `trajectreview-correcting` は最新 session を再読込し、`data-check` により readiness、quality、blocker、recommended correction を返す
-- `bu7`: `trajectreview-correcting` は保存済み session 一覧を表示し、取得日時と長さを確認でき、既存 session を選択して再転送または rename できる
-- `bu8`: `trajectreview-correcting` は `data-check` 済みの session を選び、送信する data group を選んだうえで、`Storage Access Framework` を通じて選択された `Google Drive` 保存場所へ zip 転送する
-- `bu9`: `trajectreview-correcting` は `Storage Access Framework` で選ばれた `Google Drive` 保存場所に対して、選択 session 数に応じた zip を作成して同期できる
-- `bu10`: `trajectreview-correcting` は `ARCore Session.update()` で得た同一 frame から pose、frame timestamp、capture timestamp、image intrinsics、texture intrinsics、lens distortion、tracking state を 1 record として保存し、`camera_calibration_summary.json` と `frame_pose_index.csv`、`images/` を派生出力する
-- `bu11`: 受理時に、主カメラ動画、主カメラ `IMU`、人物側 `IMU`、任意 `poses` / `gnss` の充足状況を `SessionPackage` へ要約する
-- `bu12`: `Diagnose` は、人物映り込みの十分性、不足入力、品質低下、修正理由を `Thin Status` で返す
-- `bu13`: 実行可否 gate は、主カメラ動画、主カメラ `IMU`、人物側 `IMU`、空間再構成前提、経路再構成前提の readiness を満たした時だけ `処理を開始` を返す
-- `bu14`: 実行 phase は、`Next Action` を常に `完了を待つ` 1 件に保ち、waiting ring と現在段階を別 line で返す
-- `bu15`: `DA3Metric-Large` の入力成立が難しい時は、remote modeling を開始せず `入力条件を見直す` を返す
-- `bu16`: `trajectreview-modeling` は、スマホまたは PC からの request を受け、`Google Drive` 上の入力 directory と result directory を指定した `Colab` 実行 request を export する
-- `bu17`: `trajectreview-modeling` は、remote 実行中の状態を polling し、waiting ring、現在段階、直近更新時刻を request 元画面へ返す
-- `bu18`: `trajectreview-modeling` は、remote 実行完了後に `Colab` 側 download URL と result summary を返し、受理後に `SpacePackage`、`TrajectoryPackage`、`modeling_handoff_manifest.json` を更新する
-- `bu19`: `SpacePackage` は、`DA3Metric-Large` の metric depth と `ARCore pose` / intrinsics による world projection から得た主空間基準、主カメラ path、空間品質、および review 側が消費できる `gs_model` を返す
-- `bu20`: `TrajectoryPackage` は、主カメラ path、人物 path、不確実性、再拘束点を同じ `Timeline` 上で返す
-- `bu21`: 人物 path の relink は visual match confidence、time gap、anchor proximity、`BT` 主体維持、`IMU` 連続性で判定し、不成立時は不確実性を上げる
-- `bu22`: `Verify` は空間品質と経路品質を同時に返し、`Interpret` は同時刻ハイライト候補と `attention point` を返す
-- `bu23`: `trajectreview-reviewing` は `ReviewArtifact` 実体を読み、viewer 操作、same-time highlight、`attention point` jump を返す
-- `bu24`: `Assembly` は `3DGS` 系空間表現の操作情報、経路、同時刻ハイライト情報を束ねた `ReviewArtifact` を唯一生成する
 
-#### 運営者起点
-- `bd1`: parser は `bt.jsonl` / `poses.jsonl` と `ble_scan.jsonl` / `arcore_pose.jsonl` の両方を受理する
-- `bd2`: `trajectreview` の docs、build、test、生成物経路は `prj-kisaragi_0002` 配下で完結し、要約と生の生成物を分離する
-- `bd3`: `InputPackaging` は取得元 raw に加えて、`input_readiness.json`、`sensor_quality.json`、`frame_pose_index.csv`、`member_identity_map.json` を分担インターフェースとして出力する
-- `bd4`: 4 分担の各段階は、前段の出力契約だけを読めば次段へ着手できる
-- `bd5`: extractor は `video.mp4` と `video_events.jsonl` を含む raw bundle を維持し、後段が主カメラ動画を再利用できる
-- `bd6`: extractor は `session_package.json` に source file、timebase、stream count、quality 指標、required / optional input を正規化して出力する
-- `bd7`: extractor は `space_handoff_manifest.json` に `ready_for_space_reconstruction`、blocker、利用 artifact、次 action を出力する
-- `bd8`: Android UI は `ready_for_space_reconstruction` と blocker を抽出結果画面で返す
-- `bd9`: Android project は `trajectreview-correcting`、`trajectreview-modeling`、`trajectreview-reviewing`、統合 app の 4 app module を持ち、共通 source を再利用する
-- `bd10`: `trajectreview-correcting` は現場記録、intake / diagnose / correction に必要な画面と文言だけを主表示にする
-- `bd11`: `trajectreview-modeling` は `SpaceReconstruction` と `TrajectoryReconstruction` に必要な request 起点、進行表示、result 受け渡しを主表示にする
-- `bd12`: `trajectreview-reviewing` は verify / review / same-time highlight を主表示にし、統合 app は全 workflow を束ねる
-- `bd13`: correcting、modeling、reviewing、統合 app は、選択した実 bundle から `ReviewContractSnapshot` を再構成し、mock 固定状態に依存しない
-- `bd14`: `trajectreview-modeling` は `session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json`、`camera_calibration_summary.json` を読み、`local_model_summary.json`、`colab_job_request.json`、`job_status.json`、`review_artifact_stub.json` を生成する。これは `Colab` 実行前の request preflight と handoff 準備を担う
-- `bd15`: `trajectreview-reviewing` と統合 app は `local_model_summary.json` と `review_artifact_stub.json` を読んで verify / review 状態を組み立てる
-- `bd16`: `trajectreview-modeling` は、指定した `Google Drive` directory から zip または `session_root/` を正規化して読み、`Colab` runtime、status 更新、result URL 公開先を再現可能に構築できる
-- `bd17`: `trajectreview-modeling` は `session_package.json`、`arcore_pose.jsonl`、`frame_pose_index.csv`、`camera_calibration_summary.json`、frame 群から `DA3Metric-Large` 用の前処理入力、metric depth 推定、world projection、`3DGS` 系主空間モデル生成を route 単位で実行できる
-- `bd18`: `trajectreview-modeling` は、まず `10s` 前後の整った実動画から `multi-frame` densify を行い、主空間の見え方と主カメラ path を粗くでも把握できる再現モデルを返せる。route 比較が必要になった時は、sampling route、intrinsics route、ごとの quality、runtime、resource usage、failure reason を `benchmark_summary.json` へ集約できる
-- `bd19`: `trajectreview-modeling` は比較結果から `selected_route.json` を生成し、採用 route と research route を分離できる
-- `bd20`: `MRL` / `mRL` の `i-pass` は admin `UX check 完了` と本来機能の実行証跡を要件とし、`UX-only`、contract、sample、build / install は補助 gate として別記する
+| behavior-id | 区分 | 内容 |
+| --- | --- | --- |
+| `bu1` | 利用者起点 | `InputPackaging` app は入力セッション folder またはその 1 段上の parent directory を選択し、<br>`session_manifest.json` / `manifest.json`、`video_frame_timestamps.csv` / `frames.csv`、`imu.csv`、<br>`bt.jsonl` / `ble_scan.jsonl` / `bt_events.csv` / `bt.csv`、`poses.jsonl` / `arcore_pose.jsonl` / `arcore_pose.csv` を読める |
+| `bu2` | 利用者起点 | extractor は raw file を `isensorium/`、<br>派生 file を `trajectreview/` に分離して app export dir へ出力する |
+| `bu3` | 利用者起点 | extractor は `sensor_quality.json` に時刻整列 delta、<br>completeness score、pose coverage ratio を含める |
+| `bu4` | 利用者起点 | Android UI は抽出元、抽出先、`ready_for_diagnose`、<br>欠落入力、主要 quality 数値を 1 画面で返す |
+| `bu5` | 利用者起点 | `trajectreview-correcting` は現場記録開始、停止、session 保存、<br>input export を app 内で完結し、後段が読む concrete bundle を生成する |
+| `bu6` | 利用者起点 | `trajectreview-correcting` は最新 session を再読込し、<br>`data-check` により readiness、quality、blocker、recommended correction を返す |
+| `bu7` | 利用者起点 | `trajectreview-correcting` は保存済み session 一覧を表示し、<br>取得日時と長さを確認でき、既存 session を選択して再転送または rename できる |
+| `bu8` | 利用者起点 | `trajectreview-correcting` は `data-check` 済みの session を選び、<br>送信する data group を選んだうえで、`Storage Access Framework` を通じて選択された `Google Drive` 保存場所へ zip 転送する |
+| `bu9` | 利用者起点 | `trajectreview-correcting` は `Storage Access Framework` で選ばれた `Google Drive` 保存場所に対して、<br>選択 session 数に応じた zip を作成して同期できる |
+| `bu10` | 利用者起点 | `trajectreview-correcting` は `ARCore Session.update()` で得た同一 frame から pose、frame timestamp、capture timestamp、<br>image intrinsics、texture intrinsics、lens distortion、tracking state を 1 record として保存し、<br>`camera_calibration_summary.json`、`frame_pose_index.csv`、`images/` を派生出力する |
+| `bu11` | 利用者起点 | 受理時に、主カメラ動画、主カメラ `IMU`、人物側 `IMU`、<br>任意 `poses` / `gnss` の充足状況を `SessionPackage` へ要約する |
+| `bu12` | 利用者起点 | `Diagnose` は、人物映り込みの十分性、不足入力、品質低下、<br>修正理由を `Thin Status` で返す |
+| `bu13` | 利用者起点 | 実行可否 gate は、主カメラ動画、主カメラ `IMU`、人物側 `IMU`、<br>空間再構成前提、経路再構成前提の readiness を満たした時だけ `処理を開始` を返す |
+| `bu14` | 利用者起点 | 実行 phase は、`Next Action` を常に `完了を待つ` 1 件に保ち、waiting ring と現在段階を別 line で返す |
+| `bu15` | 利用者起点 | `DA3Metric-Large` の入力成立が難しい時は、remote modeling を開始せず `入力条件を見直す` を返す |
+| `bu16` | 利用者起点 | `trajectreview-modeling` は、スマホまたは PC からの request を受け、<br>`Google Drive` 上の入力 directory と result directory を指定した `Colab` 実行 request を export する |
+| `bu17` | 利用者起点 | `trajectreview-modeling` は、remote 実行中の状態を polling し、<br>waiting ring、現在段階、直近更新時刻を request 元画面へ返す |
+| `bu18` | 利用者起点 | `trajectreview-modeling` は、remote 実行完了後に `Colab` 側 download URL と result summary を返し、<br>受理後に `SpacePackage`、`TrajectoryPackage`、`modeling_handoff_manifest.json` を更新する |
+| `bu19` | 利用者起点 | `SpacePackage` は、`DA3Metric-Large` の metric depth と `ARCore pose` / intrinsics による world projection から得た<br>`ARCore` 基準の主空間、主カメラ path、空間品質、および review 側が消費できる `gs_model` を返す |
+| `bu20` | 利用者起点 | `TrajectoryPackage` は、人物個体 `ID` を固定せず、主カメラ path、人物 path、不確実性、再拘束点を<br>同じ `Timeline` 上で返す |
+| `bu21` | 利用者起点 | 人物 path の relink は visual match confidence、time gap、anchor proximity、`BT` 主体維持、<br>`IMU` 連続性で判定し、不成立時は不確実性を上げる |
+| `bu22` | 利用者起点 | `Verify` は空間品質と経路品質を同時に返し、`Interpret` は同時刻ハイライト候補、`attention point`、<br>滞留箇所、往復や交錯の兆候を返す |
+| `bu23` | 利用者起点 | `trajectreview-reviewing` は `ReviewArtifact` 実体を読み、viewer 操作、same-time highlight、<br>`attention point` jump、滞留や交錯の確認操作を返す |
+| `bu24` | 利用者起点 | `Assembly` は `3DGS` 系空間表現の操作情報、経路、同時刻ハイライト情報、<br>`attention point` を束ねた `ReviewArtifact` を唯一生成する |
+| `bd1` | 運営者起点 | parser は `bt.jsonl` / `poses.jsonl` と `ble_scan.jsonl` / `arcore_pose.jsonl` の両方を受理する |
+| `bd2` | 運営者起点 | `trajectreview` の docs、build、test、生成物経路は `prj-kisaragi_0002` 配下で完結し、要約と生の生成物を分離する |
+| `bd3` | 運営者起点 | `InputPackaging` は取得元 raw に加えて、`input_readiness.json`、`sensor_quality.json`、<br>`frame_pose_index.csv`、`member_identity_map.json` を分担インターフェースとして出力する |
+| `bd4` | 運営者起点 | 4 分担の各段階は、前段の出力契約だけを読めば次段へ着手できる |
+| `bd5` | 運営者起点 | extractor は `video.mp4` と `video_events.jsonl` を含む raw bundle を維持し、後段が主カメラ動画を再利用できる |
+| `bd6` | 運営者起点 | extractor は `session_package.json` に source file、timebase、stream count、quality 指標、<br>required / optional input を正規化して出力する |
+| `bd7` | 運営者起点 | extractor は `space_handoff_manifest.json` に `ready_for_space_reconstruction`、blocker、<br>利用 artifact、次 action を出力する |
+| `bd8` | 運営者起点 | Android UI は `ready_for_space_reconstruction` と blocker を抽出結果画面で返す |
+| `bd9` | 運営者起点 | Android project は `trajectreview-correcting`、`trajectreview-modeling`、`trajectreview-reviewing`、<br>統合 app の 4 app module を持ち、共通 source を再利用する |
+| `bd10` | 運営者起点 | `trajectreview-correcting` は現場記録、intake / diagnose / correction に必要な画面と文言だけを主表示にする |
+| `bd11` | 運営者起点 | `trajectreview-modeling` は `SpaceReconstruction` と `TrajectoryReconstruction` に必要な request 起点、<br>進行表示、result 受け渡しを主表示にする |
+| `bd12` | 運営者起点 | `trajectreview-reviewing` は verify / review / same-time highlight を主表示にし、統合 app は全 workflow を束ねる |
+| `bd13` | 運営者起点 | correcting、modeling、reviewing、統合 app は、選択した実 bundle から `ReviewContractSnapshot` を再構成し、<br>mock 固定状態に依存しない |
+| `bd14` | 運営者起点 | `trajectreview-modeling` は `session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json`、<br>`camera_calibration_summary.json` を読み、`local_model_summary.json`、`colab_job_request.json`、`job_status.json`、<br>`review_artifact_stub.json` を生成する。これは `Colab` 実行前の request preflight と handoff 準備を担う |
+| `bd15` | 運営者起点 | `trajectreview-reviewing` と統合 app は `local_model_summary.json` と `review_artifact_stub.json` を読んで、<br>verify / review 状態を組み立てる |
+| `bd16` | 運営者起点 | `trajectreview-modeling` は、指定した `Google Drive` directory から zip または `session_root/` を正規化して読み、<br>`Colab` runtime、status 更新、result URL 公開先を再現可能に構築できる |
+| `bd17` | 運営者起点 | `trajectreview-modeling` は `session_package.json`、`arcore_pose.jsonl`、`frame_pose_index.csv`、<br>`camera_calibration_summary.json`、frame 群から、`DA3Metric-Large` 用の前処理入力、metric depth 推定、<br>world projection、`3DGS` 系主空間モデル生成を route 単位で実行できる |
+| `bd18` | 運営者起点 | `trajectreview-modeling` は、まず `10s` 前後の整った実動画から `TraceCore` の `multi-frame` densify を行い、<br>`GNSS` なしでも `ARCore` 基準で主空間、主カメラ path、人軌跡の重なりを安っぽく見えない形で返せる。<br>最低限、全体俯瞰、時系列、camera と人の相対表示、滞留や交錯の兆候を検討できることを要件にし、<br>route 比較が必要になった時は、sampling route、intrinsics route ごとの quality、runtime、resource usage、<br>failure reason を `benchmark_summary.json` へ集約できる |
+| `bd19` | 運営者起点 | `trajectreview-modeling` は比較結果から `selected_route.json` を生成し、採用 route と research route を分離できる |
+| `bd20` | 運営者起点 | `MRL` / `mRL` の `i-pass` は admin `UX check 完了` と本来機能の実行証跡を要件とし、<br>`UX-only`、contract、sample、build / install は補助 gate として別記する |
 
 
 
@@ -253,7 +191,7 @@
 | `su4` | `bu6` | correcting data-check | `trajectreview-correcting` が同じ app 内で `data-check` 結果、blocker、recommended correction を返す |
 | `su5` | `bu7`,`bu8`,<br>`bu9` | Google Drive transfer | `trajectreview-correcting` が `data-check` 済み session を 1 件以上選び、`送信Dataset` popup と data 一覧 popup を使って転送対象を確定し、懸念がある data を `▲` 表示したうえで、選択した `Google Drive` 保存場所へ zip を保存できる |
 | `su6` | `bu10` | `DA3` 前段 calibration | `trajectreview-correcting` が `ARCore` frame ごとの camera intrinsics、texture intrinsics、lens distortion、frame timestamp を保存し、後段 `DA3 MetricLarge` へ渡せる |
-| `su7` | `bu11`,`bd1`,<br>`bd3` | 受理契約 | 主カメラ動画、主カメラ `IMU`、人物側 `IMU`、任意 `poses` / `gnss`、追加出力の有無が 1 つの要約として読める |
+| `su7` | `bu11`,`bd1`,<br>`bd3` | 受理契約 | 主カメラ動画、主カメラ `IMU`、人物側 `IMU`、任意 `poses` / `gnss`、追加出力の有無が 1 つの要約として読め、`GNSS` なしでも `ARCore` 基準で処理前提を判断できる |
 | `su8` | `bu12` | diagnose UX | 人物映り込みの十分性、不足入力、品質低下、修正理由が `Thin Status` で読める |
 | `su9` | `bu13` | 実行可否 gate | readiness 未達時は `処理を開始` を返さず、修正 action を返す |
 | `su10` | `bu14` | 実行 UX | `Next Action` は常に 1 件で、waiting ring と現在段階は補足 line に分離される |
@@ -261,11 +199,11 @@
 | `su12` | `bu16` | modeling request 起点 | `trajectreview-modeling` がスマホまたは PC 起点で入力 directory と result directory を指定した remote 実行 request を作成できる |
 | `su13` | `bu14`,`bu17` | waiting UX | waiting ring が回り続け、現在段階と直近更新時刻が request 元画面で読める |
 | `su14` | `bu18` | result download 導線 | 処理完了時に download URL と result summary が表示され、次段へ進める |
-| `su15` | `bu19` | 主空間確認 | 主空間基準、主カメラ path、空間品質が読める |
-| `su16` | `bu20`,`bu21` | 人物経路確認 | 人物 path が主空間へ重ねられ、不確実区間と再拘束点が識別できる |
+| `su15` | `bu19` | `TraceCore` 確認 | 主空間、主カメラ path、人軌跡を重ねて見られ、全体俯瞰、時系列、相対表示に加え、滞留や交錯の兆候を検討できる |
+| `su16` | `bu20`,`bu21` | 人物経路確認 | 人物個体 `ID` が未確定でも、人物 path が主空間へ重ねられ、不確実区間と再拘束点が識別できる |
 | `su17` | `bu21` | 不確実性 | 再拘束失敗時に不確実性 mode と理由が更新される |
-| `su18` | `bu22` | ハイライト | 同じ時刻の位置関係と `attention point` に時間範囲と理由が入る |
-| `su19` | `bu23`,`bu24` | 閲覧成果物 | `ReviewArtifact` を開き、`3DGS` 操作、経路表示、同時刻ハイライトを操作できる |
+| `su18` | `bu22` | ハイライト | 同じ時刻の位置関係と `attention point` に時間範囲と理由が入り、滞留箇所、往復、交錯の兆候を絞り込める |
+| `su19` | `bu23`,`bu24` | 閲覧成果物 | `ReviewArtifact` を開き、`3DGS` 操作、経路表示、同時刻ハイライト、`attention point` を同じ review 文脈で操作できる |
 | `sd1` | `bd2`,`bd3`,<br>`bd4` | 独立運用 | docs / build / test が project 内で完結し、段階間契約だけで分担着手できる |
 | `sd2` | `bu2`,`bd2` | bundle 境界 | `isensorium/` と `trajectreview/` が分離され、raw と派生出力を誤読しない |
 | `sd3` | `bd5`,`bd6`,<br>`bd7`,`bd8` | 後段 handoff | `video.mp4` を含む raw bundle と `session_package.json` / `space_handoff_manifest.json` だけで `SpaceReconstruction` 着手可否と blocker を判断できる |
@@ -274,7 +212,7 @@
 | `sd6` | `bd13`,`bd15` | 実データ UX | 各 app が抽出済みまたは modeling 済み bundle を読み、直近実データに基づく状態を表示できる |
 | `sd7` | `bd14`,`bd15` | request preflight | `Colab` account 未取得でも local sample model、request payload、reviewing 用 stub を生成し、PC 上で logic を先に検証できる |
 | `sd8` | `bd16` | remote 実行運用 | `Google Drive` directory 指定、`Colab` bootstrap、status 更新、result URL 公開先の contract を維持できる |
-| `sd9` | `bd17`,`bd18` | `DA3` modeling 確認 | まず `10s` 前後の整った実動画から `multi-frame` densify を行い、主空間の見え方と主カメラ path を粗くでも把握できる再現モデルを得られる。必要になった時は route 比較へ広げられる |
+| `sd9` | `bd17`,`bd18` | `DA3` modeling 確認 | まず `10s` 前後の整った実動画から `TraceCore` の `multi-frame` densify を行い、`GNSS` なしでも主空間、主カメラ path、人軌跡の重なりを用いて全体俯瞰、時系列、相対表示、滞留や交錯の兆候を検討できる。必要になった時は route 比較へ広げられる |
 | `sd10` | `bd18`,`bd19` | route 運用化 | 採用 route と research route が分離され、既定 route を machine-readable に固定できる |
 | `sd11` | `bd20` | gate 運用 | `UX-only`、contract、sample、本機能完成が別 gate として記録され、完了誤認が起きない |
 
@@ -308,12 +246,12 @@
 | `tu21` | `bu17` | waiting ring status sync | request 元画面が polling により waiting ring、現在段階、直近更新時刻を同期表示できる | ready | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
 | `tu22` | `bu18` | completion download URL import | remote modeling 完了後に download URL と result summary を返し、`SpacePackage`、`TrajectoryPackage`、`modeling_handoff_manifest.json` を更新できる | ready | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
 | `tu23` | `bu19` | `SpacePackage` coordinate contract | 主カメラ path と主空間基準を返し、`GNSS` がない時に主 `ARCore` local 空間を唯一基準として返せる | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt` |
-| `tu24` | `bu20` | `TrajectoryPackage` timeline registration | 主カメラ path、人物 path、不確実性、再拘束点を同じ時刻軸で返せる | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt` |
+| `tu24` | `bu20` | `TrajectoryPackage` timeline registration | 人物個体 `ID` を固定せず、主カメラ path、人物 path、不確実性、再拘束点を同じ時刻軸で返せる | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt` |
 | `tu25` | `bu21` | relink uncertainty classifier | visual match confidence、time gap、anchor proximity、`BT` 維持情報で不確実性を決める | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt` |
-| `tu26` | `bu22` | verify quality summary | `space` と `trajectory` の quality、同時刻比較の弱点、weak area を同時に返せる | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt` |
-| `tu27` | `bu22` | interpret attention point synthesis | `attention point` と同時刻ハイライトに時間範囲、理由、不確実区間情報を持たせる | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt` |
-| `tu28` | `bu23` | review artifact viewer | `reviewing` app が実 `ReviewArtifact` を読み、viewer と timeline 操作を提供できる | ready | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reviewing/` |
-| `tu29` | `bu24` | `ReviewArtifact` boundary contract | `Assembly` だけが `3DGS` 操作、経路表示、同時刻ハイライトを含む `ReviewArtifact` を生成する | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt` |
+| `tu26` | `bu22` | verify quality summary | `space` と `trajectory` の quality、同時刻比較の弱点、weak area に加え、滞留箇所、往復、交錯の兆候を同時に返せる | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt` |
+| `tu27` | `bu22` | interpret attention point synthesis | `attention point` と同時刻ハイライトに時間範囲、理由、不確実区間情報を持たせ、注視区間を絞り込める | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt` |
+| `tu28` | `bu23` | review artifact viewer | `reviewing` app が実 `ReviewArtifact` を読み、viewer と timeline 操作、same-time highlight、`attention point` jump、滞留や交錯の確認操作を提供できる | ready | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reviewing/` |
+| `tu29` | `bu24` | `ReviewArtifact` boundary contract | `Assembly` だけが `3DGS` 操作、経路表示、同時刻ハイライト、`attention point` を含む `ReviewArtifact` を生成する | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt` |
 | `td1` | `bd1` | Python session parser alias compatibility | `bt.jsonl` / `poses.jsonl` と `ble_scan.jsonl` / `arcore_pose.jsonl` の両方を 1 parser で読める | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_session_parser.py` |
 | `td2` | `bd2` | independent project boundary scan | `prj-kisaragi_0002` products と docs が外部 project の shared 参照なしで継続できる | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_project_contracts.py` |
 | `td3` | `bd2` | output routing hygiene | Android build cache と raw test report が `--exsams`、summary が `--testlogs` に分離される | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/scripts/run_android_unit_tests.ps1` |
@@ -327,57 +265,44 @@
 | `td11` | `bd12` | integrated app overview | 統合 app が 3 app の担当境界を俯瞰表示し、切り分け理由を示せる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/MainActivity.kt` |
 | `td12` | `bd13` | extracted bundle snapshot loader | app が `session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json`、`member_identity_map.json` を読んで実データ state を再構成できる | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/WorkflowBundleServiceTest.kt` |
 | `td13` | `bd14` | request preflight output | `modeling` app が `local_model_summary.json`、`colab_job_request.json`、`job_status.json`、`review_artifact_stub.json` を生成できる | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/LocalModelingServiceTest.kt` |
+| `td22` | `bd15` | reviewing actual bundle state | `reviewing` app と統合 app が modeling 結果を読み、verify / review 状態、同時刻ハイライト候補、`attention point` 候補へ反映できる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/MainActivity.kt` |
 | `td14` | `bd16` | drive directory bootstrap intake | `Colab bootstrap package` が指定した `Google Drive` directory から zip または `session_root/` を正規化して読める | ready | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
 | `td15` | `bd16` | remote status and result locator | `job_status.json` に stage、updated_at、result availability、download URL を正規化できる | ready | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
 | `td16` | `bd17` | `DA3Metric-Large` input manifest | `modeling` app が frame sampling、intrinsics mode、projection option を route 単位で `experiment_manifest.json` と `da3_input_manifest.json` に出力できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/LocalModelingService.kt` |
 | `td17` | `bd17` | metric depth and space runner | `DA3Metric-Large` の少なくとも 1 route を `Colab` で実行し、depth、world projection、`3DGS` 系主空間モデル生成に必要な出力を保存できる | ready | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
 | `td18` | `bd17` | space reconstruction report | `metric scale confidence`、`depth continuity`、`point count estimate`、`gs_model` 生成結果、failure reason を `depth_estimation_report.json` と `space_quality.json` に正規化できる | ready | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
-| `td19` | `bd18` | multi-frame densify visible reconstruction | `10s` 前後の整った実動画から複数 frame を sampling し、world point cloud を統合して、`PLY` viewer で粗くでも主空間の見え方と主カメラ path の対応を確認できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
-| `td20` | `bd18` | intrinsics route benchmark aggregation | 少なくとも 2 つの intrinsics / projection route の結果を同一比較表へ集約できる | ready | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
+| `td19` | `bd18` | `TraceCore` multi-frame visible reconstruction | `10s` 前後の整った実動画から複数 frame を sampling し、world point cloud を統合して、`GNSS` なしでも主空間、主カメラ path、人軌跡を重ねた最小表示を返し、全体俯瞰、時系列、相対表示、滞留や交錯の兆候を検討できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
+| `td20` | `bd18` | intrinsics route benchmark aggregation | 少なくとも 2 つの intrinsics / projection route の結果について、quality、runtime、resource usage、failure reason を同一比較表へ集約できる | ready | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
 | `td21` | `bd19` | selected route decision artifact | 暫定採用 route、不採用理由、research route、再評価条件を `selected_route.json` に保存できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/LocalModelingService.kt` |
-| `td22` | `bd15` | reviewing actual bundle state | `reviewing` app と統合 app が modeling 結果を読み、verify / review 状態へ反映できる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/MainActivity.kt` |
 | `td23` | `bd20` | gate classification rule trace | `UX-only`、contract、sample、本機能の区別が `ux-b2t-hypo.md`、`admin-mrl-test-method.md`、`admin-mrl-test-evidence.md` で矛盾なく追える | ready | `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/` |
 
 ### 実行方針
-- `MRL-1` では `tu1` から `tu7`、`tu12`、`tu13`、`tu14` で `correcting` の記録、`data-check`、calibration 診断を固める
-- `MRL-2` では `tu8` から `tu11` と `td6` から `td8` で `correcting` の転送、raw video 維持、handoff bundle を固める
-- `MRL-3` では `td13`、`tu20` と runbook 実行で `modeling` の bootstrap / install 導線を固める
-- `MRL-4` では `td12`、`td14`、`tu18`、`tu21`、`td23` で `modeling` の実 bundle 読込、request preflight、directory intake を固める
-- `MRL-5` では `td16` から `td18` と `tu22`、`tu23` で `modeling` の single-frame `3DGS` smoke を固める
-- `MRL-6` では evidence bundle の取得、download、local 参照導線を固定する
-- `MRL-7` では `td19` を中心に `modeling` の `multi-frame` densify を固める
-- 後続 `MRL-**` では `reviewing`、`system統合`、request / status UX、route 比較、採用 route 固定を、admin が手を動かす実態に合わせて順次切り出す
-- 後続の利用者向け `MRL-**` では route 比較、採用 route 固定、request / status UX、remote result 返却、reviewing viewer、正式統合を、admin が手を動かす modeling 実態に合わせて順次切り出す
+| 対象 `MRL` | phase | 主に扱う `task_id` | 狙い | 現在の進め方 |
+| --- | --- | --- | --- | --- |
+| `MRL-1` | `correcting` | `tu1`-`tu7`, `tu12`-`tu14` | 記録、抽出、`data-check`、calibration 診断を 1 app UX として固める | `correcting` の記録系と品質診断系を先に閉じ、後段へ渡せる bundle を安定化する |
+| `MRL-2` | `correcting` | `tu8`-`tu11`, `td6`-`td8` | `Google Drive` 転送、raw video 維持、handoff bundle 生成を固める | 転送導線と handoff 契約を同じ batch で追い、`SpaceReconstruction` 着手可否まで閉じる |
+| `MRL-3` | `modeling` | `td13`, `tu20` | bootstrap / install と request 起点の導線を固める | runbook と request preflight を先にそろえ、remote 実行前の入口を固定する |
+| `MRL-4` | `modeling` | `td12`, `td22`, `td14`, `tu18`, `tu21`, `td23` | 実 bundle 読込、request preflight、directory intake、review 側の状態読込を固める | 実データ snapshot と remote intake を先に通し、review 側は stub と結果読込で追従させる |
+| `MRL-5` | `modeling` | `td16`-`td18`, `tu22`, `tu23` | single-frame `3DGS` smoke と `SpacePackage` 契約を固める | `DA3Metric-Large` の最小 route を通し、主空間要約と download 導線を残す |
+| `MRL-6` | `modeling` | `tu22`, `tu23`, `td23` | evidence bundle の取得、download、local 再参照導線を固定する | notebook evidence と local artifact を product 側 evidence として残せる状態を維持する |
+| `MRL-7` | `modeling` | `td19` | `TraceCore` の `multi-frame` densify と高価値な見方を検討できる最小表示を固める | `10s` 前後の整った実動画で、全体俯瞰、時系列、相対表示、滞留、交錯を読めるかを first target に置く |
+| `MRL-**` | `reviewing` / `system統合` | `tu24`-`tu29`, `td20`-`td23` | route 比較、採用 route 固定、reviewing viewer、統合 UX を順次切り出す | admin が手を動かす実態に合わせ、比較、viewer、handoff、統合を後続 gate へ分割する |
 
 ### 現在の見立て
-- `tu1` から `tu7` と `td1` から `td8` の基礎 task は、契約実装、project 境界 scan、output routing 実行で `p-done` になった
-- Python unittest、Android unit test、PowerShell script 実行により、入口契約から成果物 routing までの計画範囲を固定した
-- 旧 `MRL-1` から `MRL-14` には、phase と手段と補助確認が混在していたため、現在は `correcting`、`modeling`、`reviewing`、`system統合` の各 phase に複数 `MRL` を割り当てる
-- `MRL-1` と `MRL-2` は `correcting` phase の gate とし、実データ取得、`data-check`、`Google Drive` 転送、`SpaceReconstruction` handoff bundle までの admin evidence がそろったため、この段では `p-done` とする
-- `td9` 以降の modeling / reviewing task は、基礎は通っているが本機能 close には未達である
-- `MRL-3` から `MRL-6` は `modeling` phase のうち、bootstrap / install、実 bundle 読込、single-frame `3DGS` smoke、artifact 取得がそろった範囲として `p-done` とする
-- `MRL-2` の転送 close 導線は、`現場撮影データ保存 -> data-check -> Google Drive転送 -> handoff bundle` を 1 app UX として閉じる。転送 block 内の順番と popup UX を正本に固定する
-- `MRL-2` の事前設定は `転送先を選択 -> URL を確認または変更 -> 保存先fileを設定する -> Google Drive 上で保存先 file を選ぶ` を既定導線とし、既定 URL は `u/2` の指定 folder に固定する
-- `td9` から `td23` と `tu20` から `tu29` は multi-app 骨格、実 bundle summary、request preflight、remote status、route 比較、viewer 検証としては有効だが、本機能完成の証拠としては不十分である
-- `MRL-5` は、`correcting` 実データを使った single-frame `3DGS` 系主空間モデル候補の smoke 生成と生成 artifact 取得までを根拠に `p-done` とする
-- `MRL-6` は、notebook evidence と local downloaded artifact bundle を product 側 evidence として取得できる段までを `p-done` とする
-- 次段は `MRL-7` とし、`10s` 前後の整った実動画から `multi-frame` depth / world projection を積み上げて、admin が `PLY` viewer でぼんやり見える再現モデルを確認できる水準を first target に置く
-- `MRL-**` は後続残件群として置き、task 実測で課題の大小が見えた時点で `MRL` / `mRL` の切り方を調整する
-- 後続 `MRL-**` では、少なくとも `multi-route` 比較、`selected_route.json` 固定、request 起点 UX、`job_status.json` と waiting ring、download URL を含む result 返却、`SpacePackage` / `TrajectoryPackage` / `ReviewArtifact` handoff、reviewing viewer 実装、主空間 / 主カメラ経路 / 人物経路 / same-time highlight を同じ review 文脈で扱う統合 UX を順に残す
-- modeling は admin の手作業を含むため、後続 `MRL` の達成基準は都度「いま実際に進めやすい粒度」へ合わせて更新する
-- ただし `MRL` の達成品質として求める UX 自体は薄めず、元の north star である「利用者が主空間の見え方と主カメラ経路を確認できる」「処理状態と次 action を迷わず把握できる」方向に沿って各段の到達像を明記する
+| 区分 | 対象 `task_id` | 現在の見立て | 対応する `MRL` | 補足 |
+| --- | --- | --- | --- | --- |
+| `correcting` 基礎 | `tu1`-`tu7`, `td1`-`td8` | 契約実装、project 境界 scan、output routing 実行まで通っており、この範囲は `p-done` と読める | `MRL-1`, `MRL-2` | Python unittest、Android unit test、PowerShell script 実行で入口契約から成果物 routing まで固定した |
+| 転送導線 | `tu8`-`tu11` | 転送 close 導線は `現場撮影データ保存 -> data-check -> Google Drive転送 -> handoff bundle` で閉じる前提にそろっている | `MRL-2` | 事前設定は `転送先を選択 -> URL を確認または変更 -> 保存先fileを設定する -> Google Drive 上で保存先 file を選ぶ` を既定導線とする |
+| `modeling` 入口 | `td13`, `tu20`, `td12`, `td14`, `tu18`, `tu21`, `td23`, `td22` | bootstrap / install、実 bundle 読込、request preflight、directory intake、review 側の状態読込までそろった範囲は `p-done` と読める | `MRL-3`, `MRL-4` | `td9` 以降の `modeling` / `reviewing` task は基礎として有効だが、本機能 close には未達である |
+| single-frame 主空間 | `td16`-`td18`, `tu22`, `tu23` | `correcting` 実データを使った single-frame `3DGS` 系主空間モデル候補の smoke 生成と artifact 取得までを根拠に `p-done` と読める | `MRL-5` | `SpacePackage` と download 導線の最小契約は通っている |
+| evidence 再参照 | `tu22`, `tu23`, `td23` | notebook evidence と local downloaded artifact bundle を product 側 evidence として取得できる段まで通っている | `MRL-6` | product 側 evidence として再参照できることを主に見る |
+| `TraceCore` 次段 | `td19` | 次段の first target は、`10s` 前後の整った実動画から `TraceCore` の最小表示を返し、全体俯瞰、時系列、相対表示、滞留、交錯を検討できる水準である | `MRL-7` | まだ `active`。ここが現在の主 target である |
+| 後続 backlog | `tu24`-`tu29`, `td20`-`td23` | `multi-route` 比較、`selected_route.json` 固定、request / status UX、result 返却、viewer 実装、統合 UX は後続 `MRL-**` へ残っている | `MRL-**` | task 実測で課題の大小が見えた時点で `MRL` / `mRL` の切り方を調整する |
+| 共通方針 | `TDD` 全体 | `MRL` の達成品質として求める UX は薄めず、north star に沿って各段の到達像を明記し続ける | 全体 | modeling は admin の手作業を含むため、後続 `MRL` の粒度は実測に合わせて更新する |
 
 ## `MRL` 対応表
-- `MRL` は `BDD` の story / behavior と `TDD` の task を束ね、admin がどの gate test 項目を `UX check` すべきかを定義する。
-- 各 row は「この gate で何を確認するか」を 1 つの test 項目として持ち、`task-id` が空でない限り、下の `TDD` と追跡可能でなければならない。
 - `admin UX確認手順` は [admin-mrl-test-method.md](/Users/tetsuya/kisaragi/kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-method.md) の章名または操作手順番号をそのまま書く。
 - `admin evidence` は [admin-mrl-test-evidence.md](/Users/tetsuya/kisaragi/kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-evidence.md) の章名をそのまま書く。
-- `現在 gate` と `UX評価状態` は `ready`、`active`、`p-done`、`i-pass` の 4 値だけを使う。
-- `ready` は、未着手または開始待ちを示す。`UX評価状態` では、まだ admin `UX check` に出す段階ではないことを示す。
-- `active` は、実装、検証、評価の進行中を示す。`UX評価状態` では、manual、実行環境、対象機能がそろい、admin が今すぐ test できるか test を進行中であることを示す。
-- `p-done` は、当該 phase 範囲で成立確認済みを示す。`UX評価状態` では、phase 単位の UX 確認が一通り完了した状態を示す。
-- `i-pass` は、関連統合範囲まで成立確認済みを示す。`UX評価状態` では、関連統合範囲まで含む admin `UX check` が完了し、結果が `admin-mrl-test-evidence.md` に記録済みであることを示す。
-- `未収載` は、まだ `admin-mrl-test-method.md` に具体手順が無いことを明示する。
 
 ### 利用者主導 gate
 | MRL | mRL | gate test 項目 | story-id | behavior-id | task-id | 現在 gate | UX評価状態 | admin UX確認手順 | admin evidence |
@@ -402,8 +327,8 @@
 | `MRL-6` | `-` | `modeling` の smoke 生成物を<br>admin が notebook / local download で取得し、<br>product 側 evidence として<br>再参照できることを確認する | `su15`,`sd11` | `bu19`,`bd20` | `tu23`,`td23` | `p-done` | `p-done` | da3_colab_<br>clean_bootstrap_<br>runbook.md<br>の Candidate 拡張状況 | 2026-03-29 modeling evidence bundle close evidence |
 | `MRL-6` | `mRL-6.1` | `Google Colab` 実行 notebook を product 側 evidence として保存し、再参照できることを確認する | `sd11` | `bd20` | `td23` | `p-done` | `p-done` | da3_colab_<br>clean_bootstrap_<br>runbook.md の<br>Candidate 拡張状況 | 2026-03-29 modeling evidence bundle close evidence |
 | `MRL-6` | `mRL-6.2` | local downloaded smoke artifact 一式を product 側 evidence として保存し、再参照できることを確認する | `su15`,`sd11` | `bu19`,`bd20` | `tu23`,`td23` | `p-done` | `p-done` | da3_colab_<br>clean_bootstrap_<br>runbook.md の<br>Candidate 拡張状況 | 2026-03-29 modeling evidence bundle close evidence |
-| `MRL-7` | `-` | `10s` 前後の整った実動画から<br>`multi-frame` で、利用者が<br>主空間の見え方と主カメラ経路を<br>粗くでも把握できる再現モデルを得る | `sd9`,`su15`,<br>`sd11` | `bd18`,`bu19`,<br>`bd20` | `td19`,`td23` | `active` | `ready` | `未収載` | `未収載` |
-| `MRL-7` | `mRL-7.1` | `10s` 前後の整った実動画から `multi-frame` sampling route を回し、`PLY` でぼんやり見える再現モデルと主カメラ path の対応を確認する | `sd9`,`su15` | `bd18`,`bu19` | `td19` | `active` | `ready` | `未収載` | `未収載` |
+| `MRL-7` | `-` | `10s` 前後の整った実動画から<br>`TraceCore` として `multi-frame` で、<br>利用者が主空間、主カメラ経路、<br>人軌跡の関係を見比べ、<br>全体俯瞰、時系列、相対表示、<br>滞留や交錯の兆候を検討できる<br>最小表示を得る | `sd9`,`su15`,<br>`sd11` | `bd18`,`bu19`,<br>`bd20` | `td19`,`td23` | `active` | `ready` | `未収載` | `未収載` |
+| `MRL-7` | `mRL-7.1` | `10s` 前後の整った実動画から `multi-frame` sampling route を回し、`GNSS` なしでも主空間、主カメラ path、人軌跡を重ねた `TraceCore` 最小表示で、全体俯瞰、時系列、相対表示、滞留や交錯の兆候の価値を確認する | `sd9`,`su15` | `bd18`,`bu19` | `td19` | `active` | `ready` | `未収載` | `未収載` |
 | `MRL-7` | `mRL-7.**` | 補助比較や追加確認が必要なら、実測に応じて `multi-frame` 内の追加確認を切り出す | `sd9`,`sd11` | `bd18`,`bd20` | `td19`,`td23` | `ready` | `ready` | `未収載` | `未収載` |
 
 ### 利用者向け後続 `MRL-**` に紐づく運営者補助 gate

@@ -49,7 +49,6 @@ No.3 | prj-kisaragi_0003 : remote-pwsh
 ```text
 kisaragi/
   kisaragi-db/
-  kisaragi-ruling/
   kisaragi-skills/
   kisaragi-tree/
   AGENTS.md
@@ -190,10 +189,13 @@ kisaragi-tree/
 - `Purpose Story` は `s1` 形式の識別子で、project の目的に直結する利用価値の流れとして記述する。
 - `System Behaviors` は `b1` 形式の識別子で、観測可能な振る舞いとして記述する。
 - `受け入れ基準` は `s-id`、`b-id`、観点、受け入れ基準の表で持つ。
-- `MRL` 対応表は `MRL`、`mRL`、目的、関連 `s-id`、関連 `b-id`、現在 gate の表で持つ。
+- `MRL` 対応表は、admin がどの gate test 項目を `UX check` すべきかを定義する表とする。
+- `MRL` 対応表の各 row は「この gate で何を確認するか」を 1 つの test 項目として持ち、`task-id` が空でない限り下の `TDD` と追跡可能でなければならない。
+- `MRL` 対応表は、少なくとも `MRL`、`mRL`、`gate test 項目`、関連 `s-id`、関連 `b-id`、`task-id`、`現在 gate` を持つ。
 - `MRL` 対応表の gate 状態語は `ready`、`active`、`p-done`、`i-pass` を使う。
 - `MRL` 対応表の記載順は、`ready` から `i-pass` への時系列ではなく、既定で運用順 `correcting`、`modeling`、`reviewing` を優先する。
 - `MRL` 対応表では、直近の visible target は番号付き `MRL` / `mRL` で明記し、後続で粒度未確定の残件だけを `MRL-**` / `mRL-**` で置いてよい。
+- `MRL` 対応表に admin `UX check` 列を持たせる時は、`admin UX確認手順` は admin 手順正本の章名または操作手順番号をそのまま書き、`admin evidence` は admin 証跡正本の章名をそのまま書く。
 - `INITL` 対応表は、`MRL` 対応表の直下に別 subsection として置き、`INITL`、`mINITL`、目的、関連 `MRL` または関連段階、現在 gate を少なくとも持つ。
 - `INITL-*` と `mINITL-*` は、package、install、bootstrap、実行環境、account 準備、remote 配置、配布導線などの準備 UX を表す識別子とする。
 - `INITL` は機能 behavior そのものではないため、`Purpose Story` / `System Behaviors` へ無理に混ぜず、対応する `MRL` を滑らかに開始する別 process として扱う。
@@ -212,6 +214,7 @@ kisaragi-tree/
 - `UX評価状態` の `active` は、manual、実行環境、対象機能がそろい、admin が今すぐ test できるか、または test を進行中であることを示す。
 - `UX評価状態` の `p-done` は、当該 phase の UX 確認が一通り完了した状態を示す。
 - `UX評価状態` の `i-pass` は、関連統合範囲まで含む admin `UX check` が完了し、結果が `admin-mrl-test-evidence.md` に記録済みであることを示す。
+- `未収載` は、まだ admin 手順正本に具体手順が無いことを明示する補助語として使ってよい。
 
 ## ブランチ規則
 - branch 運用の authoritative section はこの節とする。
@@ -238,7 +241,7 @@ kisaragi-tree/
 - project から移した内部情報は、根拠なく削減しない。
 - 構造や rule を変える時は、対応する正本と pointer の両方を確認する。
 - user の明示指示がない限り、未整理データや未解決項目を消さない。
-- 迷いがある場合は `kisaragi-ruling/` を確認し、`issue-note.md` が実在する時だけ補助メモとして参照または更新する。
+- 迷いがある場合は、関連 project の正本と共有制御ファイルを先に確認する。
 
 # 協調規則
 ## 役割

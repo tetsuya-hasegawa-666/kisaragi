@@ -8,8 +8,7 @@
 | --- | --- | --- |
 | [`AGENTS.md`](./AGENTS.md) | repository 全体の shared control file | [`AGENTS.md`](./AGENTS.md) |
 | [`kisaragi-db/`](./kisaragi-db/) | project ごとの計画、状態、証跡、実装物の正本 | [`kisaragi-db/agents.md`](./kisaragi-db/agents.md) |
-| [`kisaragi-ruling/`](./kisaragi-ruling/) | 運用 rule と ruling の置き場 | [`AGENTS.md`](./AGENTS.md) |
-| [`kisaragi-skills/`](./kisaragi-skills/) | skill 正本 | [`AGENTS.md`](./AGENTS.md) |
+| [`kisaragi-skills/`](./kisaragi-skills/) | 統合 skill 正本 | [`kisaragi-skills/agents.md`](./kisaragi-skills/agents.md) |
 | [`kisaragi-tree/`](./kisaragi-tree/) | junction による閲覧 tree | [`kisaragi-tree/agents.md`](./kisaragi-tree/agents.md) |
 
 ## 現在の project 対応

@@ -1,0 +1,7 @@
+interface:
+  display_name: "Delivery Planning Keeper"
+  short_description: "Unify BDD, TDD, release gate checks, and session handover in one planning flow."
+  default_prompt: "Use $delivery-planning-keeper to derive BDD behaviors, map them to TDD tasks, assess release readiness, and leave a concise handover when needed."
+
+policy:
+  allow_implicit_invocation: true

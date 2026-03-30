@@ -12,6 +12,20 @@
 
 ## 更新履歴
 
+### 2026-03-30 AGENTS.md `kisaragi-ruling` 削除と skill 統合反映
+
+- 日時: `2026-03-30`
+- 文書名: `AGENTS.md`
+- 標題: top 構造から `kisaragi-ruling` を外し、`kisaragi-skills` の統合方針へ合わせた
+- 背景: `kisaragi-ruling` は実質未稼働で、skill 群も細分化されすぎていたため、workspace 構造と運用説明を実体に合わせて縮約する必要があった。
+- 目的: top directory 説明を現構造へそろえ、迷い時の参照先を shared control file と project 正本へ一本化する。
+- 対処方法: `kisaragi/` top 構造から `kisaragi-ruling/` を削除し、`Guard` の参照規則を shared control file と project 正本中心へ修正した。
+- 対応内容: `AGENTS.md` の top 構造例と `Guard` を更新し、関連文書側でも `kisaragi-ruling` 削除と skill 統合を反映した。
+- 更新結果: top 構造の説明と実 directory が一致し、迷い時の参照先も実在文書だけに絞られた。
+- 新旧比較:
+  - 旧: `kisaragi-ruling/` を top 構造へ残し、迷い時の参照先にもしていた。
+  - 新: `kisaragi-ruling/` を外し、共有制御ファイルと project 正本を優先する説明になった。
+
 ### 2026-03-29 AGENTS.md `MRL-**` の使いどころ明確化
 
 - 日時: `2026-03-29`
@@ -487,3 +501,17 @@
 - 新旧比較:
   - 旧: notebook や shared worklog を補助参照しないと再現しにくい runbook が残り得た。
   - 新: runbook は evidence 非参照で単体再現できることを shared rule として固定した。
+
+### 2026-03-30 AGENTS.md MRL 対応表の shared rule 吸収
+
+- 日時: `2026-03-30`
+- 文書名: `AGENTS.md`
+- 標題: `MRL` 対応表の汎用 rule 集約
+- 背景: `prj-kisaragi_0002` の `ux-b2t-hypo.md` で、`MRL` 対応表の役割、row の追跡性、状態語、`未収載` の意味など shared 化できる前書きが project 文書側へ残っていた。
+- 目的: `MRL` 対応表の読み方と記載 rule を shared governance へ戻し、project 文書には project 固有の参照先だけを残す。
+- 対処方法: `開発計画` 節へ `MRL` 対応表の目的、必須列、TDD 追跡性、admin `UX check` 列の書き方、`未収載` の意味を追記した。
+- 対応内容: `ux-b2t-hypo.md` 側の前書きから shared rule を削り、`admin-mrl-test-method.md` と `admin-mrl-test-evidence.md` への project 固有参照だけを残した。
+- 更新結果: 今後は `MRL` 対応表の汎用 rule を `AGENTS.md` で統一し、project 文書では個別の運用先だけを読む構造になる。
+- 新旧比較:
+  - 旧: `MRL` 対応表の汎用 rule が project 文書ごとに重複し得た。
+  - 新: 汎用 rule は `AGENTS.md`、project 文書には固有参照のみを残す構造へ整理した。

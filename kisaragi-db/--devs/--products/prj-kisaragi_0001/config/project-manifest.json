@@ -9,10 +9,9 @@
         "kisaragi-db/--devs"
       ],
       "compareRoots": [
-        "kisaragi-db/--devs/--project-truth",
-        "kisaragi-db/--devs/--plans",
-        "kisaragi-db/--devs/--evidence",
-        "kisaragi-db/--devs/--state"
+        "kisaragi-db/--devs/--tgpce-map",
+        "kisaragi-db/--devs/--products",
+        "kisaragi-db/--devs/--testlogs"
       ]
     },
     {

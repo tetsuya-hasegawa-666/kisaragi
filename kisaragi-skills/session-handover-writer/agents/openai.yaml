@@ -1,4 +1,0 @@
-interface:
-  display_name: "Session Handover Writer"
-  short_description: "Write concise handover notes"
-  default_prompt: "Produce session handover with decisions, open issues, and next actions."

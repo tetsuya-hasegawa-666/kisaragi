@@ -2,31 +2,23 @@
 
 ## kisaragi-skills の構成
 
-- この directory は skill 集約層とする。
-- skill 実体は skill 名 directory ごとに独立して配置するものとする。
+- この directory は skill 正本 directory とする。
+- skill 実体は役割が近いものを統合して配置するものとする。
 - 同名 skill は 1 つだけを正本として置くものとする。
-- 役割が近い skill がある場合は、kisaragi-skills の中の agents.md で境界を明示するものとする。
+- 役割が近い skill は、観点を失わない範囲で既存 skill へ吸収してよい。
 
 
 ## 収録 skill
 
-- `bdd-story-builder`
-- `branch-sync-operator`
-- `doc-governor`
-- `docker-stability-operator`
-- `document-topology-keeper`
 - `documentation-watchkeeper`
-- `encoding-integrity-keeper`
-- `fastapi`
+- `delivery-planning-keeper`
 - `frontier-research-curator`
-- `release-line-gatekeeper`
-- `session-handover-writer`
-- `tdd-testflow-manager`
+- `runtime-operator`
 
 
 ## 役割境界
 
-- `document-topology-keeper` は文書 topology、authoritative / pointer、重複削減を扱うものとする。
-- `doc-governor` は versioned spec set の current / archive 整合を扱うものとする。
-- `documentation-watchkeeper` は会話や実装変更による docs drift の検知と同一 turn での追従を扱うものとする。
-- `encoding-integrity-keeper` は text / markdown の encoding 健全性だけを扱うものとする。
+- `documentation-watchkeeper` は docs drift、文書 topology、version 整合、encoding 健全性をまとめて扱うものとする。
+- `delivery-planning-keeper` は BDD、TDD、release gate、handover をまとめて扱うものとする。
+- `runtime-operator` は branch 同期、Docker 安定化、FastAPI 実装運用をまとめて扱うものとする。
+- `frontier-research-curator` は外部研究調査を扱うものとする。

@@ -1,4 +1,0 @@
-interface:
-  display_name: "TDD Testflow Manager"
-  short_description: "Plan TDD tasks from BDD leaves"
-  default_prompt: "Derive TDD tasks, checks, and criteria from BDD terminal behaviors."

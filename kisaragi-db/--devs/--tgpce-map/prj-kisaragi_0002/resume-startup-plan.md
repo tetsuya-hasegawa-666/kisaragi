@@ -20,7 +20,7 @@
 - 成立済みなのは `single-frame bootstrap` であり、これは最終目標ではなく `modeling 本機能` への通過点である。
 - `MRL-1` と `MRL-2` は `correcting` phase の `p-done` であり、実 session 記録、`data-check`、calibration、`Google Drive` 転送、handoff bundle まで閉じている。
 - `MRL-3` から `MRL-6` は `modeling` phase の `p-done` であり、bootstrap / install、bundle 読込、single-frame `3DGS` smoke、evidence bundle 取得まで閉じている。
-- 現在の main target は `MRL-7` であり、`10s` 前後の整った実動画を使った `multi-frame` densify で、利用者が主空間の見え方と主カメラ経路を粗く把握できる再現モデルを admin がまず `PLY` viewer で確認する水準へ進めることである。
+- 現在の main target は `MRL-7` であり、`10s` 前後の整った実動画を使った `TraceCore` の `multi-frame` densify で、利用者が主空間、主カメラ経路、人軌跡の見え方を自然に重ねて見られ、全体俯瞰、時系列、camera と人の相対表示の価値を検討できる最小表示を admin がまず確認する水準へ進めることである。
 - `MRL-**` は細かく固定せず大まかな順番だけを置き、実測で見えた課題の大小に応じて `MRL` / `mRL` を切り直す。
 - ただし後続 `MRL` でも UX 到達品質は元の目標に沿わせる。特に modeling では、利用者が主空間の見え方、主カメラ経路、処理状態、次 action を迷わず把握できる方向を維持する。
 - 後続 `MRL-**` で最低限残る項目は、`multi-route` 比較、`selected_route.json` 固定、request 起点 UX、`job_status.json` と waiting ring、download URL を含む result 返却、`SpacePackage` / `TrajectoryPackage` / `ReviewArtifact` handoff、reviewing viewer 実装である。
@@ -37,7 +37,7 @@
 
 ## 次回の主残件
 
-- `10s` 前後の整った実動画から `multi-frame` で point cloud を densify し、`PLY` viewer でぼんやり見える再現モデルを確認する route は未着手。
+- `10s` 前後の整った実動画から `multi-frame` で point cloud を densify し、`TraceCore` として価値が高い見方を検討できる最小表示を確認する route は未着手。
 - `sampling` / `intrinsics` / `projection` の route 比較、`benchmark_summary.json`、`selected_route.json` の本機能 close は `MRL-**` 側の後続課題として未達。
 - request 元画面から `Google Drive` input directory / result directory を指定する UX は未実装。
 - remote 実行中の `waiting ring`、現在 stage、更新時刻表示は未実装。
@@ -48,8 +48,8 @@
 ## 次回の最初の 5 手
 
 1. [sharedlogs_da3-colab.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\sharedlogs_da3-colab.md) の最下部を読んで、最新の `# codex v**` と `# admin` を確認する。
-2. [ux-b2t-hypo.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\ux-b2t-hypo.md) の `MRL-7` を確認し、次段の target を `10s` 前後の整った実動画による `multi-frame` densify に合わせる。
-3. `Colab` 側で `single-frame` の次として、複数 frame を sampling して world point cloud を統合し、`PLY` でぼんやり見える再現モデルを出す最小 route を設計する。
+2. [ux-b2t-hypo.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\ux-b2t-hypo.md) の `MRL-7` を確認し、次段の target を `TraceCore` の `multi-frame` densify と review 価値仮説を見据えた最小表示に合わせる。
+3. `Colab` 側で `single-frame` の次として、複数 frame を sampling して world point cloud を統合し、全体俯瞰、時系列、camera と人の相対表示の価値を検討できる `TraceCore` 最小表示 route を設計する。
 4. `MRL-7` で本当に必要になった追加確認だけを `mRL-7.**` として切り出し、後続の route 比較や UX 統合は `MRL-**` 側へ送る。
 5. その後に `modeling/job_status.json` の schema、stage 名、waiting ring 更新条件、download URL 返却条件と、request 元の `input directory`、`result directory`、`route id` を束ねた request 生成 UX を設計する。
 

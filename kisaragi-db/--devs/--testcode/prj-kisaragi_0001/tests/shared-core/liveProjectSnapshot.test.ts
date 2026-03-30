@@ -66,9 +66,9 @@ describe("liveProjectSnapshot", () => {
     expect(snapshot.profiles[0]?.projectRoot.endsWith(rootName(manifestPath))).toBe(false);
     expect(snapshot.profiles[0]?.documents.map((document) => document.path)).toContain("kisaragi");
     expect(snapshot.profiles[0]?.documents.map((document) => document.path)).toContain("kisaragi/kisaragi-db");
-    expect(snapshot.profiles[0]?.documents.map((document) => document.path)).toContain("kisaragi/kisaragi-db/--devs/--plans");
+    expect(snapshot.profiles[0]?.documents.map((document) => document.path)).toContain("kisaragi/kisaragi-db/--devs/--tgpce-map");
     expect(snapshot.profiles[0]?.documents.map((document) => document.path)).toContain("kisaragi/kisaragi-tree");
-    expect(snapshot.profiles[0]?.documents.map((document) => document.path)).toContain("kisaragi/kisaragi-ruling");
+    expect(snapshot.profiles[0]?.documents.map((document) => document.path)).toContain("kisaragi/kisaragi-skills");
     expect(snapshot.profiles[0]?.documents.map((document) => document.path)).toContain("kisaragi/AGENTS.md");
     expect(snapshot.profiles[0]?.documents.map((document) => document.path)).toContain("kisaragi/.gitignore");
     expect(snapshot.profiles[1]?.documents.map((document) => document.path)).toContain("kisaragi");
@@ -183,8 +183,7 @@ function createWorkspaceRootFixture(): { manifestPath: string } {
   tempRoots.push(root);
 
   const workspaceRoot = join(root, "kisaragi");
-  mkdirSync(join(workspaceRoot, "kisaragi-db", "--devs", "--plans"), { recursive: true });
-  mkdirSync(join(workspaceRoot, "kisaragi-ruling"), { recursive: true });
+  mkdirSync(join(workspaceRoot, "kisaragi-db", "--devs", "--tgpce-map"), { recursive: true });
   mkdirSync(join(workspaceRoot, "kisaragi-skills"), { recursive: true });
   mkdirSync(join(workspaceRoot, "kisaragi-tree"), { recursive: true });
   mkdirSync(join(workspaceRoot, "kisaragi-tree", "prj-kisaragi_0001"), { recursive: true });
@@ -192,8 +191,7 @@ function createWorkspaceRootFixture(): { manifestPath: string } {
   writeFileSync(join(workspaceRoot, "AGENTS.md"), "# Root\n", "utf8");
   writeFileSync(join(workspaceRoot, ".gitignore"), "node_modules/\n", "utf8");
   writeFileSync(join(workspaceRoot, "kisaragi-db", "agents.md"), "# DB\n", "utf8");
-  writeFileSync(join(workspaceRoot, "kisaragi-db", "--devs", "--plans", "plan.md"), "# Plan\n", "utf8");
-  writeFileSync(join(workspaceRoot, "kisaragi-ruling", "agents.md"), "# Ruling\n", "utf8");
+  writeFileSync(join(workspaceRoot, "kisaragi-db", "--devs", "--tgpce-map", "plan.md"), "# Plan\n", "utf8");
   writeFileSync(join(workspaceRoot, "kisaragi-skills", "agents.md"), "# Skills\n", "utf8");
   writeFileSync(join(workspaceRoot, "kisaragi-tree", "agents.md"), "# Tree Agents\n", "utf8");
   writeFileSync(join(workspaceRoot, "kisaragi-tree", "tree-sync.ps1"), "Write-Host sync\n", "utf8");

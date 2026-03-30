@@ -1,20 +1,22 @@
 ---
 name: documentation-watchkeeper
-description: 会話起点の文書影響を検知し、新しい判断、前提、範囲変更、統治更新、実装方針変更、重要な暫定規則を project 文書へ同期する。`docs/` に影響する code や plan を Codex が変更したとき、作業途中で user の方針が変わったとき、新しい運用規則が決まったとき、重要な方向性を漏れなく正しい文書へ反映すべきときに使う。
+description: 会話起点の文書影響を検知し、新しい判断、前提、範囲変更、統治更新、実装方針変更、重要な暫定規則を project 文書へ同期する。docs drift だけでなく、文書 topology、version 整合、encoding 健全性も同じ turn で扱う。
 ---
 
 # Documentation Watchkeeper
 
-## 適用境界
+## 吸収した観点
 
-- 会話で決まった新しい事実や code 変更を、その turn のうちに文書へ反映すべきときに使う。
-- archive 再編や旧 file の移設を主目的にするときの第一選択にはしない。
-- 新しい project truth が増えていない状態での topology 正規化を主目的にするときの第一選択にはしない。
+- `documentation-watchkeeper` の docs drift 検知
+- `document-topology-keeper` の authoritative / pointer 整理
+- `doc-governor` の version / archive 整合
+- `encoding-integrity-keeper` の UTF-8 preflight と mojibake 防止
 
 作業中の documentation drift を防ぐために使う。
 
 ## 中核規則
 会話によって project truth が変わったら、その turn のうちに文書更新が必要かを確認する。
+可読性が壊れている文書を、そのまま真実として扱わない。
 
 ## 発動チェック
 次のいずれかが起きたらこの skill を使う。
@@ -33,14 +35,17 @@ description: 会話起点の文書影響を検知し、新しい判断、前提�
    - test または execution process
    - reference knowledge
    - handover または operational log
-3. どれか 1 つを編集する前に、影響を受ける文書を洗い出す。
-4. 最上位の source of truth を先に更新し、その後で下流の運用文書を更新する。
-5. 作業中に route や process が変わった場合は、関連する進行中の process log も更新する。
-6. 編集後は、次を明示的に確認する。
+3. 編集前に、対象文書の encoding が信頼できるかを確認する。必要なら `scripts/` で UTF-8 正規化する。
+4. どれか 1 つを編集する前に、影響を受ける文書と authoritative / pointer の役割を洗い出す。
+5. 最上位の source of truth を先に更新し、その後で下流の運用文書を更新する。
+6. archive や旧版を持つ場合は current / archive の整合を確認する。
+7. 作業中に route や process が変わった場合は、関連する進行中の process log も更新する。
+8. 編集後は、次を明示的に確認する。
    - 記載漏れ
    - 矛盾
    - 古い参照
    - 上位文書に集約すべき重複記述
+   - UTF-8 可読性
 
 ## 優先順
 1. `docs/artifact/north_star.md` and `docs/artifact/problem_and_assumptions.md` for principles and assumptions
@@ -58,4 +63,8 @@ description: 会話起点の文書影響を検知し、新しい判断、前提�
 - 文書更新が不要だった場合も、確認したうえで不要と明示する。
 
 ## 参照
-- まず `docs/index.md` を読み、現在の source-of-truth 配置を確認する。
+
+- `references/`
+- `scripts/check_text_runtime_utf8.py`
+- `scripts/check_markdown_encoding.py`
+- `scripts/normalize_markdown_utf8.py`

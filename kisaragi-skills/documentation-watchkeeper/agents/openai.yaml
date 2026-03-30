@@ -1,4 +1,7 @@
 interface:
   display_name: "Documentation Watchkeeper"
-  short_description: "Track policy changes and update docs"
-  default_prompt: "Monitor decisions and update all affected documentation without omissions."
+  short_description: "Track doc changes while also checking topology, archive consistency, and UTF-8 readability."
+  default_prompt: "Use $documentation-watchkeeper to update affected documentation without omissions and keep topology, archive consistency, and UTF-8 readability aligned."
+
+policy:
+  allow_implicit_invocation: true
