@@ -2740,9 +2740,9 @@ window_path = probe_dir / "mrl7_window_probe.json"
 session_root = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
 session_outer = session_root.parent
 
-out_optim_pt = world_dir / "gaussian_params_optim500.pt"
-out_optim_png = world_dir / "gaussian_render_optim500.png"
-out_summary = world_dir / "gaussian_optim500_summary.json"
+out_optim_pt = world_dir / "gaussian_params_optim2500.pt"
+out_optim_png = world_dir / "gaussian_render_optim2500.png"
+out_summary = world_dir / "gaussian_optim2500_summary.json"
 
 window_info = json.loads(window_path.read_text(encoding="utf-8"))
 sampled = (
@@ -2869,7 +2869,7 @@ pred_init, _ = render_once()
 loss_init = torch.mean((pred_init - target) ** 2)
 
 loss_history = [float(loss_init.detach().cpu().item())]
-for _ in range(500):
+for _ in range(2500):
     optimizer.zero_grad(set_to_none=True)
     pred, alpha = render_once()
     loss = torch.mean((pred - target) ** 2)
@@ -2898,8 +2898,8 @@ summary = {
     "loss_history_head": loss_history[:5],
     "loss_history_tail": loss_history[-5:],
     "alpha_mean_final": float(alpha_final.mean().detach().cpu().item()),
-    "optim500_pt": str(out_optim_pt),
-    "optim500_png": str(out_optim_png),
+    "optim2500_pt": str(out_optim_pt),
+    "optim2500_png": str(out_optim_png),
 }
 out_summary.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
 print(json.dumps(summary, indent=2, ensure_ascii=False))
@@ -2909,5 +2909,39 @@ print(json.dumps(summary, indent=2, ensure_ascii=False))
 
 ```text
 # Step 7k gaussian-optim500-and-save res
+
+
+from pathlib import Path
+from google.colab import files
+import shutil
+
+world_dir = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01/world_fusion_v01")
+bundle_dir = Path("/content/gaussian_optim2500_bundle")
+bundle_zip = Path("/content/gaussian_optim2500_bundle.zip")
+
+if bundle_dir.exists():
+    shutil.rmtree(bundle_dir)
+bundle_dir.mkdir(parents=True, exist_ok=True)
+
+targets = [
+    "gaussian_params_optim2500.pt",
+    "gaussian_render_optim2500.png",
+    "gaussian_optim2500_summary.json",
+]
+
+for name in targets:
+    src = world_dir / name
+    assert src.exists(), f"missing: {src}"
+    shutil.copy2(src, bundle_dir / name)
+
+if bundle_zip.exists():
+    bundle_zip.unlink()
+
+shutil.make_archive(str(bundle_zip.with_suffix("")), "zip", root_dir=str(bundle_dir))
+print(bundle_zip)
+files.download(str(bundle_zip))
+
+
+
 
 ```

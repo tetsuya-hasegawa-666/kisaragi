@@ -273,7 +273,8 @@
   - 続けて `20 step` の短い optimization が通り、loss は `0.18226878345012665` から `0.035895735025405884` まで低下した
   - `gaussian_params_init.pt`、`gaussian_params_optim20.pt`、`gaussian_render_init.png`、`gaussian_render_optim20.png`、`gaussian_optim20_summary.json` を保存できた
   - さらに `500 step` 版では、loss は `0.18226878345012665` から `0.01154774148017168` まで低下した
-  - admin の目視で [gaussian_render_optim500.png](/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/gaussian_optim500_bundle/gaussian_render_optim500.png) は「かなり再現されている」「取得背景に近い構図」と確認できた
+  - `2500 step` 版では、loss は `0.18226878345012665` から `0.009165632538497448` まで低下した
+  - admin の目視で [gaussian_render_optim500.png](/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/gaussian_optim500_bundle/gaussian_render_optim500.png) と [gaussian_render_optim2500.png](/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/gaussian_optim2500_bundle/gaussian_render_optim2500.png) は「かなり再現されている」「取得背景に近い構図」と確認できた
   - admin の目視で `gaussian_render_optim20.png` は取得背景に近い構図へ改善を確認できた
   - この段では「multi-frame point cloud から gaussian parameter を初期化し、短い optimization で見た目改善を確認する」を `mRL-7.2` の成立範囲とする
   - viewer で読む正式 gaussian scene 形式の固定、長時間 optimization、multi-view optimization の拡張は後続 `MRL-**` へ送る
@@ -289,6 +290,7 @@
   - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/sharedlogs_da3-colab.md`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/gaussian_short_optim_bundle/`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/gaussian_optim500_bundle/`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/gaussian_optim2500_bundle/`
 
 ## reviewing batch 定義
 

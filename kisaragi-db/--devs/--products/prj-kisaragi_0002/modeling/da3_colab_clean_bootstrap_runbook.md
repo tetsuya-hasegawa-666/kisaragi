@@ -527,3 +527,405 @@ for name in [
 - `world_points_smoke.npy` と `world_points_smoke.ply` が保存される
 - `gsplat_render_smoke.png`、`gs_model_smoke.json`、`space_quality_smoke.json` が保存される
 - `space_package_smoke.json`、`gs_model.contract.json`、`space_quality.contract.json`、`space_package.contract.json` が保存される
+
+## `MRL-7` adopted one-block
+
+### 位置づけ
+
+- この節は、`mRL-7.1` と `mRL-7.2` を `p-done` にした最小かつ確実な実行 block をまとめる。
+- ただし、ここに至るまでの step 分割による検討痕跡は重要なので、上の `Step 1` から `Step 5` は削除せず残す。
+- 次回からの再実行は、この節の 1 block を優先し、問題が出た時だけ上の step 分割へ戻る。
+
+### 前提
+
+- `事前準備` と `準備確認` が済んでいる
+- `Step 1` から `Step 4.5` が通っている
+- `SESSION_ROOT = /content/trajectreview_input/session-20260328-103250/trajectreview`
+- `probe_dir = /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01`
+
+### 目的
+
+- `mRL-7.1`
+  - multi-frame window 選定
+  - sampled frame depth batch
+  - world fusion
+  - preview / closeout
+- `mRL-7.2`
+  - gaussian parameter 初期化
+  - `1 step` probe
+  - `20 step` short optimization
+  - render 改善確認用 artifact 保存
+
+### adopted block
+
+```python
+from pathlib import Path
+import json
+import math
+import shutil
+import zipfile
+
+import imageio.v3 as iio
+import numpy as np
+import pandas as pd
+import torch
+from PIL import Image
+import gsplat
+from depth_anything_3.api import DepthAnything3
+
+zip_path = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/session-20260328-103250.zip")
+extract_root = Path("/content/trajectreview_input")
+probe_dir = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01")
+world_dir = probe_dir / "world_fusion_v01"
+
+if extract_root.exists():
+    shutil.rmtree(extract_root)
+extract_root.mkdir(parents=True, exist_ok=True)
+with zipfile.ZipFile(zip_path, "r") as zf:
+    zf.extractall(extract_root)
+
+session_root = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+session_outer = session_root.parent
+images_dir = session_root / "images"
+frame_pose_path = session_root / "frame_pose_index.csv"
+arcore_pose_path = session_root / "arcore_pose.jsonl"
+if not arcore_pose_path.exists():
+    arcore_pose_path = session_outer / "arcore_pose.jsonl"
+
+assert images_dir.exists(), images_dir
+assert frame_pose_path.exists(), frame_pose_path
+assert arcore_pose_path.exists(), arcore_pose_path
+
+probe_dir.mkdir(parents=True, exist_ok=True)
+world_dir.mkdir(parents=True, exist_ok=True)
+
+frame_pose_df = pd.read_csv(frame_pose_path)
+assert "image_file_name" in frame_pose_df.columns
+assert "frame_timestamp_ns" in frame_pose_df.columns
+assert "pose_record_index" in frame_pose_df.columns
+
+rows = frame_pose_df[frame_pose_df["image_file_name"].notna()].copy()
+rows["timestamp_sec"] = rows["frame_timestamp_ns"].astype(np.float64) / 1e9
+rows = rows.sort_values("timestamp_sec").reset_index(drop=True)
+
+gaps = rows["timestamp_sec"].diff().fillna(0.0)
+window_break = gaps > 0.2
+window_id = window_break.cumsum()
+rows["window_id"] = window_id
+
+best_window = None
+for _, g in rows.groupby("window_id"):
+    span = float(g["timestamp_sec"].iloc[-1] - g["timestamp_sec"].iloc[0])
+    item = {
+        "span_sec": span,
+        "frame_count": int(len(g)),
+        "rows": g.reset_index(drop=True),
+    }
+    if best_window is None or item["span_sec"] > best_window["span_sec"]:
+        best_window = item
+
+assert best_window is not None
+g = best_window["rows"]
+sample_count = min(12, len(g))
+pick = np.linspace(0, len(g) - 1, sample_count).astype(int)
+sample_rows = g.iloc[pick].reset_index(drop=True)
+
+window_probe = {
+    "session_root": str(session_root),
+    "frame_index_path": str(frame_pose_path),
+    "frame_col": "image_file_name",
+    "time_col": "frame_timestamp_ns",
+    "aligned_frame_count": int(len(rows)),
+    "window_span_sec": float(best_window["span_sec"]),
+    "window_frame_count": int(best_window["frame_count"]),
+    "window_start_sec": float(g["timestamp_sec"].iloc[0]),
+    "window_end_sec": float(g["timestamp_sec"].iloc[-1]),
+    "sample_frame_count": int(len(sample_rows)),
+    "sample_frames": sample_rows[["image_file_name", "pose_record_index", "timestamp_sec"]].rename(
+        columns={"image_file_name": "frame_name"}
+    ).to_dict(orient="records"),
+}
+(probe_dir / "mrl7_window_probe.json").write_text(json.dumps(window_probe, indent=2, ensure_ascii=False), encoding="utf-8")
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = DepthAnything3.from_pretrained("depth-anything/DA3METRIC-LARGE").to(device=device)
+
+depth_dir = probe_dir / "depth_batch_v01"
+depth_dir.mkdir(parents=True, exist_ok=True)
+depth_manifest = []
+for rec in window_probe["sample_frames"]:
+    frame_name = rec["frame_name"]
+    image_path = images_dir / frame_name
+    prediction = model.inference([str(image_path)])
+    depth = np.asarray(prediction.depth[0]).astype(np.float32)
+    out_npy = depth_dir / f"{Path(frame_name).stem}_depth.npy"
+    np.save(out_npy, depth)
+    depth_manifest.append({
+        "frame_name": frame_name,
+        "pose_record_index": int(rec["pose_record_index"]),
+        "timestamp_sec": float(rec["timestamp_sec"]),
+        "depth_path": str(out_npy),
+        "depth_shape": list(depth.shape),
+    })
+(probe_dir / "depth_batch_manifest.json").write_text(json.dumps(depth_manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+
+with arcore_pose_path.open("r", encoding="utf-8") as f:
+    pose_records = [json.loads(line) for line in f if line.strip()]
+
+def quat_to_rot(qx, qy, qz, qw):
+    xx, yy, zz = qx*qx, qy*qy, qz*qz
+    xy, xz, yz = qx*qy, qx*qz, qy*qz
+    wx, wy, wz = qw*qx, qw*qy, qw*qz
+    return np.array([
+        [1 - 2*(yy + zz), 2*(xy - wz), 2*(xz + wy)],
+        [2*(xy + wz), 1 - 2*(xx + zz), 2*(yz - wx)],
+        [2*(xz - wy), 2*(yz + wx), 1 - 2*(xx + yy)],
+    ], dtype=np.float32)
+
+all_points = []
+per_frame = []
+skipped = []
+stride = 24
+for rec in depth_manifest:
+    pose_idx = int(rec["pose_record_index"])
+    if pose_idx >= len(pose_records):
+        skipped.append({"frame_name": rec["frame_name"], "reason": "pose_index_out_of_range"})
+        continue
+    record = pose_records[pose_idx]
+    intr = record["imageIntrinsics"]
+    pose = record["pose"]
+    depth = np.load(rec["depth_path"]).astype(np.float32)
+    h, w = depth.shape
+    grid_y, grid_x = np.mgrid[0:h:stride, 0:w:stride]
+    z = depth[grid_y, grid_x]
+    valid = np.isfinite(z) & (z > 0.0)
+    if not np.any(valid):
+        skipped.append({"frame_name": rec["frame_name"], "reason": "no_valid_depth"})
+        continue
+    px = grid_x[valid].astype(np.float32)
+    py = grid_y[valid].astype(np.float32)
+    zz = z[valid].astype(np.float32)
+    x = (px - float(intr["cx"])) * zz / float(intr["fx"])
+    y = (py - float(intr["cy"])) * zz / float(intr["fy"])
+    cam = np.stack([x, y, zz], axis=-1)
+
+    R_wc = quat_to_rot(
+        float(pose["qx"]), float(pose["qy"]), float(pose["qz"]), float(pose["qw"])
+    )
+    t_wc = np.array([float(pose["tx"]), float(pose["ty"]), float(pose["tz"])], dtype=np.float32)
+    world = (R_wc @ cam.T).T + t_wc
+    all_points.append(world)
+    per_frame.append({
+        "frame_name": rec["frame_name"],
+        "pose_record_index": pose_idx,
+        "point_count": int(len(world)),
+        "timestamp_sec": float(rec["timestamp_sec"]),
+    })
+
+assert all_points, "no world points generated"
+merged = np.concatenate(all_points, axis=0).astype(np.float32)
+np.save(world_dir / "world_points_multiframe.npy", merged)
+
+with (world_dir / "world_points_multiframe.ply").open("w", encoding="utf-8") as f:
+    f.write("ply\nformat ascii 1.0\n")
+    f.write(f"element vertex {len(merged)}\n")
+    f.write("property float x\nproperty float y\nproperty float z\n")
+    f.write("end_header\n")
+    for p in merged:
+        f.write(f"{p[0]} {p[1]} {p[2]}\n")
+
+world_summary = {
+    "stride": stride,
+    "processed_frames": len(per_frame),
+    "skipped_frames": skipped,
+    "total_points": int(len(merged)),
+    "per_frame": per_frame,
+    "npy_path": str(world_dir / "world_points_multiframe.npy"),
+    "ply_path": str(world_dir / "world_points_multiframe.ply"),
+}
+(world_dir / "world_fusion_summary.json").write_text(json.dumps(world_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+
+sample = merged[::4] if len(merged) > 4000 else merged
+sample_min = sample.min(axis=0)
+sample_max = sample.max(axis=0)
+sample_norm = (sample - sample_min) / np.maximum(sample_max - sample_min, 1e-6)
+preview = np.zeros((800, 800, 3), dtype=np.uint8)
+xy = sample_norm[:, :2]
+px = np.clip((xy[:, 0] * 799).astype(int), 0, 799)
+py = np.clip((xy[:, 1] * 799).astype(int), 0, 799)
+preview[799 - py, px] = 255
+Image.fromarray(preview).save(world_dir / "world_points_multiframe_preview.png")
+
+closeout = {
+    "status": "candidate-visible-proof",
+    "processed_frames": world_summary["processed_frames"],
+    "skipped_frames": world_summary["skipped_frames"],
+    "total_points": world_summary["total_points"],
+    "preview_path": str(world_dir / "world_points_multiframe_preview.png"),
+    "ply_path": world_summary["ply_path"],
+    "npy_path": world_summary["npy_path"],
+    "per_frame_point_count": [x["point_count"] for x in per_frame],
+}
+(world_dir / "mrl7_closeout_summary.json").write_text(json.dumps(closeout, indent=2, ensure_ascii=False), encoding="utf-8")
+
+first_frame = window_probe["sample_frames"][0]["frame_name"]
+image = iio.imread(images_dir / first_frame)
+if image.ndim == 2:
+    image = np.stack([image, image, image], axis=-1)
+image = image[..., :3]
+target_h, target_w = image.shape[:2]
+target = torch.from_numpy(image.astype(np.float32) / 255.0).to(device)
+
+row = frame_pose_df.loc[frame_pose_df["image_file_name"] == first_frame].iloc[0]
+pose_index = int(row["pose_record_index"])
+pose_rec = pose_records[pose_index]
+intr = pose_rec["imageIntrinsics"]
+pose = pose_rec["pose"]
+R_wc = quat_to_rot(float(pose["qx"]), float(pose["qy"]), float(pose["qz"]), float(pose["qw"]))
+t_wc = np.array([float(pose["tx"]), float(pose["ty"]), float(pose["tz"])], dtype=np.float32)
+R_cw = R_wc.T
+t_cw = -R_cw @ t_wc
+viewmat = np.eye(4, dtype=np.float32)
+viewmat[:3, :3] = R_cw
+viewmat[:3, 3] = t_cw
+viewmat = torch.from_numpy(viewmat).to(device)
+K = torch.tensor([
+    [float(intr["fx"]), 0.0, float(intr["cx"])],
+    [0.0, float(intr["fy"]), float(intr["cy"])],
+    [0.0, 0.0, 1.0],
+], dtype=torch.float32, device=device)
+
+points_np = merged
+max_points = 1024
+if len(points_np) > max_points:
+    pick = np.linspace(0, len(points_np) - 1, max_points).astype(np.int64)
+    points_np = points_np[pick]
+
+means = torch.nn.Parameter(torch.from_numpy(points_np).to(device))
+scales = torch.nn.Parameter(torch.full((len(points_np), 3), math.log(0.03), dtype=torch.float32, device=device))
+quats = torch.nn.Parameter(torch.tensor([[0.0, 0.0, 0.0, 1.0]], dtype=torch.float32, device=device).repeat(len(points_np), 1))
+opacities = torch.nn.Parameter(torch.full((len(points_np),), 0.1, dtype=torch.float32, device=device))
+colors = torch.nn.Parameter(torch.full((len(points_np), 3), 0.7, dtype=torch.float32, device=device))
+
+def render_once():
+    render_colors, render_alphas, _ = gsplat.rasterization(
+        means=means,
+        quats=torch.nn.functional.normalize(quats, dim=-1),
+        scales=torch.exp(scales),
+        opacities=torch.sigmoid(opacities),
+        colors=colors,
+        viewmats=viewmat[None, ...],
+        Ks=K[None, ...],
+        width=target_w,
+        height=target_h,
+        packed=False,
+    )
+    return render_colors[0], render_alphas[0]
+
+def save_png(path: Path, tensor_img: torch.Tensor):
+    arr = torch.clamp(tensor_img.detach(), 0.0, 1.0).cpu().numpy()
+    Image.fromarray((arr * 255).astype(np.uint8)).save(path)
+
+optimizer = torch.optim.Adam([means, scales, quats, opacities, colors], lr=1e-2)
+
+pred_init, _ = render_once()
+loss_init = torch.mean((pred_init - target) ** 2)
+save_png(world_dir / "gaussian_render_init.png", pred_init)
+torch.save({
+    "means": means.detach().cpu(),
+    "scales_log": scales.detach().cpu(),
+    "quats": torch.nn.functional.normalize(quats.detach(), dim=-1).cpu(),
+    "opacities_logit": opacities.detach().cpu(),
+    "colors": colors.detach().cpu(),
+}, world_dir / "gaussian_params_init.pt")
+
+loss_history = [float(loss_init.detach().cpu().item())]
+for _ in range(20):
+    optimizer.zero_grad(set_to_none=True)
+    pred, alpha = render_once()
+    loss = torch.mean((pred - target) ** 2)
+    loss.backward()
+    optimizer.step()
+    loss_history.append(float(loss.detach().cpu().item()))
+
+pred_final, alpha_final = render_once()
+loss_final = torch.mean((pred_final - target) ** 2)
+save_png(world_dir / "gaussian_render_optim20.png", pred_final)
+torch.save({
+    "means": means.detach().cpu(),
+    "scales_log": scales.detach().cpu(),
+    "quats": torch.nn.functional.normalize(quats.detach(), dim=-1).cpu(),
+    "opacities_logit": opacities.detach().cpu(),
+    "colors": colors.detach().cpu(),
+}, world_dir / "gaussian_params_optim20.pt")
+
+gaussian_summary = {
+    "backward_ok": True,
+    "point_count": int(len(points_np)),
+    "target_frame": first_frame,
+    "loss_init": float(loss_init.detach().cpu().item()),
+    "loss_final": float(loss_final.detach().cpu().item()),
+    "loss_history_head": loss_history[:5],
+    "loss_history_tail": loss_history[-5:],
+    "alpha_mean_final": float(alpha_final.mean().detach().cpu().item()),
+    "init_pt": str(world_dir / "gaussian_params_init.pt"),
+    "optim20_pt": str(world_dir / "gaussian_params_optim20.pt"),
+    "init_png": str(world_dir / "gaussian_render_init.png"),
+    "optim20_png": str(world_dir / "gaussian_render_optim20.png"),
+}
+(world_dir / "gaussian_optim20_summary.json").write_text(json.dumps(gaussian_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+
+print(json.dumps({
+    "window_span_sec": window_probe["window_span_sec"],
+    "sample_frame_count": window_probe["sample_frame_count"],
+    "processed_frames": world_summary["processed_frames"],
+    "skipped_frames": len(world_summary["skipped_frames"]),
+    "total_points": world_summary["total_points"],
+    "loss_init": gaussian_summary["loss_init"],
+    "loss_final": gaussian_summary["loss_final"],
+    "world_dir": str(world_dir),
+}, indent=2, ensure_ascii=False))
+```
+
+### この block の到達 artifact
+
+- `mrl7_window_probe.json`
+- `depth_batch_manifest.json`
+- `world_points_multiframe.npy`
+- `world_points_multiframe.ply`
+- `world_points_multiframe_preview.png`
+- `world_fusion_summary.json`
+- `mrl7_closeout_summary.json`
+- `gaussian_params_init.pt`
+- `gaussian_params_optim20.pt`
+- `gaussian_render_init.png`
+- `gaussian_render_optim20.png`
+- `gaussian_optim20_summary.json`
+
+### この block の成功判定
+
+- `window_span_sec` が出る
+- `sample_frame_count >= 1`
+- `processed_frames >= 1`
+- `total_points >= 1`
+- `loss_init` と `loss_final` が出る
+- `loss_final < loss_init`
+- `world_points_multiframe.ply` が保存される
+- `gaussian_params_optim20.pt` が保存される
+- `gaussian_render_optim20.png` が保存される
+
+### 拡張実績
+
+- 上の adopted block は `mRL-7.1` と `mRL-7.2` を `p-done` にした最小 path なので、runbook 正本では `20 step` を canonical とする。
+- 同じ route を追加で伸ばす拡張実績として、`500 step` と `2500 step` も確認済みである。
+- `2500 step` 実績では、`loss_init = 0.18226878345012665` から `loss_final = 0.009165632538497448` まで低下し、`gaussian_render_optim2500.png` は取得背景にかなり近い構図まで改善した。
+- これらの拡張実績は、最小 runbook を置き換えるものではなく、後続 `MRL-**` の optimization 強化 evidence として扱う。
+
+拡張 artifact:
+
+- `gaussian_params_optim500.pt`
+- `gaussian_render_optim500.png`
+- `gaussian_optim500_summary.json`
+- `gaussian_params_optim2500.pt`
+- `gaussian_render_optim2500.png`
+- `gaussian_optim2500_summary.json`
