@@ -311,3 +311,182 @@ print(json.dumps(result, indent=2, ensure_ascii=False))
 # Step 7a2 input-zip restore probe res
 
 ```
+
+# codex
+
+2026-03-30 v28 startup to step-7a2 block。
+
+- 目的: fresh runtime から `MRL-7` の前提を戻し、`step-7a2` まで一気に進める。
+- 成功条件:
+  - Drive mount、zip 存在確認、blank workspace 確認が通る
+  - unzip、repo clone、dependency install、`DepthAnything3` import、`1 frame` 推論、`gsplat` surface 確認が通る
+  - `step-7a2` で `session_package.json`、`frame_pose_index.csv`、`images/` の path 候補を返せる
+- 返してほしいもの:
+  - `Step 4 summary`
+  - `Step 7a2 input-zip restore probe res`
+
+```python
+# Startup to Step 7a2
+
+# 1. Drive mount / runtime check
+import os
+from pathlib import Path
+import torch
+from google.colab import drive
+
+drive.mount("/content/drive", force_remount=True)
+
+print("cwd", os.getcwd())
+print("cuda_available", torch.cuda.is_available())
+print("drive_exists", Path("/content/drive").exists())
+print("mydrive_exists", Path("/content/drive/MyDrive").exists())
+print("shortcut_root_exists", Path("/content/drive/.shortcut-targets-by-id").exists())
+
+# 2. zip existence
+folder_root = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_")
+zip_path = folder_root / "trajectreview" / "correcting" / "session-20260328-103250.zip"
+print("folder_root_exists", folder_root.exists(), folder_root)
+print("zip_exists", zip_path.exists(), zip_path)
+
+# 3. blank workspace check
+print("repo_exists_before_bootstrap", Path("/content/Depth-Anything-3").exists())
+print("extract_root_exists_before_bootstrap", Path("/content/trajectreview_input").exists())
+
+# 4. unzip input zip
+import shutil
+import zipfile
+
+extract_root = Path("/content/trajectreview_input")
+if extract_root.exists():
+    shutil.rmtree(extract_root)
+extract_root.mkdir(parents=True, exist_ok=True)
+
+with zipfile.ZipFile(zip_path, "r") as zf:
+    zf.extractall(extract_root)
+
+session_root = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+images_dir = session_root / "images"
+print("session_root_exists", session_root.exists(), session_root)
+print("images_dir_exists", images_dir.exists(), images_dir)
+files = sorted(images_dir.glob("*.png")) + sorted(images_dir.glob("*.jpg")) + sorted(images_dir.glob("*.jpeg"))
+print("image_count", len(files))
+if files:
+    print("first_image", files[0])
+
+# 5. clone repo and install dependencies
+import subprocess
+
+def run(cmd):
+    print("RUN", " ".join(cmd))
+    subprocess.run(cmd, check=True)
+
+repo_root = Path("/content/Depth-Anything-3")
+if repo_root.exists():
+    shutil.rmtree(repo_root)
+
+run(["git", "clone", "https://github.com/ByteDance-Seed/Depth-Anything-3.git", str(repo_root)])
+run(["python", "-m", "pip", "install", "--quiet", "addict", "evo", "moviepy==1.0.3", "pygame", "pycolmap", "plyfile", "trimesh", "gsplat"])
+print("bootstrap_done", repo_root.exists(), repo_root)
+
+# 6. import check
+import sys
+
+REPO_ROOT = Path("/content/Depth-Anything-3")
+src_root = REPO_ROOT / "src"
+print("src_root_exists", src_root.exists(), src_root)
+assert src_root.exists(), f"src not found: {src_root}"
+src_str = str(src_root)
+if src_str not in sys.path:
+    sys.path.insert(0, src_str)
+
+from depth_anything_3.api import DepthAnything3
+print("import_ok", DepthAnything3)
+
+# 7. one-frame inference
+import json
+import numpy as np
+from PIL import Image
+
+OUTPUT_ROOT = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_smoke_v24")
+OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+
+images = sorted((session_root / "images").glob("*.png")) + sorted((session_root / "images").glob("*.jpg")) + sorted((session_root / "images").glob("*.jpeg"))
+assert images, f"images not found under {session_root / 'images'}"
+
+image_path = images[0]
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = DepthAnything3.from_pretrained("depth-anything/DA3METRIC-LARGE").to(device=device)
+prediction = model.inference([str(image_path)])
+
+depth = np.asarray(prediction.depth[0])
+conf = None if prediction.conf is None else np.asarray(prediction.conf[0])
+intrinsics = None if prediction.intrinsics is None else np.asarray(prediction.intrinsics[0])
+extrinsics = None if prediction.extrinsics is None else np.asarray(prediction.extrinsics[0])
+
+depth_min = float(depth.min())
+depth_max = float(depth.max())
+depth_norm = np.zeros_like(depth, dtype=np.float32) if depth_max <= depth_min else (depth - depth_min) / (depth_max - depth_min)
+Image.fromarray((depth_norm * 255).astype(np.uint8)).save(OUTPUT_ROOT / "depth_preview.png")
+
+np.save(OUTPUT_ROOT / "depth_raw.npy", depth)
+if conf is not None:
+    np.save(OUTPUT_ROOT / "conf_raw.npy", conf)
+if intrinsics is not None:
+    np.save(OUTPUT_ROOT / "intrinsics.npy", intrinsics)
+if extrinsics is not None:
+    np.save(OUTPUT_ROOT / "extrinsics.npy", extrinsics)
+
+summary = {
+    "image_path": str(image_path),
+    "device": str(device),
+    "depth_shape": list(depth.shape),
+    "conf_shape": None if conf is None else list(conf.shape),
+    "intrinsics_shape": None if intrinsics is None else list(intrinsics.shape),
+    "extrinsics_shape": None if extrinsics is None else list(extrinsics.shape),
+    "depth_min": depth_min,
+    "depth_max": depth_max,
+}
+(OUTPUT_ROOT / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+print("STEP4_SUMMARY")
+print(json.dumps(summary, indent=2))
+
+# 8. gsplat surface check
+import gsplat
+print("gsplat_version", getattr(gsplat, "__version__", "unknown"))
+print("rasterization_type", type(gsplat.rasterization).__name__)
+print("rasterization_2dgs_type", type(gsplat.rasterization_2dgs).__name__)
+print("fully_fused_projection_type", type(gsplat.fully_fused_projection).__name__)
+
+# 9. step-7a2 restore probe result
+hits = []
+for pkg in extract_root.rglob("session_package.json"):
+    root = pkg.parent
+    frame_pose = next(iter(root.rglob("frame_pose_index.csv")), None)
+    images_dir = next((p for p in root.rglob("images") if p.is_dir()), None)
+    calib = next(iter(root.rglob("camera_calibration_summary.json")), None)
+    hits.append({
+        "session_root": str(root),
+        "session_package_json": str(pkg),
+        "frame_pose_index_csv": None if frame_pose is None else str(frame_pose),
+        "camera_calibration_summary_json": None if calib is None else str(calib),
+        "images_dir": None if images_dir is None else str(images_dir),
+        "image_count": 0 if images_dir is None else len(list(images_dir.glob("*.jpg"))) + len(list(images_dir.glob("*.png"))),
+    })
+
+result = {
+    "zip_path": str(zip_path),
+    "extract_root": str(extract_root),
+    "hit_count": len(hits),
+    "hits": hits[:20],
+}
+
+print("STEP7A2_RESULT")
+print(json.dumps(result, indent=2, ensure_ascii=False))
+```
+
+# admin
+
+```text
+# Startup to Step 7a2 res
+
+```
