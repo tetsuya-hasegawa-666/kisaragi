@@ -488,5 +488,211 @@ print(json.dumps(result, indent=2, ensure_ascii=False))
 
 ```text
 # Startup to Step 7a2 res
+Mounted at /content/drive
+cwd /content
+cuda_available True
+drive_exists True
+mydrive_exists True
+shortcut_root_exists True
+folder_root_exists True /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_
+zip_exists True /content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/session-20260328-103250.zip
+repo_exists_before_bootstrap False
+extract_root_exists_before_bootstrap False
+session_root_exists True /content/trajectreview_input/session-20260328-103250/trajectreview
+images_dir_exists True /content/trajectreview_input/session-20260328-103250/trajectreview/images
+image_count 182
+first_image /content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000009.jpg
+RUN git clone https://github.com/ByteDance-Seed/Depth-Anything-3.git /content/Depth-Anything-3
+RUN python -m pip install --quiet addict evo moviepy==1.0.3 pygame pycolmap plyfile trimesh gsplat
+bootstrap_done True /content/Depth-Anything-3
+src_root_exists True /content/Depth-Anything-3/src
+/usr/local/lib/python3.12/dist-packages/moviepy/config_defaults.py:47: SyntaxWarning: invalid escape sequence '\P'
+  IMAGEMAGICK_BINARY = r"C:\Program Files\ImageMagick-6.8.8-Q16\magick.exe"
+/usr/local/lib/python3.12/dist-packages/moviepy/video/io/ffmpeg_reader.py:294: SyntaxWarning: invalid escape sequence '\d'
+  lines_video = [l for l in lines if ' Video: ' in l and re.search('\d+x\d+', l)]
+/usr/local/lib/python3.12/dist-packages/moviepy/video/io/ffmpeg_reader.py:367: SyntaxWarning: invalid escape sequence '\d'
+  rotation_lines = [l for l in lines if 'rotate          :' in l and re.search('\d+$', l)]
+/usr/local/lib/python3.12/dist-packages/moviepy/video/io/ffmpeg_reader.py:370: SyntaxWarning: invalid escape sequence '\d'
+  match = re.search('\d+$', rotation_line)
+WARNING:py.warnings:/usr/local/lib/python3.12/dist-packages/moviepy/video/io/sliders.py:61: SyntaxWarning: "is" with 'str' literal. Did you mean "=="?
+  if event.key is 'enter':
+
+import_ok <class 'depth_anything_3.api.DepthAnything3'>
+WARNING:py.warnings:/usr/local/lib/python3.12/dist-packages/huggingface_hub/utils/_auth.py:94: UserWarning: 
+The secret `HF_TOKEN` does not exist in your Colab secrets.
+To authenticate with the Hugging Face Hub, create a token in your settings tab (https://huggingface.co/settings/tokens), set it as secret in your Google Colab and restart your session.
+You will be able to reuse this secret in all of your notebooks.
+Please note that authentication is recommended but still optional to access public models or datasets.
+  warnings.warn(
+
+config.json: 100%
+ 847/847 [00:00<00:00, 51.0kB/s]
+[INFO ] using MLP layer as FFN
+model.safetensors: 100%
+ 1.34G/1.34G [00:09<00:00, 125MB/s]
+[INFO ] Processed Images Done taking 0.1296095848083496 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 1.6938645839691162 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0019145011901855469 seconds
+STEP4_SUMMARY
+{
+  "image_path": "/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000009.jpg",
+  "device": "cuda",
+  "depth_shape": [
+    378,
+    504
+  ],
+  "conf_shape": null,
+  "intrinsics_shape": null,
+  "extrinsics_shape": null,
+  "depth_min": 0.31544607877731323,
+  "depth_max": 4.0310516357421875
+}
+gsplat_version 1.5.3
+rasterization_type function
+rasterization_2dgs_type function
+fully_fused_projection_type function
+STEP7A2_RESULT
+{
+  "zip_path": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/correcting/session-20260328-103250.zip",
+  "extract_root": "/content/trajectreview_input",
+  "hit_count": 1,
+  "hits": [
+    {
+      "session_root": "/content/trajectreview_input/session-20260328-103250/trajectreview",
+      "session_package_json": "/content/trajectreview_input/session-20260328-103250/trajectreview/session_package.json",
+      "frame_pose_index_csv": "/content/trajectreview_input/session-20260328-103250/trajectreview/frame_pose_index.csv",
+      "camera_calibration_summary_json": "/content/trajectreview_input/session-20260328-103250/trajectreview/camera_calibration_summary.json",
+      "images_dir": "/content/trajectreview_input/session-20260328-103250/trajectreview/images",
+      "image_count": 182
+    }
+  ]
+}
+```
+
+# codex
+
+2026-03-30 v29 step-7b multi-frame window selection。
+
+- 目的: 確定した `SESSION_ROOT` から、`MRL-7` の `10s` 前後 window と sampled frame 群を決める。
+- 成功条件:
+  - `frame_pose_index.csv` の実 column を確認できる
+  - `10s` 前後の連続 window を 1 件選べる
+  - その window から `12 frame` 前後の sampled frame を返せる
+  - `mrl7_window_probe.json` を保存できる
+- 失敗時の扱い:
+  - 時刻 column 名が想定外なら、まず実 column を見て切り分ける
+  - frame 名 column が無ければ `images/` と index から導出する
+
+```python
+# Step 7b multi-frame window selection
+from pathlib import Path
+import json
+import pandas as pd
+
+SESSION_ROOT = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+OUTPUT_ROOT = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01")
+OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+
+frame_index_path = SESSION_ROOT / "frame_pose_index.csv"
+images_dir = SESSION_ROOT / "images"
+
+df = pd.read_csv(frame_index_path)
+print("columns", list(df.columns))
+print("rows", len(df))
+
+time_candidates = [
+    "frame_timestamp_ns",
+    "capture_timestamp_ns",
+    "timestamp_ns",
+    "frameTimestampNs",
+    "captureTimestampNs",
+]
+frame_candidates = [
+    "frame_name",
+    "image_file",
+    "image_path",
+    "filename",
+]
+
+time_col = next((c for c in time_candidates if c in df.columns), None)
+frame_col = next((c for c in frame_candidates if c in df.columns), None)
+
+if frame_col is None:
+    derived = []
+    image_files = sorted(list(images_dir.glob("*.jpg")) + list(images_dir.glob("*.png")) + list(images_dir.glob("*.jpeg")))
+    for idx in range(len(df)):
+        derived.append(image_files[idx].name if idx < len(image_files) else None)
+    df["derived_frame_name"] = derived
+    frame_col = "derived_frame_name"
+
+assert time_col is not None, {"missing_time_col": list(df.columns)}
+assert frame_col is not None, {"missing_frame_col": list(df.columns)}
+
+work = df[[time_col, frame_col]].copy()
+work = work.dropna().reset_index(drop=True)
+work["frame_name"] = work[frame_col].astype(str)
+work["image_path"] = work["frame_name"].apply(lambda x: str(images_dir / x))
+work = work[work["image_path"].map(lambda p: Path(p).exists())].reset_index(drop=True)
+work["timestamp_sec"] = work[time_col].astype("float64") / 1e9
+
+assert len(work) > 0, "no aligned frames found"
+
+target_sec = 10.0
+best = None
+left = 0
+for right in range(len(work)):
+    while left < right and (work.loc[right, "timestamp_sec"] - work.loc[left, "timestamp_sec"]) > target_sec:
+        left += 1
+    span = work.loc[right, "timestamp_sec"] - work.loc[left, "timestamp_sec"]
+    count = right - left + 1
+    score = (abs(target_sec - span), -count)
+    if best is None or score < best["score"]:
+        best = {
+            "left": left,
+            "right": right,
+            "span_sec": float(span),
+            "count": int(count),
+            "score": score,
+        }
+
+window = work.iloc[best["left"]:best["right"] + 1].reset_index(drop=True)
+sample_count = min(12, len(window))
+sample_indices = sorted({round(i * (len(window) - 1) / max(sample_count - 1, 1)) for i in range(sample_count)})
+sampled = window.iloc[sample_indices].reset_index(drop=True)
+
+result = {
+    "session_root": str(SESSION_ROOT),
+    "frame_index_path": str(frame_index_path),
+    "time_col": time_col,
+    "frame_col": frame_col,
+    "aligned_frame_count": int(len(work)),
+    "window_start_sec": float(window["timestamp_sec"].iloc[0]),
+    "window_end_sec": float(window["timestamp_sec"].iloc[-1]),
+    "window_span_sec": float(window["timestamp_sec"].iloc[-1] - window["timestamp_sec"].iloc[0]),
+    "window_frame_count": int(len(window)),
+    "sample_frame_count": int(len(sampled)),
+    "sample_frames": sampled[["frame_name", "timestamp_sec", "image_path"]].to_dict(orient="records"),
+}
+
+out_path = OUTPUT_ROOT / "mrl7_window_probe.json"
+out_path.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
+
+print(json.dumps({
+    "time_col": result["time_col"],
+    "frame_col": result["frame_col"],
+    "aligned_frame_count": result["aligned_frame_count"],
+    "window_span_sec": result["window_span_sec"],
+    "window_frame_count": result["window_frame_count"],
+    "sample_frame_count": result["sample_frame_count"],
+    "first_sample": result["sample_frames"][0] if result["sample_frames"] else None,
+    "last_sample": result["sample_frames"][-1] if result["sample_frames"] else None,
+    "saved": str(out_path),
+}, indent=2, ensure_ascii=False))
+```
+
+# admin
+
+```text
+# Step 7b multi-frame window selection res
 
 ```
