@@ -49,12 +49,12 @@
 - record date: `2026-03-30`
   target MRL: `MRL-7`
   target mRL: `mRL-7.1`
-  gate change: `candidate evidence strengthened`
+  gate change: `p-done`
   issue: `MRL-7` は `TraceCore` multi-frame visible reconstruction を主 target にしていたが、shared log にしか進捗が無く、`active` の中身が正本から読めなかった
   cause: fresh runtime からの再立ち上げ、window 探索、depth batch、world fusion、preview closeout を優先し、`admin-mrl-test-evidence.md` と `ux-b2t-hypo.md` への反映が後ろにずれていた
-  resolution: 実 session の最長連続 window 約 `3.95s` を正として sampled `12 frame` の depth batch を実行し、`11 frame` / `3696 points` の multi-frame world fusion、`world_points_multiframe_preview.png`、`mrl7_closeout_summary.json` を candidate-visible-proof として記録した。`MRL-7` は `active` を維持しつつ、正本から current progress と不足分を追える状態へ更新した
-  recurrence prevention: `MRL-7` 以降の Colab 往復では、shared worklog の step 成功ごとに、最低でも `active` gate の current progress と candidate evidence を同日中に正本へ反映する
-  remaining work: `PLY` viewer での目視確認、人軌跡重畳を含む `TraceCore` 最小表示、全体俯瞰 / 時系列 / 相対表示 / 滞留 / 交錯の価値確認を進める
+  resolution: 実 session の最長連続 window 約 `3.95s` を正として sampled `12 frame` の depth batch を実行し、`11 frame` / `3696 points` の multi-frame world fusion、`world_points_multiframe_preview.png`、`mrl7_closeout_summary.json` を保存した。この範囲を `mRL-7.1` として切り出し `p-done` に上げ、`PLY` viewer 目視確認と人軌跡重畳を含む最小表示は `mRL-7.2` へ分離した
+  recurrence prevention: `MRL-7` 以降の Colab 往復では、shared worklog の step 成功ごとに、どこまでをその `mRL` の成立範囲に含めるかを同日中に正本へ固定する
+  remaining work: `mRL-7.2` として `PLY` viewer での目視確認、人軌跡重畳を含む `TraceCore` 最小表示、全体俯瞰 / 時系列 / 相対表示 / 滞留 / 交錯の価値確認を進める
   evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-evidence.md`
 
 - record date: `2026-03-26`

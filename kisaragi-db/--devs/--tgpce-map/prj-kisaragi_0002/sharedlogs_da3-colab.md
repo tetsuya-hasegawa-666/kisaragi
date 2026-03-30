@@ -1281,3 +1281,72 @@ print(json.dumps({
   "closeout_path": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01/world_fusion_v01/mrl7_closeout_summary.json"
 }
 ```
+
+# codex
+
+2026-03-30 v34 step-7f multiframe viewer bundle export。
+
+- 判定: `mRL-7.1` は `p-done` として閉じる。
+  - 実 session の最長連続 window を正にした `multi-frame` sampling
+  - `12 frame` depth batch
+  - `11 frame` world fusion
+  - `3696 points`
+  - preview と closeout summary 保存
+- 目的: `mRL-7.2` の最初の command として、admin が local viewer で見られる bundle を 1 zip にまとめる。
+- 成功条件:
+  - `mrl7_multiframe_viewer_bundle.zip` を作れる
+  - `world_points_multiframe.ply`、`world_points_multiframe_preview.png`、`mrl7_closeout_summary.json` を同梱できる
+  - download 用の file path を返せる
+
+```python
+# Step 7f multiframe viewer bundle export
+from pathlib import Path
+import json
+import shutil
+
+probe_dir = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01")
+world_dir = probe_dir / "world_fusion_v01"
+bundle_dir = probe_dir / "viewer_bundle_v01"
+bundle_zip = Path("/content/mrl7_multiframe_viewer_bundle.zip")
+
+if bundle_dir.exists():
+    shutil.rmtree(bundle_dir)
+bundle_dir.mkdir(parents=True, exist_ok=True)
+
+copy_targets = [
+    "world_points_multiframe.ply",
+    "world_points_multiframe.npy",
+    "world_points_multiframe_preview.png",
+    "world_fusion_summary.json",
+    "mrl7_closeout_summary.json",
+]
+
+copied = []
+for name in copy_targets:
+    src = world_dir / name
+    assert src.exists(), {"missing_artifact": str(src)}
+    dst = bundle_dir / name
+    shutil.copy2(src, dst)
+    copied.append(str(dst))
+
+if bundle_zip.exists():
+    bundle_zip.unlink()
+
+archive_base = str(bundle_zip.with_suffix(""))
+shutil.make_archive(archive_base, "zip", root_dir=str(bundle_dir))
+
+print(json.dumps({
+    "bundle_dir": str(bundle_dir),
+    "bundle_zip": str(bundle_zip),
+    "bundle_zip_exists": bundle_zip.exists(),
+    "copied_count": len(copied),
+    "copied_names": [Path(x).name for x in copied],
+}, indent=2, ensure_ascii=False))
+```
+
+# admin
+
+```text
+# Step 7f multiframe viewer bundle export res
+
+```

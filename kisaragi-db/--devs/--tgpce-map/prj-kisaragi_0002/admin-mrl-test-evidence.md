@@ -217,10 +217,9 @@
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/trajectreview_modeling_20260329_gpu-evidence.ipynb`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/da3_smoke_v05/`
 
-## 2026-03-30 `MRL-7` `TraceCore` multi-frame candidate evidence
+## 2026-03-30 `mRL-7.1` multi-frame point-fusion close evidence
 
 - 対象 gate:
-  - `MRL-7`
   - `mRL-7.1`
 - 実施者:
   - `admin`
@@ -231,7 +230,8 @@
   - `trajectreview-correcting` で取得した `session-20260328-103250.zip`
   - `Google Drive` shortcut 配下 `trajectreview/correcting/session-20260328-103250.zip`
 - 判定:
-  - この段は `active` のまま candidate evidence を収載する
+  - `mRL-7.1` は `p-done`
+  - `MRL-7` 全体は `active` を維持する
 - 結果要点:
   - fresh runtime から input zip を再展開し、`session_package.json`、`frame_pose_index.csv`、`camera_calibration_summary.json`、`images/` を再発見できた
   - `frame_pose_index.csv` の実列を基準に `aligned_frame_count = 182` を確認できた
@@ -240,7 +240,8 @@
   - world fusion では `11 frame` を主 `ARCore` 空間へ戻し、`1 frame` は skip した
   - `world_points_multiframe.npy`、`world_points_multiframe.ply`、`world_fusion_summary.json` を保存できた
   - `total_points = 3696` の multi-frame 点群を `world_points_multiframe_preview.png` と `mrl7_closeout_summary.json` へ閉じ、`candidate-visible-proof` を保存できた
-  - まだ `PLY` viewer での目視確認と、人軌跡重畳を含む `TraceCore` 最小表示までは未達であるため、`MRL-7` は `p-done` に上げていない
+  - ここでは `multi-frame` sampling、depth batch、world fusion、preview closeout までを `mRL-7.1` の成立範囲とする
+  - `PLY` viewer での目視確認と、人軌跡重畳を含む `TraceCore` 最小表示は `mRL-7.2` へ送る
 - 主要 artifact:
   - `mrl7_window_probe.json`
   - `depth_batch_manifest.json`
