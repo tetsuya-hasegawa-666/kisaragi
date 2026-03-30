@@ -1036,3 +1036,135 @@ print(json.dumps({
 # Step 7d multi-frame world-point fusion res
 
 ```
+
+# codex
+
+2026-03-30 v32 step-7d retry after syntax fix。
+
+- 原因: 前 block の `PLY` 書き出しで `f.write(f\"...\")` となっており、Python syntax error になる。
+- 対応: それ以外は変えず、`PLY` 書き出し行だけ直した retry block を実行する。
+- 成功条件:
+  - `world_points_multiframe.npy`
+  - `world_points_multiframe.ply`
+  - `world_fusion_summary.json`
+  が保存される
+
+```python
+# Step 7d retry after syntax fix
+from pathlib import Path
+import json
+import numpy as np
+import pandas as pd
+
+SESSION_ROOT = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+SESSION_BUNDLE_ROOT = SESSION_ROOT.parent
+probe_dir = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01")
+batch_dir = probe_dir / "depth_batch_v01"
+manifest_path = batch_dir / "depth_batch_manifest.json"
+out_dir = probe_dir / "world_fusion_v01"
+out_dir.mkdir(parents=True, exist_ok=True)
+
+frame_index = pd.read_csv(SESSION_ROOT / "frame_pose_index.csv")
+pose_path = SESSION_ROOT / "arcore_pose.jsonl"
+if not pose_path.exists():
+    pose_path = SESSION_BUNDLE_ROOT / "arcore_pose.jsonl"
+
+with pose_path.open("r", encoding="utf-8") as f:
+    pose_records = [json.loads(line) for line in f if line.strip()]
+
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+outputs = manifest["outputs"]
+
+frame_name_to_row = {}
+for _, row in frame_index.iterrows():
+    image_name = row.get("image_file_name")
+    if isinstance(image_name, str) and image_name:
+        frame_name_to_row[image_name] = row
+
+all_points = []
+per_frame = []
+skipped = []
+stride = 24
+
+for item in outputs:
+    frame_name = item["frame_name"]
+    row = frame_name_to_row.get(frame_name)
+    if row is None:
+        skipped.append({"frame_name": frame_name, "reason": "frame_index_row_not_found"})
+        continue
+
+    pose_idx = int(row["pose_record_index"])
+    if pose_idx < 0 or pose_idx >= len(pose_records):
+        skipped.append({"frame_name": frame_name, "reason": "pose_record_index_out_of_range", "pose_record_index": pose_idx})
+        continue
+
+    record = pose_records[pose_idx]
+    pose = record["pose"]
+    intr = record["imageIntrinsics"]
+    depth = np.load(item["depth_path"])
+
+    h, w = depth.shape
+    grid_y, grid_x = np.mgrid[0:h:stride, 0:w:stride]
+    z = depth[grid_y, grid_x]
+    x = (grid_x - float(intr["cx"])) * z / float(intr["fx"])
+    y = (grid_y - float(intr["cy"])) * z / float(intr["fy"])
+    camera_points = np.stack([x, y, z], axis=-1).reshape(-1, 3)
+
+    t = np.array([pose["tx"], pose["ty"], pose["tz"]], dtype=np.float32)
+    world_points = camera_points.astype(np.float32) + t
+
+    all_points.append(world_points)
+    per_frame.append({
+        "frame_name": frame_name,
+        "pose_record_index": pose_idx,
+        "point_count": int(len(world_points)),
+        "timestamp_sec": item["timestamp_sec"],
+    })
+    print("WORLD_OK", frame_name, len(world_points), pose_idx)
+
+assert all_points, "no world points generated"
+
+merged = np.concatenate(all_points, axis=0).astype(np.float32)
+npy_path = out_dir / "world_points_multiframe.npy"
+ply_path = out_dir / "world_points_multiframe.ply"
+summary_path = out_dir / "world_fusion_summary.json"
+
+np.save(npy_path, merged)
+
+with ply_path.open("w", encoding="utf-8") as f:
+    f.write("ply\nformat ascii 1.0\n")
+    f.write(f"element vertex {len(merged)}\n")
+    f.write("property float x\nproperty float y\nproperty float z\n")
+    f.write("end_header\n")
+    for p in merged:
+        f.write(f"{p[0]} {p[1]} {p[2]}\n")
+
+summary = {
+    "stride": stride,
+    "processed_frames": len(per_frame),
+    "skipped_frames": skipped,
+    "total_points": int(len(merged)),
+    "per_frame": per_frame,
+    "npy_path": str(npy_path),
+    "ply_path": str(ply_path),
+}
+summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+
+print(json.dumps({
+    "processed_frames": summary["processed_frames"],
+    "skipped_frames": len(summary["skipped_frames"]),
+    "total_points": summary["total_points"],
+    "first_frame": None if not per_frame else per_frame[0],
+    "last_frame": None if not per_frame else per_frame[-1],
+    "saved_npy": str(npy_path),
+    "saved_ply": str(ply_path),
+    "saved_summary": str(summary_path),
+}, indent=2, ensure_ascii=False))
+```
+
+# admin
+
+```text
+# Step 7d retry after syntax fix res
+
+```
