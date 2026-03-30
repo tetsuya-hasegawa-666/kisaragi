@@ -694,5 +694,129 @@ print(json.dumps({
 
 ```text
 # Step 7b multi-frame window selection res
+columns ['frame_index', 'image_file_name', 'frame_timestamp_ns', 'pose_record_index', 'pose_timestamp_ns', 'time_delta_ms', 'image_intrinsics_mode', 'tracking_state']
+rows 521
+{
+  "time_col": "frame_timestamp_ns",
+  "frame_col": "derived_frame_name",
+  "aligned_frame_count": 182,
+  "window_span_sec": 3.953939746017568,
+  "window_frame_count": 182,
+  "sample_frame_count": 12,
+  "first_sample": {
+    "frame_name": "frame_000009.jpg",
+    "timestamp_sec": 916764.341604734,
+    "image_path": "/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000009.jpg"
+  },
+  "last_sample": {
+    "frame_name": "frame_000520.jpg",
+    "timestamp_sec": 916768.29554448,
+    "image_path": "/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000520.jpg"
+  },
+  "saved": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01/mrl7_window_probe.json"
+}
+```
+
+# codex
+
+2026-03-30 v30 step-7c sampled-frame depth batch。
+
+- 目的: `Step 7b` で決めた `12 frame` を対象に、`DA3Metric-Large` depth を一括生成して `MRL-7` の multi-frame densify 入力を作る。
+- 読み替え:
+  - 今回の実 session では `10s` 理想に対して、実際の連続 window は約 `3.95s` だった
+  - この段では `10s` 固定にこだわらず、実 session の最長連続 window を正として進める
+- 成功条件:
+  - `mrl7_window_probe.json` から sampled frame を読める
+  - `12 frame` 前後の depth を保存できる
+  - `depth_batch_manifest.json` を保存できる
+- 失敗時の扱い:
+  - VRAM や runtime が厳しければ `max_frames = 8` へ落として再実行する
+  - 1 枚でも推論 failure が出たら、その frame 名を manifest に残して続行する
+
+```python
+# Step 7c sampled-frame depth batch
+from pathlib import Path
+import json
+import numpy as np
+from PIL import Image
+import torch
+
+from depth_anything_3.api import DepthAnything3
+
+probe_dir = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01")
+probe_path = probe_dir / "mrl7_window_probe.json"
+out_dir = probe_dir / "depth_batch_v01"
+out_dir.mkdir(parents=True, exist_ok=True)
+
+probe = json.loads(probe_path.read_text(encoding="utf-8"))
+sample_frames = probe["sample_frames"]
+max_frames = 12
+sample_frames = sample_frames[:max_frames]
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = DepthAnything3.from_pretrained("depth-anything/DA3METRIC-LARGE").to(device=device)
+
+manifest = {
+    "device": str(device),
+    "requested_frames": len(probe["sample_frames"]),
+    "processed_frames": 0,
+    "failed_frames": [],
+    "outputs": [],
+}
+
+for idx, item in enumerate(sample_frames):
+    image_path = Path(item["image_path"])
+    frame_name = item["frame_name"]
+    stem = image_path.stem
+    try:
+        pred = model.inference([str(image_path)])
+        depth = np.asarray(pred.depth[0])
+        depth_path = out_dir / f"{stem}_depth.npy"
+        preview_path = out_dir / f"{stem}_depth.png"
+        np.save(depth_path, depth)
+
+        depth_min = float(depth.min())
+        depth_max = float(depth.max())
+        norm = np.zeros_like(depth, dtype=np.float32) if depth_max <= depth_min else (depth - depth_min) / (depth_max - depth_min)
+        Image.fromarray((norm * 255).astype(np.uint8)).save(preview_path)
+
+        manifest["outputs"].append({
+            "frame_name": frame_name,
+            "image_path": str(image_path),
+            "timestamp_sec": item["timestamp_sec"],
+            "depth_path": str(depth_path),
+            "preview_path": str(preview_path),
+            "depth_shape": list(depth.shape),
+            "depth_min": depth_min,
+            "depth_max": depth_max,
+        })
+        manifest["processed_frames"] += 1
+        print("DEPTH_OK", idx, frame_name, depth.shape, depth_min, depth_max)
+    except Exception as exc:
+        manifest["failed_frames"].append({
+            "frame_name": frame_name,
+            "image_path": str(image_path),
+            "error_type": type(exc).__name__,
+            "error": str(exc),
+        })
+        print("DEPTH_NG", idx, frame_name, type(exc).__name__, str(exc))
+
+manifest_path = out_dir / "depth_batch_manifest.json"
+manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+
+print(json.dumps({
+    "device": manifest["device"],
+    "processed_frames": manifest["processed_frames"],
+    "failed_frames": len(manifest["failed_frames"]),
+    "first_output": None if not manifest["outputs"] else manifest["outputs"][0],
+    "last_output": None if not manifest["outputs"] else manifest["outputs"][-1],
+    "saved": str(manifest_path),
+}, indent=2, ensure_ascii=False))
+```
+
+# admin
+
+```text
+# Step 7c sampled-frame depth batch res
 
 ```
