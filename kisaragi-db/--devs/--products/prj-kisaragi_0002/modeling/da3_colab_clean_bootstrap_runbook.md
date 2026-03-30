@@ -1157,14 +1157,85 @@ print(json.dumps({
 
 - 上の adopted block は `mRL-7.1` と `mRL-7.2` を `p-done` にした最小 path なので、runbook 正本では `20 step` を canonical とする。
 - 同じ route を追加で伸ばす拡張実績として、`500 step` と `2500 step` も確認済みである。
+- 同じ route を中間長さで追加学習する時は、下の `1000 step` block を使ってよい。
 - `2500 step` 実績では、`loss_init = 0.18226878345012665` から `loss_final = 0.009165632538497448` まで低下し、`gaussian_render_optim2500.png` は取得背景にかなり近い構図まで改善した。
 - これらの拡張実績は、最小 runbook を置き換えるものではなく、後続 `MRL-**` の optimization 強化 evidence として扱う。
+
+### `1000 step` 追加学習 block
+
+- 用途:
+  - `20 step` canonical 実行後に、同じ runtime でそのまま gaussian optimization を `1000 step` まで伸ばしたい時に使う。
+  - 前提として、上の adopted block が通っており、`means`、`scales`、`quats`、`opacities`、`colors`、`target`、`world_dir`、`render_once()`、`save_png()` が同じ notebook runtime に残っていること。
+
+```python
+# gaussian optim 1000
+optimizer = torch.optim.Adam([means, scales, quats, opacities, colors], lr=1e-2)
+
+pred_init_1000, _ = render_once()
+loss_init_1000 = torch.mean((pred_init_1000 - target) ** 2)
+
+loss_history_1000 = [float(loss_init_1000.detach().cpu().item())]
+for step in range(1000):
+    optimizer.zero_grad(set_to_none=True)
+    pred, alpha = render_once()
+    loss = torch.mean((pred - target) ** 2)
+    loss.backward()
+    optimizer.step()
+    loss_history_1000.append(float(loss.detach().cpu().item()))
+
+pred_final_1000, alpha_final_1000 = render_once()
+loss_final_1000 = torch.mean((pred_final_1000 - target) ** 2)
+
+save_png(world_dir / "gaussian_render_optim1000.png", pred_final_1000)
+torch.save({
+    "means": means.detach().cpu(),
+    "scales_log": scales.detach().cpu(),
+    "quats": torch.nn.functional.normalize(quats.detach(), dim=-1).cpu(),
+    "opacities_logit": opacities.detach().cpu(),
+    "colors": colors.detach().cpu(),
+}, world_dir / "gaussian_params_optim1000.pt")
+
+gaussian_summary_1000 = {
+    "backward_ok": True,
+    "point_count": int(means.shape[0]),
+    "loss_init": float(loss_init_1000.detach().cpu().item()),
+    "loss_final": float(loss_final_1000.detach().cpu().item()),
+    "loss_history_head": loss_history_1000[:5],
+    "loss_history_tail": loss_history_1000[-5:],
+    "alpha_mean_final": float(alpha_final_1000.mean().detach().cpu().item()),
+    "optim1000_pt": str(world_dir / "gaussian_params_optim1000.pt"),
+    "optim1000_png": str(world_dir / "gaussian_render_optim1000.png"),
+}
+(world_dir / "gaussian_optim1000_summary.json").write_text(
+    json.dumps(gaussian_summary_1000, indent=2, ensure_ascii=False),
+    encoding="utf-8",
+)
+
+print(json.dumps({
+    "point_count": int(means.shape[0]),
+    "loss_init": gaussian_summary_1000["loss_init"],
+    "loss_final": gaussian_summary_1000["loss_final"],
+    "optim1000_pt": gaussian_summary_1000["optim1000_pt"],
+    "optim1000_png": gaussian_summary_1000["optim1000_png"],
+}, indent=2, ensure_ascii=False))
+```
+
+OK 条件:
+
+- `loss_init` と `loss_final` が出る
+- 原則として `loss_final < loss_init`
+- `gaussian_params_optim1000.pt` が保存される
+- `gaussian_render_optim1000.png` が保存される
+- `gaussian_optim1000_summary.json` が保存される
 
 拡張 artifact:
 
 - `gaussian_params_optim500.pt`
 - `gaussian_render_optim500.png`
 - `gaussian_optim500_summary.json`
+- `gaussian_params_optim1000.pt`
+- `gaussian_render_optim1000.png`
+- `gaussian_optim1000_summary.json`
 - `gaussian_params_optim2500.pt`
 - `gaussian_render_optim2500.png`
 - `gaussian_optim2500_summary.json`
