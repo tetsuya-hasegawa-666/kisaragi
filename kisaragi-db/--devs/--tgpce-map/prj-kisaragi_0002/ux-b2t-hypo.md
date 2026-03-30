@@ -10,7 +10,7 @@
 
 | 項目 | 状況 |
 | --- | --- |
-| `correcting` | `MRL-1` と `MRL-2` の実装と証跡はそろっている。長時間収録では screen off は抑止済みで、`shared-camera` 動画化の `OutOfMemoryError` は逐次 encode 化で解消した。残る主因は停止時の `MediaCodec` 終端 drain が抜けず finalize しない点で、bounded stop を入れたうえで `MRL-2S` の `10min` 実収録確認へ進む |
+| `correcting` | `MRL-1` と `MRL-2` の実装と証跡はそろっている。長時間収録では screen off は抑止済みで、`shared-camera` 動画化の `OutOfMemoryError` と停止時 finalize hang は修正済みである。admin 実機では `3分` 収録で停止成功まで確認できたため、残りは `MRL-2S` の `10min` 実収録確認である |
 | `modeling` | `MRL-3` から `MRL-8` は `p-done` である。`MRL-7` は `mRL-7.1` と `mRL-7.2` が `p-done` になり、multi-frame point cloud から gaussian short optimization まで到達した。`MRL-8` では runbook 本体の前段に Drive input candidate scan / widget select を追加し、selected input を bootstrap 本体と `MRL-7` one-block の両方へ handoff できる状態を閉じた。運用形は notebook 全体の `Run all` ではなく、widget 選択を 1 回挟んでから残りを上から順に流す方式である。次は `MRL-2S` と後続 `MRL-**` の gaussian formalization / viewer 寄せへ進む |
 | `reviewing` | summary と stub 読込まではあるが、実 `ReviewArtifact` viewer と same-time highlight 操作は未実装である |
 
@@ -23,7 +23,7 @@
 | `BLK-3` | 人物 path の視覚再拘束に必要な実データ条件が未確定 | `TrajectoryPackage` の安定化条件が読みにくい | `MRL-7` では最小表示を優先し、視覚再拘束条件は後続検証へ送る |
 | `BLK-4` | `ReviewArtifact` の最終 viewer 実装先と same-time highlight 実装が未完 | `reviewing` の本機能 gate を閉じられない | 後続 `MRL-**` として分離して扱う |
 | `BLK-5` | `UX-only`、contract、sample、本機能完成の gate が文書上で十分に分離されていない | closeout が過大になりやすい | `BDD` / `TDD` / `MRL` の再構成で gate 境界を明確にする |
-| `BLK-6` | `correcting` は screen off 抑止後、`shared-camera` 動画化の `OOM` は解消したが、停止時に `MediaCodec` 終端 drain が抜けず session finalize が止まることがある | 現場記録の本機能成立が止まる | `MRL-2S` で bounded stop 修正後 build を実機で `10min` 検証し、session finalize まで確認する |
+| `BLK-6` | `correcting` の短中時間帯は `3分` 収録まで停止成功を確認したが、`10min` 連続収録はまだ未確認である | 現場記録の本機能成立を `i-pass` にできない | `MRL-2S` で `10min` 実収録を行い、screen off 抑止と finalize 完了を確認する |
 | `BLK-7` | `DA3 Colab` runbook は Drive 上の特定 zip path を hardcode しており、任意 input を script だけで選んで本体へ渡せない | fresh runtime で入力を差し替えるたびに手編集が必要になり、bootstrap の再現性が落ちる | `MRL-8 p-done` により解消済み。Drive input candidate scan、widget select、selected input handoff を runbook 正本へ反映済み |
 
 ### 次の一手
@@ -330,9 +330,9 @@
 | `MRL-2` | `mRL-2.1` | `1 回以上 data-check` 後の転送 gate と `Google Drive` 転送を確認する | `su5` | `bu7`,`bu8` | `tu8`,`tu9`,<br>`tu10` | `p-done` | `p-done` | 操作手順 8-13 | 2026-03-27 MRL-3 candidate evidence,<br>2026-03-29 correcting batch MRL-1 と MRL-2 close evidence |
 | `MRL-2` | `mRL-2.2` | Drive folder 同期 contract と zip 転送結果を確認する | `su5`,`sd11` | `bu9`,`bd20` | `tu11` | `p-done` | `p-done` | 操作手順 10-13 | 2026-03-27 MRL-3 candidate evidence,<br>2026-03-29 correcting batch MRL-1 と MRL-2 close evidence |
 | `MRL-2` | `mRL-2.3` | raw video を含む<br>`SessionPackage` と<br>`space_handoff_manifest` により<br>`SpaceReconstruction` handoff を確認する | `sd3`,`su3` | `bd5`,`bd6`,<br>`bd7`,`bd8`,<br>`bu5` | `td6`,`td7`,<br>`td8`,`tu5` | `p-done` | `p-done` | modeling batch<br>前提確認 1-4 | 2026-03-25 MRL-3 candidate evidence,<br>2026-03-29 correcting batch MRL-1 と MRL-2 close evidence |
-| `MRL-2S` | `-` | `correcting` 前面表示中の screen off 回避と、`通常計測` の `10min` 連続収録安定性を固める | `su6a` | `bu10a` | `tu14a`,`tu14b` | `active` | `ready` | 操作手順 16-18 と長時間収録追補 | 未収載 |
-| `MRL-2S` | `mRL-2S.1` | app 前面表示中の keep-awake により、自動減光や screen off で収録が止まらないことを確認する | `su6a` | `bu10a` | `tu14a` | `active` | `ready` | 操作手順 16-18 | 未収載 |
-| `MRL-2S` | `mRL-2S.2` | `通常計測` で `10min` 連続収録しても app が落ちず、session が finalizable であることを確認する | `su6a` | `bu10a` | `tu14b` | `active` | `ready` | 操作手順 16-18 と長時間収録追補 | 未収載 |
+| `MRL-2S` | `-` | `correcting` 前面表示中の screen off 回避と、`通常計測` の `10min` 連続収録安定性を固める | `su6a` | `bu10a` | `tu14a`,`tu14b` | `active` | `active` | 操作手順 16-19 と長時間収録追補 | 2026-03-31 `MRL-2S` bounded stop candidate evidence |
+| `MRL-2S` | `mRL-2S.1` | app 前面表示中の keep-awake により、自動減光や screen off で収録が止まらないことを確認する | `su6a` | `bu10a` | `tu14a` | `active` | `active` | 操作手順 16-19 | 2026-03-31 `MRL-2S` bounded stop candidate evidence |
+| `MRL-2S` | `mRL-2S.2` | `通常計測` で `10min` 連続収録しても app が落ちず、session が finalizable であることを確認する | `su6a` | `bu10a` | `tu14b` | `active` | `active` | 操作手順 16-19 と長時間収録追補 | 2026-03-31 `MRL-2S` bounded stop candidate evidence |
 | `MRL-3` | `-` | `Colab` 実行前の<br>package / config / runbook 導線と<br>bootstrap / install を<br>たどれることを確認する | `sd7`,`su12` | `bd14`,`bu16` | `td13`,`tu20` | `p-done` | `p-done` | modeling batch<br>操作手順 4-6<br>da3_colab_<br>clean_bootstrap_<br>runbook.md | modeling batch 定義,<br>2026-03-29 modeling bootstrap candidate evidence |
 | `MRL-3` | `mRL-3.1` | `Colab` 実行前の package / config / runbook 導線を手動でたどれることを確認する | `sd7`,`su12` | `bd14`,`bu16` | `td13`,`tu20` | `p-done` | `p-done` | modeling batch <br>操作手順 4-6 と<br>da3_colab_<br>clean_bootstrap_<br>runbook.md | 2026-03-29 modeling bootstrap candidate evidence |
 | `MRL-4` | `-` | `trajectreview-modeling` で<br>実 bundle 読込、<br>request preflight、<br>review 側 state 組立て、<br>`Google Drive` directory intake までを成立させる | `sd6`,`sd7`,<br>`sd8`,`su12`,<br>`su19`,`sd11` | `bd13`,`bd14`,<br>`bd15`,`bd16`,<br>`bu16`,`bd20` | `td12`,`td13`,<br>`td22`,`td14`,<br>`tu20`,`td23` | `p-done` | `p-done` | modeling batch<br>操作手順 1-9 | modeling batch 定義,<br>2026-03-29 modeling preflight close evidence |

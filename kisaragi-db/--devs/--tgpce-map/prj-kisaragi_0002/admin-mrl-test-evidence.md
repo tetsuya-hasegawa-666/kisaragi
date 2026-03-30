@@ -74,6 +74,28 @@
   - `trajectreview/results/trajectreview-correcting-session-20260331-034831_da3_multiframe_probe_v01/world_fusion_v01/`
   - `Google Drive` 転送と handoff bundle を 1 回の収録から読める
 
+## 2026-03-31 `MRL-2S` bounded stop candidate evidence
+
+- 対象 gate:
+  - `MRL-2S`
+  - `mRL-2S.1`
+  - `mRL-2S.2`
+- 実施者:
+  - `admin`
+- 端末 / 環境:
+  - `Xperia 5 III`
+  - Android app `trajectreview-correcting`
+- 結果要点:
+  - `通常計測` で `2分30秒` 超から `3分` 近い収録を行っても app は落ちなかった
+  - `撮影停止` 後に停止処理が完了し、session が止まらず残る事象は再現しなかった
+  - status card の `経過時間` は停止要求時点で凍結し、その後に増え続けなかった
+  - したがって `1min15s` 前後の `OOM` と、停止後 finalize hang の両方について、短中時間帯の主導線は改善を確認できた
+- 未完:
+  - `10min` 連続収録での keep-awake 維持と finalize 完了は未確認
+  - そのため `MRL-2S` と `mRL-2S.1` / `mRL-2S.2` はまだ `active`
+- evidence path:
+  - `kisaragi-db/--exsams/prj-kisaragi_0002/device-debug/20260331-stop-hang/`
+
 ### correcting batch 記録テンプレート
 
 - batch id: `correcting-batch-YYYYMMDD-01`

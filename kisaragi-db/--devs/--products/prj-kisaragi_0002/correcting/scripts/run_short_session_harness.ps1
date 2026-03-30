@@ -5,7 +5,7 @@ param(
     [int]$TapX = 806,
     [int]$TapY = 2230,
     [string]$PackageName = "com.reviework.correcting",
-    [string]$ActivityName = ".MainActivity"
+    [string]$ActivityName = "com.isensorium.app.MainActivity"
 )
 
 $ErrorActionPreference = "Stop"

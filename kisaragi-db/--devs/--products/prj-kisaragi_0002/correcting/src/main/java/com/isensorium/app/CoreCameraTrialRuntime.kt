@@ -89,14 +89,18 @@ class TrialCpuImageVideoRecorder(
 ) {
     private val logTag = "isensorium-preview"
     private val minFrameIntervalNs = 1_000_000_000L / targetFrameRate
-    private val frames = mutableListOf<VideoFrame>()
-    private val frameLock = Any()
     private var previewListener: ((Bitmap, Long) -> Unit)? = null
     private var previewFrameIntervalNs: Long = 200_000_000L
     private var lastPreviewTimestampNs = Long.MIN_VALUE
     private var lastPreviewLogNs = Long.MIN_VALUE
 
     private var imageReader: ImageReader? = null
+    private var codec: MediaCodec? = null
+    private var muxer: MediaMuxer? = null
+    private var bufferInfo: MediaCodec.BufferInfo? = null
+    private var trackIndex = -1
+    private var muxerStarted = false
+    private var encoderStarted = false
     private var recording = false
     private var startSensorTimestampNs: Long? = null
     private var lastAcceptedTimestampNs = Long.MIN_VALUE
@@ -121,16 +125,16 @@ class TrialCpuImageVideoRecorder(
                 handleImage(image)
             }, callbackHandler)
         }
-        synchronized(frameLock) {
-            frames.clear()
-        }
+        releaseEncoder()
         startSensorTimestampNs = null
         lastAcceptedTimestampNs = Long.MIN_VALUE
         lastPreviewTimestampNs = Long.MIN_VALUE
+        lastPreviewLogNs = Long.MIN_VALUE
         recording = false
     }
 
     fun start() {
+        initializeEncoder()
         recording = true
     }
 
@@ -144,15 +148,9 @@ class TrialCpuImageVideoRecorder(
 
     fun stopAndRelease(): Long {
         recording = false
-        val capturedFrames = synchronized(frameLock) { frames.toList() }
-        if (capturedFrames.isNotEmpty()) {
-            encodeFrames(capturedFrames)
-        }
+        finishEncoding()
         imageReader?.close()
         imageReader = null
-        synchronized(frameLock) {
-            frames.clear()
-        }
         startSensorTimestampNs = null
         lastAcceptedTimestampNs = Long.MIN_VALUE
         return outputFile.length()
@@ -160,11 +158,9 @@ class TrialCpuImageVideoRecorder(
 
     fun release() {
         recording = false
+        releaseEncoder()
         imageReader?.close()
         imageReader = null
-        synchronized(frameLock) {
-            frames.clear()
-        }
         startSensorTimestampNs = null
         lastAcceptedTimestampNs = Long.MIN_VALUE
     }
@@ -183,12 +179,10 @@ class TrialCpuImageVideoRecorder(
             }
             val startTimestamp = startSensorTimestampNs ?: timestampNs.also { startSensorTimestampNs = it }
             val frameBytes = yuv420888ToI420(current)
-            synchronized(frameLock) {
-                frames += VideoFrame(
-                    presentationTimeUs = ((timestampNs - startTimestamp) / 1_000L).coerceAtLeast(0L),
-                    data = frameBytes,
-                )
-            }
+            queueFrame(
+                frameData = frameBytes,
+                presentationTimeUs = ((timestampNs - startTimestamp) / 1_000L).coerceAtLeast(0L),
+            )
             lastAcceptedTimestampNs = timestampNs
             maybeEmitPreview(current, timestampNs)
         }
@@ -219,8 +213,11 @@ class TrialCpuImageVideoRecorder(
         }
     }
 
-    private fun encodeFrames(capturedFrames: List<VideoFrame>) {
-        val codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
+    private fun initializeEncoder() {
+        if (encoderStarted) {
+            return
+        }
+        val activeCodec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
         val format = MediaFormat.createVideoFormat(
             MediaFormat.MIMETYPE_VIDEO_AVC,
             recordingSize.width,
@@ -231,89 +228,140 @@ class TrialCpuImageVideoRecorder(
             setInteger(MediaFormat.KEY_FRAME_RATE, targetFrameRate)
             setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
         }
-        val bufferInfo = MediaCodec.BufferInfo()
-        val muxer = MediaMuxer(outputFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
-        var trackIndex = -1
-        var muxerStarted = false
+        val activeMuxer = MediaMuxer(outputFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+        activeCodec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+        activeCodec.start()
+        codec = activeCodec
+        muxer = activeMuxer
+        bufferInfo = MediaCodec.BufferInfo()
+        trackIndex = -1
+        muxerStarted = false
+        encoderStarted = true
+    }
 
-        try {
-            codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-            codec.start()
+    private fun queueFrame(
+        frameData: ByteArray,
+        presentationTimeUs: Long,
+    ) {
+        val activeCodec = codec ?: return
+        drainCodec(activeCodec, endOfStream = false)
+        val inputIndex = activeCodec.dequeueInputBuffer(0L)
+        if (inputIndex < 0) {
+            logCodecDrop("encoder input buffer unavailable")
+            return
+        }
+        activeCodec.getInputBuffer(inputIndex)?.apply {
+            clear()
+            put(frameData)
+        } ?: run {
+            logCodecDrop("encoder input buffer missing")
+            return
+        }
+        activeCodec.queueInputBuffer(inputIndex, 0, frameData.size, presentationTimeUs, 0)
+        drainCodec(activeCodec, endOfStream = false)
+    }
 
-            for (frame in capturedFrames) {
-                val inputIndex = codec.dequeueInputBuffer(TIMEOUT_US)
-                if (inputIndex >= 0) {
-                    codec.getInputBuffer(inputIndex)?.apply {
-                        clear()
-                        put(frame.data)
-                    }
-                    codec.queueInputBuffer(inputIndex, 0, frame.data.size, frame.presentationTimeUs, 0)
-                }
-                val drainState = drainCodec(codec, muxer, bufferInfo, trackIndex, muxerStarted)
-                trackIndex = drainState.trackIndex
-                muxerStarted = drainState.muxerStarted
-            }
-
-            val eosInputIndex = codec.dequeueInputBuffer(TIMEOUT_US)
-            if (eosInputIndex >= 0) {
-                codec.queueInputBuffer(
-                    eosInputIndex,
+    private fun finishEncoding() {
+        val activeCodec = codec ?: return
+        drainCodec(activeCodec, endOfStream = false)
+        val presentationTimeUs =
+            ((lastAcceptedTimestampNs - (startSensorTimestampNs ?: lastAcceptedTimestampNs)) / 1_000L).coerceAtLeast(0L)
+        var eosQueued = false
+        repeat(10) {
+            val inputIndex = activeCodec.dequeueInputBuffer(TIMEOUT_US)
+            if (inputIndex >= 0) {
+                activeCodec.queueInputBuffer(
+                    inputIndex,
                     0,
                     0,
-                    capturedFrames.last().presentationTimeUs,
+                    presentationTimeUs,
                     MediaCodec.BUFFER_FLAG_END_OF_STREAM,
                 )
+                eosQueued = true
+                return@repeat
             }
-            val drainState = drainCodec(codec, muxer, bufferInfo, trackIndex, muxerStarted, endOfStream = true)
-            trackIndex = drainState.trackIndex
-            muxerStarted = drainState.muxerStarted
-        } finally {
-            runCatching { codec.stop() }
-            codec.release()
-            if (muxerStarted && trackIndex >= 0) {
-                runCatching { muxer.stop() }
-            }
-            muxer.release()
+            drainCodec(activeCodec, endOfStream = false)
         }
+        if (!eosQueued) {
+            logCodecDrop("encoder EOS queue retry exceeded")
+        }
+        drainCodec(activeCodec, endOfStream = true)
+        releaseEncoder()
     }
 
     private fun drainCodec(
-        codec: MediaCodec,
-        muxer: MediaMuxer,
-        bufferInfo: MediaCodec.BufferInfo,
-        initialTrackIndex: Int,
-        initialMuxerStarted: Boolean,
-        endOfStream: Boolean = false,
-    ): DrainState {
-        var trackIndex = initialTrackIndex
-        var muxerStarted = initialMuxerStarted
+        activeCodec: MediaCodec,
+        endOfStream: Boolean,
+    ) {
+        val activeMuxer = muxer ?: return
+        val activeBufferInfo = bufferInfo ?: return
+        val stopDeadlineNs =
+            if (endOfStream) {
+                SystemClock.elapsedRealtimeNanos() + STOP_DRAIN_TIMEOUT_NS
+            } else {
+                Long.MAX_VALUE
+            }
         while (true) {
-            val outputIndex = codec.dequeueOutputBuffer(bufferInfo, TIMEOUT_US)
+            val outputIndex = activeCodec.dequeueOutputBuffer(activeBufferInfo, TIMEOUT_US)
             when {
-                outputIndex == MediaCodec.INFO_TRY_AGAIN_LATER && !endOfStream -> return DrainState(trackIndex, muxerStarted)
-                outputIndex == MediaCodec.INFO_TRY_AGAIN_LATER -> continue
+                outputIndex == MediaCodec.INFO_TRY_AGAIN_LATER && !endOfStream -> return
+                outputIndex == MediaCodec.INFO_TRY_AGAIN_LATER -> {
+                    if (SystemClock.elapsedRealtimeNanos() >= stopDeadlineNs) {
+                        logCodecDrop("encoder EOS drain timeout")
+                        return
+                    }
+                    continue
+                }
                 outputIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
                     if (!muxerStarted) {
-                        trackIndex = muxer.addTrack(codec.outputFormat)
-                        muxer.start()
+                        trackIndex = activeMuxer.addTrack(activeCodec.outputFormat)
+                        activeMuxer.start()
                         muxerStarted = true
                     }
                 }
                 outputIndex >= 0 -> {
-                    val outputBuffer = codec.getOutputBuffer(outputIndex) ?: break
-                    if (bufferInfo.size > 0 && muxerStarted && trackIndex >= 0) {
-                        outputBuffer.position(bufferInfo.offset)
-                        outputBuffer.limit(bufferInfo.offset + bufferInfo.size)
-                        muxer.writeSampleData(trackIndex, outputBuffer, bufferInfo)
+                    val outputBuffer = activeCodec.getOutputBuffer(outputIndex) ?: break
+                    if (activeBufferInfo.size > 0 && muxerStarted && trackIndex >= 0) {
+                        outputBuffer.position(activeBufferInfo.offset)
+                        outputBuffer.limit(activeBufferInfo.offset + activeBufferInfo.size)
+                        activeMuxer.writeSampleData(trackIndex, outputBuffer, activeBufferInfo)
                     }
-                    codec.releaseOutputBuffer(outputIndex, false)
-                    if ((bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
-                        return DrainState(trackIndex, muxerStarted)
+                    activeCodec.releaseOutputBuffer(outputIndex, false)
+                    if ((activeBufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
+                        return
                     }
                 }
             }
         }
-        return DrainState(trackIndex, muxerStarted)
+    }
+
+    private fun releaseEncoder() {
+        val activeCodec = codec
+        val activeMuxer = muxer
+        codec = null
+        muxer = null
+        bufferInfo = null
+        encoderStarted = false
+        if (activeCodec != null) {
+            runCatching { activeCodec.stop() }
+            activeCodec.release()
+        }
+        if (activeMuxer != null) {
+            if (muxerStarted && trackIndex >= 0) {
+                runCatching { activeMuxer.stop() }
+            }
+            activeMuxer.release()
+        }
+        trackIndex = -1
+        muxerStarted = false
+    }
+
+    private fun logCodecDrop(reason: String) {
+        val nowNs = SystemClock.elapsedRealtimeNanos()
+        if (lastPreviewLogNs == Long.MIN_VALUE || nowNs - lastPreviewLogNs > 2_000_000_000L) {
+            lastPreviewLogNs = nowNs
+            Log.w(logTag, "video frame dropped: $reason")
+        }
     }
 
     private fun yuv420888ToI420(image: Image): ByteArray {
@@ -394,19 +442,9 @@ class TrialCpuImageVideoRecorder(
             }
         }
     }
-
-    private data class VideoFrame(
-        val presentationTimeUs: Long,
-        val data: ByteArray,
-    )
-
-    private data class DrainState(
-        val trackIndex: Int,
-        val muxerStarted: Boolean,
-    )
-
     private companion object {
         const val TIMEOUT_US = 10_000L
+        const val STOP_DRAIN_TIMEOUT_NS = 5_000_000_000L
     }
 }
 

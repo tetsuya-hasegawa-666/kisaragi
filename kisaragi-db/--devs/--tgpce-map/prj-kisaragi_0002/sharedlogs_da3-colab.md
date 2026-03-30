@@ -4245,3 +4245,36 @@ RUN python -m pip install --quiet addict evo moviepy==1.0.3 pygame pycolmap plyf
   "world_dir": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/trajectreview-correcting-session-20260331-034831_da3_multiframe_probe_v01/world_fusion_v01"
 }
 ```
+
+# codex v54
+
+install 1 の error は command 自体ではなく、`bash` command を Python cell に貼ったことが原因である。ここからは install command を Colab でそのまま動く Python block に寄せる。shell magics を使わず、`subprocess.run(...)` で統一する。
+
+```python
+# Install 1 and 2 retry
+from pathlib import Path
+import shutil
+import subprocess
+
+repo_root = Path("/content/Depth-Anything-3")
+if repo_root.exists():
+    shutil.rmtree(repo_root)
+
+def run(cmd):
+    print("RUN", " ".join(cmd))
+    subprocess.run(cmd, check=True)
+
+run(["git", "clone", "https://github.com/ByteDance-Seed/Depth-Anything-3.git", str(repo_root)])
+run(["python", "-m", "pip", "install", "--quiet", "addict", "evo", "moviepy==1.0.3", "pygame", "pycolmap", "plyfile", "trimesh", "gsplat"])
+
+print("repo_exists", repo_root.exists(), repo_root)
+```
+
+# admin
+
+```text
+# Install 1 and 2 retry res
+RUN git clone https://github.com/ByteDance-Seed/Depth-Anything-3.git /content/Depth-Anything-3
+RUN python -m pip install --quiet addict evo moviepy==1.0.3 pygame pycolmap plyfile trimesh gsplat
+repo_exists True /content/Depth-Anything-3
+```

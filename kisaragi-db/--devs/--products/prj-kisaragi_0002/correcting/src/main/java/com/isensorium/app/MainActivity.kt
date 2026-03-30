@@ -6,12 +6,16 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.PowerManager
 import android.os.Environment
 import android.os.SystemClock
 import android.provider.OpenableColumns
 import android.text.InputType
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -59,6 +63,12 @@ class MainActivity : AppCompatActivity() {
     private var transferDestinationStatusMessage: String? = null
     private var transferDestinationUri: Uri? = null
     private var captureModeSyncInProgress: Boolean = false
+    private var processingWakeLock: PowerManager.WakeLock? = null
+    private val uiHandler = Handler(Looper.getMainLooper())
+    private var latestSessionStatusText: String = ""
+    private var latestSessionRecording: Boolean = false
+    private var stopInProgress: Boolean = false
+    private var stopRequestedElapsedSeconds: Long? = null
     private val selectedTransferSessionIds: MutableSet<String> = linkedSetOf()
     private val selectedTransferGroupsState: MutableSet<TransferGroup> =
         linkedSetOf(
@@ -67,6 +77,15 @@ class MainActivity : AppCompatActivity() {
             TransferGroup.DERIVED,
             TransferGroup.IMAGES,
         )
+    private val recordingElapsedRunnable =
+        object : Runnable {
+            override fun run() {
+                renderCurrentStatus()
+                if (latestSessionRecording) {
+                    uiHandler.postDelayed(this, 1_000L)
+                }
+            }
+        }
 
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
@@ -126,12 +145,13 @@ class MainActivity : AppCompatActivity() {
         }
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        configureForegroundKeepAwake()
 
         recordingCoordinator = buildRecordingCoordinator()
 
         binding.recordButton.setOnClickListener {
             if (recordingCoordinator.isRecording()) {
-                recordingCoordinator.stopSession()
+                stopRecordingAsync()
             } else {
                 ensurePermissionsAndStart()
             }
@@ -228,6 +248,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        uiHandler.removeCallbacks(recordingElapsedRunnable)
+        releaseProcessingWakeLock()
+        if (isCorrectingApp) {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
         recordingCoordinator.shutdown()
         super.onDestroy()
     }
@@ -322,17 +347,27 @@ class MainActivity : AppCompatActivity() {
                 state.session?.sessionId?.let(selectedTransferSessionIds::add)
                 renderTransferState(null)
             }
+            latestSessionStatusText = state.statusText
+            latestSessionRecording = state.recording
+            if (!state.recording) {
+                stopInProgress = false
+                stopRequestedElapsedSeconds = null
+            }
             binding.recordButton.text = startRecordingButtonText()
             binding.bleSwitch.isEnabled = !state.recording
             binding.captureModeSwitch.isEnabled = !state.recording
             binding.arcoreSwitch.isEnabled = !state.recording
             setInputsEnabled(!state.recording)
-            showRecordingUi(state.recording, state.statusText)
-            renderState(state.statusText)
+            showRecordingUi(state.recording)
+            renderCurrentStatus()
             refreshDisplayedIssue()
             refreshSessionDetails(state.session)
             refreshRecordButtonState()
             renderBusyIndicator()
+            uiHandler.removeCallbacks(recordingElapsedRunnable)
+            if (state.recording) {
+                uiHandler.post(recordingElapsedRunnable)
+            }
             if (!state.recording) {
                 refreshConfigurationState()
                 if (isCorrectingApp && state.session != null) {
@@ -343,7 +378,81 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderState(message: String) {
+        if (!latestSessionRecording) {
+            latestSessionStatusText = message
+        }
         binding.statusText.text = message
+    }
+
+    private fun renderCurrentStatus() {
+        val rendered =
+            if (latestSessionRecording) {
+                buildRecordingElapsedStatus(
+                    baseStatusText = latestSessionStatusText,
+                    session = currentSession,
+                    frozenElapsedSeconds = stopRequestedElapsedSeconds,
+                )
+            } else {
+                latestSessionStatusText
+            }
+        binding.statusText.text = rendered
+        binding.recordingOverlayText.text = rendered
+    }
+
+    private fun buildRecordingElapsedStatus(
+        baseStatusText: String,
+        session: RecordingSession?,
+        frozenElapsedSeconds: Long? = null,
+    ): String {
+        val startedNs = session?.timebase?.sessionStartElapsedRealtimeNanos ?: 0L
+        if (startedNs <= 0L) {
+            return baseStatusText
+        }
+        val elapsedSec =
+            frozenElapsedSeconds
+                ?: (((SystemClock.elapsedRealtimeNanos() - startedNs).coerceAtLeast(0L)) / 1_000_000_000L)
+        return "経過時間: ${formatElapsedDuration(elapsedSec)}\n$baseStatusText"
+    }
+
+    private fun formatElapsedDuration(totalSeconds: Long): String {
+        val minutes = totalSeconds / 60
+        val seconds = totalSeconds % 60
+        return String.format(Locale.JAPAN, "%02d:%02d", minutes, seconds)
+    }
+
+    private fun stopRecordingAsync() {
+        if (stopInProgress) {
+            return
+        }
+        stopInProgress = true
+        stopRequestedElapsedSeconds =
+            currentSession?.timebase?.sessionStartElapsedRealtimeNanos?.let { startedNs ->
+                ((SystemClock.elapsedRealtimeNanos() - startedNs).coerceAtLeast(0L)) / 1_000_000_000L
+            }
+        latestSessionStatusText = "停止処理を実行中です。"
+        renderCurrentStatus()
+        refreshRecordButtonState()
+        renderBusyIndicator()
+        thread {
+            runCatching { recordingCoordinator.stopSession() }
+                .onFailure { error ->
+                    runOnUiThread {
+                        stopInProgress = false
+                        stopRequestedElapsedSeconds = null
+                        runtimeIssue =
+                            RecordingIssue(
+                                severity = RecordingIssueSeverity.ERROR,
+                                message = "停止処理に失敗しました: ${error.message ?: error::class.java.simpleName}",
+                                suggestedAction = "app を再起動し、残った session を確認してください。",
+                            )
+                        latestSessionStatusText = runtimeIssue!!.message
+                        renderCurrentStatus()
+                        refreshDisplayedIssue()
+                        refreshRecordButtonState()
+                        renderBusyIndicator()
+                    }
+                }
+        }
     }
 
     private fun refreshDisplayedIssue() {
@@ -360,10 +469,9 @@ class MainActivity : AppCompatActivity() {
         binding.issueText.text = "${issue.message}\n対応: ${issue.suggestedAction}"
     }
 
-    private fun showRecordingUi(recording: Boolean, statusText: String) {
+    private fun showRecordingUi(recording: Boolean) {
         binding.controlsCard.visibility = View.VISIBLE
         binding.recordingOverlay.visibility = View.GONE
-        binding.recordingOverlayText.text = statusText
         binding.recordButton.visibility = View.VISIBLE
         binding.recordButton.text =
             if (recording) {
@@ -773,9 +881,18 @@ class MainActivity : AppCompatActivity() {
         renderBusyIndicator()
     }
 
+    private fun configureForegroundKeepAwake() {
+        if (!isCorrectingApp) {
+            return
+        }
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        binding.root.keepScreenOn = true
+        binding.previewView.keepScreenOn = true
+    }
+
     private fun refreshRecordButtonState() {
         binding.recordButton.isEnabled =
-            recordingCoordinator.isRecording() || selectedLocalSaveDestinationUri() != null
+            !stopInProgress && (recordingCoordinator.isRecording() || selectedLocalSaveDestinationUri() != null)
     }
 
     private fun renderBusyIndicator() {
@@ -790,6 +907,8 @@ class MainActivity : AppCompatActivity() {
                     "端末保存先へ同期中です。" to "次の収録はできますが、同期完了まで待機を推奨します。"
                 dataCheckInProgress ->
                     "品質確認を実行中です。" to "次の収録はできますが、品質確認完了まで待機を推奨します。"
+                stopInProgress ->
+                    "停止処理を実行中です。" to "停止完了まで待機してください。"
                 else -> null
             }
         if (recordBusyState == null) {
@@ -816,6 +935,41 @@ class MainActivity : AppCompatActivity() {
             binding.transferProcessingIndicatorLayout.visibility = View.VISIBLE
             binding.transferProcessingStatusText.text = transferBusyState.first
             binding.transferProcessingRecommendationText.text = transferBusyState.second
+        }
+        updateProcessingWakeLock()
+    }
+
+    private fun updateProcessingWakeLock() {
+        if (!isCorrectingApp) {
+            return
+        }
+        val shouldHoldWakeLock =
+            recordingCoordinator.isRecording() ||
+                stopInProgress ||
+                saveDestinationSyncInProgress ||
+                dataCheckInProgress ||
+                transferInProgress
+        if (!shouldHoldWakeLock) {
+            releaseProcessingWakeLock()
+            return
+        }
+        val wakeLock =
+            processingWakeLock ?: run {
+                val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+                powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "$packageName:correcting-active").apply {
+                    setReferenceCounted(false)
+                }.also { processingWakeLock = it }
+            }
+        if (!wakeLock.isHeld) {
+            wakeLock.acquire(PROCESSING_WAKE_LOCK_TIMEOUT_MS)
+        }
+    }
+
+    private fun releaseProcessingWakeLock() {
+        processingWakeLock?.let { wakeLock ->
+            if (wakeLock.isHeld) {
+                wakeLock.release()
+            }
         }
     }
 
@@ -1340,9 +1494,13 @@ class MainActivity : AppCompatActivity() {
             return
         }
         var deletedCount = 0
+        var archiveDeleted = false
         sessionIds.forEach { sessionId ->
             val summary = loadStoredSessions().firstOrNull { it.sessionId == sessionId } ?: return@forEach
-            if (summary.sessionDir.deleteRecursively()) {
+            val localDeleted = summary.sessionDir.deleteRecursively()
+            val mirroredDeleted = deleteSessionFromSelectedLocalDestination(sessionId)
+            archiveDeleted = deleteGeneratedArchivesFromSelectedLocalDestination() || archiveDeleted
+            if (localDeleted) {
                 deletedCount += 1
                 selectedTransferSessionIds.remove(sessionId)
                 if (checkedSessionId == sessionId) {
@@ -1354,16 +1512,56 @@ class MainActivity : AppCompatActivity() {
                 if (currentSession?.sessionId == sessionId) {
                     currentSession = loadStoredSessions().firstOrNull()?.recordingSession
                 }
+            } else if (mirroredDeleted) {
+                selectedTransferSessionIds.remove(sessionId)
             }
         }
         renderTransferState(
             if (deletedCount > 0) {
-                "$deletedCount 件の data を削除しました。"
+                if (archiveDeleted) {
+                    "$deletedCount 件の data を削除し、端末保存先の転送 zip も整理しました。"
+                } else {
+                    "$deletedCount 件の data を削除しました。"
+                }
             } else {
                 "削除できる data がありませんでした。"
             },
         )
         refreshSessionDetails(currentSession)
+    }
+
+    private fun deleteSessionFromSelectedLocalDestination(sessionId: String): Boolean {
+        val destinationUri = selectedLocalSaveDestinationUri() ?: return false
+        val rootTree = DocumentFile.fromTreeUri(this, destinationUri) ?: return false
+        migrateLegacyTransferLayoutIfNeeded(rootTree)
+        val target = rootTree.findFile(sessionId) ?: return false
+        return target.delete()
+    }
+
+    private fun deleteGeneratedArchivesFromSelectedLocalDestination(): Boolean {
+        val destinationUri = selectedLocalSaveDestinationUri() ?: return false
+        val rootTree = DocumentFile.fromTreeUri(this, destinationUri) ?: return false
+        var deletedAny = false
+        rootTree.listFiles().forEach { child ->
+            if (!child.isFile) {
+                return@forEach
+            }
+            val name = child.name.orEmpty()
+            if (isGeneratedTransferArchiveName(name) && child.delete()) {
+                deletedAny = true
+            }
+        }
+        return deletedAny
+    }
+
+    private fun isGeneratedTransferArchiveName(name: String): Boolean {
+        if (!name.endsWith(".zip", ignoreCase = true)) {
+            return false
+        }
+        if (name.startsWith("trajectreview-correcting")) {
+            return true
+        }
+        return Regex(""".+-session-\d{8}-\d{6}\.zip""").matches(name)
     }
 
     private fun dp(value: Int): Int =
@@ -1863,6 +2061,7 @@ class MainActivity : AppCompatActivity() {
         private const val PREF_TRANSFER_TARGET_URL = "pref_transfer_target_url"
         private const val ROUTE_SWITCH_GUARD_MS = 800L
         private const val DEFAULT_TARGET_DRIVE_FOLDER_URL = "https://drive.google.com/drive/u/2/folders/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_"
+        private const val PROCESSING_WAKE_LOCK_TIMEOUT_MS = 15 * 60 * 1000L
 
         private val requiredPermissions = arrayOf(
             Manifest.permission.CAMERA,

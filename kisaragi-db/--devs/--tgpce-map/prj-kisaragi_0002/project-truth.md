@@ -103,6 +103,9 @@
 | 統合 app | 全 workflow の束ねと現在地表示 |
 
 - 4 app は分担境界であり、どの入口から入っても後段は同じ artifact 契約へ収束する。
+- `trajectreview-correcting` は前面表示中に端末を自動 sleep させず、少なくとも `通常計測` の `10min` 連続収録を first stability target とする。
+- `trajectreview-correcting` の data 削除は、app 内 session root だけでなく `端末保存先` に同期済みの同名 directory まで含めて完了させる。
+- `端末保存先` に正規に残るものは session directory だけとし、app が生成した転送 zip は削除時の cleanup 対象とする。
 
 ## artifact 契約
 
@@ -153,6 +156,10 @@
 - `Thin Status` は軽く読み取れることを優先する。
 - `Timeline` を統合キーとして、space、trajectory、same-time highlight、`attention point` を束ねる。
 - 正常時は薄く、異常時だけ強調する。
+- `correcting` の収録中 status には、収録開始からの経過時間を表示し、`撮影停止` を押した後は停止要求時点の時刻で凍結する。
+- `correcting` の停止は UI thread を塞がず、停止処理中であることを明示しながら完了まで待てるようにする。
+- `correcting` は前面表示中の screen off と自動減光で収録を止めない。
+- 長時間収録の安定化では、まず `通常計測` の `10min` 連続稼働を成立条件とする。
 
 ## ネーミング
 

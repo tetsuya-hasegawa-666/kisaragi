@@ -22,32 +22,35 @@
 7. `送信Dataset` を押すと popup が出て、`撮影データ`、`センサ記録`、`data-check結果と後段受け渡し`、`frame画像群` を ON / OFF できることを確認する。
 8. `Data名称変更` を押すと popup の最上段に `戻る` button、次行に `OFF：名称変更、ON：削除モード` toggle が出て、一覧はメイン画面系の button 形式で表示されることを確認する。
 9. toggle が OFF の時に data button を押すと名称変更 popup が出て、変更完了後や cancel 後も親 popup に戻ることを確認する。
-10. toggle を ON にすると削除 mode に切り替わり、複数 data を選べることを確認する。選択前は `削除実行` が非活性、選択後は活性になり、押すと端末内 data が実際に削除されることを確認する。
-11. 2 つ目の block の見出しが `2. 収録` で、`端末保存先` が未設定の間は `Data収録開始` が非活性であることを確認する。保存先を設定すると活性になり、押すと preview 直下の status card に開始状態が出て、preview が維持されたまま session 情報が表示され、同じ位置の button 表示が `撮影停止` に切り替わることを確認する。
-12. `撮影停止` の後は、`Data収録開始` 直下に ring / bar と `何をしているか` の短文、さらに `次の収録は待機推奨か` の 1 文が表示され、処理中と未設定が区別できることを確認する。
+10. toggle を ON にすると削除 mode に切り替わり、複数 data を選べることを確認する。選択前は `削除実行` が非活性、選択後は活性になり、押すと端末内 data と `端末保存先` に同期済みの同名 directory が実際に削除されることを確認する。`端末保存先` に app が作った転送 zip が残っていた場合は、それも cleanup されることを確認する。
+11. 2 つ目の block の見出しが `2. 収録` で、`端末保存先` が未設定の間は `Data収録開始` が非活性であることを確認する。保存先を設定すると活性になり、押すと preview 直下の status card に開始状態が出て、冒頭に `経過時間: mm:ss` が表示され、preview が維持されたまま session 情報が表示され、同じ位置の button 表示が `撮影停止` に切り替わることを確認する。
+12. `撮影停止` を押した後は、status card の `経過時間` が停止要求時点で止まり、そのまま増え続けないことを確認する。
+13. `撮影停止` の後は、`Data収録開始` 直下に ring / bar と `何をしているか` の短文、さらに `次の収録は待機推奨か` の 1 文が表示され、停止処理中、処理中、未設定が区別できることを確認する。
 13. 収録停止後は、まず `端末保存先へ保存中です。` が表示され、raw session が先に保存されることを確認する。
 14. その後に `自動で品質確認を実行中です。` が表示されることを確認する。
 15. `端末保存先` 同期中は session 詳細が縮退し、`Session: <session_id>` と `品質確認OK` だけが残ることを確認する。
 16. 5 秒以上待っても録画が自動停止しないことを確認する。
 17. 同じ位置の `撮影停止` button を押し、session summary が更新されることを確認する。
-18. 2 つ目の block の 2 行目が左右 2 分割で、左に `品質確認`、右に `転送Data選択` があることを確認する。
-19. `品質確認` を押すと popup で詳細結果が表示されることを確認する。メイン画面には閾値未満の項目名だけが短く残ることを確認する。`corecamera_shared_camera_trial` route では `camera intrinsics 対応率` と `captureDiagnostics` の整合を見る。
-20. `trackingState` は初期 warmup の少数 frame だけでは `▲` にならないことを確認する。`▲` が出る場合だけ、収録時間を少し長くする、急な動きを避ける、特徴点が少ない面を避ける案内が返ることを確認する。
-21. `転送Data選択` または `Data名称変更` を開く時に保存済み data の軽量 `品質確認` が更新され、その結果で `▲` が付き直ることを確認する。
-22. `転送Data選択` を押すと、`Data名称変更` と同系統の popup が出ることを確認する。最上段に `戻る`、下部に `OK` があり、保存済み data を button 一覧から複数選べることを確認する。
-23. 取得日時、長さ、`▲` は button 外の小テキストで読めることを確認する。`▲` は blocker または閾値超え warning がある data にだけ付くことを確認する。軽微な `coverage < 1.0` や一覧時点の `images/` 未生成だけでは `▲` が付かないことを確認する。
-24. 3 つ目の block の 1 行目が左右 2 分割で、左に `転送先を選択`、右に `転送実行` があることを確認する。
-25. `転送先を選択` を押すと、`Google Drive` folder URL を入力できる popup が出ることを確認する。初期値が `https://drive.google.com/drive/u/2/folders/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_` であることを確認する。
-26. popup で URL を編集して `OK` を押すと URL が保存されることを確認する。
-27. 同じ popup の `保存先fileを設定する` を押すと Android の標準保存画面が開くことを確認する。端末 storage が先に見える場合は、左上メニューなどから `Google Drive` を選べることを確認する。そこで選んだ zip 保存先 file が app の転送先設定になることを確認する。
-28. 続けて zip 保存先 file 名を選べることを確認する。転送先直下の小さい補助表示は出ず、下のコメントだけで `転送Data` と `転送先` の設定済み / 未設定が分かることを確認する。転送先 file は毎回選び直す前提であることを確認する。
-29. zip 保存先 file 名の既定値が、名称未指定なら `trajectreview-correcting-session-YYYYMMDD-HHMMSS.zip` 形式で入ることを確認する。data 名を使う時も `<data-name>-session-YYYYMMDD-HHMMSS.zip` の形で `session-*` suffix が付くことを確認する。
-30. `転送実行` は `転送Data` と `転送先` が設定済みなら活性になり、選択した `Google Drive` 保存場所に zip が保存され、ON にした group だけが zip 内に入ることを確認する。`frame画像群` を ON にした時だけ `images/` が生成されることを確認する。転送完了後は次回のために再度 `転送先を選択` が必要になることを確認する。
-31. `転送実行` 中の comment と waiting ring は `転送実行` button の直下に出ることを確認する。`Data収録開始` の直下には出ないことを確認する。
+18. `通常計測` のまま `10min` 連続収録を行い、画面が自動減光や screen off に入らず、収録が継続することを確認する。
+19. 上の長時間収録後に `撮影停止` を押し、app が落ちずに session を finalize できることを確認する。
+20. 2 つ目の block の 2 行目が左右 2 分割で、左に `品質確認`、右に `転送Data選択` があることを確認する。
+21. `品質確認` を押すと popup で詳細結果が表示されることを確認する。メイン画面には閾値未満の項目名だけが短く残ることを確認する。`corecamera_shared_camera_trial` route では `camera intrinsics 対応率` と `captureDiagnostics` の整合を見る。
+22. `trackingState` は初期 warmup の少数 frame だけでは `▲` にならないことを確認する。`▲` が出る場合だけ、収録時間を少し長くする、急な動きを避ける、特徴点が少ない面を避ける案内が返ることを確認する。
+23. `転送Data選択` または `Data名称変更` を開く時に保存済み data の軽量 `品質確認` が更新され、その結果で `▲` が付き直ることを確認する。
+24. `転送Data選択` を押すと、`Data名称変更` と同系統の popup が出ることを確認する。最上段に `戻る`、下部に `OK` があり、保存済み data を button 一覧から複数選べることを確認する。
+25. 取得日時、長さ、`▲` は button 外の小テキストで読めることを確認する。`▲` は blocker または閾値超え warning がある data にだけ付くことを確認する。軽微な `coverage < 1.0` や一覧時点の `images/` 未生成だけでは `▲` が付かないことを確認する。
+26. 3 つ目の block の 1 行目が左右 2 分割で、左に `転送先を選択`、右に `転送実行` があることを確認する。
+27. `転送先を選択` を押すと、`Google Drive` folder URL を入力できる popup が出ることを確認する。初期値が `https://drive.google.com/drive/u/2/folders/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_` であることを確認する。
+28. popup で URL を編集して `OK` を押すと URL が保存されることを確認する。
+29. 同じ popup の `保存先fileを設定する` を押すと Android の標準保存画面が開くことを確認する。端末 storage が先に見える場合は、左上メニューなどから `Google Drive` を選べることを確認する。そこで選んだ zip 保存先 file が app の転送先設定になることを確認する。
+30. 続けて zip 保存先 file 名を選べることを確認する。転送先直下の小さい補助表示は出ず、下のコメントだけで `転送Data` と `転送先` の設定済み / 未設定が分かることを確認する。転送先 file は毎回選び直す前提であることを確認する。
+31. zip 保存先 file 名の既定値が、名称未指定なら `trajectreview-correcting-session-YYYYMMDD-HHMMSS.zip` 形式で入ることを確認する。data 名を使う時も `<data-name>-session-YYYYMMDD-HHMMSS.zip` の形で `session-*` suffix が付くことを確認する。
+32. `転送実行` は `転送Data` と `転送先` が設定済みなら活性になり、選択した `Google Drive` 保存場所に zip が保存され、ON にした group だけが zip 内に入ることを確認する。`frame画像群` を ON にした時だけ `images/` が生成されることを確認する。転送完了後は次回のために再度 `転送先を選択` が必要になることを確認する。
+33. `転送実行` 中の comment と waiting ring は `転送実行` button の直下に出ることを確認する。`Data収録開始` の直下には出ないことを確認する。
 24. Android 端末で app `trajectreview-modeling` を起動する。
 25. `bundle を選択` を押し、統合 app などで作られた `trajectreview_export/<session_id>` folder を選ぶ。
 26. `軽量 model を実行` を押し、`spaceQuality`、`trajectoryQuality`、`colab_job_request.json` を含む出力一覧が見えることを確認する。
-27. `DA3Metric-Large` の `Colab bootstrap` は [da3_colab_clean_bootstrap_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_clean_bootstrap_runbook.md) を正本として扱う。この runbook の admin 実行は `MRL-3` / `mRL-3.2` と `MRL-4` / `mRL-4.2` の candidate evidence を兼ねる。`gs_model` を含む `SpacePackage` 実生成確認は `MRL-4` 本体で確認し、`MRL-5` は 10s 前後の整った実動画からの `multi-frame` densify による粗い再現モデル段として別扱いにする。route 比較と採用固定は後続 `MRL-**` の課題とする。
+27. `DA3Metric-Large` の `Colab bootstrap` は [da3_colab_clean_bootstrap_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_clean_bootstrap_runbook.md) を正本として扱う。runbook 本体へ入る前に、同文書の `準備確認 2` から `準備確認 4` を実行して Drive 上の input 候補探索、selected input 固定、存在確認を済ませる。この runbook の admin 実行は `MRL-3` / `mRL-3.2` と `MRL-4` / `mRL-4.2` の candidate evidence を兼ねる。`gs_model` を含む `SpacePackage` 実生成確認は `MRL-4` 本体で確認し、`MRL-5` は 10s 前後の整った実動画からの `multi-frame` densify による粗い再現モデル段として別扱いにする。route 比較と採用固定は後続 `MRL-**` の課題とする。
 27. PC browser で [Google Colab](https://colab.research.google.com/) を開き、Google account で sign in する。
 28. `ファイル` -> `ノートブックをアップロード` を選び、[trajectreview_da3metric_large_colab.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\trajectreview_da3metric_large_colab.ipynb) を開く。menu 名が違う時は `Upload notebook` 相当を探す。
 29. `ランタイム` -> `ランタイムのタイプを変更` で `GPU` を選ぶ。候補に `T4`、`L4`、`A100` などが見えた時は、その表示を記録する。

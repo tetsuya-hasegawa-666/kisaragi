@@ -12,6 +12,20 @@
 
 ## 更新履歴
 
+### 2026-03-31 AGENTS.md shared worklog 成功内容の同 task runbook 反映必須化
+
+- 日時: `2026-03-31`
+- 文書名: `AGENTS.md`
+- 標題: shared worklog で一度通った bootstrap 修正は同じ task で runbook 正本へ即時反映する rule を追加
+- 背景: `prj-kisaragi_0002` の `Colab` bootstrap では、shared worklog 上では install 修正が通っていた一方、runbook 正本への反映が後ろにずれると、次の案内が正本とずれる危険があった。
+- 目的: shared worklog と runbook 正本の矛盾を防ぎ、次 action が常に最新の正本を基準に進むようにする。
+- 対処方法: `協調原則` に、shared worklog 上で一度通った bootstrap、install、config、実行順の修正は、その成功を待って同じ task 内で runbook 正本へ即時反映する rule を追加した。
+- 対応内容: shared worklog の成功内容を後でまとめて移す運用をやめ、同 task 内で runbook 正本へ昇格させることを shared rule 化した。
+- 更新結果: 今後は `Colab` や揮発 runtime 系 task で、次の案内や command が shared worklog だけでなく正本 runbook とも一致する。
+- 新旧比較:
+  - 旧: shared worklog の成功内容を後から runbook へ移す余地があり、短時間だけ正本とのずれが起こり得た。
+  - 新: 一度通った修正は同 task 内で runbook 正本へ即時反映し、次 action はその正本と矛盾してはならない。
+
 ### 2026-03-31 AGENTS.md shared worklog の永続 evidence 禁止
 
 - 日時: `2026-03-31`
