@@ -1437,3 +1437,191 @@ files.download(str(bundle_zip))
 # Step 7h local viewer check res
 
 ```
+
+# codex
+
+2026-03-30 v37 step-7i gaussian-init-and-one-step-optim probe。
+
+- 判定: 次は `正規 gaussian parameter の生成と最適化` へ入る。
+- 目的: current multi-frame point cloud から最小 gaussian parameter を初期化し、`gsplat` 上で `1 step` の最適化が物理的に回るかを確認する。
+- この step で見ること:
+  - `means`
+  - `scales`
+  - `quats`
+  - `opacities`
+  - `colors`
+  を tensor として持てるか
+  - `rasterization` の forward / backward が通るか
+  - loss が数値として出るか
+- 成功条件:
+  - `gaussian_init_summary.json` を保存できる
+  - `gaussian_one_step_probe.json` を保存できる
+  - `loss_before`、`loss_after`、`backward_ok` を返せる
+
+```python
+# Step 7i gaussian-init-and-one-step-optim probe
+from pathlib import Path
+import json
+import math
+import numpy as np
+import torch
+import imageio.v3 as iio
+import pandas as pd
+import gsplat
+
+probe_dir = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01")
+world_dir = probe_dir / "world_fusion_v01"
+batch_dir = probe_dir / "depth_batch_v01"
+window_path = probe_dir / "mrl7_window_probe.json"
+session_root = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+
+points_path = world_dir / "world_points_multiframe.npy"
+summary_out = world_dir / "gaussian_init_summary.json"
+probe_out = world_dir / "gaussian_one_step_probe.json"
+
+assert points_path.exists(), {"points_not_found": str(points_path)}
+assert window_path.exists(), {"window_probe_not_found": str(window_path)}
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+points_np = np.load(points_path).astype(np.float32)
+window_info = json.loads(window_path.read_text(encoding="utf-8"))
+sampled = window_info["sampled_frames"]
+assert sampled, "sampled_frames empty"
+
+# 初期点数を絞る。まずは「正規 gaussian parameter を持てるか」と「1 step 回るか」を見る。
+max_points = 1024
+if len(points_np) > max_points:
+    pick = np.linspace(0, len(points_np) - 1, max_points).astype(np.int64)
+    points_np = points_np[pick]
+
+first_frame = sampled[0]["frame_name"]
+image_path = session_root / "images" / first_frame
+assert image_path.exists(), {"image_not_found": str(image_path)}
+image = iio.imread(image_path)
+if image.ndim == 2:
+    image = np.stack([image, image, image], axis=-1)
+image = image[..., :3]
+target_h, target_w = image.shape[:2]
+target = torch.from_numpy(image.astype(np.float32) / 255.0).to(device)
+
+# 最小の camera 情報は session の実 record から引く
+frame_pose_df = pd.read_csv(session_root / "frame_pose_index.csv")
+row = frame_pose_df.loc[frame_pose_df["image_file_name"] == first_frame].iloc[0]
+pose_index = int(row["pose_record_index"])
+
+records = []
+with (session_root / "arcore_pose.jsonl").open("r", encoding="utf-8") as f:
+    for line in f:
+        records.append(json.loads(line))
+pose_rec = records[pose_index]
+
+intr = pose_rec["imageIntrinsics"]
+pose = pose_rec["pose"]
+
+fx = float(intr["fx"])
+fy = float(intr["fy"])
+cx = float(intr["cx"])
+cy = float(intr["cy"])
+width = int(intr["width"])
+height = int(intr["height"])
+
+tx = float(pose["tx"])
+ty = float(pose["ty"])
+tz = float(pose["tz"])
+qx = float(pose["qx"])
+qy = float(pose["qy"])
+qz = float(pose["qz"])
+qw = float(pose["qw"])
+
+def quat_to_rot(qx, qy, qz, qw):
+    xx, yy, zz = qx*qx, qy*qy, qz*qz
+    xy, xz, yz = qx*qy, qx*qz, qy*qz
+    wx, wy, wz = qw*qx, qw*qy, qw*qz
+    return np.array([
+        [1 - 2*(yy + zz), 2*(xy - wz), 2*(xz + wy)],
+        [2*(xy + wz), 1 - 2*(xx + zz), 2*(yz - wx)],
+        [2*(xz - wy), 2*(yz + wx), 1 - 2*(xx + yy)],
+    ], dtype=np.float32)
+
+R_wc = quat_to_rot(qx, qy, qz, qw)
+t_wc = np.array([tx, ty, tz], dtype=np.float32)
+R_cw = R_wc.T
+t_cw = -R_cw @ t_wc
+
+viewmat = np.eye(4, dtype=np.float32)
+viewmat[:3, :3] = R_cw
+viewmat[:3, 3] = t_cw
+viewmat = torch.from_numpy(viewmat).to(device)
+
+K = torch.tensor([
+    [fx, 0.0, cx],
+    [0.0, fy, cy],
+    [0.0, 0.0, 1.0],
+], dtype=torch.float32, device=device)
+
+means = torch.nn.Parameter(torch.from_numpy(points_np).to(device))
+scales = torch.nn.Parameter(torch.full((len(points_np), 3), math.log(0.03), dtype=torch.float32, device=device))
+quats = torch.nn.Parameter(torch.tensor([[0.0, 0.0, 0.0, 1.0]], dtype=torch.float32, device=device).repeat(len(points_np), 1))
+opacities = torch.nn.Parameter(torch.full((len(points_np), 1), 0.1, dtype=torch.float32, device=device))
+
+# まずは白色で開始。ここは probe なので color 学習可能かだけを見る。
+colors = torch.nn.Parameter(torch.full((len(points_np), 3), 0.7, dtype=torch.float32, device=device))
+
+summary_out.write_text(json.dumps({
+    "point_count": int(len(points_np)),
+    "target_frame": first_frame,
+    "target_hw": [int(target_h), int(target_w)],
+    "fx": fx,
+    "fy": fy,
+    "cx": cx,
+    "cy": cy,
+}, indent=2, ensure_ascii=False), encoding="utf-8")
+
+optimizer = torch.optim.Adam([means, scales, quats, opacities, colors], lr=1e-2)
+
+def render_once():
+    render_colors, render_alphas, meta = gsplat.rasterization(
+        means=means,
+        quats=torch.nn.functional.normalize(quats, dim=-1),
+        scales=torch.exp(scales),
+        opacities=torch.sigmoid(opacities),
+        colors=colors,
+        viewmats=viewmat[None, ...],
+        Ks=K[None, ...],
+        width=target_w,
+        height=target_h,
+        packed=False,
+    )
+    pred = render_colors[0]
+    return pred, render_alphas[0]
+
+optimizer.zero_grad(set_to_none=True)
+pred0, alpha0 = render_once()
+loss0 = torch.mean((pred0 - target) ** 2)
+loss0.backward()
+optimizer.step()
+
+optimizer.zero_grad(set_to_none=True)
+pred1, alpha1 = render_once()
+loss1 = torch.mean((pred1 - target) ** 2)
+
+result = {
+    "backward_ok": True,
+    "point_count": int(len(points_np)),
+    "target_frame": first_frame,
+    "loss_before": float(loss0.detach().cpu().item()),
+    "loss_after": float(loss1.detach().cpu().item()),
+    "alpha_mean_after": float(alpha1.mean().detach().cpu().item()),
+    "summary_path": str(summary_out),
+    "probe_path": str(probe_out),
+}
+probe_out.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
+print(json.dumps(result, indent=2, ensure_ascii=False))
+```
+
+# admin
+
+```text
+# Step 7i gaussian-init-and-one-step-optim probe res
+
+```
