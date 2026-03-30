@@ -529,3 +529,17 @@
 - 新旧比較:
   - 旧: `MRL` 対応表の汎用 rule が project 文書ごとに重複し得た。
   - 新: 汎用 rule は `AGENTS.md`、project 文書には固有参照のみを残す構造へ整理した。
+
+### 2026-03-31 AGENTS.md shared worklog 成功の即時昇格 rule 追加
+
+- 日時: `2026-03-31`
+- 文書名: `AGENTS.md`
+- 標題: shared worklog で通った bootstrap 修正の即時反映
+- 背景: `Colab` の install 修正が shared worklog では通っていても、runbook 正本の install 節が古いままだと、次回 admin が再び同じ失敗を踏む。
+- 目的: shared worklog で一度通った bootstrap、install、config、実行順の修正を、その場で runbook 正本へ昇格し、次の案内と正本が食い違わないようにする。
+- 対処方法: shared worklog 運用 rule に、成功した bootstrap / install 修正を同じ task 内で runbook 正本へ即時反映する条項を追加した。
+- 対応内容: 次 action や次 command は、反映後の runbook 正本と矛盾してはならないことを明記した。
+- 更新結果: 今後は shared worklog だけに通過済み修正が残る状態を避け、runbook 正本が常に最新の通過経路を保持する。
+- 新旧比較:
+  - 旧: shared worklog で通った install 修正が、task 中に runbook 正本へ反映されない余地があった。
+  - 新: 一度通った bootstrap / install 修正は、その task 内で runbook 正本へ即時昇格する rule を shared 化した。

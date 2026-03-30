@@ -259,20 +259,44 @@ OK 条件:
 
 ### install 1: DA3 repo clone
 
-```bash
-git clone https://github.com/ByteDance-Seed/Depth-Anything-3.git /content/Depth-Anything-3
+```python
+from pathlib import Path
+import shutil
+import subprocess
+
+repo_root = Path("/content/Depth-Anything-3")
+if repo_root.exists():
+    shutil.rmtree(repo_root)
+
+subprocess.run(
+    ["git", "clone", "https://github.com/ByteDance-Seed/Depth-Anything-3.git", str(repo_root)],
+    check=True,
+)
+print("repo_exists", repo_root.exists(), repo_root)
 ```
 
 ### install 2: DA3 import と export lazy-path に必要な custom dependency
 
-```bash
-python -m pip install --quiet addict evo moviepy==1.0.3 pygame pycolmap plyfile trimesh
+```python
+import subprocess
+
+subprocess.run(
+    ["python", "-m", "pip", "install", "--quiet", "addict", "evo", "moviepy==1.0.3", "pygame", "pycolmap", "plyfile", "trimesh"],
+    check=True,
+)
+print("custom_dependency_install_ok")
 ```
 
 ### install 3: `3DGS` smoke 用 `gsplat`
 
-```bash
-python -m pip install --quiet gsplat
+```python
+import subprocess
+
+subprocess.run(
+    ["python", "-m", "pip", "install", "--quiet", "gsplat"],
+    check=True,
+)
+print("gsplat_install_ok")
 ```
 
 ### install 4: install 結果の最小確認
