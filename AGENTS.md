@@ -276,6 +276,8 @@ kisaragi-tree/
 - shared worklog は定期的に振り返り、持続価値のある内容を正本、manual、evidence、product runbook へ反映した後、old log 本文を削除または reset してよい。
 - 上記の削除または reset を行う時は、有益部分の反映先が先に更新済みであることを条件とし、shared worklog 単独を唯一の保持場所にしてはならない。
 - shared worklog の reset は、fixed header を残したうえで本文を blank に戻すか、新 file へ切り替える。どちらの場合も「何を正本へ反映済みか」を先に確定させる。
+- shared worklog は reset / 削除前提の共同作業 log であり、永続証跡そのものとして扱ってはならない。
+- gate close、admin 証跡、product evidence、runbook 根拠として持続させる必要がある内容は、shared worklog を参照先にせず、対応する永続文書または永続 artifact へ転記または保存してから扱う。
 
 ## 並行作業
 - 共有制御ファイル編集時は、同じ task で `AGENTS.md` と `AGENTSmd-RH.md` を更新し、変更理由を追跡可能にする。
@@ -318,6 +320,7 @@ kisaragi-tree/
 - `疑問点不整合一覧` に `big-open` が 1 件以上ある project の文書を更新した時は、response で `big-open` の存在を必ず明示する。
 - shared worklog を使う task では、その file は project に対する truth / plan / evidence の正本ではないが、共同作業の保持情報としては authoritative な worklog として扱う。
 - shared worklog は、truth / current / plan / evidence へ反映する時の根拠 log として保持し、shared rule 変更は `AGENTS.md`、project truth / plan / gate 影響は project 正本文書、gate 判定根拠は admin 証跡正本へ必ず別途反映する。
+- shared worklog 自体を admin 証跡正本や evidence path の永続参照先にしてはならない。持続が必要な内容は、永続文書または永続 artifact 側へ転記後、その反映先を evidence path とする。
 - shared worklog は、原則として「固定 header」と「時系列本文」に分け、header より下は `# codex` または `# admin` 見出しによる末尾追記だけを許可する。途中挿入、途中修正、本文中ほどへの要約追記は禁止とする。
 - admin / Codex が次に読む場所を迷わないよう、shared worklog の運用上の正規読み順は「最下部から上へ」とする。Codex は回答前に最下部の最新 `# admin` / `# codex` を先に確認する。
 - `# admin` の入力欄は admin の入力時間短縮を優先し、原則として次の template を最下部に置いて引き渡す。

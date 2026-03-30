@@ -109,7 +109,6 @@
   - `MRL-5` の `multi-frame` densify、route 比較や採用固定はこの bootstrap candidate には含めない
 - evidence path:
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md`
-  - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/sharedlogs_da3-colab.md`
 
 ## 2026-03-29 correcting batch `MRL-1` と `MRL-2` close evidence
 
@@ -196,7 +195,6 @@
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/da3_smoke_v05/`
 - evidence path:
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md`
-  - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/sharedlogs_da3-colab.md`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/trajectreview_modeling_20260329_gpu-evidence.ipynb`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/da3_smoke_v05/`
 
@@ -251,7 +249,6 @@
   - `world_points_multiframe_preview.png`
   - `mrl7_closeout_summary.json`
 - evidence path:
-  - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/sharedlogs_da3-colab.md`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/mrl7_multiframe_viewer_bundle/`
 
@@ -287,7 +284,6 @@
   - `gaussian_render_optim20.png`
   - `gaussian_optim20_summary.json`
 - evidence path:
-  - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/sharedlogs_da3-colab.md`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/gaussian_short_optim_bundle/`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/gaussian_optim500_bundle/`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/gaussian_optim2500_bundle/`

@@ -12,6 +12,20 @@
 
 ## 更新履歴
 
+### 2026-03-31 AGENTS.md shared worklog の永続 evidence 禁止
+
+- 日時: `2026-03-31`
+- 文書名: `AGENTS.md`
+- 標題: shared worklog を永続 evidence として参照しない rule を追加
+- 背景: shared worklog は reset / 削除前提の共同作業面であり、ここを証跡 path として残すと、後で evidence が欠落する危険がある。
+- 目的: gate close や admin evidence が、shared worklog の存否に依存しない永続参照先を持つようにする。
+- 対処方法: `協調原則` と `文書規則` に、shared worklog を永続 evidence として扱わないこと、持続が必要な内容は永続文書または永続 artifact へ転記してから evidence path に使うことを追加した。
+- 対応内容: shared worklog の役割を共同作業 log と根拠 log に限定し、admin 証跡正本の evidence path は persistent reference のみを使う方針へ明確化した。
+- 更新結果: shared worklog は reset / 削除できる前提を保ったまま、gate close と evidence は永続文書または永続 artifact 側で保持する運用になった。
+- 新旧比較:
+  - 旧: shared worklog を evidence path に含めてもよいように読める余地があった。
+  - 新: shared worklog は永続 evidence path に使わず、必要内容は別の永続先へ転記してから参照する rule になった。
+
 ### 2026-03-30 AGENTS.md `kisaragi-ruling` 削除と skill 統合反映
 
 - 日時: `2026-03-30`
