@@ -254,6 +254,34 @@
   - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/sharedlogs_da3-colab.md`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md`
 
+## 2026-03-30 `mRL-7.2` gaussian short-optimization candidate evidence
+
+- 対象 gate:
+  - `mRL-7.2`
+- 実施者:
+  - `admin`
+- 実施環境:
+  - `Google Colab`
+  - `T4`
+- 判定:
+  - この段は `active` のまま candidate evidence を収載する
+- 結果要点:
+  - multi-frame point cloud から最小 gaussian parameter を初期化し、`means`、`scales`、`quats`、`opacities`、`colors` を tensor として保持できた
+  - `gsplat.rasterization` の forward / backward が通り、`1 step` probe は `backward_ok = true` で通過した
+  - 続けて `20 step` の短い optimization が通り、loss は `0.18226878345012665` から `0.035895735025405884` まで低下した
+  - `gaussian_params_init.pt`、`gaussian_params_optim20.pt`、`gaussian_render_init.png`、`gaussian_render_optim20.png`、`gaussian_optim20_summary.json` を保存できた
+  - まだ viewer で読む正式 gaussian scene 形式の固定、multi-view optimization の拡張、artifact download は未実施のため、`mRL-7.2` は `p-done` に上げていない
+- 主要 artifact:
+  - `gaussian_init_summary.json`
+  - `gaussian_one_step_probe.json`
+  - `gaussian_params_init.pt`
+  - `gaussian_params_optim20.pt`
+  - `gaussian_render_init.png`
+  - `gaussian_render_optim20.png`
+  - `gaussian_optim20_summary.json`
+- evidence path:
+  - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/sharedlogs_da3-colab.md`
+
 ## reviewing batch 定義
 
 - 対象 `MRL`:
