@@ -1348,5 +1348,55 @@ print(json.dumps({
 
 ```text
 # Step 7f multiframe viewer bundle export res
+{
+  "bundle_dir": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01/viewer_bundle_v01",
+  "bundle_zip": "/content/mrl7_multiframe_viewer_bundle.zip",
+  "bundle_zip_exists": true,
+  "copied_count": 5,
+  "copied_names": [
+    "world_points_multiframe.ply",
+    "world_points_multiframe.npy",
+    "world_points_multiframe_preview.png",
+    "world_fusion_summary.json",
+    "mrl7_closeout_summary.json"
+  ]
+}
+```
+
+# codex
+
+2026-03-30 v35 step-7g viewer bundle download。
+
+- 判定: `Step 7f` は成功。
+  - local viewer 用 zip は作成済み
+  - `world_points_multiframe.ply`
+  - `world_points_multiframe_preview.png`
+  - `mrl7_closeout_summary.json`
+  を 1 bundle にまとめられた
+- 目的: admin が local PC に zip を落として、`mRL-7.2` の `PLY` viewer 目視確認へ入れる状態にする。
+- 成功条件:
+  - browser download が始まる
+  - local に `mrl7_multiframe_viewer_bundle.zip` を保存できる
+
+```python
+# Step 7g viewer bundle download
+from pathlib import Path
+from google.colab import files
+
+bundle_zip = Path("/content/mrl7_multiframe_viewer_bundle.zip")
+assert bundle_zip.exists(), {"bundle_zip_not_found": str(bundle_zip)}
+
+print({
+    "bundle_zip": str(bundle_zip),
+    "size_bytes": bundle_zip.stat().st_size,
+})
+
+files.download(str(bundle_zip))
+```
+
+# admin
+
+```text
+# Step 7g viewer bundle download res
 
 ```
