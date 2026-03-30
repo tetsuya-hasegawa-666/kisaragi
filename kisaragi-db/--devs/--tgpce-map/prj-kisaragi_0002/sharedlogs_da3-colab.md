@@ -818,5 +818,221 @@ print(json.dumps({
 
 ```text
 # Step 7c sampled-frame depth batch res
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+WARNING:huggingface_hub.utils._http:Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[INFO ] using MLP layer as FFN
+[INFO ] Processed Images Done taking 0.026829004287719727 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.44693803787231445 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0011518001556396484 seconds
+DEPTH_OK 0 frame_000009.jpg (378, 504) 0.31544607877731323 4.0310516357421875
+[INFO ] Processed Images Done taking 0.016257762908935547 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.3539915084838867 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0009372234344482422 seconds
+DEPTH_OK 1 frame_000058.jpg (378, 504) 0.3436773717403412 4.366101264953613
+[INFO ] Processed Images Done taking 0.018395185470581055 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.35202765464782715 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0011284351348876953 seconds
+DEPTH_OK 2 frame_000103.jpg (378, 504) 0.35914379358291626 3.650329351425171
+[INFO ] Processed Images Done taking 0.016307592391967773 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.35187506675720215 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0012009143829345703 seconds
+DEPTH_OK 3 frame_000143.jpg (378, 504) 0.28807052969932556 2.6115517616271973
+[INFO ] Processed Images Done taking 0.015880823135375977 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.3542790412902832 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.001153707504272461 seconds
+DEPTH_OK 4 frame_000189.jpg (378, 504) 0.26627305150032043 2.6933023929595947
+[INFO ] Processed Images Done taking 0.01707601547241211 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.35399818420410156 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.000926971435546875 seconds
+DEPTH_OK 5 frame_000230.jpg (378, 504) 0.3931887149810791 3.402815103530884
+[INFO ] Processed Images Done taking 0.013835906982421875 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.3553924560546875 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0009696483612060547 seconds
+DEPTH_OK 6 frame_000274.jpg (378, 504) 0.47461241483688354 4.119905948638916
+[INFO ] Processed Images Done taking 0.02049994468688965 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.3538358211517334 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.000934600830078125 seconds
+DEPTH_OK 7 frame_000314.jpg (378, 504) 0.4533892273902893 4.051567077636719
+[INFO ] Processed Images Done taking 0.015220880508422852 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.3534739017486572 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0011980533599853516 seconds
+DEPTH_OK 8 frame_000356.jpg (378, 504) 0.36209359765052795 2.9028055667877197
+[INFO ] Processed Images Done taking 0.013386964797973633 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.35712122917175293 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0011417865753173828 seconds
+DEPTH_OK 9 frame_000395.jpg (378, 504) 0.28270581364631653 1.9280147552490234
+[INFO ] Processed Images Done taking 0.016958951950073242 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.3567516803741455 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0011949539184570312 seconds
+DEPTH_OK 10 frame_000457.jpg (378, 504) 0.300882488489151 3.6980714797973633
+[INFO ] Processed Images Done taking 0.016394615173339844 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.35483551025390625 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0009105205535888672 seconds
+DEPTH_OK 11 frame_000520.jpg (378, 504) 0.2709210515022278 3.517655611038208
+{
+  "device": "cuda",
+  "processed_frames": 12,
+  "failed_frames": 0,
+  "first_output": {
+    "frame_name": "frame_000009.jpg",
+    "image_path": "/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000009.jpg",
+    "timestamp_sec": 916764.341604734,
+    "depth_path": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01/depth_batch_v01/frame_000009_depth.npy",
+    "preview_path": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01/depth_batch_v01/frame_000009_depth.png",
+    "depth_shape": [
+      378,
+      504
+    ],
+    "depth_min": 0.31544607877731323,
+    "depth_max": 4.0310516357421875
+  },
+  "last_output": {
+    "frame_name": "frame_000520.jpg",
+    "image_path": "/content/trajectreview_input/session-20260328-103250/trajectreview/images/frame_000520.jpg",
+    "timestamp_sec": 916768.29554448,
+    "depth_path": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01/depth_batch_v01/frame_000520_depth.npy",
+    "preview_path": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01/depth_batch_v01/frame_000520_depth.png",
+    "depth_shape": [
+      378,
+      504
+    ],
+    "depth_min": 0.2709210515022278,
+    "depth_max": 3.517655611038208
+  },
+  "saved": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01/depth_batch_v01/depth_batch_manifest.json"
+}
+```
+
+# codex
+
+2026-03-30 v31 step-7d multi-frame world-point fusion。
+
+- 目的: `12 frame` の depth batch を `ARCore pose` と `frame_pose_index.csv` で world へ戻し、multi-frame 点群を統合して `PLY` を出す。
+- 成功条件:
+  - `depth_batch_manifest.json` を読める
+  - 各 frame の `pose_record_index` を引ける
+  - world point 群を結合して `.npy` と `.ply` を保存できる
+  - frame ごとの点数 summary を保存できる
+- 失敗時の扱い:
+  - 一部 frame で pose が引けなければ、その frame 名を `skipped_frames` に残して続行する
+  - 点数が極端に多ければ sampling stride を `24 -> 32` へ上げる
+
+```python
+# Step 7d multi-frame world-point fusion
+from pathlib import Path
+import json
+import numpy as np
+import pandas as pd
+
+SESSION_ROOT = Path("/content/trajectreview_input/session-20260328-103250/trajectreview")
+SESSION_BUNDLE_ROOT = SESSION_ROOT.parent
+probe_dir = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01")
+batch_dir = probe_dir / "depth_batch_v01"
+manifest_path = batch_dir / "depth_batch_manifest.json"
+out_dir = probe_dir / "world_fusion_v01"
+out_dir.mkdir(parents=True, exist_ok=True)
+
+frame_index = pd.read_csv(SESSION_ROOT / "frame_pose_index.csv")
+pose_path = SESSION_ROOT / "arcore_pose.jsonl"
+if not pose_path.exists():
+    pose_path = SESSION_BUNDLE_ROOT / "arcore_pose.jsonl"
+
+with pose_path.open("r", encoding="utf-8") as f:
+    pose_records = [json.loads(line) for line in f if line.strip()]
+
+manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+outputs = manifest["outputs"]
+
+frame_name_to_row = {}
+for _, row in frame_index.iterrows():
+    image_name = row.get("image_file_name")
+    if isinstance(image_name, str) and image_name:
+        frame_name_to_row[image_name] = row
+
+all_points = []
+per_frame = []
+skipped = []
+stride = 24
+
+for item in outputs:
+    frame_name = item["frame_name"]
+    row = frame_name_to_row.get(frame_name)
+    if row is None:
+        skipped.append({"frame_name": frame_name, "reason": "frame_index_row_not_found"})
+        continue
+
+    pose_idx = int(row["pose_record_index"])
+    if pose_idx < 0 or pose_idx >= len(pose_records):
+        skipped.append({"frame_name": frame_name, "reason": "pose_record_index_out_of_range", "pose_record_index": pose_idx})
+        continue
+
+    record = pose_records[pose_idx]
+    pose = record["pose"]
+    intr = record["imageIntrinsics"]
+    depth = np.load(item["depth_path"])
+
+    h, w = depth.shape
+    grid_y, grid_x = np.mgrid[0:h:stride, 0:w:stride]
+    z = depth[grid_y, grid_x]
+    x = (grid_x - float(intr["cx"])) * z / float(intr["fx"])
+    y = (grid_y - float(intr["cy"])) * z / float(intr["fy"])
+    camera_points = np.stack([x, y, z], axis=-1).reshape(-1, 3)
+
+    t = np.array([pose["tx"], pose["ty"], pose["tz"]], dtype=np.float32)
+    world_points = camera_points.astype(np.float32) + t
+
+    all_points.append(world_points)
+    per_frame.append({
+        "frame_name": frame_name,
+        "pose_record_index": pose_idx,
+        "point_count": int(len(world_points)),
+        "timestamp_sec": item["timestamp_sec"],
+    })
+    print("WORLD_OK", frame_name, len(world_points), pose_idx)
+
+assert all_points, "no world points generated"
+
+merged = np.concatenate(all_points, axis=0).astype(np.float32)
+npy_path = out_dir / "world_points_multiframe.npy"
+ply_path = out_dir / "world_points_multiframe.ply"
+summary_path = out_dir / "world_fusion_summary.json"
+
+np.save(npy_path, merged)
+
+with ply_path.open("w", encoding="utf-8") as f:
+    f.write("ply\nformat ascii 1.0\n")
+    f.write(f"element vertex {len(merged)}\n")
+    f.write("property float x\nproperty float y\nproperty float z\n")
+    f.write("end_header\n")
+    for p in merged:
+        f.write(f\"{p[0]} {p[1]} {p[2]}\\n\")
+
+summary = {
+    "stride": stride,
+    "processed_frames": len(per_frame),
+    "skipped_frames": skipped,
+    "total_points": int(len(merged)),
+    "per_frame": per_frame,
+    "npy_path": str(npy_path),
+    "ply_path": str(ply_path),
+}
+summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+
+print(json.dumps({
+    "processed_frames": summary["processed_frames"],
+    "skipped_frames": len(summary["skipped_frames"]),
+    "total_points": summary["total_points"],
+    "first_frame": None if not per_frame else per_frame[0],
+    "last_frame": None if not per_frame else per_frame[-1],
+    "saved_npy": str(npy_path),
+    "saved_ply": str(ply_path),
+    "saved_summary": str(summary_path),
+}, indent=2, ensure_ascii=False))
+```
+
+# admin
+
+```text
+# Step 7d multi-frame world-point fusion res
 
 ```
