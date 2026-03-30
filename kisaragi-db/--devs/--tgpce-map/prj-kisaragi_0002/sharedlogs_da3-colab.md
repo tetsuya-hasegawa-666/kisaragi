@@ -1398,5 +1398,42 @@ files.download(str(bundle_zip))
 
 ```text
 # Step 7g viewer bundle download res
+{'bundle_zip': '/content/mrl7_multiframe_viewer_bundle.zip', 'size_bytes': 447776}
+```
+
+# codex
+
+2026-03-30 v36 step-7h local viewer check。
+
+- 判定: `Step 7g` は成功。
+  - download 開始に必要な zip は存在した
+  - `size_bytes = 447776`
+- 目的: `mRL-7.2` の最初の admin 目視確認として、local PC で `PLY` を開き、空間のまとまりと見え方を短く記録する。
+- 手順:
+  - local へ保存した `mrl7_multiframe_viewer_bundle.zip` を展開する
+  - `world_points_multiframe_preview.png` を先に見る
+  - `world_points_multiframe.ply` を `CloudCompare` または `MeshLab` で開く
+  - 回転 / zoom して、少なくとも `1` つの空間らしい塊が見えるかを見る
+- 成功条件:
+  - `PLY` を local viewer で開ける
+  - `空間らしい塊が見える / 見えない / 判断しにくい` の 3 択で返せる
+  - 必要なら screenshot path を返せる
+
+```text
+# local viewer check
+
+1. `mrl7_multiframe_viewer_bundle.zip` を展開
+2. `world_points_multiframe_preview.png` を確認
+3. `world_points_multiframe.ply` を `CloudCompare` または `MeshLab` で開く
+4. 点群を回して次を短く判断
+   - `space_visible`: yes / no / unclear
+   - `shape_note`: 1 行
+   - `next_need`: none / denser points / color / trajectory overlay
+```
+
+# admin
+
+```text
+# Step 7h local viewer check res
 
 ```
