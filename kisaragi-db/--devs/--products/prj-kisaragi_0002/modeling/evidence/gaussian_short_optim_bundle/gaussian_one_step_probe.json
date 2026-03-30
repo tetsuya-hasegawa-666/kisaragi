@@ -1,0 +1,10 @@
+{
+  "backward_ok": true,
+  "point_count": 1024,
+  "target_frame": "frame_000009.jpg",
+  "loss_before": 0.18226878345012665,
+  "loss_after": 0.15842102468013763,
+  "alpha_mean_after": 0.7462685108184814,
+  "summary_path": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01/world_fusion_v01/gaussian_init_summary.json",
+  "probe_path": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01/world_fusion_v01/gaussian_one_step_probe.json"
+}

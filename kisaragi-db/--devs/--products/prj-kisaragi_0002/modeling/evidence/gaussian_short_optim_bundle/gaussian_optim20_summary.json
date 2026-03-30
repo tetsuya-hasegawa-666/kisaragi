@@ -1,0 +1,26 @@
+{
+  "backward_ok": true,
+  "point_count": 1024,
+  "target_frame": "frame_000009.jpg",
+  "loss_init": 0.18226878345012665,
+  "loss_final": 0.035895735025405884,
+  "loss_history_head": [
+    0.18226878345012665,
+    0.18226878345012665,
+    0.15842102468013763,
+    0.1356389969587326,
+    0.11426380276679993
+  ],
+  "loss_history_tail": [
+    0.04233400151133537,
+    0.040969572961330414,
+    0.03969380632042885,
+    0.038406822830438614,
+    0.03710860386490822
+  ],
+  "alpha_mean_final": 0.6769227981567383,
+  "init_pt": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01/world_fusion_v01/gaussian_params_init.pt",
+  "optim20_pt": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01/world_fusion_v01/gaussian_params_optim20.pt",
+  "init_png": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01/world_fusion_v01/gaussian_render_init.png",
+  "optim20_png": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01/world_fusion_v01/gaussian_render_optim20.png"
+}

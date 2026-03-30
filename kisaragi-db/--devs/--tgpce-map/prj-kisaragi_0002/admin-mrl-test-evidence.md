@@ -253,6 +253,7 @@
 - evidence path:
   - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/sharedlogs_da3-colab.md`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/mrl7_multiframe_viewer_bundle/`
 
 ## 2026-03-30 `mRL-7.2` gaussian short-optimization candidate evidence
 
@@ -284,6 +285,7 @@
   - `gaussian_optim20_summary.json`
 - evidence path:
   - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/sharedlogs_da3-colab.md`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/gaussian_short_optim_bundle/`
 
 ## reviewing batch 定義
 
