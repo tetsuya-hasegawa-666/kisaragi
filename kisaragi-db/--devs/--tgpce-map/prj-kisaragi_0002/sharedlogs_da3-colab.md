@@ -2700,4 +2700,9 @@ print(json.dumps(summary, indent=2, ensure_ascii=False))
   "init_png": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01/world_fusion_v01/gaussian_render_init.png",
   "optim20_png": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/da3_multiframe_probe_v01/world_fusion_v01/gaussian_render_optim20.png"
 }
+
+improvement_visible: yes
+shape_note: 取得背景に近い構図へ改善を確認
+next_need: more steps / multiview extension / viewer export
+
 ```

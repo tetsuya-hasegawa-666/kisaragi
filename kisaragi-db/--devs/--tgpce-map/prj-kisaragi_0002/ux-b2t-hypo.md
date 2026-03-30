@@ -11,7 +11,7 @@
 | 項目 | 状況 |
 | --- | --- |
 | `correcting` | `MRL-1` と `MRL-2` の実装と証跡はそろっている。現状は closeout 整理と admin `UX check` の扱いを文書側で揃える段階である |
-| `modeling` | `MRL-3` から `MRL-6` は bootstrap、bundle 読込、single-frame `3DGS` smoke、artifact 取得まで進んでいる。`MRL-7` では `mRL-7.1` が `p-done` になり、さらに `mRL-7.2` で gaussian short optimization まで通り、`loss_init 0.1823 -> loss_final 0.0359` の candidate evidence が加わった |
+| `modeling` | `MRL-3` から `MRL-6` は bootstrap、bundle 読込、single-frame `3DGS` smoke、artifact 取得まで進んでいる。`MRL-7` は `mRL-7.1` と `mRL-7.2` が `p-done` になり、multi-frame point cloud から gaussian short optimization まで到達した |
 | `reviewing` | summary と stub 読込まではあるが、実 `ReviewArtifact` viewer と same-time highlight 操作は未実装である |
 
 ### 現在の blocker
@@ -27,7 +27,7 @@
 ### 次の一手
 
 1. `MRL-7` を `TraceCore` の最小表示に限定し、route 比較と viewer 後続論点を `MRL-**` へ切り分ける
-2. `mRL-7.2` として、保存した gaussian parameter と render artifact を local へ落とし、正式 gaussian scene として扱う最小 closeout へ進む
+2. 後続 `MRL-**` として、保存した gaussian parameter を viewer で読む正式 gaussian scene 形式へ寄せ、multi-view / 長時間 optimization へ進む
 3. `reviewing` と admin `UX check` の後続 gate を整理し、`ux-b2t-hypo.md` と証跡文書の closeout 基準を揃える
 
 
@@ -296,7 +296,7 @@
 | `modeling` 入口 | `td13`, `tu20`, `td12`, `td14`, `tu18`, `tu21`, `td23`, `td22` | bootstrap / install、実 bundle 読込、request preflight、directory intake、review 側の状態読込までそろった範囲は `p-done` と読める | `MRL-3`, `MRL-4` | `td9` 以降の `modeling` / `reviewing` task は基礎として有効だが、本機能 close には未達である |
 | single-frame 主空間 | `td16`-`td18`, `tu22`, `tu23` | `correcting` 実データを使った single-frame `3DGS` 系主空間モデル候補の smoke 生成と artifact 取得までを根拠に `p-done` と読める | `MRL-5` | `SpacePackage` と download 導線の最小契約は通っている |
 | evidence 再参照 | `tu22`, `tu23`, `td23` | notebook evidence と local downloaded artifact bundle を product 側 evidence として取得できる段まで通っている | `MRL-6` | product 側 evidence として再参照できることを主に見る |
-| `TraceCore` 次段 | `td19` | 次段の first target は、実 session の最長連続 windowを使って gaussian parameter を正式 artifact として扱える形へ寄せ、`TraceCore` の最小表示へ進むことである | `MRL-7` | `mRL-7.1` は `p-done`。`mRL-7.2` は gaussian short optimization まで到達し、次は artifact closeout と local 再確認である |
+| `TraceCore` 次段 | `td19` | 次段の first target は、実 session の最長連続 windowを使って gaussian parameter を正式 artifact として扱える形へ寄せ、`TraceCore` の最小表示へ進むことである | `MRL-7` | `MRL-7` はこの段で `p-done`。次は後続 `MRL-**` として viewer 向け形式、長時間 optimization、multi-view 拡張へ進む |
 | 後続 backlog | `tu24`-`tu29`, `td20`-`td23` | `multi-route` 比較、`selected_route.json` 固定、request / status UX、result 返却、viewer 実装、統合 UX は後続 `MRL-**` へ残っている | `MRL-**` | task 実測で課題の大小が見えた時点で `MRL` / `mRL` の切り方を調整する |
 | 共通方針 | `TDD` 全体 | `MRL` の達成品質として求める UX は薄めず、north star に沿って各段の到達像を明記し続ける | 全体 | modeling は admin の手作業を含むため、後続 `MRL` の粒度は実測に合わせて更新する |
 
@@ -327,9 +327,9 @@
 | `MRL-6` | `-` | `modeling` の smoke 生成物を<br>admin が notebook / local download で取得し、<br>product 側 evidence として<br>再参照できることを確認する | `su15`,`sd11` | `bu19`,`bd20` | `tu23`,`td23` | `p-done` | `p-done` | da3_colab_<br>clean_bootstrap_<br>runbook.md<br>の Candidate 拡張状況 | 2026-03-29 modeling evidence bundle close evidence |
 | `MRL-6` | `mRL-6.1` | `Google Colab` 実行 notebook を product 側 evidence として保存し、再参照できることを確認する | `sd11` | `bd20` | `td23` | `p-done` | `p-done` | da3_colab_<br>clean_bootstrap_<br>runbook.md の<br>Candidate 拡張状況 | 2026-03-29 modeling evidence bundle close evidence |
 | `MRL-6` | `mRL-6.2` | local downloaded smoke artifact 一式を product 側 evidence として保存し、再参照できることを確認する | `su15`,`sd11` | `bu19`,`bd20` | `tu23`,`td23` | `p-done` | `p-done` | da3_colab_<br>clean_bootstrap_<br>runbook.md の<br>Candidate 拡張状況 | 2026-03-29 modeling evidence bundle close evidence |
-| `MRL-7` | `-` | `10s` 前後の整った実動画から<br>`TraceCore` として `multi-frame` で、<br>利用者が主空間、主カメラ経路、<br>人軌跡の関係を見比べ、<br>全体俯瞰、時系列、相対表示、<br>滞留や交錯の兆候を検討できる<br>最小表示を得る | `sd9`,`su15`,<br>`sd11` | `bd18`,`bu19`,<br>`bd20` | `td19`,`td23` | `active` | `active` | 操作手順 27-33 と<br>`PLY` viewer 目視確認 | 2026-03-30 `mRL-7.1`<br>multi-frame point-fusion close evidence |
+| `MRL-7` | `-` | `10s` 前後の整った実動画から<br>`TraceCore` として `multi-frame` で、<br>利用者が主空間、主カメラ経路、<br>人軌跡の関係を見比べ、<br>全体俯瞰、時系列、相対表示、<br>滞留や交錯の兆候を検討できる<br>最小表示を得る | `sd9`,`su15`,<br>`sd11` | `bd18`,`bu19`,<br>`bd20` | `td19`,`td23` | `p-done` | `p-done` | 操作手順 27-33 と<br>gaussian artifact 確認 | 2026-03-30 `mRL-7.2` gaussian short-optimization candidate evidence |
 | `MRL-7` | `mRL-7.1` | 実 session の最長連続 window を正として `multi-frame` sampling、depth batch、world fusion、preview closeout を行い、`TraceCore` 最小表示の前段となる multi-frame 点群 candidate-visible-proof を得る | `sd9`,`su15` | `bd18`,`bu19` | `td19` | `p-done` | `p-done` | 操作手順 27-33 | 2026-03-30 `mRL-7.1`<br>multi-frame point-fusion close evidence |
-| `MRL-7` | `mRL-7.2` | multi-frame point cloud から gaussian parameter を初期化し、短い optimization を通して正式 gaussian artifact へ寄せる。続けて local 再確認と `TraceCore` 最小表示へ進む | `su15`,`sd11` | `bd18`,`bd20` | `td19`,`td23` | `active` | `active` | 操作手順 27-33 と<br>gaussian artifact 確認 | 2026-03-30 `mRL-7.2` gaussian short-optimization candidate evidence |
+| `MRL-7` | `mRL-7.2` | multi-frame point cloud から gaussian parameter を初期化し、短い optimization を通して正式 gaussian artifact へ寄せる。admin の目視で取得背景に近い構図への改善を確認する | `su15`,`sd11` | `bd18`,`bd20` | `td19`,`td23` | `p-done` | `p-done` | 操作手順 27-33 と<br>gaussian artifact 確認 | 2026-03-30 `mRL-7.2` gaussian short-optimization candidate evidence |
 
 ### 利用者向け後続 `MRL-**` に紐づく運営者補助 MRL
 | MRL | mRL | gate test 項目 | story-id | behavior-id | task-id | 現在 gate | UX評価状態 | admin UX確認手順 | admin evidence |

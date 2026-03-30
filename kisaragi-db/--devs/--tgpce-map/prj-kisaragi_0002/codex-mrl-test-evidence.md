@@ -60,12 +60,12 @@
 - record date: `2026-03-30`
   target MRL: `MRL-7`
   target mRL: `mRL-7.2`
-  gate change: `candidate evidence strengthened`
+  gate change: `p-done`
   issue: `正規 gaussian parameter の生成と最適化` を始める前は、点群と smoke render までしかなく、`3DGS` 本体へ入れたとは言いにくかった
   cause: point cloud と `gsplat.rasterization` smoke を先行して成立させた一方、gaussian parameter の tensor 初期化、backward、短い optimization loop の確認が未着手だった
-  resolution: multi-frame point cloud から gaussian parameter を初期化し、`gsplat` 上で `1 step` probe と `20 step` の短い optimization を通した。`loss_init = 0.18226878345012665` から `loss_final = 0.035895735025405884` まで低下し、`gaussian_params_init.pt`、`gaussian_params_optim20.pt`、`gaussian_render_init.png`、`gaussian_render_optim20.png` を保存した
-  recurrence prevention: Colab 上で `3DGS` 本体へ進む時は、最初に `1 step` backward probe を通し、引数 shape や path 解決を潰してから短い optimization loop へ進む
-  remaining work: viewer で読む正式 gaussian scene 形式の固定、artifact download、multi-view 条件の拡張、人軌跡重畳を含む `TraceCore` 最小表示を進める
+  resolution: multi-frame point cloud から gaussian parameter を初期化し、`gsplat` 上で `1 step` probe と `20 step` の短い optimization を通した。`loss_init = 0.18226878345012665` から `loss_final = 0.035895735025405884` まで低下し、`gaussian_params_init.pt`、`gaussian_params_optim20.pt`、`gaussian_render_init.png`、`gaussian_render_optim20.png` を保存した。さらに admin の目視で、`gaussian_render_optim20.png` が取得背景に近い構図へ改善したことを確認したため、この範囲を `mRL-7.2 p-done` とした
+  recurrence prevention: Colab 上で `3DGS` 本体へ進む時は、最初に `1 step` backward probe を通し、引数 shape や path 解決を潰してから短い optimization loop と目視確認へ進む
+  remaining work: viewer で読む正式 gaussian scene 形式の固定、artifact download の標準化、multi-view 条件の拡張、人軌跡重畳を含む `TraceCore` 最小表示は後続 `MRL-**` で進める
   evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-evidence.md`
 
 - record date: `2026-03-26`

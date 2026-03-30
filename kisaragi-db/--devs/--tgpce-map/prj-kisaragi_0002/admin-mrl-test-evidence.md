@@ -264,13 +264,16 @@
   - `Google Colab`
   - `T4`
 - 判定:
-  - この段は `active` のまま candidate evidence を収載する
+  - `mRL-7.2` は `p-done`
+  - `MRL-7` 全体も、この段の到達範囲では `p-done`
 - 結果要点:
   - multi-frame point cloud から最小 gaussian parameter を初期化し、`means`、`scales`、`quats`、`opacities`、`colors` を tensor として保持できた
   - `gsplat.rasterization` の forward / backward が通り、`1 step` probe は `backward_ok = true` で通過した
   - 続けて `20 step` の短い optimization が通り、loss は `0.18226878345012665` から `0.035895735025405884` まで低下した
   - `gaussian_params_init.pt`、`gaussian_params_optim20.pt`、`gaussian_render_init.png`、`gaussian_render_optim20.png`、`gaussian_optim20_summary.json` を保存できた
-  - まだ viewer で読む正式 gaussian scene 形式の固定、multi-view optimization の拡張、artifact download は未実施のため、`mRL-7.2` は `p-done` に上げていない
+  - admin の目視で `gaussian_render_optim20.png` は取得背景に近い構図へ改善を確認できた
+  - この段では「multi-frame point cloud から gaussian parameter を初期化し、短い optimization で見た目改善を確認する」を `mRL-7.2` の成立範囲とする
+  - viewer で読む正式 gaussian scene 形式の固定、長時間 optimization、multi-view optimization の拡張は後続 `MRL-**` へ送る
 - 主要 artifact:
   - `gaussian_init_summary.json`
   - `gaussian_one_step_probe.json`
