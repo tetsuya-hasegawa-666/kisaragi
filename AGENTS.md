@@ -7,12 +7,12 @@
 
 ### ルール
 - `<order>` と `</order>` の間は admin 専用の編集領域とし、最優先で厳守する。Codex は無断で書き換えてはならない。
+- すべての文書は、人が読みやすく、文字数当たりの情報量が最大になるように書く。
 - この配下の配置規則は本書に従う。
 - 本文は日本語を基本とし、識別子、command、path、API 名、service 名、英字略語は必要時のみ原文を使う。
 - file 名は半角英数字と、各 program で混乱しにくい半角記号のみを使う。
 - 日本語文書は UTF-8 前提で扱う。
 - `README.md` と `index.md` は原則禁止とし、必要時だけ `AGENTS.md` または各階層の `agents.md` 冒頭で用途を明示して使う。
-- すべての文書は、人が読みやすく、文字数当たりの情報量が最大になるように書く。
 - `kisaragi/` 直下から対象文書の階層までにある `AGENTS.md` と `agents.md` を上位から読み、規則に従って把握・編集する。
 - 最上位 shared control file は `AGENTS.md` とする。
 - `AGENTS.md`や 各 directory の `agents.md` は、その配下全体に効く directory rule とする。

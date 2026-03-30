@@ -1,511 +1,164 @@
 # project-truth
 
-この文書は `prj-kisaragi_0002` の恒久的な真実を保持する正本とする。
+この文書は `prj-kisaragi_0002` の恒久事項だけを保持する正本とする。
 
 ## 文書の役割
 
-本書は、何を作るか、何を最初に成立させるか、何を後段へ回すかを固定する文書である。
+- 何を作るか
+- 最小で何を成立させるか
+- 何を後段へ回すか
+- app / artifact / 外部境界をどう切るか
 
-- 詳細実装、アルゴリズム比較、最適化はこの後に行う。
-- ここでは、今後の検討や実装でぶれない芯だけを定める。
+現在状態、未完 gate、優先順位、細かい運用順は [ux-b2t-hypo.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/ux-b2t-hypo.md) に置く。
 
 ## 最終目的
 
-最終目的は、作業後に manager が、現場空間、人、作業機、時間の関係を確認し、作業プロセスを理解できるようにすることである。
-
-| 確認対象 | 内容 |
-| --- | --- |
-| 現場 | どこの空間で作業したか |
-| 移動 | 人や作業機がどこを動いたか |
-| 順序 | いつ、どの順で進んだか |
-| 相対関係 | 人、作業機、場所の関係 |
-| 進行 | どの範囲で作業が進んだか |
-
-- 最小構成で直接扱うのは、まず移動、位置関係、時系列の把握である。
-- 人がその場で具体的に何をしていたかの理解は、この最小構成の範囲外とする。
-- 最終到達点は `10時間` 作業を一貫処理、一貫閲覧できることだが、最優先は `1分` 程度の動画で成立させることである。
-- `1分` だから補正不要とは考えず、短時間でも見た目の自然さと信頼感を要件に含める。
-
-## 前提条件
-
-| 項目 | 前提 |
-| --- | --- |
-| カメラ動画 | 屋外、屋内作業者が断続的に映る |
-| カメラデータ | `ARCore` 相当の pose、camera parameter、時刻同期情報を取得できる |
-| 取得頻度 | `5〜10fps` 程度 |
-| カメラ `IMU` | 動画撮影と同時取得できる |
-| 人物側 `IMU` | 映り込む人は、`IMU` 付きスマホを pocket 等に保持している |
-| 移動速度 | 人、作業機とも `5km/h` 以下を最低限の実用前提とする |
-| 初期対象 | まず `1分` 程度の動画 |
-| 最終対象 | 将来的に `10時間` 作業へ拡張する |
-
-- 特に重要なのは、時刻同期された動画、pose、camera parameter、`IMU` が取れることである。
+- 作業後に manager が、現場空間、人、作業機、時間の関係を確認し、作業 process を理解できるようにする。
+- 最小構成で直接扱うのは、空間、移動、相対位置、時系列の把握である。
+- 人がその場で具体的に何をしていたかの理解は、最小構成の範囲外とする。
+- 最終到達点は `10時間` 作業の一貫処理、一貫閲覧とする。
+- 最優先は `1分` 程度の動画で成立させることとする。
 
 ## 最小構成
 
-最小構成の名称は `TraceCore` とする。
+- 最小構成名は `TraceCore` とする。
+- `TraceCore` は、`3DGS` 上に主空間、主カメラ経路、人軌跡を重ね、移動、位置関係、時系列を把握できる最小構成とする。
+- 人物個体 `ID` は最小構成では確定しない。
+- `GNSS` は任意入力とし、ない場合は主 `ARCore` 空間を唯一基準とする。
+- 短時間でも安っぽく見えないことを要件に含める。
 
-- 人の個体 `ID` は取らない。
-- まずは、`3DGS` 上に camera 軌跡と映り込む人の軌跡が、安っぽく見えない状態で表示されることを成立条件にする。
+### 最小構成で直接扱う価値
 
-| 価値 | 内容 |
+| 項目 | 内容 |
 | --- | --- |
 | 空間理解 | 現場の見た目と位置関係が分かる |
 | 動き理解 | camera と人がどう動いたか分かる |
 | 相対理解 | 人と camera の関係が分かる |
 | 時系列理解 | どの順で動いたか分かる |
-| 信頼感 | 安っぽく見えず、確認に使える |
+| 信頼感 | 確認に使える見た目である |
 
-| 後回し項目 | 理由 |
+### 後段へ回すもの
+
+| 項目 | 理由 |
 | --- | --- |
 | 人物個体 `ID` の確定 | 最小価値に必須ではない |
 | 人物ごとの厳密再同定 | 初手で必要ない |
-| 人の具体的作業内容の理解 | 背景と軌跡だけでは扱えない |
-| 高度な `IMU` 融合 | 重く、初手に向かない |
+| 具体的な作業内容理解 | 背景と軌跡だけでは不足する |
+| 高度な `IMU` 融合 | 初手として重い |
 | `10時間` 対応 | 最終目標だが初手ではない |
-| 高度分析 `UI` | まずは見えることが先 |
-
-## システム対象
-
-本 system は、次の三つを同時に扱う。
-
-| 対象 | 内容 |
-| --- | --- |
-| 空間 | `DA3` と `3DGS` で再現する現場空間 |
-| camera 軌跡 | 撮影側の移動 |
-| 人軌跡 | 映り込む人の移動 |
-
-- この三つが同じ画面、同じ時間軸で見えれば、最小 review 価値は成立する。
-- 人物個体の厳密識別や、人物動作の詳細理解は、その後の拡張対象とする。
-
-## 開発方針
-
-### 主方針
-
-`DA3` を空間生成の中核に置き、重い通常再構成 flow を主経路にしない。
-
-### 補助方針
-
-| 要素 | 役割 |
-| --- | --- |
-| `DA3` | 空間幾何推定の主処理 |
-| `3DGS` | 空間表現化 |
-| `YOLO` 系 | 人物検出、追跡 |
-| camera 側 `ARCore` 情報 | camera 軌跡と補助条件 |
-| `IMU` | 将来の軌跡安定化、補正候補 |
-
-### 方針上の注意
-
-| 注意 | 内容 |
-| --- | --- |
-| 1 | `1分` でも自然さと信頼感を捨てない |
-| 2 | 重い課題を大課題のまま抱えない |
-| 3 | まず全体連結を見通せる最小単位を成立させる |
-| 4 | `IMU` は初期から全部統合せず、価値が大きい箇所に限定して使う |
+| 高度分析 `UI` | まずは見えることが先である |
 
 ## レビュー価値仮説
 
-最小構成では、何を表示するかだけでなく、どう見れば価値が出るかも整理しておく。
+- `TraceCore` は、何を表示するかだけでなく、どう見れば価値が出るかを先に固定する。
+- 最小で価値が出る見方は、全体俯瞰、時系列再生、camera と人の相対表示、滞留箇所確認、軌跡の重なり確認とする。
+- viewer や分析機能は、この見方を支援する方向で拡張する。
 
-### 最小構成で価値が出る見方
+## 前提
 
-| 見方 | 分かること |
+| 項目 | 内容 |
 | --- | --- |
-| 全体俯瞰 | どの範囲を主に使っていたか |
-| 時系列再生 | どの順で移動したか |
-| camera と人の相対表示 | 撮影者と人の位置関係 |
-| 滞留箇所の確認 | 長くいた場所、動きが集中した場所 |
-| 軌跡の重なり確認 | 交錯、往復、無駄な動線の兆候 |
+| camera data | `ARCore` 相当の pose、intrinsics、時刻同期情報を取得できる |
+| camera `IMU` | 動画撮影と同時取得できる |
+| 人物側 `IMU` | 映り込む人が `IMU` 付き smartphone を保持している |
+| 取得頻度 | `5` から `10fps` 程度 |
+| 初期対象 | `1分` 程度の動画 |
 
-### 最小構成で直接分からないこと
+## システム対象
 
-| 分からないこと | 理由 |
+本 project は次の 3 つを同時に扱う。
+
+| 対象 | 内容 |
 | --- | --- |
-| 具体的な作業内容 | 手元動作や対象物操作が見えない |
-| 作業品質 | 軌跡だけでは判定できない |
-| 何を処理していたか | 背景と軌跡だけでは不足する |
+| 空間 | `DA3Metric-Large` と `3DGS` により再現する現場空間 |
+| camera 経路 | 撮影側の移動 |
+| 人経路 | 映り込む人の移動 |
 
-### この章の意味
-
-- この章は、並行実装のためではなく、viewer や将来の分析機能が何を支援すべきかを先に固定するために置く。
-- 今は全部実装しなくてよいが、価値が出る見方は今のうちに要求として持っておく。
-
-## 開発段階
-
-| 段階 | 目的 | 主要成果物 |
-| --- | --- | --- |
-| 第1段階 | 収録と data `I/F` 成立 | 収録仕様、file 構造、時刻整合確認結果 |
-| 第2-1段階 | `DA3` 主導の空間生成成立 | `DA3` 出力、短時間 `3DGS`、暫定 viewer |
-| 第2-2段階 | 人物追跡成立 | `YOLO` 検出、track、追跡 log |
-| 第2-3段階 | 人認識、depth 距離取得と全体連結見通し確立 | 距離付き追跡 log、`IMU` 利用方針、軌跡化 algorithm 案 |
-| 第3-1段階 | person `IMU` 軌跡化と撮影 camera `IMU` 統合試験 | person `IMU` 軌跡、統合結果、`3DGS` 上の仮表示 |
-| 第3-2段階 | `3DGS` と `IMU` の相互補完確認と統合表示実装 | 補完 logic、統合表示、`MVP` 成立 |
-| 第4段階 | 長尺化、品質改善 | 長尺対応、精度改善、viewer 補助機能 |
-
-## 入出力の基本仕様
-
-### 入力
-
-| 区分 | 内容 |
-| --- | --- |
-| 動画 | `mp4` または画像列 |
-| 時刻 | 各 frame timestamp |
-| camera | pose、intrinsics、`IMU` |
-| 人物側 | smartphone `IMU` |
-
-### 設計原則
-
-| 原則 | 内容 |
-| --- | --- |
-| 時刻基準 | すべて timestamp で対応づける |
-| 一貫構造 | 後段へ追加変換なしで渡せるようにする |
-| 拡張性 | person `IMU` 統合や長尺化に耐える構造にする |
-
-## ネーミング
-
-| 層 | 名称 | 意味 |
-| --- | --- | --- |
-| 最小構成 | `TraceCore` | `1分` 動画で成立させる核 |
-| 将来基盤 | `FieldProcess OS` | `10時間` 運用まで伸ばす全体像 |
-
-- 開発時の意識は、「いまは `TraceCore` を作っている。将来は `FieldProcess OS` に育てる」で固定する。
-
-## 結論
-
-| 項目 | 固定内容 |
-| --- | --- |
-| 最終目的 | 作業後に、manager が現場空間、人、作業機、時間の関係を確認し、作業プロセスを理解できるようにする |
-| 最終到達点 | `10時間` 作業を一貫処理、一貫閲覧できること |
-| 最優先 | まず `1分` 動画で成立させること |
-| 最小構成 | `3DGS` 上に camera 軌跡と映り込む人の軌跡を、`ID` なしで自然に表示すること |
-| 最小構成で直接扱う価値 | 移動、位置関係、時系列の把握 |
-| 最小構成で直接扱わない価値 | 人の具体的作業内容の理解 |
-| 主方針 | `DA3` を空間生成の中核に置く |
-| 開発名 | 最小構成は `TraceCore`、将来基盤は `FieldProcess OS` |
-
-- `TraceCore` は、`1分` 程度の動画から、現場空間、camera 軌跡、人軌跡を、`3DGS` 上で安っぽく見せず、移動、位置関係、時系列の把握を可能にする最小構成である。
-- `FieldProcess OS` は、それを `10時間` 運用へ拡張した作業プロセス可視化基盤である。
-
-## 利用入口
-
-- `trajectreview-correcting`、`trajectreview-modeling`、`trajectreview-reviewing`、統合 app、既存 session intake は、開発中から実使用まで閉じずに併存させる。
-- 現場記録の標準例は `trajectreview-correcting` を使って説明してよいが、他入口を補助扱いとして閉じない。
-- どの入口から入っても、後段は同じ artifact 契約へ収束する。
-- 操作説明の優先順、実装優先順、`MRL` の進行順はあり得るが、それは `ux-b2t-hypo.md` で管理し、この文書では入口の可否差にしない。
-
-## project 運用前提
-
-### 文書と作業面
-
-- `prj-kisaragi_0002` の正本文書は `--tgpce-map/prj-kisaragi_0002/` に集約する。
-- `DA3Metric-Large` の `Colab` 往復に使う shared worklog は同 directory 直下の `sharedlogs_<thema>.md` を正規名とする。
-- 現在の `DA3Metric-Large` `Colab` main worklog は `sharedlogs_da3-colab.md` とする。
-- shared worklog は定型 header を持ち、header より下は `# codex` または `# admin` 見出しで末尾追記のみとする。
-- 採用判断、gate 状態、contract 変更、manual 変更は shared worklog だけで閉じず、対応する正本文書へ反映する。
-
-### 入力と転送の運用
-
-- `InputPackaging` の入口は `correcting`、統合 app、legacy intake を閉じずに併存させる。
-- `Google Drive` 転送先 file の document grant は保持前提にせず、毎回 `転送先を選択` で指定する。
-- `Google Drive` 転送 zip の既定名は `trajectreview-correcting-session-YYYYMMDD-HHMMSS.zip` とし、custom 名でも `-session-YYYYMMDD-HHMMSS` suffix を必須にする。
-- `Google Drive` 側は zip、端末側は `<session_id>/` を正規形とし、unzip と配置正規化は `modeling` の bootstrap package が担う。
-- `reference_isensorium_verified_20260325` 配下の recording 実装は吸収済みとし、現行正規は `correcting`、`python`、`correcting/scripts`、`correcting-test` とする。
-
-### modeling 運用
-
-- `trajectreview-modeling` は `Colab all-in` を主 route とし、PC 側は source、config、auto-install package、証跡の正本を保持する。
-- preflight artifact は `experiment_manifest.json`、`da3_input_manifest.json`、`benchmark_summary.json`、`selected_route.json`、Colab notebook、import helper、bootstrap package を基本とする。
-- Colab notebook の `CONFIG` は `session_root` と `result_root` を最小入力とし、残りの route 情報は session bundle 内 artifact から補完する。
-- `DA3Metric-Large` の `Colab` 実装は greenfield とし、既存の `COLMAP 4.0 + nerfstudio splatfacto` notebook は参考ひな形として扱う。
-- `Colab` のような揮発 runtime では partial recovery を正にせず、fresh runtime からの最短 clean bootstrap を canonical route とする。
-- `--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md` を bootstrap 正本とし、`candidate` と `adopted` を分け、admin 実測 end-to-end 通過手順だけを `truly pass` とする。
-- `trajectreview-modeling` の本機能 gate は、単一 route の一括 close ではなく、`比較基盤`、`比較実験`、`採用 route の運用化` の 3 段で閉じる。
-
-## UX 原則
-
-- `Next Action` は常に 1 件だけ提示する。
-- `Thin Status` は `phase`、`pipeline`、`data_health`、`quality`、`issues` の 5 項目を基本とする。
-- 利用者に探索を強要せず、レビューすべき `attention point` と同時刻ハイライトを時間範囲と理由付きで提示する。
-- 正常時は薄く、異常時だけ強調する。
-- `Timeline` を統合キーとして、space、trajectory、同時刻ハイライト、`attention point`、summary を束ねる。
-
-### UX フェーズ
-
-- `Intake`: 入力セッション folder から主カメラ動画と `IMU`、人物側 `IMU` を抽出し、単一セッションとして受理する。
-- `Diagnose`: 実行可否と入力品質を判定する。
-- `Run`: 一括処理 pipeline を進行させる。
-- `Verify`: 空間品質と経路品質の成立を確認する。
-- `Interpret`: レビューと改善判断を行う。
+この 3 つが同じ時間軸で結び付いて見えれば、最小 review 価値は成立する。
 
 ## 段階構造
 
-- app 構成は `trajectreview-correcting`、`trajectreview-modeling`、`trajectreview-reviewing`、統合 app の 4 実行入口を許容する。
-- 4 app は、複数人分担や手戻り時の原因分析速度を上げるための作業境界であり、実際の開発主体が admin と Codex の 2 名であることと矛盾しない。
+| 段階 | 目的 |
+| --- | --- |
+| intake | 入力 bundle を正規化し、後段へ渡せる状態にする |
+| modeling | 主空間と経路の成立可否を判断し、採用 route を決める |
+| reviewing | 空間、経路、same-time highlight、`attention point` を review 可能に束ねる |
+| scaling | 長尺化、品質改善、運用導線の安定化を行う |
 
-### `InputPackaging`
+## 開発原則
 
-- 責務: 現場記録、既存 session intake、端末内同期、`Google Drive` 転送を含む入力パッケージ化を行い、単一セッション入力へ正規化する。
-- 主な処理: 現場記録、session folder intake、raw file 抽出、frame 抽出、`ARCore` pose 整理、`IMU` 整理、`BT` 整理、時刻整列、品質フラグ付与、端末内同期、`Google Drive` zip 転送。
-- 入口: 現場記録起点、既存 session intake 起点、統合 app 起点のいずれから入っても同じ `SessionPackage` 契約へ収束する。
-- 運搬面: `端末保存先` と `Google Drive` 転送先に分かれ、前者は `<session_id>/`、後者は zip を正本とする。
-- post-recording 処理順: `raw 保存 -> 品質確認 -> derived 同期` を正とする。
+- 空間生成の主経路は `DA3Metric-Large` と `ARCore pose` / intrinsics の統合とする。
+- 通常の重い再構成 flow を主経路にしない。
+- route は最初から 1 本に固定せず、比較したうえで暫定採用 route を決める。
+- `IMU` は初期から全部統合せず、価値が大きい箇所に限定して使う。
+- viewer 実装より先に、`TraceCore` の最小表示を成立させる。
 
-### `SpaceReconstruction`
+## app 境界
 
-- 責務: 主空間の基準座標と再構成成果物を作る。
-- 主な処理: frame 選別、`DA3Metric-Large` 入力生成、metric depth 推定、`ARCore pose` による world projection、空間品質集約。
+| app | 主責務 |
+| --- | --- |
+| `trajectreview-correcting` | 現場記録、既存 session intake、入力 bundle 正規化、転送 |
+| `trajectreview-modeling` | request 起点、remote modeling、route 比較、result 受け渡し |
+| `trajectreview-reviewing` | verify、review、same-time highlight、`attention point` 表示 |
+| 統合 app | 全 workflow の束ねと現在地表示 |
 
-### `TrajectoryReconstruction`
-
-- 責務: 主カメラ経路と人物経路を主空間へ登録する。
-- 主な処理: 主カメラ経路生成、人物 path 推定、`BT` による主体維持、視覚再拘束、見失い区間橋渡し、不確実性付与。
-
-### `AssemblyAndViewer`
-
-- 責務: 閲覧可能な成果物を組み立て、viewer で読む。
-- 主な処理: timeline 生成、主体表示定義、同時刻ハイライト定義、`attention point` 統合、閲覧 manifest 生成。
-
-## app 責務
-
-### `trajectreview-correcting`
-
-- 対象段階: `InputPackaging`
-- 主責務: 現場記録、取得条件設定、source session 保存、入力補正の起点作成
-- 完成条件:
-  - camera / IMU / GNSS / BLE / ARCore 記録画面を持ち、source session を端末内へ保存する。
-  - 同じ app 内で `session_package.json`、`sensor_quality.json`、`space_handoff_manifest.json`、`camera_calibration_summary.json` を生成する。
-  - `data-check` が readiness、quality、blocker、recommended correction を返す。
-  - preview 直下の状態表示に `現場の風景と経路を記録します。1. 条件設定⇒2. 収録⇒3. 転送` を置く。
-  - `Data収録開始` は `端末保存先` 未設定の間は非活性とし、未設定時だけ `端末保存先：未設定` を表示する。
-  - `品質確認` の詳細結果は popup で表示し、メイン画面には閾値未満の項目名だけを短く表示する。
-  - `端末保存先` 同期中は session 詳細を縮退し、`Session: <session_id>` と `品質確認OK` だけを見せる。
-  - `転送先を選択` は `Google Drive` URL 入力 / 保存と Android 標準保存画面経由の zip 保存先選択を兼ねる。
-  - `Google Drive` の転送先 file は毎回 user が指定する。
-  - `Google Drive` 転送 zip の既定名は、名称未指定なら `trajectreview-correcting-session-YYYYMMDD-HHMMSS.zip` とし、data 名を使う時も `<data-name>-session-YYYYMMDD-HHMMSS.zip` の形で `session-*` suffix を保持する。
-  - `転送Data選択` と `Data名称変更` は保存済み session を扱う button 一覧 popup を持ち、warning または blocker を持つ data 名の先頭に `▲` を付け、取得日時と長さを確認できる。
-  - `Data名称変更` popup は `戻る` button、`OFF：名称変更、ON：削除モード` toggle、`削除実行` button を持つ。
-  - calibration 診断は `読取試行あり成功 0 件`、`coverage 低下`、`calibration export 実装前 data の可能性` を区別する。
-  - `ARCore` 記録は同一 frame の pose、frame timestamp、image intrinsics、texture intrinsics、lens distortion を 1 record として保存する。
-
-### `trajectreview-modeling`
-
-- 対象段階: `SpaceReconstruction`、`TrajectoryReconstruction`
-- 主責務: request 起点受付、model 入力確認、実行 gate、進行把握、result 受け渡し
-- 完成条件:
-  - スマホまたは PC からの request を起点に、`Google Drive` 上の input directory と result directory を指定した `Colab` job request を生成できる。
-  - `Colab bootstrap package` が指定 directory から zip または `session_root/` を正規化し、runtime、dependency install、config、status 更新先、output path を再現可能に構築できる。
-  - request 元画面は remote 実行中に waiting ring、現在段階、直近更新時刻を読み続けられる。
-  - `DA3Metric-Large` による metric depth 推定と `ARCore pose` / intrinsics による world projection を実行し、主要 quality 指標と failure reason を route 単位で記録する。
-  - 複数の sampling / intrinsics route を比較し、`benchmark_summary.json` と `selected_route.json` により暫定採用 route を固定する。
-  - remote 実行完了後に download URL と result summary を返し、remote 実行結果を受理して `SpacePackage`、`TrajectoryPackage`、`space_quality.json`、`trajectory_quality.json`、`attention_seed.json` を更新する。
-  - `local sample before colab` は preflight 用補助 route とし、完成判定の代替に使わない。
-
-### `trajectreview-reviewing`
-
-- 対象段階: `AssemblyAndViewer`
-- 主責務: verify、review、same-time highlight、`attention point` 確認
-- 完成条件:
-  - `ReviewArtifact` 実体を読み、viewer、timeline、same-time highlight、`attention point` jump を提供する。
-  - summary / stub 読込だけでなく、後段成果物そのものを利用者が操作できる。
-
-### 統合 app
-
-- 対象段階: 全段階
-- 主責務: correcting、modeling、reviewing の全 workflow を 1 つの視点で束ねる
-- 完成条件:
-  - correcting、modeling、reviewing の本来機能を 1 app から順につなげられる。
-  - workflow 全体の現在地と blocker を示しつつ、各段階の実生成物へ到達できる。
+- 4 app は分担境界であり、どの入口から入っても後段は同じ artifact 契約へ収束する。
 
 ## artifact 契約
 
 ### `SessionPackage`
 
-- 目的: 後段が迷わず扱える単一入力単位
-- 必須要素: `session_id`、`timebase`、`frames`、`arcore_pose`、`imu`、`bt`、`quality`
-- 任意要素: `gnss`
-- 契約:
-  - 全 record が共通単調時刻軸で比較できる。
-  - `frame_id` と `image_path` が一意である。
-  - 主体と端末の対応が追える。
-  - 取得元 raw だけでなく、`trajectreview` 派生の受理判定、品質、対応表を同梱または併設参照できる。
+- 単一入力単位の正規化 artifact とする。
+- 主 camera 動画、`IMU`、`ARCore` pose、`BT`、品質要約を束ねる。
+- 任意入力として `GNSS` を許容する。
 
 ### `SpacePackage`
 
-- 目的: 主空間の唯一基準と再構成成果物を渡す
-- 必須要素: `coordinate_system`、`valid_frames`、`rejected_frames`、`camera_path`、`colmap`、`gs_model`、`quality`
-- 契約:
-  - `GNSS` がない場合は `ARCore` local 空間を唯一基準とする。
-  - `camera_path` は `timestamp_ns` を持つ。
-  - 主カメラ path と空間品質の報告を含む。
+- 主空間の唯一基準と再構成成果物を渡す。
+- `GNSS` がない場合は主 `ARCore` local 空間を唯一基準とする。
+- 主空間、主 camera path、空間品質、`gs_model` を含む。
 
 ### `TrajectoryPackage`
 
-- 目的: 主空間座標系上に登録された主カメラ経路と人物経路を渡す
-- 必須要素: `machine_trajectory`、`worker_trajectories`、`uncertainty`、`anchors`、`relinks`、`timeline`
-- 契約:
-  - すべての path は `SpacePackage.coordinate_system` に従う。
-  - 各人物 path は `member_id` と一意対応する。
-  - 見失い区間は不確実性 mode で識別できる。
+- 主空間座標系上の主 camera path と人物 path を渡す。
+- 人物個体 `ID` が未確定でも path、不確実性、再拘束点、timeline を扱えるようにする。
 
 ### `ReviewArtifact`
 
-- 目的: 開けばレビューを開始できる完成成果物
-- 必須要素: `viewer_manifest`、`timeline`、`ui_config`、`space_assets`、`trajectory_assets`、`entrypoint`
-- 契約:
-  - `Assembly` だけが生成する。
-  - `Viewer` は閲覧専用で消費する。
-  - 時刻スライダは `TrajectoryPackage.timeline` と一致する。
-  - 同時刻ハイライト情報を含む。
+- review 開始に必要な完成成果物とする。
+- `Assembly` だけが生成する。
+- `3DGS` 空間表現、経路、same-time highlight、`attention point`、timeline を含む。
 
-### 主要 file 契約
+## 外部境界
 
-- `input_readiness.json`: 必須入力、任意入力、次 action 判定
-- `sensor_quality.json`: stream ごとの品質低下と診断理由、時刻整列 delta、completeness score、pose coverage ratio
-- `frame_pose_index.csv`: frame と pose の対応表
-- `camera_calibration_summary.json`: `ARCore` frame timestamp、camera intrinsics、texture intrinsics、lens distortion の収集要約
-- `member_identity_map.json`: 端末、主体、`BT` の対応表
-- `session_package.json`: 正規化済み `SessionPackage` 実体
-- `space_handoff_manifest.json`: `SpaceReconstruction` 着手可否、blocker、利用 artifact の要約
-- `modeling/experiment_manifest.json`: route ごとの frame sampling、intrinsics mode、depth projection、resource 制約、出力先の定義
-- `modeling/da3_input_manifest.json`: `DA3Metric-Large` に渡す画像入力、`ARCore` pose、intrinsics 指定
-- `modeling/benchmark_summary.json`: sampling / intrinsics route ごとの比較結果
-- `modeling/selected_route.json`: 暫定採用 route、research route、不採用理由、再評価条件
-- `modeling/colab_job_request.json`: request 元、input directory、result directory、`Colab` remote 実行 parameter を束ねた request
-- `modeling/job_status.json`: stage、updated_at、result availability、download URL、error summary
-- `modeling/review_artifact_stub.json`: reviewing app と統合 app が読む review 用 stub
-- `modeling/modeling_handoff_manifest.json`: reviewing 着手可否と blocker の要約
-- `space_quality.json`: 主空間品質と coverage の要約
-- `trajectory_quality.json`: 経路品質と不確実区間の要約
-- `attention_seed.json`: `attention point` 候補の種
-- `same_time_highlights.json`: 同じ時刻の位置関係を強調表示するための候補
+### remote modeling
 
-## 外部連携境界
+- remote modeling の主経路は `Google Drive` と `Colab` を使う route とする。
+- `Colab` runtime の bootstrap は product 側 runbook を正本とする。
 
-### package / bootstrap
+### route 比較
 
-- この project では、準備 UX、配布、install、bootstrap、実行環境整備も利用者主導 `MRL` / `mRL` の前段 gate として管理する。
-- `trajectreview-modeling` の package は `Colab all-in` を主 route とし、`Google Drive` の指定 directory から zip または `session_root/` を受けて `session_root/` を正規化する `Colab bootstrap package` を持つ。
-- PC 側は `Colab bootstrap package` の source、install script、config template、notebook template、version 固定情報、証跡を保持する。
-- 既存の `COLMAP 4.0 + nerfstudio splatfacto` notebook は参考ひな形であり、`DA3Metric-Large` modeling の正本ではない。
-- `DA3Metric-Large` の `Colab` 実装は greenfield とし、`Codex` が script / notebook を作成し、admin が `Colab` 実行結果を shared worklog に貼り戻す往復で具体化する。
-- shared worklog は project に対する truth / plan / evidence の正本ではないが、共同作業の保持情報としては authoritative な log であり、正本反映の根拠 log として保持する。
-- shared worklog の置き場は `--tgpce-map/prj-kisaragi_****/` 直下とし、file 名は `sharedlogs_<thema>.md` 形式に統一する。
-- shared worklog を使う時は、読みやすさのために定型 header を持ち、header より下は `# codex` または `# admin` 見出しで末尾追記のみとする。
-- 採用判断、gate 状態、artifact 契約、manual、evidence は必ず対応する正本文書または証跡文書へ別途反映する。
-- shared worklog は定期的に振り返り、持続価値のある内容を `project-truth.md`、`ux-b2t-hypo.md`、admin evidence、product runbook へ反映した後、old log 本文を削除または reset してよい。
-- `Colab` や remote notebook のように runtime が揮発する route では、途中修復手順ではなく fresh runtime からの最短 clean bootstrap を canonical route とする。
-- 上記 route では、shared worklog の trial 往復とは別に、`--products/prj-kisaragi_0002/` 配下へ `最小 clean bootstrap runbook` を保持することを必須とする。
-- `最小 clean bootstrap runbook` は `candidate` と `adopted` を分け、admin 実測で end-to-end 完了した手順だけを `truly pass` 扱いとする。
-- 現在の `DA3Metric-Large` `Colab bootstrap` の正本は `--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md` とする。
-- 上記 runbook の admin 実行は、`MRL-3` / `mRL-3.1` の bootstrap UX、`MRL-4` / `mRL-4.2` の `Google Drive` directory bootstrap、`MRL-5` / `mRL-5.2` の `Colab` metric depth 実行の candidate evidence を兼ねる。
-- 現段階の DA3 bootstrap は、`GPU` を選べても最初は `CPU` で bootstrap / import / `1 frame` 推論確認を進めてよい。
-- bootstrap 仕様が未確定な間は、blank restart だけに固定せず、同一 runtime で blocker を潰しながら `最小 clean bootstrap runbook` へ反映してよい。
-- `2026-03-29` 時点で、admin 実測により `T4` 上の `Adopted Bootstrap v1` が成立し、single-frame の `DA3Metric-Large` metric depth 推論と `summary.json` 出力は end-to-end で通過した。
-- `trajectreview-correcting` は Android app を正本実行入口としつつ、PC install package も別 process で設計し、artifact 互換性、保存先構成、導線を固定する。
-
-### modeling route
-
-- `DA3Metric-Large` を first target の metric depth 基盤とする。
-- 最初から最終 route を固定せず、少なくとも `5fps`、`10fps`、`per-frame intrinsics` を比較候補として扱う。
-- depth route は quality、runtime、resource usage、failure rate を比較して暫定採用 route を決める。
+- `DA3Metric-Large` を first target の depth 基盤とする。
 - route 比較は同一 session、同一 export contract、同一評価指標で行う。
-- 暫定採用 route と research route は `selected_route.json` で分離し、既定 route の変更履歴を追えるようにする。
+- 比較結果は product 側の評価 artifact に集約し、採用 route は handoff 契約で固定する。
 
-### `iSensorium` と intake source
+### input 受理
 
-- `Xperia 5 III` の設定条件、recording mode、raw output、時刻整列、sample count の詳細はこの文書末尾の `Xperia 5 III intake detail` に統合して保持する。
-- `iSensorium` 由来で吸収した recording / parser / script の実装は、`--products/prj-kisaragi_0002/correcting/`、`--products/prj-kisaragi_0002/python/`、`--products/prj-kisaragi_0002/correcting/scripts/` を現行正規とする。旧 reference 配置は吸収済みで、以後の開発と検証は吸収後 path を使う。
-- `iSensorium` 由来の入力正本は `session_manifest.json` または `manifest.json`、`video_frame_timestamps.csv` または `frames.csv`、`imu.csv`、`gnss.csv`、`bt.jsonl` または `ble_scan.jsonl` または `bt_events.csv` または `bt.csv`、`poses.jsonl` または `arcore_pose.jsonl` とする。
-- legacy alias として `bt_events.csv`、`arcore_pose.csv` も受理対象に含める。
+- `InputPackaging` は raw input を受理し、`SessionPackage` へ正規化する。
+- legacy alias を含む複数入力名を受理してよいが、後段契約は `SessionPackage` へ統一する。
 
-### `Xperia 5 III` intake detail
+## UX 原則
 
-- 対象端末は `Xperia 5 III`、確認済み機種名は `SO-53B` とする。
-- source 実装参照元は `C:\Users\tetsuya\sandbox\codev-db` だが、`trajectreview` は `kisaragi` 側へ吸収した仕様と現行正規配置を正として扱う。
+- `Next Action` は常に 1 件だけ提示する。
+- `Thin Status` は軽く読み取れることを優先する。
+- `Timeline` を統合キーとして、space、trajectory、same-time highlight、`attention point` を束ねる。
+- 正常時は薄く、異常時だけ強調する。
 
-#### 端末設定
+## ネーミング
 
-- 必須権限は `CAMERA`、`RECORD_AUDIO`、`ACCESS_FINE_LOCATION`、`ACCESS_COARSE_LOCATION`、`BLUETOOTH_SCAN`、`BLUETOOTH_CONNECT` とする。
-- 位置情報は `ON` を前提とする。`GNSS` を使わない運用でも、実装上は location permission を前提にする。
-- `Bluetooth` は `ON` を前提とする。`BLE` を無効設定で運用する場合でも、再設定可能な状態を保つ。
-- `Google Play Services for AR` が利用可能であることを前提にする。`ARCore` 自体は任意だが、有効時はこの依存がある。
-- `video.mp4` を含む session directory を作れる空き容量を確保する。
+| 名称 | 意味 |
+| --- | --- |
+| `TraceCore` | `1分` 動画で成立させる最小核 |
+| `FieldProcess OS` | `10時間` 運用まで拡張した将来基盤 |
 
-#### 記録モード
-
-- `STANDARD_HANDHELD` の既定値は `videoFrameLogIntervalMs = 100`、`imuIntervalMs = 20`、`gnssIntervalMs = 1000`、`bleIntervalMs = 2000`、`arCoreIntervalMs = 2000`、`bleEnabled = true`、`arCoreEnabled = true` とする。
-- `POCKET_RECORDING` では `videoFrameLogIntervalMs` の最小を `250 ms`、`bleIntervalMs` の最小を `5000 ms`、`arCoreIntervalMs` の最小を `5000 ms` とし、`動画・IMU・GNSS` を主軸、`BLE / ARCore` を低頻度確認として扱う。
-
-#### session directory と raw file
-
-- 1 session ごとに `session-YYYYMMDD-HHMMSS` 形式の directory を作る。
-- raw file は少なくとも `session_manifest.json`、`video.mp4`、`video_frame_timestamps.csv`、`imu.csv`、`gnss.csv`、`ble_scan.jsonl`、`arcore_pose.jsonl`、`video_events.jsonl` を持つ。
-- `session_manifest.json` は session 全体 metadata、timebase、config、sample count、collector 状態を保持する。
-
-#### 時刻整列
-
-- すべての stream の整列基準は `elapsedRealtimeNanos` と session 単位の monotonic origin とする。
-- `session_manifest.json` の `timebase` は `sessionStartWallTimeMs` と `sessionStartElapsedRealtimeNanos` を持つ。
-- `video_frame_timestamps.csv` は `sensorTimestampNs`、`elapsedRealtimeNanos`、`wallTimeMillis`、`rotationDegrees`、`sessionElapsed` を出力する。
-- `ble_scan.jsonl`、`arcore_pose.jsonl`、`video_events.jsonl` は各 record に `elapsedRealtimeNanos` を持つ。
-- `imu.csv` と `gnss.csv` は parser 側で `elapsed_realtime_ns` を参照して join できる前提で扱う。
-
-#### 数量確認
-
-- 動画本体は `video.mp4` 1 file とする。
-- frame 数は `video_frame_timestamps.csv` の行数を正とする。
-- `IMU`、`GNSS`、`BLE`、`ARCore` の数量は、それぞれ `imu.csv`、`gnss.csv`、`ble_scan.jsonl`、`arcore_pose.jsonl` の行数と `session_manifest.json` の sample count の両方で確認する。
-- `session_manifest.json` は finalize 時に `imuSampleCount`、`gnssSampleCount`、`bleSampleCount`、`arCoreSampleCount`、`collectorStatus`、`files` を持つ。
-- `files` には各 output file の name と size を入れられる前提とする。
-
-#### 名目取得間隔
-
-- frame timeline は `100 ms`、`POCKET_RECORDING` では最小 `250 ms` とする。
-- `IMU` は `20 ms`、約 `50 Hz` 相当とする。
-- `GNSS` は `1000 ms`、約 `1 Hz` 相当とする。
-- `BLE` は `2000 ms`、`POCKET_RECORDING` では最小 `5000 ms` とする。
-- `ARCore` は `2000 ms`、`POCKET_RECORDING` では最小 `5000 ms` とする。
-- 実際の件数は端末状態、権限、tracking 状態、OS 制約で増減するため、`trajectreview` 側では名目値ではなく manifest の sample count と実 file 行数を正として intake する。
-
-#### intake 判断材料
-
-- manifest では `sessionId`、`status`、`deviceModel`、`recordingMode`、`recordingConfig`、`modeBehavior`、`timebase`、`collectorStatus` を読む。
-- file presence では `video.mp4`、`video_frame_timestamps.csv`、`imu.csv`、`gnss.csv`、`ble_scan.jsonl`、`arcore_pose.jsonl`、`video_events.jsonl` を確認する。
-- 数量では `imuSampleCount`、`gnssSampleCount`、`bleSampleCount`、`arCoreSampleCount`、frame 行数を確認する。
-- 時刻整列では `sessionStartElapsedRealtimeNanos` と各 stream の `elapsedRealtimeNanos` または `elapsed_realtime_ns` を確認する。
-
-#### intake 上の扱い
-
-- `GNSS` は source 実装では標準出力だが、`trajectreview` では任意入力として扱う。
-- `BLE` と `ARCore` は欠落しても session 自体は存在し得るため、必須入力と optional input を分けて intake する。
-- `Xperia 5 III` 実装では `deviceModel` が manifest に入るため、target hardware 妥当性確認に使える。
-- 数量確認は sample count と file 行数の両方で行い、片側だけを真実とみなさない。
-
-### bundle layout と transfer
-
-- app 抽出結果は `session_id/isensorium/` と `session_id/trajectreview/` に分離する。
-- `isensorium/` には source 側の raw file を保持する。
-- `trajectreview/` には readiness、quality、frame-pose 対応、identity map、`session_package.json`、`space_handoff_manifest.json` を保持する。
-- app は session folder 直下だけでなく、manifest を持つ 1 段下の child directory も抽出対象として受理する。
-- `trajectreview-correcting` の転送は `Storage Access Framework` による `Google Drive` 保存場所選択を正規経路とし、`撮影データ`、`センサ記録`、`data-check結果と後段受け渡し`、`frame画像群` を group 単位で選択して zip 転送する。
-- `Google Drive` 事前設定の既定対象 folder は `https://drive.google.com/drive/u/2/folders/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_` とし、app 内の `転送先を選択` dialog の初期値として保持する。
-- Android の標準保存画面は端末 storage が先に見えることがあるため、`Google Drive` を使う時は左上メニューなどから provider を `Google Drive` へ切り替える。
-- `Google Drive` 転送先 file は毎回 user が指定する。
-- network 経由の PC companion route は保留とし、現時点の正規 UX には含めない。
-- 保存済み data 一覧の lightweight `品質確認` では `images/` 未生成を懸念扱いにしない。`images/` は `frame画像群` を要求した転送時にだけ評価対象へ入る。
-- `images/` は `品質確認` では生成せず、`frame画像群` が実際に必要になった転送時だけ生成する。
-- `images/` 生成時は全 frame ではなく pose に対応する代表 frame を優先抽出し、転送待ち時間を抑える。
-- 旧 `trajectreview-correcting/<session_id>/` 形式のスマホ内保存先が見つかった時は、可能な範囲で保存先直下の `<session_id>/` 形式へ移行する。
-
-### quality / warning / no-GNSS
-
-- `品質確認` 結果は data ごとに `trajectreview/` 配下 artifact として保持し、保存済み data 一覧で warning または blocker を `▲` 付きで可視化する。
-- `転送Data選択` と `Data名称変更` の一覧を開く時は、保存済み session の軽量 `品質確認` を再実行してから `▲` 判定を更新し、古い summary を残さない。
-- `▲` は `blocker` または再撮影 / 再確認を要する閾値超え warning がある時だけ付ける。
-- `poseCoverageRatio` は `pose数 / frame数` ではなく、session 長と `arCoreIntervalMs` から見積もった期待 pose sample 数に対する達成率で扱う。
-- `corecamera_shared_camera_trial` route でも `OffscreenArCorePoseSampler` の callback から image intrinsics、texture intrinsics、capture diagnostics を `arcore_pose.jsonl` へ保存する。
-- `corecamera_shared_camera_trial` route の `ARCore` sampling は `arCoreIntervalMs` に追従し、高頻度固定 sampling をしない。
-- `trackingState` warning は `TRACKING` 以外を 1 frame 含むだけでは出さず、初期 warmup の少数 frame を許容する。
-- `camera intrinsics` / `texture intrinsics` / `lens distortion` の warning は、対応率が実運用閾値を下回る時にだけ出す。
-- `GNSS` がない場合は主 `ARCore` 空間を唯一基準とし、絶対位置合わせを捨て、主空間への再拘束を正しさの基準にする。
-- 主 `ARCore` 空間が唯一基準として安定していること、`ARCore` tracking quality を入力時点から厳格に記録すること、人物の主体維持を `BT` で支えること、見失い区間に不確実性を残すことを `GNSS` なし前提の成立条件とする。
+- 開発上の前提は「いまは `TraceCore` を作る」で固定する。
