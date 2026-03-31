@@ -11,7 +11,7 @@
 | 項目 | 状況 |
 | --- | --- |
 | `correcting` | `MRL-1` と `MRL-2` の実装と証跡はそろっている。長時間収録では screen off は抑止済みで、`shared-camera` 動画化の `OutOfMemoryError` と停止時 finalize hang は修正済みである。admin 実機では `3分` 収録で停止成功まで確認できたため、残りは `MRL-2S` の `10min` 実収録確認である |
-| `modeling` | `MRL-3` から `MRL-8` は `p-done` である。`MRL-7` は `mRL-7.1` と `mRL-7.2` が `p-done` になり、multi-frame point cloud から gaussian short optimization まで到達した。`MRL-8` では runbook 本体の前段に Drive input candidate scan / widget select を追加し、selected input を bootstrap 本体と `MRL-7` one-block の両方へ handoff できる状態を閉じた。運用形は notebook 全体の `Run all` ではなく、widget 選択を 1 回挟んでから残りを上から順に流す方式である。次は `MRL-2S` と後続 `MRL-**` の gaussian formalization / viewer 寄せへ進む |
+| `modeling` | `MRL-3` から `MRL-8` は `p-done` である。`MRL-7` は `mRL-7.1` と `mRL-7.2` が `p-done` になり、multi-frame point cloud から gaussian short optimization まで到達した。`MRL-8` では runbook 本体の前段に Drive input candidate scan / widget select を追加し、selected input を bootstrap 本体と `MRL-7` one-block の両方へ handoff できる状態を閉じた。運用形は notebook 全体の `Run all` ではなく、widget 選択を 1 回挟んでから残りを上から順に流す方式である。次は `MRL-9` で `DA3 Giant` / `Giant Large` の Gaussian branch を `infer_gs=True` で実装し、`fps = 1`、`frames = 60`、`process_res = 504`、`chunk = 20` または `30` を first config に `gs_ply` / `gs_video` 出力と外部 viewer 可視化を固める |
 | `reviewing` | summary と stub 読込まではあるが、実 `ReviewArtifact` viewer と same-time highlight 操作は未実装である |
 
 ### 現在の blocker
@@ -25,14 +25,15 @@
 | `BLK-5` | `UX-only`、contract、sample、本機能完成の gate が文書上で十分に分離されていない | closeout が過大になりやすい | `BDD` / `TDD` / `MRL` の再構成で gate 境界を明確にする |
 | `BLK-6` | `correcting` の短中時間帯は `3分` 収録まで停止成功を確認したが、`10min` 連続収録はまだ未確認である | 現場記録の本機能成立を `i-pass` にできない | `MRL-2S` で `10min` 実収録を行い、screen off 抑止と finalize 完了を確認する |
 | `BLK-7` | `DA3 Colab` runbook は Drive 上の特定 zip path を hardcode しており、任意 input を script だけで選んで本体へ渡せない | fresh runtime で入力を差し替えるたびに手編集が必要になり、bootstrap の再現性が落ちる | `MRL-8 p-done` により解消済み。Drive input candidate scan、widget select、selected input handoff を runbook 正本へ反映済み |
+| `BLK-8` | `DA3 Giant` / `Giant Large` の `infer_gs=True` route は、`gs_ply` / `gs_video` を返せる前提があるが、現行 project は `DA3Metric-Large` 固定で contract 未整備である | `gs_ply` を正式 `gs_model` として扱う route と top camera viewer 拡張が止まる | `MRL-9` で `MetricLarge route` を rollback baseline に固定したまま、`Giant` Gaussian branch の実装 route を追加し、`gs_ply` / `gs_video` と viewer 導線を順に固める |
 
 ### 次の一手
 
 1. `MRL-2S` で `correcting` の bounded stop 修正 build を `10min` 実収録で確認し、連続収録安定化を閉じる
 2. `MRL-7` を `TraceCore` の最小表示に限定し、route 比較と viewer 後続論点を `MRL-**` へ切り分ける
-3. 後続 `MRL-**` として、保存した gaussian parameter を viewer で読む正式 gaussian scene 形式へ寄せ、multi-view / 長時間 optimization へ進む
-4. `reviewing` と admin `UX check` の後続 gate を整理し、`ux-b2t-hypo.md` と証跡文書の closeout 基準を揃える
-5. `MRL-8` の Drive input select 前段を、後続の request / status / result download UX 設計へ接続する
+3. `MRL-9` として、`DA3 Giant` / `Giant Large` の `infer_gs=True` route を実装し、`fps = 1`、`frames = 60`、`process_res = 504`、`chunk = 20` または `30` を first config に `gs_ply` / `gs_video` 出力と viewer 可視化を固める
+4. 後続 `MRL-**` として、`gs_ply` を top camera renderer と reviewing viewer へ接続する route、multi-view / 長時間 optimization、request / status / result download UX を整理する
+5. `reviewing` と admin `UX check` の後続 gate を整理し、`ux-b2t-hypo.md` と証跡文書の closeout 基準を揃える
 
 
 ## BDD
@@ -184,6 +185,7 @@
 | `bd16a` | 運営者起点 | `DA3 Colab` runbook は、Drive 上の session zip または session folder 候補を script だけで列挙し、<br>選んだ 1 件を `selected input` として固定したうえで、後続の bootstrap / `TraceCore` one-block が同じ入力から進められる |
 | `bd17` | 運営者起点 | `trajectreview-modeling` は `session_package.json`、`arcore_pose.jsonl`、`frame_pose_index.csv`、<br>`camera_calibration_summary.json`、frame 群から、`DA3Metric-Large` 用の前処理入力、metric depth 推定、<br>world projection、`3DGS` 系主空間モデル生成を route 単位で実行できる |
 | `bd18` | 運営者起点 | `trajectreview-modeling` は、まず `10s` 前後の整った実動画から `TraceCore` の `multi-frame` densify を行い、<br>`GNSS` なしでも `ARCore` 基準で主空間、主カメラ path、人軌跡の重なりを安っぽく見えない形で返せる。<br>最低限、全体俯瞰、時系列、camera と人の相対表示、滞留や交錯の兆候を検討できることを要件にし、<br>route 比較が必要になった時は、sampling route、intrinsics route ごとの quality、runtime、resource usage、<br>failure reason を `benchmark_summary.json` へ集約できる |
+| `bd18a` | 運営者起点 | `trajectreview-modeling` は、`DA3 Giant` または `Giant Large` の Gaussian branch を `infer_gs=True` で別 route として実装できる。`gs_ply` / `gs_video` を生成し、外部 viewer で可視化しつつ、失敗時は rollback baseline である `MetricLarge route`、既存 runbook、既存 artifact 契約を巻き戻しなしで継続できる |
 | `bd19` | 運営者起点 | `trajectreview-modeling` は比較結果から `selected_route.json` を生成し、採用 route と research route を分離できる |
 | `bd20` | 運営者起点 | `MRL` / `mRL` の `i-pass` は admin `UX check 完了` と本来機能の実行証跡を要件とし、<br>`UX-only`、contract、sample、build / install は補助 gate として別記する |
 
@@ -284,6 +286,8 @@
 | `td17` | `bd17` | metric depth and space runner | `DA3Metric-Large` の少なくとも 1 route を `Colab` で実行し、depth、world projection、`3DGS` 系主空間モデル生成に必要な出力を保存できる | ready | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
 | `td18` | `bd17` | space reconstruction report | `metric scale confidence`、`depth continuity`、`point count estimate`、`gs_model` 生成結果、failure reason を `depth_estimation_report.json` と `space_quality.json` に正規化できる | ready | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
 | `td19` | `bd18` | `TraceCore` multi-frame visible reconstruction | `10s` 前後の整った実動画から複数 frame を sampling し、world point cloud を統合して、`GNSS` なしでも主空間、主カメラ path、人軌跡を重ねた最小表示を返し、全体俯瞰、時系列、相対表示、滞留や交錯の兆候を検討できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
+| `td19a` | `bd18a` | `DA3 Giant` Gaussian branch `gs_ply` 実装 | `fps = 1`、`frames = 60`、`process_res = 504`、`chunk = 20` または `30` の入力条件で `infer_gs=True` を有効化し、`gs_ply` / `gs_video` の少なくとも片方を `Colab` に保存できる。失敗時も rollback baseline である `MetricLarge route` の runbook と artifact 契約を壊さない | ready | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
+| `td19b` | `bd18a` | `gs_ply` external viewer 実装 | `gs_ply` を `SuperSplat`、`PlayCanvas Model Viewer`、または同等 viewer のいずれか 1 つで開ける。admin が `自由視点 scene として読める` と判断でき、同時に top camera 専用 renderer を別段で作る判断材料になる | ready | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
 | `td20` | `bd18` | intrinsics route benchmark aggregation | 少なくとも 2 つの intrinsics / projection route の結果について、quality、runtime、resource usage、failure reason を同一比較表へ集約できる | ready | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
 | `td21` | `bd19` | selected route decision artifact | 暫定採用 route、不採用理由、research route、再評価条件を `selected_route.json` に保存できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/LocalModelingService.kt` |
 | `td23` | `bd20` | gate classification rule trace | `UX-only`、contract、sample、本機能の区別が `ux-b2t-hypo.md`、`admin-mrl-test-method.md`、`admin-mrl-test-evidence.md` で矛盾なく追える | ready | `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/` |
@@ -300,6 +304,7 @@
 | `MRL-6` | `modeling` | `tu22`, `tu23`, `td23` | evidence bundle の取得、download、local 再参照導線を固定する | notebook evidence と local artifact を product 側 evidence として残せる状態を維持する |
 | `MRL-7` | `modeling` | `td19` | `TraceCore` の `multi-frame` densify と高価値な見方を検討できる最小表示を固める | `10s` 前後の整った実動画で、全体俯瞰、時系列、相対表示、滞留、交錯を読めるかを first target に置く |
 | `MRL-8` | `modeling` | `td14a` | runbook 本体の前段で Drive 上の任意 input を script だけで選び、後続 bootstrap と `TraceCore` one-block へ同じ入力を渡せるようにする | hardcoded zip 編集を廃止し、fresh runtime で入力差し替えの再現性を上げる |
+| `MRL-9` | `modeling` | `td19a`, `td19b` | `DA3 Giant` / `Giant Large` の Gaussian branch を `infer_gs=True` で実装し、`gs_ply` / `gs_video` 生成と外部 viewer 可視化を first route として固める | rollback baseline の `MetricLarge route` を維持したまま `Colab-first` 実装 route として進め、成立後に後続 top camera renderer へ接続する |
 | `MRL-**` | `reviewing` / `system統合` | `tu24`-`tu29`, `td20`-`td23` | route 比較、採用 route 固定、reviewing viewer、統合 UX を順次切り出す | admin が手を動かす実態に合わせ、比較、viewer、handoff、統合を後続 gate へ分割する |
 
 ### 現在の見立て
@@ -312,6 +317,7 @@
 | evidence 再参照 | `tu22`, `tu23`, `td23` | notebook evidence と local downloaded artifact bundle を product 側 evidence として取得できる段まで通っている | `MRL-6` | product 側 evidence として再参照できることを主に見る |
 | `TraceCore` 次段 | `td19` | 次段の first target は、実 session の最長連続 windowを使って gaussian parameter を正式 artifact として扱える形へ寄せ、`TraceCore` の最小表示へ進むことである | `MRL-7` | `MRL-7` はこの段で `p-done`。次は後続 `MRL-**` として viewer 向け形式、長時間 optimization、multi-view 拡張へ進む |
 | `Drive input 選択` | `td14a` | runbook の前段で任意 input を選べる script を追加し、selected input を本体と `MRL-7` one-block へ受け渡す段は成立済みである | `MRL-8` | hardcoded path を除去し、admin が Colab 上で入力差し替えを手編集なしで進められる状態まで `p-done` |
+| `Giant Gaussian branch` | `td19a`,`td19b` | `DA3 Giant` / `Giant Large` と `infer_gs=True` を `Colab-first` 実装 route として進め、`gs_ply` / `gs_video` 生成と外部 viewer 可視化を先に固める | `MRL-9` | rollback baseline は `MetricLarge route` とし、`MRL-9` artifact は別 output root へ保存する |
 | 後続 backlog | `tu24`-`tu29`, `td20`-`td23` | `multi-route` 比較、`selected_route.json` 固定、request / status UX、result 返却、viewer 実装、統合 UX は後続 `MRL-**` へ残っている | `MRL-**` | task 実測で課題の大小が見えた時点で `MRL` / `mRL` の切り方を調整する |
 | 共通方針 | `TDD` 全体 | `MRL` の達成品質として求める UX は薄めず、north star に沿って各段の到達像を明記し続ける | 全体 | modeling は admin の手作業を含むため、後続 `MRL` の粒度は実測に合わせて更新する |
 
@@ -351,6 +357,9 @@
 | `MRL-8` | `-` | `Colab` 上で Drive 内の<br>session zip / session folder 候補を列挙し、<br>選んだ input を runbook 本体と<br>`MRL-7` one-block が共通参照できる状態を固める | `su12`,`sd8`,<br>`sd11` | `bd16`,`bd16a`,<br>`bd20` | `td14`,`td14a`,<br>`td23` | `p-done` | `p-done` | runbook の<br>準備確認 2-4 と<br>`Step 8d`-`8e` | 2026-03-31 `MRL-8`<br>Drive input select close evidence |
 | `MRL-8` | `mRL-8.1` | Drive input candidate scan により session zip / session folder 候補を index 付きで列挙し、selected input を固定できる | `su12`,`sd8` | `bd16a` | `td14a` | `p-done` | `p-done` | runbook の<br>準備確認 2-3 と<br>`Step 8a4` | 2026-03-31 `MRL-8`<br>Drive input select close evidence |
 | `MRL-8` | `mRL-8.2` | selected input を `Step 1` と `MRL-7` one-block の両方が共通に読み、hardcoded path なしで `session_root` 正規化へ進める。現時点の運用は `Run all` ではなく、widget 選択を 1 回挟んでから残りを順次実行する | `su12`,`sd8`,<br>`sd11` | `bd16`,`bd16a`,<br>`bd20` | `td14`,`td14a`,<br>`td23` | `p-done` | `p-done` | runbook の<br>準備確認 4、<br>`Step 8d`、<br>`Step 8e` | 2026-03-31 `MRL-8`<br>Drive input select close evidence |
+| `MRL-9` | `-` | `DA3 Giant` または<br>`Giant Large` の<br>Gaussian branch を<br>`infer_gs=True` で実装し、<br>`gs_ply` / `gs_video` 生成と<br>外部 viewer 可視化を first route として固める | `sd9`,`su15`,<br>`sd11` | `bd18a`,`bd20` | `td19a`,`td19b`,<br>`td23` | `active` | `active` | `未収載` | `未収載` |
+| `MRL-9` | `mRL-9.1` | `fps = 1`、`frames = 60`、`process_res = 504`、`chunk = 20` または `30` を first config とし、`infer_gs=True` で `gs_ply` / `gs_video` の少なくとも片方を `Colab` に保存できる | `sd9`,`sd11` | `bd18a` | `td19a` | `active` | `active` | `未収載` | `未収載` |
+| `MRL-9` | `mRL-9.2` | `gs_ply` を `SuperSplat`、`PlayCanvas Model Viewer`、または同等 viewer のいずれかで開き、自由視点 scene として読めることを確認する。top camera renderer と path overlay は後段へ送る | `su15`,`sd11` | `bd18a`,`bd20` | `td19b`,`td23` | `ready` | `ready` | `未収載` | `未収載` |
 
 ### 利用者向け後続 `MRL-**` に紐づく運営者補助 MRL
 | MRL | mRL | gate test 項目 | story-id | behavior-id | task-id | 現在 gate | UX評価状態 | admin UX確認手順 | admin evidence |

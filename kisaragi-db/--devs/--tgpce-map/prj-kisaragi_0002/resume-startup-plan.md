@@ -3,7 +3,7 @@
 ## 目的
 
 - 今回の session 以後に引き継ぐ時、`prj-kisaragi_0002` の次の主作業だけを短く共有できるようにする。
-- `MRL-1` から `MRL-8` は `p-done` とし、次段の `MRL-2S` と後続 `MRL-**` へ迷わず移るための補助メモとする。
+- `MRL-1` から `MRL-8` は `p-done` とし、次段の `MRL-2S`、`MRL-9`、後続 `MRL-**` へ迷わず移るための補助メモとする。
 
 ## 次回の基準文書
 
@@ -23,10 +23,10 @@
 - `MRL-3` から `MRL-6` は `modeling` phase の `p-done` であり、bootstrap / install、bundle 読込、single-frame `3DGS` smoke、evidence bundle 取得まで閉じている。
 - `MRL-7` は `multi-frame` densify と gaussian short optimization まで `p-done` である。
 - `MRL-8` は `p-done` であり、`DA3 Colab` runbook 本体の前段で Drive 上の任意 session zip / session folder を script だけで選び、selected input を bootstrap 本体と `MRL-7` one-block の両方へ渡せる状態を閉じた。
-- 現在の main target は `MRL-2S` と後続 `MRL-**` であり、`correcting` の `10min` 実収録安定化と、gaussian parameter の formalization / viewer 寄せを進めることである。
+- 現在の main target は `MRL-2S` と `MRL-9` であり、`correcting` の `10min` 実収録安定化と、`DA3 Giant` / `Giant Large` の `infer_gs=True` route を `MetricLarge route` rollback baseline 付きで実装することである。
 - `MRL-**` は細かく固定せず大まかな順番だけを置き、実測で見えた課題の大小に応じて `MRL` / `mRL` を切り直す。
 - ただし後続 `MRL` でも UX 到達品質は元の目標に沿わせる。特に modeling では、利用者が主空間の見え方、主カメラ経路、処理状態、次 action を迷わず把握できる方向を維持する。
-- 後続 `MRL-**` で最低限残る項目は、`multi-route` 比較、`selected_route.json` 固定、request 起点 UX、`job_status.json` と waiting ring、download URL を含む result 返却、`SpacePackage` / `TrajectoryPackage` / `ReviewArtifact` handoff、reviewing viewer 実装である。
+- 後続 `MRL-**` で最低限残る項目は、`multi-route` 比較、`selected_route.json` 固定、request 起点 UX、`job_status.json` と waiting ring、download URL を含む result 返却、`SpacePackage` / `TrajectoryPackage` / `ReviewArtifact` handoff、reviewing viewer 実装、`gs_ply` を使う top camera renderer である。
 
 ## 到達済み
 
@@ -40,7 +40,8 @@
 
 ## 次回の主残件
 
-- runbook は Drive 上の特定 path を hardcode していたため、任意 input を script だけで差し替える前段 block が未完成である。
+- `MRL-9` の `DA3 Giant` / `Giant Large` route は未着手であり、`infer_gs=True` を受ける entrypoint、model id、`gs_ply` / `gs_video` 保存先 contract を first config に合わせて固める必要がある。
+- `MRL-9` の external viewer 導線は未着手であり、`SuperSplat` または `PlayCanvas Model Viewer` で `gs_ply` を admin が開けるかを別 evidence として残す必要がある。
 - `sampling` / `intrinsics` / `projection` の route 比較、`benchmark_summary.json`、`selected_route.json` の本機能 close は `MRL-**` 側の後続課題として未達。
 - request 元画面から `Google Drive` input directory / result directory を指定する UX は未実装。
 - remote 実行中の `waiting ring`、現在 stage、更新時刻表示は未実装。
@@ -53,8 +54,8 @@
 1. [sharedlogs_da3-colab.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\sharedlogs_da3-colab.md) の最下部を読んで、最新の `# codex v**` と `# admin` を確認する。
 2. [ux-b2t-hypo.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\ux-b2t-hypo.md) で `MRL-2S` と後続 `MRL-**` の current_state を確認する。
 3. [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_evid_runbook.md) の `準備確認 2` から `準備確認 4` を使えば、任意 selected input から blank runtime を再開できることを前提にする。
-4. gaussian parameter の formalization、viewer で読む scene 形式、multi-view / 長時間 optimization のどこを次の visible target に置くかを決める。
-5. 並行して `modeling/job_status.json` の schema、stage 名、waiting ring 更新条件、download URL 返却条件と、request 元の `input directory`、`result directory`、`route id` を束ねた request 生成 UX を設計する。
+4. `MRL-9` の first config を `fps = 1`、`frames = 60`、`process_res = 504`、`chunk = 20` または `30` とし、`infer_gs=True` で `gs_ply` / `gs_video` を保存できる呼び出し面を固める。
+5. `gs_ply` を `SuperSplat` または `PlayCanvas Model Viewer` で開けるところまでを `MRL-9` に置き、top camera renderer、path overlay、request / status UX は後続 `MRL-**` として切り分ける。
 
 ## 引き継ぎ上の重要判断
 
