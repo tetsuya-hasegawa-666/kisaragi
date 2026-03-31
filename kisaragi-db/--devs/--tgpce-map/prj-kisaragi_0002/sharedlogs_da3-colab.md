@@ -5094,4 +5094,110 @@ for item in summary["hits_head"][:40]:
 ```text
 # Step 9a giant-infer-gs entrypoint probe res
 
+one blockでエラーです
+
+
+---------------------------------------------------------------------------
+OSError                                   Traceback (most recent call last)
+/tmp/ipykernel_17764/1970725003.py in <cell line: 0>()
+     48 assert arcore_pose_path.exists(), arcore_pose_path
+     49 
+---> 50 probe_dir.mkdir(parents=True, exist_ok=True)
+     51 world_dir.mkdir(parents=True, exist_ok=True)
+     52 
+
+/usr/lib/python3.12/pathlib.py in mkdir(self, mode, parents, exist_ok)
+   1309         """
+   1310         try:
+-> 1311             os.mkdir(self, mode)
+   1312         except FileNotFoundError:
+   1313             if not parents or self.parent == self:
+
+OSError: [Errno 95] Operation not supported: '/content/drive/.shortcut-targets-by-id/12jqKG1d7JEsFwFlqzHDdaAf7-HRdBvFT/trajectreview-correcting-session-20260331-034831_da3_multiframe_probe_v01'
+
+
+```
+
+# codex v61
+
+```text
+# Step 9b writable-results-root-fix
+
+- 原因:
+  - selected input は正しいが、`results_root = /content/drive/.shortcut-targets-by-id/12jqKG1d7JEsFwFlqzHDdaAf7-HRdBvFT` 直下で `mkdir` が通らない。
+- 目的:
+  - `results_root` を admin から見える writable path に正規化し、`MRL-7 adopted one-block` / `MRL-9` の両方で使える保存先へ固定する。
+- 方針:
+  - 第一候補を `/content/drive/MyDrive/trajectreview/modeling`
+  - 既存 `results_root` は evidence 用に保持しつつ、runtime では writable root を `runbook_selected_input.json` に上書きする。
+```
+
+```python
+# Step 9b writable-results-root-fix
+from pathlib import Path
+import json
+
+selected_doc_path = Path("/content/runbook_selected_input.json")
+selected_doc = json.loads(selected_doc_path.read_text(encoding="utf-8"))
+
+old_results_root = Path(selected_doc["results_root"])
+preferred_roots = [
+    Path("/content/drive/MyDrive/trajectreview/modeling"),
+    Path("/content/drive/MyDrive/trajectreview_visible_results/prj-kisaragi_0002"),
+]
+writable_root = next((p for p in preferred_roots if p.exists()), preferred_roots[0])
+writable_root.mkdir(parents=True, exist_ok=True)
+
+probe_dir = writable_root / f"{selected_doc['session_id']}_da3_multiframe_probe_v01"
+probe_dir.mkdir(parents=True, exist_ok=True)
+
+selected_doc["results_root"] = str(writable_root)
+selected_doc["results_root_previous"] = str(old_results_root)
+selected_doc_path.write_text(json.dumps(selected_doc, indent=2, ensure_ascii=False), encoding="utf-8")
+
+result = {
+    "session_id": selected_doc["session_id"],
+    "old_results_root": str(old_results_root),
+    "new_results_root": str(writable_root),
+    "probe_dir_exists": probe_dir.exists(),
+    "probe_dir": str(probe_dir),
+}
+print(json.dumps(result, indent=2, ensure_ascii=False))
+```
+
+# admin
+
+```text
+# Step 9b writable-results-root-fix res
+{
+  "session_id": "trajectreview-correcting-session-20260331-034831",
+  "old_results_root": "/content/drive/.shortcut-targets-by-id/12jqKG1d7JEsFwFlqzHDdaAf7-HRdBvFT",
+  "new_results_root": "/content/drive/MyDrive/trajectreview/modeling",
+  "probe_dir_exists": true,
+  "probe_dir": "/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3_multiframe_probe_v01"
+}
+```
+
+# codex v62
+
+```text
+# Step 9c rerun one-block after writable-results-root-fix
+
+- 目的:
+  - `results_root` を writable path に直した同じ runtime で、直前に落ちた one-block をそのまま再実行する。
+- 前提:
+  - `Step 9b writable-results-root-fix` が成功している。
+  - `/content/runbook_selected_input.json` の `results_root` が `/content/drive/MyDrive/trajectreview/modeling` へ更新済みである。
+- 到達:
+  - `probe_dir` と `world_dir` が `MyDrive/trajectreview/modeling/...` 配下に作られる。
+  - 以前の `OSError: [Errno 95] Operation not supported` が消える。
+- 実行:
+  - 直前に落ちた one-block を、code は変えずにそのままもう一度実行する。
+```
+
+# admin
+
+```text
+# Step 9c rerun one-block after writable-results-root-fix res
+
 ```

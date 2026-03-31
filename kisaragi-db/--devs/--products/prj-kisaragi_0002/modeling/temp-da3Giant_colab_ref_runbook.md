@@ -29,19 +29,15 @@ from pathlib import Path
 import json
 
 shortcut_root = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_")
-explicit_results_root_candidates = [
-    Path("/content/drive/.shortcut-targets-by-id/12jqKG1d7JEsFwFlqzHDdaAf7-HRdBvFT"),
-    shortcut_root / "trajectreview" / "modeling",
+writable_results_root_candidates = [
     Path("/content/drive/MyDrive/trajectreview/modeling"),
+    shortcut_root / "trajectreview" / "modeling",
 ]
 scan_roots = [
     shortcut_root / "trajectreview",
     Path("/content/drive/MyDrive/trajectreview"),
 ]
-results_root_candidates = [
-    *explicit_results_root_candidates,
-]
-results_root = next((p for p in results_root_candidates if p.exists()), explicit_results_root_candidates[0])
+results_root = next((p for p in writable_results_root_candidates if p.exists()), writable_results_root_candidates[0])
 candidate_doc_path = Path("/content/runbook_drive_candidates.json")
 
 def infer_session_id(path: Path) -> str:

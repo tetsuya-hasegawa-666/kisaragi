@@ -96,19 +96,15 @@ from pathlib import Path
 import json
 
 shortcut_root = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_")
-explicit_results_root_candidates = [
-    Path("/content/drive/.shortcut-targets-by-id/12jqKG1d7JEsFwFlqzHDdaAf7-HRdBvFT"),
-    shortcut_root / "trajectreview" / "modeling",
+writable_results_root_candidates = [
     Path("/content/drive/MyDrive/trajectreview/modeling"),
+    shortcut_root / "trajectreview" / "modeling",
 ]
 scan_roots = [
     shortcut_root / "trajectreview",
     Path("/content/drive/MyDrive/trajectreview"),
 ]
-results_root_candidates = [
-    *explicit_results_root_candidates,
-]
-results_root = next((p for p in results_root_candidates if p.exists()), explicit_results_root_candidates[0])
+results_root = next((p for p in writable_results_root_candidates if p.exists()), writable_results_root_candidates[0])
 candidate_doc_path = Path("/content/runbook_drive_candidates.json")
 
 def infer_session_id(path: Path) -> str:
@@ -181,7 +177,7 @@ OK 条件:
 
 - `scan_root_exists True` が少なくとも 1 件ある
 - `candidate_count >= 1`
-- `results_root` が優先保存先 folder id `12jqKG1d7JEsFwFlqzHDdaAf7-HRdBvFT` または `trajectreview/modeling` を指す
+- `results_root` が writable な `MyDrive/trajectreview/modeling` または `trajectreview/modeling` を指す
 - 同じ session zip が `shortcut-targets-by-id` と `MyDrive` の 2 経路で重複表示されない
 - 使いたい session zip または session folder が index 付きで列挙される
 
@@ -189,6 +185,7 @@ NG 時の扱い:
 
 - `scan_root_exists` がすべて `False` の時は、blank runtime で `Drive` 再接続前の可能性が高い。`準備確認 1` を再実行してから、この cell をやり直す。
 - `scan_root_exists` は `True` だが `candidate_count = 0` の時は、その Drive 配下に対象 zip または `session_package.json` がまだ置かれていない。
+- folder id `12jqKG1d7JEsFwFlqzHDdaAf7-HRdBvFT` は参照 link として見えても、直下で `mkdir` が通らない runtime がある。そのため temp runbook でも `results_root` の writable 先を `MyDrive/trajectreview/modeling` へ寄せる。
 
 ### 準備確認 3: 今回使う入力を画面で 1 件選ぶ
 
