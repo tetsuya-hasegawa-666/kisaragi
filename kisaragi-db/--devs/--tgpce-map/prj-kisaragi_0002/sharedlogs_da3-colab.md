@@ -5715,5 +5715,169 @@ if summary["infer_call"] != "ok":
 
 ```text
 # Step 9f giant infer_gs api-method fix res
+[INFO ] using SwiGLU layer as FFN
+{
+  "summary_path": "/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/step9f_giant_infergs_summary.json",
+  "preferred_method_name": "inference",
+  "preferred_method_sig": "(image: 'list[np.ndarray | Image.Image | str]', extrinsics: 'np.ndarray | None' = None, intrinsics: 'np.ndarray | None' = None, align_to_input_ext_scale: 'bool' = True, infer_gs: 'bool' = False, use_ray_pose: 'bool' = False, ref_view_strategy: 'str' = 'saddle_balanced', render_exts: 'np.ndarray | None' = None, render_ixts: 'np.ndarray | None' = None, render_hw: 'tuple[int, int] | None' = None, process_res: 'int' = 504, process_res_method: 'str' = 'upper_bound_resize', export_dir: 'str | None' = None, export_format: 'str' = 'mini_npz', export_feat_layers: 'Sequence[int] | None' = None, conf_thresh_percentile: 'float' = 40.0, num_max_points: 'int' = 1000000, show_cameras: 'bool' = True, feat_vis_fps: 'int' = 15, export_kwargs: 'Optional[dict]' = {}) -> 'Prediction'",
+  "infer_call": "error",
+  "exported_file_count": 1,
+  "probe_dir": "/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01"
+}
+    export_format="mini_npz-glb"
+    export_format="feat_vis",
+# Note: infer_gs=True requires da3-giant or da3nested-giant-large model
+model = DepthAnything3(model_name="da3-giant").to("cuda")
+    export_format="npz-glb-gs_ply-gs_video",
+    infer_gs=True,  # Required for gs_ply and gs_video exports
+    export_format="mini_npz-glb-depth_vis-feat_vis",
+    export_format="glb",
+    - 🦾 `"da3-giant"` - 1.15B params, any-view model with GS support
+    infer_gs=True,                   # Enable Gaussian branch for gs exports
+    export_format="mini_npz",
+    export_kwargs={}                  # Optional, additional arguments to export functions. export_format:key:val, see 'Parameters/Export Parameters' for details
+#### `infer_gs` (default: False)
+`"gs_video"` in `export_format`). They describe an auxiliary camera trajectory
+#### `export_format` (default: "mini_npz")
+These parameters are passed directly to the `inference()` method and only apply when `export_format` includes `"glb"`.
+These parameters are passed directly to the `inference()` method and only apply when `export_format` includes `"feat_vis"`.
+These parameters are passed directly to the `inference()` method and only apply when `export_format` includes `"gs_ply"` or `"gs_video"`.
+  - Access pattern: `export_kwargs[export_format][key] = value`
+- **Requirements**: Must set `infer_gs=True` when calling `inference()`. Only supported by `da3-giant` and `da3nested-giant-large` models.
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/step9e_giant_infergs_summary.json
+{
+  "error_type": "TypeError",
+  "error_message": "DepthAnything3.inference() got an unexpected keyword argument 'fps'"
+}
+```
+
+# codex v66
+
+```text
+## 2026-03-31 v66 Step 9g giant infer_gs inference-signature fix
+
+- 確定したこと:
+  - 正しい method は `DepthAnything3.inference(...)`
+  - `infer_gs=True` は `da3-giant` で有効化できる
+- 今回の failure:
+  - `fps`、`num_frames`、`chunk_size` は `inference()` signature に無い
+- 目的:
+  - `inference()` signature にある引数だけへ絞って、`gs_ply` / `gs_video` export を retry する
+  - `render_exts` / `render_ixts` などが要る前に、まず最小 export が通るかを見る
+```
+
+```python
+# Step 9g giant infer_gs inference-signature fix
+from pathlib import Path
+import json
+import shutil
+import zipfile
+import sys
+import traceback
+import inspect
+
+import torch
+
+repo_root = Path("/content/Depth-Anything-3")
+assert repo_root.exists(), {"repo_not_found": str(repo_root)}
+
+src_root = repo_root / "src"
+if str(src_root) not in sys.path:
+    sys.path.insert(0, str(src_root))
+
+from depth_anything_3.api import DepthAnything3
+
+selected_doc_path = Path("/content/runbook_selected_input.json")
+assert selected_doc_path.exists(), {"selected_doc_not_found": str(selected_doc_path)}
+selected_doc = json.loads(selected_doc_path.read_text(encoding="utf-8"))
+
+input_path = Path(selected_doc["path"])
+results_root = Path(selected_doc["results_root"])
+assert input_path.exists(), {"input_not_found": str(input_path)}
+results_root.mkdir(parents=True, exist_ok=True)
+
+extract_root = Path("/content/trajectreview_input")
+if extract_root.exists():
+    shutil.rmtree(extract_root)
+extract_root.mkdir(parents=True, exist_ok=True)
+
+if input_path.is_file() and input_path.suffix.lower() == ".zip":
+    with zipfile.ZipFile(input_path, "r") as zf:
+        zf.extractall(extract_root)
+    session_root_candidates = [p.parent for p in extract_root.rglob("session_package.json")]
+    assert session_root_candidates, {"session_package_not_found_under": str(extract_root)}
+    session_root = session_root_candidates[0]
+else:
+    session_root = input_path
+
+images_dir = next((p for p in session_root.rglob("images") if p.is_dir()), None)
+assert images_dir is not None, {"images_dir_not_found_under": str(session_root)}
+image_paths = sorted(list(images_dir.glob("*.jpg")) + list(images_dir.glob("*.png")) + list(images_dir.glob("*.jpeg")))
+assert image_paths, {"images_not_found": str(images_dir)}
+
+sample_images = [str(p) for p in image_paths[: min(60, len(image_paths))]]
+session_id = selected_doc["session_id"]
+probe_dir = results_root / f"{session_id}_da3giant_infergs_probe_v01"
+probe_dir.mkdir(parents=True, exist_ok=True)
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model = DepthAnything3(model_name="da3-giant").to(device)
+inference_sig = str(inspect.signature(model.inference))
+
+summary = {
+    "session_id": session_id,
+    "device": device,
+    "probe_dir": str(probe_dir),
+    "sample_count": len(sample_images),
+    "inference_sig": inference_sig,
+    "infer_gs": True,
+    "export_format": "npz-glb-gs_ply-gs_video",
+}
+
+try:
+    outputs = model.inference(
+        image=sample_images,
+        infer_gs=True,
+        process_res=504,
+        export_dir=str(probe_dir),
+        export_format="npz-glb-gs_ply-gs_video",
+    )
+    summary["infer_call"] = "ok"
+    summary["output_type"] = type(outputs).__name__
+except Exception as e:
+    summary["infer_call"] = "error"
+    summary["error_type"] = type(e).__name__
+    summary["error_message"] = str(e)
+    summary["traceback_tail"] = traceback.format_exc().splitlines()[-20:]
+
+exported = []
+for p in sorted(probe_dir.rglob("*")):
+    if p.is_file():
+        exported.append(str(p))
+summary["exported_files"] = exported
+
+summary_path = probe_dir / "step9g_giant_infergs_summary.json"
+summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+
+print(json.dumps({
+    "summary_path": str(summary_path),
+    "infer_call": summary["infer_call"],
+    "sample_count": summary["sample_count"],
+    "exported_file_count": len(exported),
+    "probe_dir": str(probe_dir),
+}, indent=2, ensure_ascii=False))
+for item in exported[:40]:
+    print(item)
+if summary["infer_call"] != "ok":
+    print(json.dumps({
+        "error_type": summary.get("error_type"),
+        "error_message": summary.get("error_message"),
+    }, indent=2, ensure_ascii=False))
+```
+
+# admin
+
+```text
+# Step 9g giant infer_gs inference-signature fix res
 
 ```
