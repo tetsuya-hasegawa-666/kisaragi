@@ -251,3 +251,13 @@
   recurrence prevention: `MRL-9` の temp runbook pair では、`e3nn` install を import 前に置く。Gaussian branch failure では dependency 追加後の stale import を疑い、module reload または fresh import 順を先に確認する
   remaining work: `mRL-9.2` として `gs_ply` を `SuperSplat` または `PlayCanvas Model Viewer` で開き、自由視点 scene として読めることを admin evidence 化する
   evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/temp-da3Giant_colab_evid_runbook.md`
+- record date: `2026-03-31`
+  target MRL: `MRL-9`
+  target mRL: `mRL-9.2`
+  gate change: `p-done`
+  issue: `gs_ply` が生成できても、外部 viewer で自由視点 scene として読めるかが未確認だった
+  cause: `mRL-9.1` は Colab export までを閉じており、viewer 側の admin UX 確認を別 gate に分けていた
+  resolution: `gs_ply/0000.ply` を `PlayCanvas Model Viewer` に読み込み、自由視点 scene として表示されることを admin が確認した
+  recurrence prevention: `gs_ply` route を close する時は、export 成功だけでなく viewer 側の opening evidence も同じ日付で残す
+  remaining work: top camera renderer、path overlay、request / status UX は後続 `MRL-**` へ送る
+  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-evidence.md`

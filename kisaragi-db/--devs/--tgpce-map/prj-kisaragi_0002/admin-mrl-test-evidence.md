@@ -648,3 +648,24 @@
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/temp-da3Giant_colab_evid_runbook.md`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/temp-da3Giant_colab_ref_runbook.md`
   - `/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/step9j_giant_infergs_summary.json`
+
+## 2026-03-31 `MRL-9` viewer close evidence
+
+- 対象 gate:
+  - `MRL-9`
+  - `mRL-9.2`
+- UX 観点:
+  - `gs_ply/0000.ply` を `PlayCanvas Model Viewer` で開けた
+  - 自由視点 scene として表示され、Gaussian scene の外形を viewer 上で確認できた
+  - scene の意味解釈はまだ弱いが、`gs_ply` を viewer 入力として扱えることは確認できた
+- viewer 観点:
+  - viewer: `PlayCanvas Model Viewer`
+  - 対象 file: `gs_ply/0000.ply`
+  - admin 所見: `何かわかりませんが見れます`
+- 判定:
+  - `mRL-9.2` は `p-done`
+  - `MRL-9` 全体も `p-done`
+- 主要 evidence:
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/temp-da3Giant_colab_evid_runbook.md`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/temp-da3Giant_colab_ref_runbook.md`
+  - `/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/gs_ply/0000.ply`

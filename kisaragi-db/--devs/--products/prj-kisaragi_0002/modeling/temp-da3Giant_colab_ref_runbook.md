@@ -872,3 +872,10 @@ print(json.dumps({
 for item in exported[:40]:
     print(item)
 ```
+
+```text
+Viewer check:
+1. PlayCanvas Model Viewer を開く
+2. gs_ply/0000.ply を読み込む
+3. orbit / pan / zoom で scene が表示されれば pass
+```

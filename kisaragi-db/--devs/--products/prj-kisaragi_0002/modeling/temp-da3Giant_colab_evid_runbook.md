@@ -1569,3 +1569,20 @@ OK 条件:
 - `scene.glb` が生成される
 - `exports/npz/results.npz` が生成される
 - `step9j_giant_infergs_summary.json` が生成される
+
+### Viewer 確認: `gs_ply/0000.ply`
+
+- 目的:
+  - `mRL-9.2` として、生成済み `gs_ply/0000.ply` を外部 viewer で開き、自由視点 scene として読めることを確認する
+- viewer:
+  - 第一候補: `PlayCanvas Model Viewer`
+  - 代替: `SuperSplat`
+- 手順:
+  1. browser で `PlayCanvas Model Viewer` を開く
+  2. `gs_ply/0000.ply` を読み込む
+  3. orbit / pan / zoom で scene が表示されるかを見る
+- 判定:
+  - scene の意味解釈が弱くても、viewer 上で Gaussian scene として表示され、自由視点で回せれば `p-done`
+- 2026-03-31 実測:
+  - `PlayCanvas Model Viewer` で `0000.ply` を開けた
+  - admin 所見は `何かわかりませんが見れます`

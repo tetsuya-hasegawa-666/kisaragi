@@ -42,8 +42,8 @@
 
 ## 次回の主残件
 
-- `mRL-9.1` は `p-done` であり、`da3-giant` の `inference()` に `infer_gs=True` を与え、`e3nn` install を import 前に置くことで `gs_ply/0000.ply`、`gs_video/0000_extend.mp4`、`scene.glb`、`exports/npz/results.npz` を `MyDrive/trajectreview/modeling/..._da3giant_infergs_probe_v01` に保存できる。
-- 次の main target は `mRL-9.2` であり、`gs_ply` を `SuperSplat` または `PlayCanvas Model Viewer` で開けることを admin evidence として残す。
+- `MRL-9` は `p-done` であり、`da3-giant` の `inference()` に `infer_gs=True` を与え、`e3nn` install を import 前に置くことで `gs_ply/0000.ply`、`gs_video/0000_extend.mp4`、`scene.glb`、`exports/npz/results.npz` を `MyDrive/trajectreview/modeling/..._da3giant_infergs_probe_v01` に保存できた。さらに `gs_ply/0000.ply` を `PlayCanvas Model Viewer` で開けるところまで確認済みである。
+- 次の main target は後続 `MRL-**` の top camera renderer であり、`gs_ply` または point cloud から俯瞰専用 renderer を作る段へ移る。
 - `sampling` / `intrinsics` / `projection` の route 比較、`benchmark_summary.json`、`selected_route.json` の本機能 close は `MRL-**` 側の後続課題として未達。
 - request 元画面から `Google Drive` input directory / result directory を指定する UX は未実装。
 - remote 実行中の `waiting ring`、現在 stage、更新時刻表示は未実装。
@@ -56,8 +56,8 @@
 1. [sharedlogs_da3-colab.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\sharedlogs_da3-colab.md) の最下部を読んで、最新の `# codex v**` と `# admin` を確認する。
 2. [ux-b2t-hypo.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\ux-b2t-hypo.md) で `MRL-2S` と後続 `MRL-**` の current_state を確認する。
 3. `MetricLarge route` を再開するなら [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_evid_runbook.md)、`MRL-9` を blank runtime から進めるなら [temp-da3Giant_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\temp-da3Giant_colab_evid_runbook.md) の `準備確認 2` から `準備確認 4` を使う。
-4. `MRL-9` を再開する時は [temp-da3Giant_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\temp-da3Giant_colab_evid_runbook.md) の adopted block を使い、`e3nn` install を `DepthAnything3` import 前に置く。
-5. `gs_ply` を `SuperSplat` または `PlayCanvas Model Viewer` で開けるところまでを `mRL-9.2` に置き、top camera renderer、path overlay、request / status UX は後続 `MRL-**` として切り分ける。
+4. `MRL-9` を再実行する時は [temp-da3Giant_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\temp-da3Giant_colab_evid_runbook.md) の adopted block を使い、`e3nn` install を `DepthAnything3` import 前に置く。
+5. `PlayCanvas Model Viewer` は `gs_ply/0000.ply` の自由視点確認に使い、top camera renderer、path overlay、request / status UX は後続 `MRL-**` として切り分ける。
 
 ## 引き継ぎ上の重要判断
 
