@@ -6122,5 +6122,155 @@ for item in hits[:20]:
 
 ```text
 # Step 9i matrix_to_angles source diagnostic res
+{
+  "probe_path": "/content/mrl9_matrix_to_angles_probe.json",
+  "hit_count": 2,
+  "definition_count": 1
+}
+/content/Depth-Anything-3/src/depth_anything_3/utils/sh_helpers.py:20: from e3nn.o3 import matrix_to_angles, wigner_D
+/content/Depth-Anything-3/src/depth_anything_3/utils/sh_helpers.py:76: alpha, beta, gamma = matrix_to_angles(permuted_rotations_so3)
+
+```
+
+# codex v69
+
+```text
+## 2026-03-31 v69 Step 9j reload after e3nn install
+
+- 確定したこと:
+  - `matrix_to_angles` 自体は source にあり、`sh_helpers.py` で `from e3nn.o3 import matrix_to_angles, wigner_D` している。
+  - にもかかわらず実行時に未定義なのは、`e3nn` install 前に `depth_anything_3` を import した影響で、module 側が stale import 状態の可能性が高い。
+- 目的:
+  - Python process を再起動せずに、`depth_anything_3` 関連 module を `sys.modules` から落として再 import し、`da3-giant + infer_gs=True` を retry する。
+  - これで通れば、runbook 側は `e3nn` install を `DepthAnything3` import 前へ移すだけでよい。
+```
+
+```python
+# Step 9j reload after e3nn install
+from pathlib import Path
+import json
+import shutil
+import zipfile
+import sys
+import traceback
+import subprocess
+import importlib
+
+import torch
+
+def run(cmd):
+    print("RUN", " ".join(cmd))
+    subprocess.run(cmd, check=True)
+
+run(["python", "-m", "pip", "install", "--quiet", "e3nn"])
+
+for name in list(sys.modules.keys()):
+    if name == "depth_anything_3" or name.startswith("depth_anything_3."):
+        del sys.modules[name]
+importlib.invalidate_caches()
+
+repo_root = Path("/content/Depth-Anything-3")
+assert repo_root.exists(), {"repo_not_found": str(repo_root)}
+src_root = repo_root / "src"
+if str(src_root) not in sys.path:
+    sys.path.insert(0, str(src_root))
+
+import e3nn
+from e3nn.o3 import matrix_to_angles
+from depth_anything_3.api import DepthAnything3
+
+selected_doc_path = Path("/content/runbook_selected_input.json")
+assert selected_doc_path.exists(), {"selected_doc_not_found": str(selected_doc_path)}
+selected_doc = json.loads(selected_doc_path.read_text(encoding="utf-8"))
+
+input_path = Path(selected_doc["path"])
+results_root = Path(selected_doc["results_root"])
+assert input_path.exists(), {"input_not_found": str(input_path)}
+results_root.mkdir(parents=True, exist_ok=True)
+
+extract_root = Path("/content/trajectreview_input")
+if extract_root.exists():
+    shutil.rmtree(extract_root)
+extract_root.mkdir(parents=True, exist_ok=True)
+
+if input_path.is_file() and input_path.suffix.lower() == ".zip":
+    with zipfile.ZipFile(input_path, "r") as zf:
+        zf.extractall(extract_root)
+    session_root_candidates = [p.parent for p in extract_root.rglob("session_package.json")]
+    assert session_root_candidates, {"session_package_not_found_under": str(extract_root)}
+    session_root = session_root_candidates[0]
+else:
+    session_root = input_path
+
+images_dir = next((p for p in session_root.rglob("images") if p.is_dir()), None)
+assert images_dir is not None, {"images_dir_not_found_under": str(session_root)}
+image_paths = sorted(list(images_dir.glob("*.jpg")) + list(images_dir.glob("*.png")) + list(images_dir.glob("*.jpeg")))
+assert image_paths, {"images_not_found": str(images_dir)}
+
+sample_images = [str(p) for p in image_paths[: min(60, len(image_paths))]]
+session_id = selected_doc["session_id"]
+probe_dir = results_root / f"{session_id}_da3giant_infergs_probe_v01"
+probe_dir.mkdir(parents=True, exist_ok=True)
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+summary = {
+    "session_id": session_id,
+    "device": device,
+    "probe_dir": str(probe_dir),
+    "sample_count": len(sample_images),
+    "infer_gs": True,
+    "export_format": "npz-glb-gs_ply-gs_video",
+    "e3nn_version": getattr(e3nn, "__version__", "unknown"),
+    "matrix_to_angles_import_ok": callable(matrix_to_angles),
+}
+
+try:
+    model = DepthAnything3(model_name="da3-giant").to(device)
+    outputs = model.inference(
+        image=sample_images,
+        infer_gs=True,
+        process_res=504,
+        export_dir=str(probe_dir),
+        export_format="npz-glb-gs_ply-gs_video",
+    )
+    summary["infer_call"] = "ok"
+    summary["output_type"] = type(outputs).__name__
+except Exception as e:
+    summary["infer_call"] = "error"
+    summary["error_type"] = type(e).__name__
+    summary["error_message"] = str(e)
+    summary["traceback_tail"] = traceback.format_exc().splitlines()[-20:]
+
+exported = []
+for p in sorted(probe_dir.rglob("*")):
+    if p.is_file():
+        exported.append(str(p))
+summary["exported_files"] = exported
+
+summary_path = probe_dir / "step9j_giant_infergs_summary.json"
+summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+
+print(json.dumps({
+    "summary_path": str(summary_path),
+    "infer_call": summary["infer_call"],
+    "sample_count": summary["sample_count"],
+    "exported_file_count": len(exported),
+    "probe_dir": str(probe_dir),
+    "e3nn_version": summary["e3nn_version"],
+    "matrix_to_angles_import_ok": summary["matrix_to_angles_import_ok"],
+}, indent=2, ensure_ascii=False))
+for item in exported[:40]:
+    print(item)
+if summary["infer_call"] != "ok":
+    print(json.dumps({
+        "error_type": summary.get("error_type"),
+        "error_message": summary.get("error_message"),
+    }, indent=2, ensure_ascii=False))
+```
+
+# admin
+
+```text
+# Step 9j reload after e3nn install res
 
 ```
