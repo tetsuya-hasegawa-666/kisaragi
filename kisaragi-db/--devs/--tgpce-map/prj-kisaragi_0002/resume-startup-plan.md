@@ -9,7 +9,8 @@
 
 - 恒久 truth は [project-truth.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\project-truth.md)
 - plan / current / gate は [ux-b2t-hypo.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\ux-b2t-hypo.md)
-- `DA3 Colab bootstrap` の product 正本は [da3_colab_clean_bootstrap_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_clean_bootstrap_runbook.md)
+- `DA3 Colab bootstrap` の product 正本は [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_evid_runbook.md)
+- admin が Colab へ貼り付ける参照版は [da3_colab_ref_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_ref_runbook.md)
 - notebook cell、error、admin 実行結果の往復 log は [sharedlogs_da3-colab.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\sharedlogs_da3-colab.md)
 - admin UX 手順は [admin-mrl-test-method.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\admin-mrl-test-method.md)
 - admin evidence は [admin-mrl-test-evidence.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\admin-mrl-test-evidence.md)
@@ -29,7 +30,7 @@
 
 ## 到達済み
 
-- [da3_colab_clean_bootstrap_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_clean_bootstrap_runbook.md) は `Adopted Bootstrap v1` を持つ。
+- [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_evid_runbook.md) は `Adopted Bootstrap v1` を持つ。
 - `Google Drive` shortcut 配下の zip から `session_root` を正規化できる。
 - `Depth-Anything-3` repo clone、必要 dependency install、`depth_anything_3.api` import が通る。
 - `T4` 上で `DA3METRIC-LARGE` の `1 frame` 推論が通り、`summary.json`、`depth_preview.png`、`depth_raw.npy` を保存できる。
@@ -51,7 +52,7 @@
 
 1. [sharedlogs_da3-colab.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\sharedlogs_da3-colab.md) の最下部を読んで、最新の `# codex v**` と `# admin` を確認する。
 2. [ux-b2t-hypo.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\ux-b2t-hypo.md) で `MRL-2S` と後続 `MRL-**` の current_state を確認する。
-3. [da3_colab_clean_bootstrap_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_clean_bootstrap_runbook.md) の `準備確認 2` から `準備確認 4` を使えば、任意 selected input から blank runtime を再開できることを前提にする。
+3. [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_evid_runbook.md) の `準備確認 2` から `準備確認 4` を使えば、任意 selected input から blank runtime を再開できることを前提にする。
 4. gaussian parameter の formalization、viewer で読む scene 形式、multi-view / 長時間 optimization のどこを次の visible target に置くかを決める。
 5. 並行して `modeling/job_status.json` の schema、stage 名、waiting ring 更新条件、download URL 返却条件と、request 元の `input directory`、`result directory`、`route id` を束ねた request 生成 UX を設計する。
 

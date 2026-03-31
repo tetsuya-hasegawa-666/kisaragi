@@ -1,10 +1,11 @@
-# DA3 Colab Clean Bootstrap Runbook
+# DA3 Colab Evid Runbook
 
 ## 文書の役割
 
-- この文書は `prj-kisaragi_0002` の `DA3Metric-Large` `Colab` 実行について、fresh runtime から `DA3Metric-Large` による `3DGS` 系主空間モデル生成まで進めるための clean bootstrap と作業導線を保持する product-side runbook とする。
+- この文書は `prj-kisaragi_0002` の `DA3Metric-Large` `Colab` 実行について、fresh runtime から `DA3Metric-Large` による `3DGS` 系主空間モデル生成まで進めるための evid 正本 runbook とする。
 - shared worklog の trial 往復をそのまま正本化せず、真に必要だった command と file 操作だけを抽出して保持する。
 - `candidate` は現時点の最短候補、`adopted` は admin 実測で end-to-end 完了した `truly pass` 手順を示す。
+- notebook 系 runbook の shared rule に従い、この file は `da3_colab_ref_runbook.md` と対で管理する。周辺説明、OK 条件、採用判断、補助情報は本 file に残し、貼り付け専用 block は companion 側にも同期する。
 
 ## blank workspace 前提
 

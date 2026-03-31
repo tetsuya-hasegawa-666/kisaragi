@@ -12,6 +12,20 @@
 
 ## 更新履歴
 
+### 2026-03-31 AGENTS.md notebook runbook 2-file set shared rule 化
+
+- 日時: `2026-03-31`
+- 文書名: `AGENTS.md`
+- 標題: `Colab` / notebook runbook を `evid` / `ref` の 2 本で管理する shared rule を追加
+- 背景: `prj-kisaragi_0002` の `Colab` runbook は、正本 runbook と admin 貼り付け用参照版を分けて運用したい要求が出た。これは project 固有より notebook 系 task 共通の運用であり、shared rule に上げる必要があった。
+- 目的: notebook で code block を貼り付けて進める runbook は、証跡と周辺判断を持つ正本版と、貼り付け専用の簡潔版を常に対で保つ。
+- 対処方法: `協調原則` に `*_evid_runbook.md` と `*_ref_runbook.md` の役割分担と、常に 2 file set で更新する rule を追加した。
+- 対応内容: evid 側は正本 runbook、ref 側は貼り付け用 companion と定義し、片側だけ更新する運用を禁止した。
+- 更新結果: 今後の `Colab` / notebook 系 runbook は、正本 runbook と参照版の 2 本が同期して維持される。
+- 新旧比較:
+  - 旧: notebook runbook を 1 file で持つか、project ごとに evid / ref の分け方がぶれていた。
+  - 新: notebook runbook は `evid` / `ref` の 2 本を shared rule として必須にした。
+
 ### 2026-03-31 AGENTS.md shared worklog 成功内容の同 task runbook 反映必須化
 
 - 日時: `2026-03-31`

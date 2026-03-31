@@ -66,7 +66,7 @@
   resolution: `DA3Metric-Large` single-frame depth、world back-projection、point export、`gsplat` rasterization、`gs_model_smoke.json`、`space_quality_smoke.json`、`space_package_smoke.json`、contract 名 artifact 生成までを `Candidate Bootstrap v1` と `admin-mrl-test-evidence.md` へ反映し、`MRL-5` の candidate proof を「correcting 実 data から `3DGS` 系主空間モデル候補を再現できる」水準まで引き上げた
   recurrence prevention: Colab 往復で得た持続価値のある結果は、shared worklog のみへ残さず、runbook、admin evidence、必要なら closeout 記録へ同じ task で反映する
   remaining work: `admin-mrl-test-evidence.md` を根拠に `MRL-5 p-done` 判定を行うか判断し、後続 gate では `trajectreview-modeling` 正式統合と `multi-frame` / `multi-route` を別 MRL として進める
-  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md`
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_evid_runbook.md`
 
 - record date: `2026-03-30`
   target MRL: `MRL-7`
@@ -99,7 +99,7 @@
   resolution: candidate scan を `session_id + size_bytes` と path rank で canonical 化し、widget で selected input を保存する前段を runbook 正本へ組み込んだ。admin は `[2] trajectreview-correcting-session-20260331-034831 [zip]` を選択し、`Step 8d` で `Step 2` から `Step 4.5`、`Step 8e` で `MRL-7 adopted one-block` を同じ input から end-to-end で実行できた
   recurrence prevention: Drive mount で同一実体が複数 path に見える時は `resolve()` だけに頼らず、session-level key と優先順位で canonical candidate list を作ってから widget UX を確定する
   remaining work: `MRL-8` で確立した selected input handoff を、後続 `job_status.json`、request UX、result download、viewer formalization へ接続する
-  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_clean_bootstrap_runbook.md`
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_evid_runbook.md`
 
 - record date: `2026-03-26`
   target MRL: `旧番号時代の全 gate`
