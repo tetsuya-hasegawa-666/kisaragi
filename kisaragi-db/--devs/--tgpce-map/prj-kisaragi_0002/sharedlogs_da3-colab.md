@@ -5525,5 +5525,195 @@ if summary["infer_call"] != "ok":
 
 ```text
 # Step 9e giant infer_gs first execution res
+[INFO ] using SwiGLU layer as FFN
+[WARN ] Dependency 'e3nn' not found. Required for rotating the camera space SH coeff
+{
+  "summary_path": "/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/step9e_giant_infergs_summary.json",
+  "infer_call": "error",
+  "exported_file_count": 0,
+  "probe_dir": "/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01"
+}
+{
+  "error_type": "AttributeError",
+  "error_message": "'DepthAnything3' object has no attribute 'infer'"
+}
+```
+
+# codex v65
+
+```text
+## 2026-03-31 v65 Step 9f giant infer_gs api-method fix
+
+- 原因:
+  - `Step 9e` の失敗は `infer_gs` 非対応ではなく、`DepthAnything3` に `infer` method が存在しないことだった。
+- 目的:
+  - `docs/API.md` の実例と `dir(model)` / `inspect.signature(...)` を突き合わせて、正しい呼び出し method に修正する。
+  - その場で `da3-giant` + `infer_gs=True` の first execution を retry する。
+- 前提:
+  - `/content/Depth-Anything-3` が存在する。
+  - `/content/runbook_selected_input.json` が存在する。
+  - `Step 9e` で作った `probe_dir` は再利用してよい。
+```
+
+```python
+# Step 9f giant infer_gs api-method fix
+from pathlib import Path
+import json
+import shutil
+import zipfile
+import sys
+import traceback
+import inspect
+
+import torch
+
+repo_root = Path("/content/Depth-Anything-3")
+assert repo_root.exists(), {"repo_not_found": str(repo_root)}
+
+src_root = repo_root / "src"
+if str(src_root) not in sys.path:
+    sys.path.insert(0, str(src_root))
+
+from depth_anything_3.api import DepthAnything3
+
+api_doc_path = repo_root / "docs" / "API.md"
+api_doc_text = api_doc_path.read_text(encoding="utf-8", errors="ignore") if api_doc_path.exists() else ""
+api_doc_hits = [line for line in api_doc_text.splitlines() if "infer_gs" in line or "export_format" in line or "da3-giant" in line][:40]
+
+selected_doc_path = Path("/content/runbook_selected_input.json")
+assert selected_doc_path.exists(), {"selected_doc_not_found": str(selected_doc_path)}
+selected_doc = json.loads(selected_doc_path.read_text(encoding="utf-8"))
+
+input_path = Path(selected_doc["path"])
+results_root = Path(selected_doc["results_root"])
+assert input_path.exists(), {"input_not_found": str(input_path)}
+results_root.mkdir(parents=True, exist_ok=True)
+
+extract_root = Path("/content/trajectreview_input")
+if extract_root.exists():
+    shutil.rmtree(extract_root)
+extract_root.mkdir(parents=True, exist_ok=True)
+
+if input_path.is_file() and input_path.suffix.lower() == ".zip":
+    with zipfile.ZipFile(input_path, "r") as zf:
+        zf.extractall(extract_root)
+    session_root_candidates = [p.parent for p in extract_root.rglob("session_package.json")]
+    assert session_root_candidates, {"session_package_not_found_under": str(extract_root)}
+    session_root = session_root_candidates[0]
+else:
+    session_root = input_path
+
+images_dir = next((p for p in session_root.rglob("images") if p.is_dir()), None)
+assert images_dir is not None, {"images_dir_not_found_under": str(session_root)}
+image_paths = sorted(list(images_dir.glob("*.jpg")) + list(images_dir.glob("*.png")) + list(images_dir.glob("*.jpeg")))
+assert image_paths, {"images_not_found": str(images_dir)}
+
+sample_images = image_paths[: min(60, len(image_paths))]
+session_id = selected_doc["session_id"]
+probe_dir = results_root / f"{session_id}_da3giant_infergs_probe_v01"
+probe_dir.mkdir(parents=True, exist_ok=True)
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model = DepthAnything3(model_name="da3-giant").to(device)
+
+public_methods = sorted([name for name in dir(model) if not name.startswith("_")])
+callable_names = []
+for name in public_methods:
+    try:
+        attr = getattr(model, name)
+    except Exception:
+        continue
+    if callable(attr):
+        callable_names.append(name)
+
+preferred_method_name = None
+preferred_method_sig = None
+for candidate in ["inference", "forward", "__call__", "predict"]:
+    if hasattr(model, candidate):
+        attr = getattr(model, candidate)
+        if callable(attr):
+            preferred_method_name = candidate
+            try:
+                preferred_method_sig = str(inspect.signature(attr))
+            except Exception:
+                preferred_method_sig = "signature_unavailable"
+            break
+
+summary = {
+    "session_id": session_id,
+    "device": device,
+    "probe_dir": str(probe_dir),
+    "api_doc_hits": api_doc_hits,
+    "callable_names_head": callable_names[:80],
+    "preferred_method_name": preferred_method_name,
+    "preferred_method_sig": preferred_method_sig,
+}
+
+try:
+    if preferred_method_name == "inference":
+        outputs = model.inference(
+            [str(p) for p in sample_images],
+            fps=1,
+            num_frames=len(sample_images),
+            process_res=504,
+            infer_gs=True,
+            export_dir=str(probe_dir),
+            export_format="npz-glb-gs_ply-gs_video",
+            chunk_size=20,
+        )
+    elif preferred_method_name in {"forward", "__call__"}:
+        outputs = getattr(model, preferred_method_name)(
+            [str(p) for p in sample_images],
+            fps=1,
+            num_frames=len(sample_images),
+            process_res=504,
+            infer_gs=True,
+            export_dir=str(probe_dir),
+            export_format="npz-glb-gs_ply-gs_video",
+            chunk_size=20,
+        )
+    else:
+        raise RuntimeError(f"no_supported_method: {preferred_method_name}")
+
+    summary["infer_call"] = "ok"
+    summary["output_type"] = type(outputs).__name__
+except Exception as e:
+    summary["infer_call"] = "error"
+    summary["error_type"] = type(e).__name__
+    summary["error_message"] = str(e)
+    summary["traceback_tail"] = traceback.format_exc().splitlines()[-20:]
+
+exported = []
+for p in sorted(probe_dir.rglob("*")):
+    if p.is_file():
+        exported.append(str(p))
+summary["exported_files"] = exported
+
+summary_path = probe_dir / "step9f_giant_infergs_summary.json"
+summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+
+print(json.dumps({
+    "summary_path": str(summary_path),
+    "preferred_method_name": summary["preferred_method_name"],
+    "preferred_method_sig": summary["preferred_method_sig"],
+    "infer_call": summary["infer_call"],
+    "exported_file_count": len(exported),
+    "probe_dir": str(probe_dir),
+}, indent=2, ensure_ascii=False))
+for line in api_doc_hits[:20]:
+    print(line)
+for item in exported[:40]:
+    print(item)
+if summary["infer_call"] != "ok":
+    print(json.dumps({
+        "error_type": summary.get("error_type"),
+        "error_message": summary.get("error_message"),
+    }, indent=2, ensure_ascii=False))
+```
+
+# admin
+
+```text
+# Step 9f giant infer_gs api-method fix res
 
 ```
