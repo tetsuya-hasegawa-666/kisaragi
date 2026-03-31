@@ -5199,5 +5199,147 @@ print(json.dumps(result, indent=2, ensure_ascii=False))
 
 ```text
 # Step 9c rerun one-block after writable-results-root-fix res
+WARNING:py.warnings:/usr/local/lib/python3.12/dist-packages/huggingface_hub/utils/_auth.py:94: UserWarning: 
+The secret `HF_TOKEN` does not exist in your Colab secrets.
+To authenticate with the Hugging Face Hub, create a token in your settings tab (https://huggingface.co/settings/tokens), set it as secret in your Google Colab and restart your session.
+You will be able to reuse this secret in all of your notebooks.
+Please note that authentication is recommended but still optional to access public models or datasets.
+  warnings.warn(
+
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+WARNING:huggingface_hub.utils._http:Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+config.json: 100%
+ 847/847 [00:00<00:00, 104kB/s]
+[INFO ] using MLP layer as FFN
+model.safetensors: 100%
+ 1.34G/1.34G [00:05<00:00, 263MB/s]
+[INFO ] Processed Images Done taking 0.09307742118835449 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 1.5097167491912842 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0018341541290283203 seconds
+[INFO ] Processed Images Done taking 0.010960102081298828 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.044922828674316406 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0007348060607910156 seconds
+[INFO ] Processed Images Done taking 0.011121988296508789 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.04599738121032715 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0007758140563964844 seconds
+[INFO ] Processed Images Done taking 0.010864496231079102 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.04751086235046387 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0009031295776367188 seconds
+[INFO ] Processed Images Done taking 0.00902700424194336 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.046828269958496094 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0007572174072265625 seconds
+[INFO ] Processed Images Done taking 0.010274648666381836 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.047478675842285156 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0007724761962890625 seconds
+[INFO ] Processed Images Done taking 0.010695457458496094 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.04694986343383789 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0009264945983886719 seconds
+[INFO ] Processed Images Done taking 0.009404182434082031 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.047452688217163086 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0007190704345703125 seconds
+[INFO ] Processed Images Done taking 0.009318113327026367 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.04698443412780762 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0007166862487792969 seconds
+[INFO ] Processed Images Done taking 0.008845806121826172 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.04787015914916992 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0009462833404541016 seconds
+[INFO ] Processed Images Done taking 0.009125709533691406 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.04761815071105957 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.00069427490234375 seconds
+[INFO ] Processed Images Done taking 0.009153366088867188 seconds. Shape:  torch.Size([1, 3, 378, 504])
+[INFO ] Model Forward Pass Done. Time: 0.047577857971191406 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.0007116794586181641 seconds
+gsplat: CUDA extension has been set up successfully in 195.22 seconds.
+{
+  "window_span_sec": 0.8341010939329863,
+  "sample_frame_count": 12,
+  "processed_frames": 12,
+  "skipped_frames": 0,
+  "total_points": 4032,
+  "loss_init": 0.17961707711219788,
+  "loss_final": 0.02125917188823223,
+  "world_dir": "/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3_multiframe_probe_v01/world_fusion_v01"
+}
+```
+
+# codex v63
+
+```text
+# Step 9d giant-infer-gs entrypoint probe after baseline pass
+
+- 判断:
+  - `Step 9c` で writable results root 前提の baseline one-block は通った。
+  - ここで `1000 step` を伸ばすより、`MRL-9` の本題である `Giant + infer_gs=True` の entrypoint 固定を先に進める。
+- 目的:
+  - 現在の runtime をそのまま使って、`Depth-Anything-3` clone 内の `infer_gs` / `gs_ply` / `gs_video` / `Giant` 関連 entrypoint を特定する。
+  - 次の `mRL-9.1` block を repo 実体に合わせて固定する。
+- 前提:
+  - `/content/Depth-Anything-3` が存在する。
+  - `Step 9c` が成功している。
+```
+
+```python
+# Step 9d giant-infer-gs entrypoint probe after baseline pass
+from pathlib import Path
+import json
+import inspect
+import sys
+
+repo_root = Path("/content/Depth-Anything-3")
+assert repo_root.exists(), {"repo_not_found": str(repo_root)}
+
+src_root = repo_root / "src"
+if str(src_root) not in sys.path:
+    sys.path.insert(0, str(src_root))
+
+patterns = ["infer_gs", "gs_ply", "gs_video", "giant", "Giant", "DA3"]
+hits = []
+
+for path in repo_root.rglob("*"):
+    if not path.is_file():
+        continue
+    if path.suffix.lower() not in {".py", ".md", ".txt", ".yaml", ".yml", ".json"}:
+        continue
+    try:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        continue
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        if any(p in line for p in patterns):
+            hits.append({
+                "file": str(path),
+                "line": lineno,
+                "text": line.strip(),
+            })
+
+from depth_anything_3.api import DepthAnything3
+
+summary = {
+    "repo_root": str(repo_root),
+    "src_root": str(src_root),
+    "api_import_ok": True,
+    "from_pretrained_sig": str(inspect.signature(DepthAnything3.from_pretrained)),
+    "api_init_sig": str(inspect.signature(DepthAnything3.__init__)),
+    "hit_count": len(hits),
+    "hits_head": hits[:80],
+}
+
+probe_path = Path("/content/mrl9_entrypoint_probe.json")
+probe_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+
+print(json.dumps({
+    "probe_path": str(probe_path),
+    "hit_count": summary["hit_count"],
+    "from_pretrained_sig": summary["from_pretrained_sig"],
+    "api_init_sig": summary["api_init_sig"],
+}, indent=2, ensure_ascii=False))
+for item in summary["hits_head"][:40]:
+    print(f"{item['file']}:{item['line']}: {item['text']}")
+```
+
+# admin
+
+```text
+# Step 9d giant-infer-gs entrypoint probe after baseline pass res
 
 ```
