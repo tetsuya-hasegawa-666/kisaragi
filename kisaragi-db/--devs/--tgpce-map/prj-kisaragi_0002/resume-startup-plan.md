@@ -11,8 +11,8 @@
 - plan / current / gate は [ux-b2t-hypo.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\ux-b2t-hypo.md)
 - `MetricLarge route` の product 正本は [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_evid_runbook.md)
 - `MetricLarge route` の貼り付け参照版は [da3_colab_ref_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_ref_runbook.md)
-- `MRL-9` の仮正本は [temp-da3Giant_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\temp-da3Giant_colab_evid_runbook.md)
-- `MRL-9` の貼り付け参照版は [temp-da3Giant_colab_ref_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\temp-da3Giant_colab_ref_runbook.md)
+- `MRL-9` の runbook 正本も [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_evid_runbook.md) の末尾 `MRL-9` section に統合済みである
+- `MRL-9` の貼り付け参照版も [da3_colab_ref_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_ref_runbook.md) の末尾 `MRL-9` section を使う
 - notebook cell、error、admin 実行結果の往復 log は [sharedlogs_da3-colab.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\sharedlogs_da3-colab.md)
 - admin UX 手順は [admin-mrl-test-method.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\admin-mrl-test-method.md)
 - admin evidence は [admin-mrl-test-evidence.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\admin-mrl-test-evidence.md)
@@ -55,8 +55,8 @@
 
 1. [sharedlogs_da3-colab.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\sharedlogs_da3-colab.md) の最下部を読んで、最新の `# codex v**` と `# admin` を確認する。
 2. [ux-b2t-hypo.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\ux-b2t-hypo.md) で `MRL-2S` と後続 `MRL-**` の current_state を確認する。
-3. `MetricLarge route` を再開するなら [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_evid_runbook.md)、`MRL-9` を blank runtime から進めるなら [temp-da3Giant_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\temp-da3Giant_colab_evid_runbook.md) の `準備確認 2` から `準備確認 4` を使う。
-4. `MRL-9` を再実行する時は [temp-da3Giant_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\temp-da3Giant_colab_evid_runbook.md) の adopted block を使い、`e3nn` install を `DepthAnything3` import 前に置く。
+3. `MetricLarge route` も `MRL-9` も、blank runtime から進める時は [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_evid_runbook.md) の `準備確認 2` から `準備確認 4` を共通で使う。
+4. `MRL-9` を再実行する時は [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_evid_runbook.md) の末尾 `MRL-9` section の adopted block を使い、`e3nn` install を `DepthAnything3` import 前に置く。
 5. `PlayCanvas Model Viewer` は `gs_ply/0000.ply` の自由視点確認に使い、top camera renderer、path overlay、request / status UX は後続 `MRL-**` として切り分ける。
 
 ## 引き継ぎ上の重要判断

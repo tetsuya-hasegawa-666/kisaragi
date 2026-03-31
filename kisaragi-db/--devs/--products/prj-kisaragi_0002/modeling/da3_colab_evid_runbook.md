@@ -2,10 +2,12 @@
 
 ## 文書の役割
 
-- この文書は `prj-kisaragi_0002` の `DA3Metric-Large` `Colab` 実行について、fresh runtime から `DA3Metric-Large` による `3DGS` 系主空間モデル生成まで進めるための evid 正本 runbook とする。
+- この文書は `prj-kisaragi_0002` の `Colab` modeling 実行について、fresh runtime から `DA3Metric-Large` による `3DGS` 系主空間モデル生成、および後段の `MRL-9` `DA3 Giant` Gaussian branch まで進めるための evid 正本 runbook とする。
 - shared worklog の trial 往復をそのまま正本化せず、真に必要だった command と file 操作だけを抽出して保持する。
 - `candidate` は現時点の最短候補、`adopted` は admin 実測で end-to-end 完了した `truly pass` 手順を示す。
 - notebook 系 runbook の shared rule に従い、この file は `da3_colab_ref_runbook.md` と対で管理する。周辺説明、OK 条件、採用判断、補助情報は本 file に残し、貼り付け専用 block は companion 側にも同期する。
+- rollback baseline は `MetricLarge route` とし、`MRL-9` の `DA3 Giant` / `Giant Large` 差分も本 file の末尾 section に統合して管理する。
+- `MRL-9` の保存先は、既存の `trajectreview/modeling/<session_id>_da3_multiframe_probe_v01/` を踏襲し、その直下の `probe_pass/` 配下へ Giant artifact を置く。
 
 ## blank workspace 前提
 
@@ -1406,3 +1408,316 @@ OK 条件:
 - `copied_count >= 1`
 - 少なくとも `world_points_multiframe.ply` または `gaussian_render_optim20.png` 以上が copy される
 - Drive UI の `MyDrive/trajectreview/modeling_visible/...` から対象 file を確認できる
+
+## `MRL-9` giant Gaussian branch
+
+- 目的:
+  - `DA3 Giant` / `Giant Large` の Gaussian branch を `infer_gs=True` で実行し、`gs_ply`、`gs_video`、`scene.glb`、`results.npz` を生成する。
+- shared 前提:
+  - input 選択、Drive mount、`results_root`、repo clone、dependency install は、この文書前半の `準備確認 1-5` と `install 1-4` をそのまま使う。
+  - rollback baseline は `MetricLarge route` であり、下の block は既存 `MRL-7` / `MRL-8` の path を壊さず追加する。
+- 保存先:
+  - `results_root / f"{session_id}_da3_multiframe_probe_v01" / "probe_pass"`
+  - つまり既存 `..._da3_multiframe_probe_v01` の直下に `probe_pass` を 1 つだけ追加し、その配下へ Giant artifact を保存する。
+- first config:
+  - `model_name = "da3-giant"`
+  - `infer_gs = True`
+  - `process_res = 504`
+  - `sample_count <= 60`
+  - `fps = 1`、`frames = 60`、`chunk = 20` または `30` は入力抽出側の運用目安として維持し、`inference()` の引数には渡さない。
+
+### `Step 9a` giant-infer-gs entrypoint probe
+
+- 目的:
+  - repo 実体から `infer_gs` の entrypoint、model 名、export format の docs / API を固定する。
+- 用途:
+  - fresh runtime で `MRL-9` を再開する時の最初の probe として使う。
+
+```python
+# Step 9a giant-infer-gs entrypoint probe
+from pathlib import Path
+import json
+import inspect
+import sys
+
+repo_root = Path("/content/Depth-Anything-3")
+assert repo_root.exists(), {"repo_not_found": str(repo_root)}
+
+src_root = repo_root / "src"
+if str(src_root) not in sys.path:
+    sys.path.insert(0, str(src_root))
+
+patterns = ["infer_gs", "gs_ply", "gs_video", "giant", "Giant", "DA3"]
+hits = []
+
+for path in repo_root.rglob("*"):
+    if not path.is_file():
+        continue
+    if path.suffix.lower() not in {".py", ".md", ".txt", ".yaml", ".yml", ".json"}:
+        continue
+    try:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        continue
+    for lineno, line in enumerate(text.splitlines(), start=1):
+        if any(p in line for p in patterns):
+            hits.append({
+                "file": str(path),
+                "line": lineno,
+                "text": line.strip(),
+            })
+
+from depth_anything_3.api import DepthAnything3
+
+summary = {
+    "repo_root": str(repo_root),
+    "src_root": str(src_root),
+    "api_import_ok": True,
+    "from_pretrained_sig": str(inspect.signature(DepthAnything3.from_pretrained)),
+    "api_init_sig": str(inspect.signature(DepthAnything3.__init__)),
+    "hit_count": len(hits),
+    "hits_head": hits[:80],
+}
+
+probe_path = Path("/content/mrl9_entrypoint_probe.json")
+probe_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+
+print(json.dumps({
+    "probe_path": str(probe_path),
+    "hit_count": summary["hit_count"],
+    "from_pretrained_sig": summary["from_pretrained_sig"],
+    "api_init_sig": summary["api_init_sig"],
+}, indent=2, ensure_ascii=False))
+for item in summary["hits_head"][:40]:
+    print(f"{item['file']}:{item['line']}: {item['text']}")
+```
+
+OK 条件:
+
+- `probe_path` が出る
+- `hit_count >= 1`
+- `from_pretrained_sig` または hit list から `infer_gs` に到達する手掛かりが得られる
+- `MetricLarge route` 側の file や artifact を変更しない
+
+### Adopted block: giant `infer_gs=True` export
+
+- 到達:
+  - `da3-giant` の `inference()` を `infer_gs=True` で実行し、`gs_ply`、`gs_video`、`scene.glb`、`exports/npz/results.npz` を保存する。
+- 前提:
+  - blank runtime なら、先頭から `準備確認 1-5`、`install 1-4` を済ませている。
+  - `results_root` は writable な `MyDrive/trajectreview/modeling` を指す。
+  - `runbook_selected_input.json` は `準備確認 3` までで生成済みである。
+- 重要:
+  - `e3nn` は `DepthAnything3` import 前に install する。
+  - 既に `depth_anything_3` を import 済みの runtime では stale import で `matrix_to_angles` 未定義が残るので、fresh runtime か module reload が必要である。
+- 保存先:
+  - `/content/drive/MyDrive/trajectreview/modeling/<session_id>_da3_multiframe_probe_v01/probe_pass`
+- 期待生成物:
+  - `gs_ply/0000.ply`
+  - `gs_video/0000_extend.mp4`
+  - `scene.glb`
+  - `scene.jpg`
+  - `exports/npz/results.npz`
+  - `depth_vis/*.jpg`
+  - `step9j_giant_infergs_summary.json`
+
+```python
+# Step 9j adopted giant infer_gs export
+from pathlib import Path
+import json
+import shutil
+import zipfile
+import sys
+import subprocess
+import importlib
+
+import torch
+
+def run(cmd):
+    print("RUN", " ".join(cmd))
+    subprocess.run(cmd, check=True)
+
+run(["python", "-m", "pip", "install", "--quiet", "e3nn"])
+
+for name in list(sys.modules.keys()):
+    if name == "depth_anything_3" or name.startswith("depth_anything_3."):
+        del sys.modules[name]
+importlib.invalidate_caches()
+
+repo_root = Path("/content/Depth-Anything-3")
+assert repo_root.exists(), {"repo_not_found": str(repo_root)}
+src_root = repo_root / "src"
+if str(src_root) not in sys.path:
+    sys.path.insert(0, str(src_root))
+
+import e3nn
+from e3nn.o3 import matrix_to_angles
+from depth_anything_3.api import DepthAnything3
+
+selected_doc_path = Path("/content/runbook_selected_input.json")
+assert selected_doc_path.exists(), {"selected_doc_not_found": str(selected_doc_path)}
+selected_doc = json.loads(selected_doc_path.read_text(encoding="utf-8"))
+
+input_path = Path(selected_doc["path"])
+results_root = Path(selected_doc["results_root"])
+assert input_path.exists(), {"input_not_found": str(input_path)}
+results_root.mkdir(parents=True, exist_ok=True)
+
+extract_root = Path("/content/trajectreview_input")
+if extract_root.exists():
+    shutil.rmtree(extract_root)
+extract_root.mkdir(parents=True, exist_ok=True)
+
+if input_path.is_file() and input_path.suffix.lower() == ".zip":
+    with zipfile.ZipFile(input_path, "r") as zf:
+        zf.extractall(extract_root)
+    session_root_candidates = [p.parent for p in extract_root.rglob("session_package.json")]
+    assert session_root_candidates, {"session_package_not_found_under": str(extract_root)}
+    session_root = session_root_candidates[0]
+else:
+    session_root = input_path
+
+images_dir = next((p for p in session_root.rglob("images") if p.is_dir()), None)
+assert images_dir is not None, {"images_dir_not_found_under": str(session_root)}
+image_paths = sorted(list(images_dir.glob("*.jpg")) + list(images_dir.glob("*.png")) + list(images_dir.glob("*.jpeg")))
+assert image_paths, {"images_not_found": str(images_dir)}
+
+sample_images = [str(p) for p in image_paths[: min(60, len(image_paths))]]
+session_id = selected_doc["session_id"]
+probe_root = results_root / f"{session_id}_da3_multiframe_probe_v01"
+probe_dir = probe_root / "probe_pass"
+probe_dir.mkdir(parents=True, exist_ok=True)
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model = DepthAnything3(model_name="da3-giant").to(device)
+outputs = model.inference(
+    image=sample_images,
+    infer_gs=True,
+    process_res=504,
+    export_dir=str(probe_dir),
+    export_format="npz-glb-gs_ply-gs_video",
+)
+
+exported = []
+for p in sorted(probe_dir.rglob("*")):
+    if p.is_file():
+        exported.append(str(p))
+
+summary = {
+    "session_id": session_id,
+    "device": device,
+    "sample_count": len(sample_images),
+    "e3nn_version": getattr(e3nn, "__version__", "unknown"),
+    "matrix_to_angles_import_ok": callable(matrix_to_angles),
+    "output_type": type(outputs).__name__,
+    "probe_dir": str(probe_dir),
+    "exported_files": exported,
+}
+
+summary_path = probe_dir / "step9j_giant_infergs_summary.json"
+summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+
+print(json.dumps({
+    "summary_path": str(summary_path),
+    "sample_count": summary["sample_count"],
+    "probe_dir": summary["probe_dir"],
+    "exported_file_count": len(exported),
+    "e3nn_version": summary["e3nn_version"],
+    "matrix_to_angles_import_ok": summary["matrix_to_angles_import_ok"],
+}, indent=2, ensure_ascii=False))
+for item in exported[:40]:
+    print(item)
+```
+
+OK 条件:
+
+- `sample_count >= 1`
+- `gs_ply/0000.ply` が生成される
+- `gs_video/0000_extend.mp4` が生成される
+- `scene.glb` が生成される
+- `exports/npz/results.npz` が生成される
+- `step9j_giant_infergs_summary.json` が生成される
+
+warning 扱い:
+
+- `No valid depth values found. Reason: quantile() input tensor must be non-empty`
+  は export 系 branch の一部で depth 有効値が空になった warning とみなし、`gs_ply`、`gs_video`、`scene.glb`、`results.npz` が生成されている限り blocker として扱わない。
+- `layout_helpers.py` の indexing warning は現時点では non-block warning として扱う。
+
+### Viewer 確認: `gs_ply/0000.ply`
+
+- 目的:
+  - `mRL-9.2` として、生成済み `gs_ply/0000.ply` を外部 viewer で開き、自由視点 scene として読めることを確認する。
+- viewer:
+  - 第一候補: `PlayCanvas Model Viewer`
+  - 代替: `SuperSplat`
+- 手順:
+  1. browser で `PlayCanvas Model Viewer` を開く
+  2. `probe_pass/gs_ply/0000.ply` を読み込む
+  3. orbit / pan / zoom で scene が表示されるかを見る
+- 判定:
+  - scene の意味解釈が弱くても、viewer 上で Gaussian scene として表示され、自由視点で回せれば `p-done`
+- 2026-03-31 実測:
+  - `PlayCanvas Model Viewer` で `0000.ply` を開けた
+  - admin 所見は `何かわかりませんが見れます`
+
+### giant bundle download block
+
+- 用途:
+  - `probe_pass` 配下の `gs_ply`、`gs_video`、`scene.glb`、`results.npz`、summary を local へまとめて download したい時に使う。
+
+```python
+from pathlib import Path
+from google.colab import files
+import shutil
+import json
+
+selected_doc = json.loads(Path("/content/runbook_selected_input.json").read_text(encoding="utf-8"))
+session_id = selected_doc["session_id"]
+probe_dir = Path(selected_doc["results_root"]) / f"{session_id}_da3_multiframe_probe_v01" / "probe_pass"
+bundle_dir = Path("/content/da3giant_probe_bundle")
+bundle_zip = Path("/content/da3giant_probe_bundle.zip")
+
+assert probe_dir.exists(), f"missing: {probe_dir}"
+
+if bundle_dir.exists():
+    shutil.rmtree(bundle_dir)
+bundle_dir.mkdir(parents=True, exist_ok=True)
+
+targets = [
+    "exports/npz/results.npz",
+    "gs_ply/0000.ply",
+    "gs_video/0000_extend.mp4",
+    "scene.glb",
+    "scene.jpg",
+    "step9j_giant_infergs_summary.json",
+]
+
+for rel in targets:
+    src = probe_dir / rel
+    assert src.exists(), f"missing: {src}"
+    dst = bundle_dir / rel
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src, dst)
+
+depth_vis_dir = probe_dir / "depth_vis"
+if depth_vis_dir.exists():
+    for src in sorted(depth_vis_dir.glob("*.jpg")):
+        rel = src.relative_to(probe_dir)
+        dst = bundle_dir / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dst)
+
+if bundle_zip.exists():
+    bundle_zip.unlink()
+
+shutil.make_archive(str(bundle_zip.with_suffix("")), "zip", root_dir=str(bundle_dir))
+print(bundle_zip)
+files.download(str(bundle_zip))
+```
+
+OK 条件:
+
+- `bundle_zip` が出る
+- `gs_ply/0000.ply`、`gs_video/0000_extend.mp4`、`scene.glb`、`exports/npz/results.npz` が zip に入る
+- `depth_vis/*.jpg` が存在する時は同じ zip に入る

@@ -645,8 +645,8 @@
   - `mRL-9.1` は `p-done`
   - `MRL-9` 全体は external viewer 未確認のため `active`
 - 主要 evidence:
-  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/temp-da3Giant_colab_evid_runbook.md`
-  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/temp-da3Giant_colab_ref_runbook.md`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_evid_runbook.md`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_ref_runbook.md`
   - `/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/step9j_giant_infergs_summary.json`
 
 ## 2026-03-31 `MRL-9` viewer close evidence
@@ -666,6 +666,6 @@
   - `mRL-9.2` は `p-done`
   - `MRL-9` 全体も `p-done`
 - 主要 evidence:
-  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/temp-da3Giant_colab_evid_runbook.md`
-  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/temp-da3Giant_colab_ref_runbook.md`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_evid_runbook.md`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_ref_runbook.md`
   - `/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/gs_ply/0000.ply`
