@@ -6025,5 +6025,102 @@ if summary["infer_call"] != "ok":
 
 ```text
 # Step 9h install e3nn and retry giant infer_gs res
+RUN python -m pip install --quiet e3nn
+[INFO ] using SwiGLU layer as FFN
+[INFO ] Processed Images Done taking 0.08308768272399902 seconds. Shape:  torch.Size([26, 3, 378, 504])
+[INFO ] Selecting reference view using strategy: saddle_balanced
+{
+  "summary_path": "/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/step9h_giant_infergs_summary.json",
+  "infer_call": "error",
+  "sample_count": 26,
+  "exported_file_count": 3,
+  "probe_dir": "/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01"
+}
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/step9e_giant_infergs_summary.json
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/step9f_giant_infergs_summary.json
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/step9g_giant_infergs_summary.json
+{
+  "error_type": "NameError",
+  "error_message": "name 'matrix_to_angles' is not defined"
+}
+```
+
+# codex v68
+
+```text
+## 2026-03-31 v68 Step 9i matrix_to_angles source diagnostic
+
+- 判定:
+  - `e3nn` install 後も `matrix_to_angles` 未定義のままなので、dependency 不足ではなく repo 側の import / symbol 解決不整合の可能性が高い。
+- 目的:
+  - `matrix_to_angles` を参照している source file と、その file の import / definition 状態を特定する。
+  - 次に patch なしで回避できるか、repo local patch が要るかを切り分ける。
+```
+
+```python
+# Step 9i matrix_to_angles source diagnostic
+from pathlib import Path
+import json
+
+repo_root = Path("/content/Depth-Anything-3")
+assert repo_root.exists(), {"repo_not_found": str(repo_root)}
+
+hits = []
+definitions = []
+for path in repo_root.rglob("*.py"):
+    try:
+        lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+    except Exception:
+        continue
+    for lineno, line in enumerate(lines, start=1):
+        if "matrix_to_angles" in line:
+            hits.append({
+                "file": str(path),
+                "line": lineno,
+                "text": line.strip(),
+            })
+            if "def matrix_to_angles" in line or "matrix_to_angles =" in line or "import matrix_to_angles" in line or "from" in line:
+                definitions.append({
+                    "file": str(path),
+                    "line": lineno,
+                    "text": line.strip(),
+                })
+
+context = []
+for item in hits[:10]:
+    path = Path(item["file"])
+    lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+    start = max(0, item["line"] - 6)
+    end = min(len(lines), item["line"] + 6)
+    context.append({
+        "file": item["file"],
+        "line": item["line"],
+        "snippet": [{"line": i + 1, "text": lines[i]} for i in range(start, end)],
+    })
+
+summary = {
+    "repo_root": str(repo_root),
+    "hit_count": len(hits),
+    "hits_head": hits[:40],
+    "definitions_head": definitions[:20],
+    "context": context,
+}
+
+probe_path = Path("/content/mrl9_matrix_to_angles_probe.json")
+probe_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+
+print(json.dumps({
+    "probe_path": str(probe_path),
+    "hit_count": len(hits),
+    "definition_count": len(definitions),
+}, indent=2, ensure_ascii=False))
+for item in hits[:20]:
+    print(f"{item['file']}:{item['line']}: {item['text']}")
+```
+
+# admin
+
+```text
+# Step 9i matrix_to_angles source diagnostic res
 
 ```
