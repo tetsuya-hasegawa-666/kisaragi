@@ -617,3 +617,34 @@
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/LocalModelingService.kt`
   - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/WorkflowBundleServiceTest.kt`
   - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/LocalModelingServiceTest.kt`
+
+## 2026-03-31 `mRL-9.1` giant infer_gs close evidence
+
+- 対象 gate:
+  - `MRL-9`
+  - `mRL-9.1`
+- UX 観点:
+  - `DA3 Giant` の Gaussian branch を `infer_gs=True` で実行し、`gs_ply`、`gs_video`、`scene.glb` を `MyDrive/trajectreview/modeling/...` に保存できた
+  - rollback baseline は `MetricLarge route` のまま維持し、既存 runbook と artifact 契約を壊さなかった
+- 実行観点:
+  - `Step 9d` で repo 内 docs / API から `da3-giant`、`infer_gs=True`、`export_format="npz-glb-gs_ply-gs_video"` を特定
+  - `Step 9j` で `e3nn` を install し、`depth_anything_3` module を再 import した後、`DepthAnything3(model_name="da3-giant").inference(...)` が成功
+  - `sample_count = 26`
+  - `process_res = 504`
+- 生成 artifact 観点:
+  - `gs_ply/0000.ply`
+  - `gs_video/0000_extend.mp4`
+  - `scene.glb`
+  - `scene.jpg`
+  - `exports/npz/results.npz`
+  - `depth_vis/*.jpg`
+  - `step9j_giant_infergs_summary.json`
+- 保存先:
+  - `/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01`
+- 判定:
+  - `mRL-9.1` は `p-done`
+  - `MRL-9` 全体は external viewer 未確認のため `active`
+- 主要 evidence:
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/temp-da3Giant_colab_evid_runbook.md`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/temp-da3Giant_colab_ref_runbook.md`
+  - `/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/step9j_giant_infergs_summary.json`

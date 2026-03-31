@@ -6272,5 +6272,68 @@ if summary["infer_call"] != "ok":
 
 ```text
 # Step 9j reload after e3nn install res
+RUN python -m pip install --quiet e3nn
+Error registering eval resolver: resolver 'eval' is already registered
+[INFO ] using SwiGLU layer as FFN
+[INFO ] Processed Images Done taking 0.08770465850830078 seconds. Shape:  torch.Size([26, 3, 378, 504])
+[INFO ] Selecting reference view using strategy: saddle_balanced
+[INFO ] Model Forward Pass Done. Time: 5.5808165073394775 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.008238792419433594 seconds
+[INFO ] conf_thresh_percentile: 40.0
+[INFO ] num max points: 1000000
+[INFO ] Exporting to GLB with num_max_points: 1000000
+WARNING:py.warnings:/content/Depth-Anything-3/src/depth_anything_3/utils/layout_helpers.py:116: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at /pytorch/torch/csrc/autograd/python_variable_indexing.cpp:357.)
+  result[selector] = overlay
+
+Moviepy - Building video /content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/gs_video/0000_extend.mp4.
+Moviepy - Writing video /content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/gs_video/0000_extend.mp4
+
+Moviepy - Done !
+Moviepy - video ready /content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/gs_video/0000_extend.mp4
+[INFO ] Export Results Done. Time: 24.24264168739319 seconds
+{
+  "summary_path": "/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/step9j_giant_infergs_summary.json",
+  "infer_call": "ok",
+  "sample_count": 26,
+  "exported_file_count": 35,
+  "probe_dir": "/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01",
+  "e3nn_version": "0.6.0",
+  "matrix_to_angles_import_ok": true
+}
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0000.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0001.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0002.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0003.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0004.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0005.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0006.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0007.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0008.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0009.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0010.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0011.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0012.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0013.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0014.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0015.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0016.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0017.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0018.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0019.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0020.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0021.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0022.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0023.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0024.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/depth_vis/0025.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/exports/npz/results.npz
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/gs_ply/0000.ply
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/gs_video/0000_extend.mp4
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/scene.glb
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/scene.jpg
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/step9e_giant_infergs_summary.json
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/step9f_giant_infergs_summary.json
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/step9g_giant_infergs_summary.json
+/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/step9h_giant_infergs_summary.json
 
 ```

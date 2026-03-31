@@ -241,3 +241,13 @@
   recurrence prevention: 実データ UX が必要な段階は mock snapshot だけで closeout せず、bundle reader、生成 artifact、reviewing 側読込の 3 点を必須とする
   remaining work: `colab_job_request.json` を実 `Colab` 実行へ接続し、sample output を本物の `3DGS` 成果物へ置き換える
   evidence path: `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/WorkflowBundleServiceTest.kt`
+- record date: `2026-03-31`
+  target MRL: `MRL-9`
+  target mRL: `mRL-9.1`
+  gate change: `p-done`
+  issue: `DA3 Giant` の Gaussian branch は docs 上の route が見えていても、実行 method、`e3nn` 依存、保存先 contract が未固定で、`gs_ply` / `gs_video` 出力まで到達できていなかった
+  cause: 初回 block では `DepthAnything3.infer(...)` を想定していたが、実 method は `inference(...)` だった。また `e3nn` install 後に stale import が残り、`matrix_to_angles` 未定義で落ちていた
+  resolution: `Step 9d` で repo docs / API を再探索し、`da3-giant` + `infer_gs=True` + `export_format=\"npz-glb-gs_ply-gs_video\"` を固定した。`e3nn` install を `DepthAnything3` import 前へ移し、module reload 後に `inference()` を再実行して `gs_ply/0000.ply`、`gs_video/0000_extend.mp4`、`scene.glb`、`exports/npz/results.npz` の生成に成功した
+  recurrence prevention: `MRL-9` の temp runbook pair では、`e3nn` install を import 前に置く。Gaussian branch failure では dependency 追加後の stale import を疑い、module reload または fresh import 順を先に確認する
+  remaining work: `mRL-9.2` として `gs_ply` を `SuperSplat` または `PlayCanvas Model Viewer` で開き、自由視点 scene として読めることを admin evidence 化する
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/temp-da3Giant_colab_evid_runbook.md`

@@ -1432,3 +1432,140 @@ OK 条件:
 - `hit_count >= 1`
 - `from_pretrained_sig` または hit list から `infer_gs` に到達する手掛かりが得られる
 - `MetricLarge route` 側の file や artifact を変更しない
+
+### Adopted block: giant `infer_gs=True` first export
+
+- 到達:
+  - `da3-giant` の `inference()` を `infer_gs=True` で実行し、`gs_ply`、`gs_video`、`scene.glb`、`exports/npz/results.npz` を保存する
+- 前提:
+  - blank runtime なら、先頭から `準備確認 1-5`、`install 1-4` を済ませている
+  - `results_root` は writable な `MyDrive/trajectreview/modeling` を指す
+- 重要:
+  - `e3nn` は `DepthAnything3` import 前に install する
+  - 既に `depth_anything_3` を import 済みの runtime では stale import で `matrix_to_angles` 未定義が残るので、fresh runtime か module reload が必要
+- 保存先:
+  - `/content/drive/MyDrive/trajectreview/modeling/<session_id>_da3giant_infergs_probe_v01`
+- 期待生成物:
+  - `gs_ply/0000.ply`
+  - `gs_video/0000_extend.mp4`
+  - `scene.glb`
+  - `scene.jpg`
+  - `exports/npz/results.npz`
+  - `depth_vis/*.jpg`
+  - `step9j_giant_infergs_summary.json`
+
+```python
+# Step 9j adopted giant infer_gs export
+from pathlib import Path
+import json
+import shutil
+import zipfile
+import sys
+import subprocess
+import importlib
+
+import torch
+
+def run(cmd):
+    print("RUN", " ".join(cmd))
+    subprocess.run(cmd, check=True)
+
+run(["python", "-m", "pip", "install", "--quiet", "e3nn"])
+
+for name in list(sys.modules.keys()):
+    if name == "depth_anything_3" or name.startswith("depth_anything_3."):
+        del sys.modules[name]
+importlib.invalidate_caches()
+
+repo_root = Path("/content/Depth-Anything-3")
+assert repo_root.exists(), {"repo_not_found": str(repo_root)}
+src_root = repo_root / "src"
+if str(src_root) not in sys.path:
+    sys.path.insert(0, str(src_root))
+
+import e3nn
+from e3nn.o3 import matrix_to_angles
+from depth_anything_3.api import DepthAnything3
+
+selected_doc_path = Path("/content/runbook_selected_input.json")
+assert selected_doc_path.exists(), {"selected_doc_not_found": str(selected_doc_path)}
+selected_doc = json.loads(selected_doc_path.read_text(encoding="utf-8"))
+
+input_path = Path(selected_doc["path"])
+results_root = Path(selected_doc["results_root"])
+assert input_path.exists(), {"input_not_found": str(input_path)}
+results_root.mkdir(parents=True, exist_ok=True)
+
+extract_root = Path("/content/trajectreview_input")
+if extract_root.exists():
+    shutil.rmtree(extract_root)
+extract_root.mkdir(parents=True, exist_ok=True)
+
+if input_path.is_file() and input_path.suffix.lower() == ".zip":
+    with zipfile.ZipFile(input_path, "r") as zf:
+        zf.extractall(extract_root)
+    session_root_candidates = [p.parent for p in extract_root.rglob("session_package.json")]
+    assert session_root_candidates, {"session_package_not_found_under": str(extract_root)}
+    session_root = session_root_candidates[0]
+else:
+    session_root = input_path
+
+images_dir = next((p for p in session_root.rglob("images") if p.is_dir()), None)
+assert images_dir is not None, {"images_dir_not_found_under": str(session_root)}
+image_paths = sorted(list(images_dir.glob("*.jpg")) + list(images_dir.glob("*.png")) + list(images_dir.glob("*.jpeg")))
+assert image_paths, {"images_not_found": str(images_dir)}
+
+sample_images = [str(p) for p in image_paths[: min(60, len(image_paths))]]
+session_id = selected_doc["session_id"]
+probe_dir = results_root / f"{session_id}_da3giant_infergs_probe_v01"
+probe_dir.mkdir(parents=True, exist_ok=True)
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model = DepthAnything3(model_name="da3-giant").to(device)
+outputs = model.inference(
+    image=sample_images,
+    infer_gs=True,
+    process_res=504,
+    export_dir=str(probe_dir),
+    export_format="npz-glb-gs_ply-gs_video",
+)
+
+exported = []
+for p in sorted(probe_dir.rglob("*")):
+    if p.is_file():
+        exported.append(str(p))
+
+summary = {
+    "session_id": session_id,
+    "device": device,
+    "sample_count": len(sample_images),
+    "e3nn_version": getattr(e3nn, "__version__", "unknown"),
+    "matrix_to_angles_import_ok": callable(matrix_to_angles),
+    "output_type": type(outputs).__name__,
+    "probe_dir": str(probe_dir),
+    "exported_files": exported,
+}
+
+summary_path = probe_dir / "step9j_giant_infergs_summary.json"
+summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+
+print(json.dumps({
+    "summary_path": str(summary_path),
+    "sample_count": summary["sample_count"],
+    "probe_dir": summary["probe_dir"],
+    "exported_file_count": len(exported),
+    "e3nn_version": summary["e3nn_version"],
+    "matrix_to_angles_import_ok": summary["matrix_to_angles_import_ok"],
+}, indent=2, ensure_ascii=False))
+for item in exported[:40]:
+    print(item)
+```
+
+OK 条件:
+
+- `sample_count >= 1`
+- `gs_ply/0000.ply` が生成される
+- `gs_video/0000_extend.mp4` が生成される
+- `scene.glb` が生成される
+- `exports/npz/results.npz` が生成される
+- `step9j_giant_infergs_summary.json` が生成される
