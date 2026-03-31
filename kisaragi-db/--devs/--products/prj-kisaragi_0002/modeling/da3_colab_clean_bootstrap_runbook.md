@@ -81,15 +81,19 @@ from pathlib import Path
 import json
 
 shortcut_root = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_")
+explicit_results_root_candidates = [
+    Path("/content/drive/.shortcut-targets-by-id/12jqKG1d7JEsFwFlqzHDdaAf7-HRdBvFT"),
+    shortcut_root / "trajectreview" / "modeling",
+    Path("/content/drive/MyDrive/trajectreview/modeling"),
+]
 scan_roots = [
     shortcut_root / "trajectreview",
     Path("/content/drive/MyDrive/trajectreview"),
 ]
 results_root_candidates = [
-    shortcut_root / "trajectreview" / "results",
-    Path("/content/drive/MyDrive/trajectreview/results"),
+    *explicit_results_root_candidates,
 ]
-results_root = next((p for p in results_root_candidates if p.exists()), results_root_candidates[0])
+results_root = next((p for p in results_root_candidates if p.exists()), explicit_results_root_candidates[0])
 candidate_doc_path = Path("/content/runbook_drive_candidates.json")
 
 def infer_session_id(path: Path) -> str:
@@ -162,6 +166,7 @@ OK 条件:
 
 - `scan_root_exists True` が少なくとも 1 件ある
 - `candidate_count >= 1`
+- `results_root` が優先保存先 folder id `12jqKG1d7JEsFwFlqzHDdaAf7-HRdBvFT` または `trajectreview/modeling` を指す
 - 同じ session zip が `shortcut-targets-by-id` と `MyDrive` の 2 経路で重複表示されない
 - 使いたい session zip または session folder が index 付きで列挙される
 
@@ -344,7 +349,7 @@ OK 条件:
 
 - `事前準備` と `準備確認` が済んでいる
 - `/content/runbook_selected_input.json` に今回使う入力が保存されている
-- 結果出力先は、選択した `session_id` に応じて `trajectreview/results/<session_id>_da3_smoke_v24/` を使う
+- 結果出力先は、選択した `session_id` に応じて `trajectreview/modeling/<session_id>_da3_smoke_v24/` を使う
 
 ### Step 1: session zip を unzip して `session_root` を正規化する
 
@@ -769,7 +774,7 @@ for name in [
 - `事前準備` と `準備確認` が済んでいる
 - `/content/runbook_selected_input.json` に今回使う入力が保存されている
 - `Step 1` から `Step 4.5` が通っている
-- `probe_dir` は選択した `session_id` に応じて `trajectreview/results/<session_id>_da3_multiframe_probe_v01/` を使う
+- `probe_dir` は選択した `session_id` に応じて `trajectreview/modeling/<session_id>_da3_multiframe_probe_v01/` を使う
 
 ### 目的
 
@@ -1262,10 +1267,10 @@ OK 条件:
 ### `MyDrive` 可視 folder への copy block
 
 - 用途:
-  - `world_dir` は `shortcut-targets-by-id` 配下なので、Drive UI 上で見えにくい時がある。
-  - admin が Drive UI から直接見える明示保存先へ成果物を copy したい時は、この block を使う。
+  - 既定では成果物は `modeling` 用 Drive folder へ直接保存する。
+  - それとは別に、admin が `MyDrive` 直下の見やすい path へ複製したい時だけ、この block を使う。
 - 保存先:
-  - `/content/drive/MyDrive/trajectreview_visible_results/prj-kisaragi_0002/<session_id>/world_fusion_v01`
+  - `/content/drive/MyDrive/trajectreview/modeling_visible/<session_id>/world_fusion_v01`
 - 前提:
   - 上の adopted block が通っており、`world_dir` と `session_id` が同じ runtime に残っている。
 
@@ -1275,7 +1280,7 @@ from pathlib import Path
 import shutil
 import json
 
-visible_dir = Path("/content/drive/MyDrive/trajectreview_visible_results/prj-kisaragi_0002") / session_id / "world_fusion_v01"
+visible_dir = Path("/content/drive/MyDrive/trajectreview/modeling_visible") / session_id / "world_fusion_v01"
 visible_dir.mkdir(parents=True, exist_ok=True)
 
 targets = [
@@ -1328,4 +1333,4 @@ OK 条件:
 - `visible_dir` が出る
 - `copied_count >= 1`
 - 少なくとも `world_points_multiframe.ply` または `gaussian_render_optim20.png` 以上が copy される
-- Drive UI の `MyDrive/trajectreview_visible_results/prj-kisaragi_0002/...` から対象 file を確認できる
+- Drive UI の `MyDrive/trajectreview/modeling_visible/...` から対象 file を確認できる
