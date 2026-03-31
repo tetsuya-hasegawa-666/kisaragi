@@ -5341,5 +5341,189 @@ for item in summary["hits_head"][:40]:
 
 ```text
 # Step 9d giant-infer-gs entrypoint probe after baseline pass res
+{
+  "probe_path": "/content/mrl9_entrypoint_probe.json",
+  "hit_count": 244,
+  "from_pretrained_sig": "(pretrained_model_name_or_path: Union[str, pathlib.Path], *, force_download: bool = False, token: Union[str, bool, NoneType] = None, cache_dir: Union[str, pathlib.Path, NoneType] = None, local_files_only: bool = False, revision: Optional[str] = None, **model_kwargs) -> ~T",
+  "api_init_sig": "(self, model_name: 'str' = 'da3-large', **kwargs)"
+}
+/content/Depth-Anything-3/README.md:20: This work presents **Depth Anything 3 (DA3)**, a model that predicts spatially consistent geometry from
+/content/Depth-Anything-3/README.md:22: In pursuit of minimal modeling, DA3 yields two key insights:
+/content/Depth-Anything-3/README.md:26: 🏆 DA3 significantly outperforms
+/content/Depth-Anything-3/README.md:43: - **11-12-2025:** 🚀 New models and [**DA3-Streaming**](da3_streaming/README.md) released! Handle ultra-long video sequence inference with less than 12GB GPU memory via sliding-window streaming inference. Special thanks to [Kai Deng](https://github.com/DengKaiCQ) for his contribution to DA3-Streaming!
+/content/Depth-Anything-3/README.md:46: - **25-11-2025:** Add [Awesome DA3 Projects](#-awesome-da3-projects), a community-driven section featuring DA3-based applications.
+/content/Depth-Anything-3/README.md:54: - 🌟 **DA3 Main Series** (`DA3-Giant`, `DA3-Large`, `DA3-Base`, `DA3-Small`) These are our flagship foundation models, trained with a unified depth-ray representation. By varying the input configuration, a single model can perform a wide range of tasks:
+/content/Depth-Anything-3/README.md:61: - 📐 **DA3 Metric Series** (`DA3Metric-Large`) A specialized model fine-tuned for metric depth estimation in monocular settings, ideal for applications requiring real-world scale.
+/content/Depth-Anything-3/README.md:63: - 🔍 **DA3 Monocular Series** (`DA3Mono-Large`). A dedicated model for high-quality relative monocular depth estimation. Unlike disparity-based models (e.g.,  [Depth Anything 2](https://github.com/DepthAnything/Depth-Anything-V2)), it directly predicts depth, resulting in superior geometric accuracy.
+/content/Depth-Anything-3/README.md:65: 🔗 Leveraging these available models, we developed a **nested series** (`DA3Nested-Giant-Large`). This series combines a any-view giant model with a metric model to reconstruct visual geometry at a real-world metric scale.
+/content/Depth-Anything-3/README.md:104: model = DepthAnything3.from_pretrained("depth-anything/DA3NESTED-GIANT-LARGE")
+/content/Depth-Anything-3/README.md:125: export MODEL_DIR=depth-anything/DA3NESTED-GIANT-LARGE
+/content/Depth-Anything-3/README.md:207: Generally, you should observe that DA3-LARGE achieves comparable results to VGGT.
+/content/Depth-Anything-3/README.md:211: ⚠️ Models with the `-1.1` suffix are retrained after fixing a training bug; prefer these refreshed checkpoints. The original `DA3NESTED-GIANT-LARGE`, `DA3-GIANT`, and `DA3-LARGE` remain available but are deprecated. You could expect much better performance for street scenes with the `-1.1` models.
+/content/Depth-Anything-3/README.md:216: | [DA3NESTED-GIANT-LARGE-1.1](https://huggingface.co/depth-anything/DA3NESTED-GIANT-LARGE-1.1)  | 1.40B     | ✅             | ✅            | ✅             | ✅     | ✅             | ✅         | CC BY-NC 4.0   |
+/content/Depth-Anything-3/README.md:217: | [DA3NESTED-GIANT-LARGE](https://huggingface.co/depth-anything/DA3NESTED-GIANT-LARGE)  | 1.40B     | ✅             | ✅            | ✅             | ✅     | ✅             | ✅         | CC BY-NC 4.0   |
+/content/Depth-Anything-3/README.md:219: | [DA3-GIANT-1.1](https://huggingface.co/depth-anything/DA3-GIANT-1.1)                     | 1.15B     | ✅             | ✅            | ✅             | ✅     |               |           | CC BY-NC 4.0   |
+/content/Depth-Anything-3/README.md:220: | [DA3-GIANT](https://huggingface.co/depth-anything/DA3-GIANT)                     | 1.15B     | ✅             | ✅            | ✅             | ✅     |               |           | CC BY-NC 4.0   |
+/content/Depth-Anything-3/README.md:221: | [DA3-LARGE-1.1](https://huggingface.co/depth-anything/DA3-LARGE-1.1)                     | 0.35B     | ✅             | ✅            | ✅             |       |               |           | CC BY-NC 4.0     |
+/content/Depth-Anything-3/README.md:222: | [DA3-LARGE](https://huggingface.co/depth-anything/DA3-LARGE)                     | 0.35B     | ✅             | ✅            | ✅             |       |               |           | CC BY-NC 4.0     |
+/content/Depth-Anything-3/README.md:223: | [DA3-BASE](https://huggingface.co/depth-anything/DA3-BASE)                     | 0.12B     | ✅             | ✅            | ✅             |       |               |           | Apache 2.0     |
+/content/Depth-Anything-3/README.md:224: | [DA3-SMALL](https://huggingface.co/depth-anything/DA3-SMALL)                     | 0.08B     | ✅             | ✅            | ✅             |       |               |           | Apache 2.0     |
+/content/Depth-Anything-3/README.md:227: | [DA3METRIC-LARGE](https://huggingface.co/depth-anything/DA3METRIC-LARGE)              | 0.35B     | ✅             |              |               |       | ✅             | ✅         | Apache 2.0     |
+/content/Depth-Anything-3/README.md:230: | [DA3MONO-LARGE](https://huggingface.co/depth-anything/DA3MONO-LARGE)                | 0.35B     | ✅             |              |               |               |       | ✅         | Apache 2.0     |
+/content/Depth-Anything-3/README.md:235: - **Monocular Metric Depth**: To obtain metric depth in meters from `DA3METRIC-LARGE`, use `metric_depth = focal * net_output / 300.`, where `focal` is the focal length in pixels (typically the average of fx and fy from the camera intrinsic matrix K). Note that the output from `DA3NESTED-GIANT-LARGE` is already in meters.
+/content/Depth-Anything-3/README.md:239: <summary>AUC3 Results for DA3NESTED-GIANT-LARGE</summary>
+/content/Depth-Anything-3/README.md:254: ## 🏢 Awesome DA3 Projects
+/content/Depth-Anything-3/README.md:256: A community-curated list of Depth Anything 3 integrations across 3D tools, creative pipelines, robotics, and web/VR viewers, including but not limited to these. You are welcome to submit your DA3-based project via PR, and we will review and feature it if applicable.
+/content/Depth-Anything-3/README.md:258: - [DA3-blender](https://github.com/xy-gao/DA3-blender): Blender addon for DA3-based 3D reconstruction from a set of images.
+/content/Depth-Anything-3/README.md:262: - [DA3-ROS2-Wrapper](https://github.com/GerdsenAI/GerdsenAI-Depth-Anything-3-ROS2-Wrapper): Real-time DA3 depth in ROS2 with multi-camera support.
+/content/Depth-Anything-3/README.md:264: - [DA3-ROS2-CPP-TensorRT](https://github.com/ika-rwth-aachen/ros2-depth-anything-v3-trt): DA3 ROS2 C++ TensorRT Inference Node: a ROS2 node for DA3 depth estimation using TensorRT for real-time inference.
+/content/Depth-Anything-3/README.md:266: - [VideoDepthViewer3D](https://github.com/amariichi/VideoDepthViewer3D): Streaming videos with DA3 metric depth to a Three.js/WebXR 3D viewer for VR/stereo playback.
+/content/Depth-Anything-3/docs/API.md:33: model = DepthAnything3.from_pretrained("depth-anything/DA3NESTED-GIANT-LARGE").to("cuda")
+/content/Depth-Anything-3/docs/API.md:73: # Note: infer_gs=True requires da3-giant or da3nested-giant-large model
+/content/Depth-Anything-3/docs/API.md:74: model = DepthAnything3(model_name="da3-giant").to("cuda")
+/content/Depth-Anything-3/docs/API.md:81: export_format="npz-glb-gs_ply-gs_video",
+/content/Depth-Anything-3/docs/API.md:83: infer_gs=True,  # Required for gs_ply and gs_video exports
+/content/Depth-Anything-3/docs/API.md:144: - 🦾 `"da3-giant"` - 1.15B params, any-view model with GS support
+/content/Depth-Anything-3/docs/API.md:150: - 🎯 `"da3nested-giant-large"` - 1.40B params, nested model with all features
+/content/Depth-Anything-3/docs/API.md:162: infer_gs=True,                   # Enable Gaussian branch for gs exports
+/content/Depth-Anything-3/docs/API.md:165: render_exts=render_extrinsics,    # Optional renders for gs_video
+
+```
+
+# codex v64
+
+```text
+## 2026-03-31 v64 Step 9e giant infer_gs first execution
+
+- 基準:
+  - `Step 9d` で `DepthAnything3(model_name="da3-giant")` と `infer_gs=True` が repo 実体として確認できた。
+  - rollback baseline は `MetricLarge route` とする。
+- 目的:
+  - `da3-giant` で `infer_gs=True` を実行し、`gs_ply` / `gs_video` を含む export が最小 1 本通るか確認する。
+- 前提:
+  - `/content/Depth-Anything-3` が存在する。
+  - `/content/runbook_selected_input.json` が存在する。
+  - writable `results_root` が `/content/drive/MyDrive/trajectreview/modeling` に向いている。
+  - `selected input` は zip でも dir でもよい。
+```
+
+```python
+# Step 9e giant infer_gs first execution
+from pathlib import Path
+import json
+import shutil
+import zipfile
+import sys
+import traceback
+
+import torch
+
+repo_root = Path("/content/Depth-Anything-3")
+assert repo_root.exists(), {"repo_not_found": str(repo_root)}
+
+src_root = repo_root / "src"
+if str(src_root) not in sys.path:
+    sys.path.insert(0, str(src_root))
+
+from depth_anything_3.api import DepthAnything3
+
+selected_doc_path = Path("/content/runbook_selected_input.json")
+assert selected_doc_path.exists(), {"selected_doc_not_found": str(selected_doc_path)}
+selected_doc = json.loads(selected_doc_path.read_text(encoding="utf-8"))
+
+input_path = Path(selected_doc["path"])
+results_root = Path(selected_doc["results_root"])
+assert input_path.exists(), {"input_not_found": str(input_path)}
+results_root.mkdir(parents=True, exist_ok=True)
+
+extract_root = Path("/content/trajectreview_input")
+if extract_root.exists():
+    shutil.rmtree(extract_root)
+extract_root.mkdir(parents=True, exist_ok=True)
+
+if input_path.is_file() and input_path.suffix.lower() == ".zip":
+    with zipfile.ZipFile(input_path, "r") as zf:
+        zf.extractall(extract_root)
+    session_root_candidates = [p.parent for p in extract_root.rglob("session_package.json")]
+    assert session_root_candidates, {"session_package_not_found_under": str(extract_root)}
+    session_root = session_root_candidates[0]
+else:
+    session_root = input_path
+
+images_dir = next((p for p in session_root.rglob("images") if p.is_dir()), None)
+assert images_dir is not None, {"images_dir_not_found_under": str(session_root)}
+
+image_paths = sorted(list(images_dir.glob("*.jpg")) + list(images_dir.glob("*.png")) + list(images_dir.glob("*.jpeg")))
+assert image_paths, {"images_not_found": str(images_dir)}
+
+sample_images = image_paths[: min(60, len(image_paths))]
+session_id = selected_doc["session_id"]
+probe_dir = results_root / f"{session_id}_da3giant_infergs_probe_v01"
+probe_dir.mkdir(parents=True, exist_ok=True)
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+summary = {
+    "session_id": session_id,
+    "input_path": str(input_path),
+    "session_root": str(session_root),
+    "images_dir": str(images_dir),
+    "image_count_total": len(image_paths),
+    "image_count_used": len(sample_images),
+    "results_root": str(results_root),
+    "probe_dir": str(probe_dir),
+    "device": device,
+    "model_name": "da3-giant",
+    "infer_gs": True,
+    "export_format": "npz-glb-gs_ply-gs_video",
+}
+
+try:
+    model = DepthAnything3(model_name="da3-giant").to(device)
+    outputs = model.infer(
+        [str(p) for p in sample_images],
+        fps=1,
+        num_frames=len(sample_images),
+        process_res=504,
+        infer_gs=True,
+        export_dir=str(probe_dir),
+        export_format="npz-glb-gs_ply-gs_video",
+        chunk_size=20,
+    )
+    summary["infer_call"] = "ok"
+    summary["output_type"] = type(outputs).__name__
+except Exception as e:
+    summary["infer_call"] = "error"
+    summary["error_type"] = type(e).__name__
+    summary["error_message"] = str(e)
+    summary["traceback_tail"] = traceback.format_exc().splitlines()[-20:]
+
+exported = []
+for p in sorted(probe_dir.rglob("*")):
+    if p.is_file():
+        exported.append(str(p))
+summary["exported_files"] = exported
+
+summary_path = probe_dir / "step9e_giant_infergs_summary.json"
+summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+
+print(json.dumps({
+    "summary_path": str(summary_path),
+    "infer_call": summary["infer_call"],
+    "exported_file_count": len(exported),
+    "probe_dir": str(probe_dir),
+}, indent=2, ensure_ascii=False))
+for item in exported[:40]:
+    print(item)
+if summary["infer_call"] != "ok":
+    print(json.dumps({
+        "error_type": summary.get("error_type"),
+        "error_message": summary.get("error_message"),
+    }, indent=2, ensure_ascii=False))
+```
+
+# admin
+
+```text
+# Step 9e giant infer_gs first execution res
 
 ```
