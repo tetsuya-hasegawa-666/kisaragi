@@ -649,6 +649,61 @@ print(json.dumps({
 }, indent=2, ensure_ascii=False))
 ```
 
+## `3000 step` 追加学習 block
+
+```python
+# gaussian optim 3000
+optimizer = torch.optim.Adam([means, scales, quats, opacities, colors], lr=1e-2)
+
+pred_init_3000, _ = render_once()
+loss_init_3000 = torch.mean((pred_init_3000 - target) ** 2)
+
+loss_history_3000 = [float(loss_init_3000.detach().cpu().item())]
+for step in range(3000):
+    optimizer.zero_grad(set_to_none=True)
+    pred, alpha = render_once()
+    loss = torch.mean((pred - target) ** 2)
+    loss.backward()
+    optimizer.step()
+    loss_history_3000.append(float(loss.detach().cpu().item()))
+
+pred_final_3000, alpha_final_3000 = render_once()
+loss_final_3000 = torch.mean((pred_final_3000 - target) ** 2)
+
+save_png(world_dir / "gaussian_render_optim3000.png", pred_final_3000)
+torch.save({
+    "means": means.detach().cpu(),
+    "scales_log": scales.detach().cpu(),
+    "quats": torch.nn.functional.normalize(quats.detach(), dim=-1).cpu(),
+    "opacities_logit": opacities.detach().cpu(),
+    "colors": colors.detach().cpu(),
+}, world_dir / "gaussian_params_optim3000.pt")
+
+gaussian_summary_3000 = {
+    "backward_ok": True,
+    "point_count": int(means.shape[0]),
+    "loss_init": float(loss_init_3000.detach().cpu().item()),
+    "loss_final": float(loss_final_3000.detach().cpu().item()),
+    "loss_history_head": loss_history_3000[:5],
+    "loss_history_tail": loss_history_3000[-5:],
+    "alpha_mean_final": float(alpha_final_3000.mean().detach().cpu().item()),
+    "optim3000_pt": str(world_dir / "gaussian_params_optim3000.pt"),
+    "optim3000_png": str(world_dir / "gaussian_render_optim3000.png"),
+}
+(world_dir / "gaussian_optim3000_summary.json").write_text(
+    json.dumps(gaussian_summary_3000, indent=2, ensure_ascii=False),
+    encoding="utf-8",
+)
+
+print(json.dumps({
+    "point_count": int(means.shape[0]),
+    "loss_init": gaussian_summary_3000["loss_init"],
+    "loss_final": gaussian_summary_3000["loss_final"],
+    "optim3000_pt": gaussian_summary_3000["optim3000_pt"],
+    "optim3000_png": gaussian_summary_3000["optim3000_png"],
+}, indent=2, ensure_ascii=False))
+```
+
 ## `MyDrive` 可視 folder への copy block
 
 ```python
@@ -681,6 +736,9 @@ targets = [
     "gaussian_params_optim2500.pt",
     "gaussian_render_optim2500.png",
     "gaussian_optim2500_summary.json",
+    "gaussian_params_optim3000.pt",
+    "gaussian_render_optim3000.png",
+    "gaussian_optim3000_summary.json",
 ]
 
 copied = []
