@@ -124,17 +124,29 @@ for root in scan_roots:
         prev = zip_map.get(key)
         if prev is None or candidate_rank(zip_path) < candidate_rank(Path(prev["path"])):
             zip_map[key] = cand
-    for pkg_path in sorted(root.rglob("session_package.json")):
-        session_root = pkg_path.parent
-        key = infer_session_id(session_root)
+    for manifest_path in sorted(root.rglob("session_manifest.json")):
+        session_dir = manifest_path.parent
+        key = infer_session_id(session_dir)
         cand = {
             "kind": "dir",
-            "session_id": infer_session_id(session_root),
-            "label": f"{infer_session_id(session_root)} [dir]",
-            "path": str(session_root),
+            "session_id": infer_session_id(session_dir),
+            "label": f"{infer_session_id(session_dir)} [dir]",
+            "path": str(session_dir),
         }
         prev = dir_map.get(key)
-        if prev is None or candidate_rank(session_root) < candidate_rank(Path(prev["path"])):
+        if prev is None or candidate_rank(session_dir) < candidate_rank(Path(prev["path"])):
+            dir_map[key] = cand
+    for pkg_path in sorted(root.rglob("session_package.json")):
+        session_dir = pkg_path.parent.parent if pkg_path.parent.name == "trajectreview" else pkg_path.parent
+        key = infer_session_id(session_dir)
+        cand = {
+            "kind": "dir",
+            "session_id": infer_session_id(session_dir),
+            "label": f"{infer_session_id(session_dir)} [dir]",
+            "path": str(session_dir),
+        }
+        prev = dir_map.get(key)
+        if prev is None or candidate_rank(session_dir) < candidate_rank(Path(prev["path"])):
             dir_map[key] = cand
 
 candidates = sorted(
@@ -172,7 +184,7 @@ OK 条件:
 NG 時の扱い:
 
 - `scan_root_exists` がすべて `False` の時は、blank runtime で `Drive` 再接続前の可能性が高い。`準備確認 1` を再実行してから、この cell をやり直す。
-- `scan_root_exists` は `True` だが `candidate_count = 0` の時は、その Drive 配下に対象 zip または `session_package.json` がまだ置かれていない。
+- `scan_root_exists` は `True` だが `candidate_count = 0` の時は、その Drive 配下に対象 zip または `session_manifest.json` / `session_package.json` がまだ置かれていない。
 - folder id `12jqKG1d7JEsFwFlqzHDdaAf7-HRdBvFT` は参照 link として見えても、直下で `mkdir` が通らない runtime がある。そのため runbook 正本では `results_root` の writable 先を `MyDrive/trajectreview/modeling` へ寄せる。
 
 ### 準備確認 3: 今回使う入力を画面で 1 件選ぶ
@@ -377,12 +389,17 @@ else:
     dest_root = extract_root / selected_path.name
     shutil.copytree(selected_path, dest_root)
 
-pkg_hits = sorted(extract_root.rglob("session_package.json"))
-assert pkg_hits, f"session_package.json not found under {extract_root}"
-session_pkg = next((p for p in pkg_hits if p.parent.name == "trajectreview"), pkg_hits[0])
+session_manifest_hits = sorted(extract_root.rglob("session_manifest.json"))
+if session_manifest_hits:
+    session_outer = session_manifest_hits[0].parent
+else:
+    pkg_hits = sorted(extract_root.rglob("session_package.json"))
+    assert pkg_hits, f"session_manifest.json / session_package.json not found under {extract_root}"
+    session_outer = pkg_hits[0].parent.parent if pkg_hits[0].parent.name == "trajectreview" else pkg_hits[0].parent
 
-session_root = session_pkg.parent
-session_outer = session_root.parent
+session_root = session_outer / "trajectreview"
+if not session_root.exists():
+    session_root = session_outer
 image_dir_candidates = [
     session_root / "images",
     session_root / "image",
@@ -419,6 +436,7 @@ Path("/content/runbook_session_context.json").write_text(json.dumps(context, ind
 
 print("selected_kind", selected_kind)
 print("selected_path", selected_path)
+print("session_outer_exists", session_outer.exists(), session_outer)
 print("session_root_exists", session_root.exists(), session_root)
 print("images_dir_exists", images_dir.exists(), images_dir)
 files = sorted(images_dir.glob("*.png")) + sorted(images_dir.glob("*.jpg")) + sorted(images_dir.glob("*.jpeg"))
@@ -495,8 +513,8 @@ SESSION_ROOT = Path(context["session_root"])
 OUTPUT_ROOT = Path(context["da3_smoke_output_root"])
 OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
 
-images = sorted((SESSION_ROOT / "trajectreview" / "image").glob("*.png")) + sorted((SESSION_ROOT / "trajectreview" / "image").glob("*.jpg")) + sorted((SESSION_ROOT / "trajectreview" / "image").glob("*.jpeg"))
-assert images, f"images not found under {SESSION_ROOT / 'trajectreview' / 'image'}"
+images = sorted((SESSION_ROOT / "images").glob("*.png")) + sorted((SESSION_ROOT / "images").glob("*.jpg")) + sorted((SESSION_ROOT / "images").glob("*.jpeg"))
+assert images, f"images not found under {SESSION_ROOT / 'images'}"
 
 image_path = images[0]
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -579,10 +597,10 @@ arcore_pose_path = next((p for p in pose_record_candidates if p.exists()), pose_
 
 print("session_root_exists", SESSION_ROOT.exists(), SESSION_ROOT)
 print("bundle_root_exists", SESSION_BUNDLE_ROOT.exists(), SESSION_BUNDLE_ROOT)
-print("arcore_pose_exists", arcore_pose_path.exists(), arcore_pose_path)
+print("pose_record_exists", arcore_pose_path.exists(), arcore_pose_path)
 print("frame_pose_index_exists", (SESSION_ROOT / "frame_pose_index.csv").exists())
 print("camera_calibration_exists", (SESSION_ROOT / "camera_calibration_summary.json").exists())
-print("images_exists", (SESSION_ROOT / "trajectreview" / "image").exists())
+print("images_exists", (SESSION_ROOT / "images").exists())
 ```
 
 #### Step 5b: world point export を生成する
@@ -612,9 +630,22 @@ frame_index = pd.read_csv(SESSION_ROOT / "frame_pose_index.csv")
 with open(arcore_pose_path, "r", encoding="utf-8") as f:
     pose_records = [json.loads(line) for line in f if line.strip()]
 
+pose_record_by_index = {}
+for i, rec in enumerate(pose_records):
+    rec_idx = rec.get("recordIndex", i)
+    pose_record_by_index[int(rec_idx)] = rec
+
+def get_pose_record(pose_idx: int):
+    if pose_idx in pose_record_by_index:
+        return pose_record_by_index[pose_idx]
+    if 0 <= pose_idx < len(pose_records):
+        return pose_records[pose_idx]
+    return None
+
 row = frame_index.iloc[0]
 pose_idx = int(row["pose_record_index"])
-record = pose_records[pose_idx]
+record = get_pose_record(pose_idx)
+assert record is not None, {"pose_index": pose_idx}
 pose = record["pose"]
 intr = record["imageIntrinsics"]
 
@@ -650,6 +681,7 @@ print("saved_ply", ply_path)
 from pathlib import Path
 import json
 import numpy as np
+import pandas as pd
 from PIL import Image
 import torch
 import gsplat
@@ -671,7 +703,24 @@ points = np.load(OUTPUT_ROOT / "world_points_smoke.npy").astype(np.float32)[:128
 
 with arcore_pose_path.open("r", encoding="utf-8") as f:
     poses = [json.loads(line) for line in f if line.strip()]
-pose = poses[1]
+
+pose_record_by_index = {}
+for i, rec in enumerate(poses):
+    rec_idx = rec.get("recordIndex", i)
+    pose_record_by_index[int(rec_idx)] = rec
+
+def get_pose_record(pose_idx: int):
+    if pose_idx in pose_record_by_index:
+        return pose_record_by_index[pose_idx]
+    if 0 <= pose_idx < len(poses):
+        return poses[pose_idx]
+    return None
+
+frame_index = pd.read_csv(SESSION_ROOT / "frame_pose_index.csv")
+row = frame_index.iloc[0]
+pose_idx = int(row["pose_record_index"])
+pose = get_pose_record(pose_idx)
+assert pose is not None, {"pose_index": pose_idx}
 intr = pose["imageIntrinsics"]
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -858,11 +907,16 @@ else:
     dest_root = extract_root / selected_path.name
     shutil.copytree(selected_path, dest_root)
 
-pkg_hits = sorted(extract_root.rglob("session_package.json"))
-assert pkg_hits, f"session_package.json not found under {extract_root}"
-session_pkg = next((p for p in pkg_hits if p.parent.name == "trajectreview"), pkg_hits[0])
-session_root = session_pkg.parent
-session_outer = session_root.parent
+session_manifest_hits = sorted(extract_root.rglob("session_manifest.json"))
+if session_manifest_hits:
+    session_outer = session_manifest_hits[0].parent
+else:
+    pkg_hits = sorted(extract_root.rglob("session_package.json"))
+    assert pkg_hits, f"session_manifest.json / session_package.json not found under {extract_root}"
+    session_outer = pkg_hits[0].parent.parent if pkg_hits[0].parent.name == "trajectreview" else pkg_hits[0].parent
+session_root = session_outer / "trajectreview"
+if not session_root.exists():
+    session_root = session_outer
 image_dir_candidates = [
     session_root / "images",
     session_root / "image",
@@ -875,7 +929,6 @@ image_dir_candidates = [
 ]
 source_images_dir = next((p for p in image_dir_candidates if p.exists()), None)
 frame_pose_path = session_root / "frame_pose_index.csv"
-arcore_pose_path = session_root / "arcore_pose.jsonl"
 pose_record_candidates = [
     session_root / "frame_record.jsonl",
     session_outer / "frame_record.jsonl",
@@ -886,7 +939,7 @@ pose_record_candidates = [
     session_root / "trajectreview" / "arcore_pose.jsonl",
     session_outer / "trajectreview" / "arcore_pose.jsonl",
 ]
-arcore_pose_path = next((p for p in pose_record_candidates if p.exists()), None)
+pose_record_path = next((p for p in pose_record_candidates if p.exists()), None)
 
 assert source_images_dir is not None, {"image_dir_candidates": [str(p) for p in image_dir_candidates]}
 canonical_images_dir = session_root / "images"
@@ -896,7 +949,7 @@ if source_images_dir != canonical_images_dir:
     shutil.copytree(source_images_dir, canonical_images_dir)
 images_dir = canonical_images_dir
 assert frame_pose_path.exists(), frame_pose_path
-assert arcore_pose_path is not None, {"pose_record_candidates": [str(p) for p in pose_record_candidates]}
+assert pose_record_path is not None, {"pose_record_candidates": [str(p) for p in pose_record_candidates]}
 
 probe_dir.mkdir(parents=True, exist_ok=True)
 world_dir.mkdir(parents=True, exist_ok=True)
@@ -953,6 +1006,9 @@ sample_rows = g.iloc[pick].reset_index(drop=True)
 
 window_probe = {
     "session_root": str(session_root),
+    "session_outer": str(session_outer),
+    "images_dir": str(images_dir),
+    "pose_record_path": str(pose_record_path),
     "frame_index_path": str(frame_pose_path),
     "frame_col": "frame_name",
     "derived_frame_mapping": derived_frame_mapping,
@@ -989,8 +1045,20 @@ for rec in window_probe["sample_frames"]:
     })
 (probe_dir / "depth_batch_manifest.json").write_text(json.dumps(depth_manifest, indent=2, ensure_ascii=False), encoding="utf-8")
 
-with arcore_pose_path.open("r", encoding="utf-8") as f:
+with pose_record_path.open("r", encoding="utf-8") as f:
     pose_records = [json.loads(line) for line in f if line.strip()]
+
+pose_record_by_index = {}
+for i, rec in enumerate(pose_records):
+    rec_idx = rec.get("recordIndex", i)
+    pose_record_by_index[int(rec_idx)] = rec
+
+def get_pose_record(pose_idx: int):
+    if pose_idx in pose_record_by_index:
+        return pose_record_by_index[pose_idx]
+    if 0 <= pose_idx < len(pose_records):
+        return pose_records[pose_idx]
+    return None
 
 def quat_to_rot(qx, qy, qz, qw):
     xx, yy, zz = qx*qx, qy*qy, qz*qz
@@ -1008,10 +1076,10 @@ skipped = []
 stride = 24
 for rec in depth_manifest:
     pose_idx = int(rec["pose_record_index"])
-    if pose_idx >= len(pose_records):
-        skipped.append({"frame_name": rec["frame_name"], "reason": "pose_index_out_of_range"})
+    record = get_pose_record(pose_idx)
+    if record is None:
+        skipped.append({"frame_name": rec["frame_name"], "reason": "pose_index_not_found", "pose_record_index": pose_idx})
         continue
-    record = pose_records[pose_idx]
     intr = record["imageIntrinsics"]
     pose = record["pose"]
     depth = np.load(rec["depth_path"]).astype(np.float32)
@@ -1062,6 +1130,7 @@ world_summary = {
     "per_frame": per_frame,
     "npy_path": str(world_dir / "world_points_multiframe.npy"),
     "ply_path": str(world_dir / "world_points_multiframe.ply"),
+    "pose_record_path": str(pose_record_path),
 }
 (world_dir / "world_fusion_summary.json").write_text(json.dumps(world_summary, indent=2, ensure_ascii=False), encoding="utf-8")
 
@@ -1098,7 +1167,8 @@ target_h, target_w = image.shape[:2]
 target = torch.from_numpy(image.astype(np.float32) / 255.0).to(device)
 
 pose_index = int(first_rec["pose_record_index"])
-pose_rec = pose_records[pose_index]
+pose_rec = get_pose_record(pose_index)
+assert pose_rec is not None, {"pose_index": pose_index}
 intr = pose_rec["imageIntrinsics"]
 pose = pose_rec["pose"]
 R_wc = quat_to_rot(float(pose["qx"]), float(pose["qy"]), float(pose["qz"]), float(pose["qw"]))
@@ -1196,6 +1266,7 @@ gaussian_summary = {
 (world_dir / "gaussian_optim20_summary.json").write_text(json.dumps(gaussian_summary, indent=2, ensure_ascii=False), encoding="utf-8")
 
 print(json.dumps({
+    "pose_record_path": str(pose_record_path),
     "window_span_sec": window_probe["window_span_sec"],
     "sample_frame_count": window_probe["sample_frame_count"],
     "processed_frames": world_summary["processed_frames"],
@@ -1628,13 +1699,20 @@ extract_root.mkdir(parents=True, exist_ok=True)
 if input_path.is_file() and input_path.suffix.lower() == ".zip":
     with zipfile.ZipFile(input_path, "r") as zf:
         zf.extractall(extract_root)
-    session_root_candidates = [p.parent for p in extract_root.rglob("session_package.json")]
-    assert session_root_candidates, {"session_package_not_found_under": str(extract_root)}
-    session_root = session_root_candidates[0]
+    session_manifest_hits = sorted(extract_root.rglob("session_manifest.json"))
+    if session_manifest_hits:
+        session_outer = session_manifest_hits[0].parent
+    else:
+        session_package_hits = sorted(extract_root.rglob("session_package.json"))
+        assert session_package_hits, {"session_manifest_not_found_under": str(extract_root)}
+        session_outer = session_package_hits[0].parent.parent if session_package_hits[0].parent.name == "trajectreview" else session_package_hits[0].parent
 else:
-    session_root = input_path
+    session_outer = input_path
 
-session_outer = session_root.parent
+session_root = session_outer / "trajectreview"
+if not session_root.exists():
+    session_root = session_outer
+
 image_dir_candidates = [
     session_root / "images",
     session_root / "image",
