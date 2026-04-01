@@ -475,14 +475,14 @@ proof_prediction = model.inference(
     infer_gs=False,
     process_res=504,
     export_dir=str(proof_metric_dir),
-    export_format="mini_npz-glb-depth_vis",
+    export_format="mini_npz-depth_vis",
 )
 prod_prediction = model.inference(
     image=prod_images,
     infer_gs=False,
     process_res=504,
     export_dir=str(prod_metric_dir),
-    export_format="mini_npz-glb-depth_vis",
+    export_format="mini_npz-depth_vis",
 )
 
 results_npz = np.load(prod_metric_dir / "exports" / "npz" / "results.npz")
