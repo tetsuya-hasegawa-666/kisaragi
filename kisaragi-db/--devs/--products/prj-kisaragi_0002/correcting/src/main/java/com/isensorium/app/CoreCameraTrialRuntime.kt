@@ -572,11 +572,9 @@ class OffscreenArCorePoseSampler(
     private var eglSurface: EGLSurface = EGL14.EGL_NO_SURFACE
     private var cameraTextureId = 0
     private var diagnostics = FrameRecordSamplerDiagnostics()
-    @Volatile private var samplePosted = false
 
     private val samplingRunnable = object : Runnable {
         override fun run() {
-            samplePosted = false
             if (!running) {
                 return
             }
@@ -679,6 +677,9 @@ class OffscreenArCorePoseSampler(
                     }
                 }
             }
+            if (running) {
+                samplerHandler?.post(this)
+            }
         }
     }
 
@@ -698,21 +699,15 @@ class OffscreenArCorePoseSampler(
             }
             imageSaveQueue.start()
             initializeGl(session)
+            lastFrameTimestampNs = -1L
             updateIndex = 0L
             diagnostics = FrameRecordSamplerDiagnostics()
+            samplerHandler?.post(samplingRunnable)
         }
     }
 
     fun requestSample() {
-        if (!running) {
-            return
-        }
-        val handler = samplerHandler ?: return
-        if (samplePosted) {
-            return
-        }
-        samplePosted = true
-        handler.post(samplingRunnable)
+        // The sampler runs continuously on its dedicated thread.
     }
 
     fun stop(): FrameRecordSamplerDiagnostics {
@@ -725,7 +720,6 @@ class OffscreenArCorePoseSampler(
             session = null
             lastFrameTimestampNs = -1L
             updateIndex = 0L
-            samplePosted = false
             samplerThread.quitSafely()
             samplerHandler = null
         }

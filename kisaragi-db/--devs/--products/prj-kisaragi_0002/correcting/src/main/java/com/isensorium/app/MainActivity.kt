@@ -19,6 +19,7 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
@@ -71,6 +72,8 @@ class MainActivity : AppCompatActivity() {
     private var latestSessionRecording: Boolean = false
     private var stopInProgress: Boolean = false
     private var stopRequestedElapsedSeconds: Long? = null
+    private var storedSessionsLoadInProgress: Boolean = false
+    private var storedSessionsCache: List<StoredSessionSummary> = emptyList()
     private val selectedTransferSessionIds: MutableSet<String> = linkedSetOf()
     private val selectedTransferGroupsState: MutableSet<TransferGroup> =
         linkedSetOf(
@@ -247,6 +250,7 @@ class MainActivity : AppCompatActivity() {
         refreshRecordButtonState()
         renderBusyIndicator()
         updateBlockVisibility(recording = false)
+        refreshStoredSessionsCacheAsync()
     }
 
     override fun onDestroy() {
@@ -826,12 +830,12 @@ class MainActivity : AppCompatActivity() {
             binding.transferExecuteBlock.visibility = View.GONE
             return
         }
-        val hasStoredSessions = loadStoredSessions().isNotEmpty()
+        val hasStoredSessions = storedSessionsCache.isNotEmpty()
         binding.transferBlock.visibility =
             if (!recordingCoordinator.isRecording() && (currentSession != null || hasStoredSessions)) View.VISIBLE else View.GONE
         val selectedSessions = selectedTransferSessions()
-        binding.selectTransferSessionButton.isEnabled = !recordingCoordinator.isRecording()
-        binding.manageTransferSessionsButton.isEnabled = !recordingCoordinator.isRecording() && hasStoredSessions
+        binding.selectTransferSessionButton.isEnabled = !recordingCoordinator.isRecording() && !storedSessionsLoadInProgress
+        binding.manageTransferSessionsButton.isEnabled = !recordingCoordinator.isRecording() && hasStoredSessions && !storedSessionsLoadInProgress
         binding.selectTransferGroupsButton.isEnabled = !recordingCoordinator.isRecording()
         binding.transferTargetButton.visibility = View.VISIBLE
         binding.transferExecuteBlock.visibility = binding.transferBlock.visibility
@@ -1074,7 +1078,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun selectedTransferSessions(): List<RecordingSession> {
-        val storedById = loadStoredSessions().associateBy { it.sessionId }
+        val storedById = storedSessionsCache.associateBy { it.sessionId }
         if (selectedTransferSessionIds.isEmpty()) {
             return currentSession?.let(::listOf) ?: emptyList()
         }
@@ -1107,10 +1111,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showTransferSessionPicker() {
-        loadStoredSessionsWithFreshDataCheck("転送Data 一覧を更新中です。") { summaries ->
+        loadStoredSessionsForPopup(
+            triggerButton = binding.selectTransferSessionButton,
+            progressMessage = "転送Data 一覧を読込中です。",
+        ) { summaries ->
             if (summaries.isEmpty()) {
                 Toast.makeText(this, "転送できる data がまだありません", Toast.LENGTH_SHORT).show()
-                return@loadStoredSessionsWithFreshDataCheck
+                return@loadStoredSessionsForPopup
             }
             val root =
                 LinearLayout(this).apply {
@@ -1244,10 +1251,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showManageStoredSessionsDialog() {
-        loadStoredSessionsWithFreshDataCheck("保存済み Data 一覧を更新中です。") { initialSummaries ->
+        loadStoredSessionsForPopup(
+            triggerButton = binding.manageTransferSessionsButton,
+            progressMessage = "保存済み Data 一覧を読込中です。",
+        ) { initialSummaries ->
             if (initialSummaries.isEmpty()) {
                 Toast.makeText(this, "保存済み data がまだありません", Toast.LENGTH_SHORT).show()
-                return@loadStoredSessionsWithFreshDataCheck
+                return@loadStoredSessionsForPopup
             }
             val summaries = initialSummaries.toMutableList()
             val deleteTargets = linkedSetOf<String>()
@@ -1347,11 +1357,11 @@ class MainActivity : AppCompatActivity() {
                     if (summary.hasConcerns) {
                         append("\n${summary.concernLine()}")
                     }
-                }
+            }
 
             fun refreshSummaries(): Boolean {
                 summaries.clear()
-                summaries.addAll(loadStoredSessions())
+                summaries.addAll(storedSessionsCache)
                 deleteTargets.retainAll(summaries.map { it.sessionId }.toSet())
                 if (summaries.isEmpty()) {
                     dialog.dismiss()
@@ -1441,6 +1451,75 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun loadStoredSessionsForPopup(
+        triggerButton: Button,
+        progressMessage: String,
+        onLoaded: (List<StoredSessionSummary>) -> Unit,
+    ) {
+        if (storedSessionsLoadInProgress) {
+            return
+        }
+        triggerButton.isEnabled = false
+        val progressDialog = buildPopupLoadingDialog(progressMessage)
+        progressDialog.show()
+        refreshStoredSessionsCacheAsync {
+            progressDialog.dismiss()
+            renderTransferState(null)
+            onLoaded(it)
+        }
+    }
+
+    private fun buildPopupLoadingDialog(message: String): AlertDialog {
+        val root =
+            LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(dp(20), dp(20), dp(20), dp(20))
+            }
+        val progress =
+            ProgressBar(this).apply {
+                isIndeterminate = true
+            }
+        val text =
+            TextView(this).apply {
+                this.text = message
+                layoutParams =
+                    LinearLayout.LayoutParams(
+                        0,
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        1f,
+                    ).apply {
+                        marginStart = dp(16)
+                    }
+            }
+        root.addView(progress)
+        root.addView(text)
+        return AlertDialog.Builder(this)
+            .setTitle("読込中")
+            .setView(root)
+            .setCancelable(false)
+            .create()
+    }
+
+    private fun refreshStoredSessionsCacheAsync(
+        onLoaded: ((List<StoredSessionSummary>) -> Unit)? = null,
+    ) {
+        if (storedSessionsLoadInProgress) {
+            return
+        }
+        storedSessionsLoadInProgress = true
+        renderTransferState(null)
+        thread {
+            val loaded = loadStoredSessions()
+            runOnUiThread {
+                storedSessionsLoadInProgress = false
+                storedSessionsCache = loaded
+                renderTransferState(null)
+                updateBlockVisibility(recordingCoordinator.isRecording())
+                onLoaded?.invoke(loaded)
+            }
+        }
+    }
+
     private fun loadStoredSessionsWithFreshDataCheck(
         progressMessage: String,
         onLoaded: (List<StoredSessionSummary>) -> Unit,
@@ -1508,6 +1587,7 @@ class MainActivity : AppCompatActivity() {
         if (currentSession?.sessionId == summary.sessionId) {
             currentSession = buildRecordingSessionFromDir(targetDir)
         }
+        storedSessionsCache = loadStoredSessions()
         renderTransferState("データ名を変更しました。")
         refreshSessionDetails(currentSession)
         return true
@@ -1519,8 +1599,9 @@ class MainActivity : AppCompatActivity() {
         }
         var deletedCount = 0
         var archiveDeleted = false
+        val summariesById = storedSessionsCache.associateBy { it.sessionId }
         sessionIds.forEach { sessionId ->
-            val summary = loadStoredSessions().firstOrNull { it.sessionId == sessionId } ?: return@forEach
+            val summary = summariesById[sessionId] ?: return@forEach
             val localDeleted = summary.sessionDir.deleteRecursively()
             val mirroredDeleted = deleteSessionFromSelectedLocalDestination(sessionId)
             archiveDeleted = deleteGeneratedArchivesFromSelectedLocalDestination() || archiveDeleted
@@ -1534,12 +1615,13 @@ class MainActivity : AppCompatActivity() {
                     renderCorrectingDataCheck(null)
                 }
                 if (currentSession?.sessionId == sessionId) {
-                    currentSession = loadStoredSessions().firstOrNull()?.recordingSession
+                    currentSession = storedSessionsCache.firstOrNull { it.sessionId != sessionId }?.recordingSession
                 }
             } else if (mirroredDeleted) {
                 selectedTransferSessionIds.remove(sessionId)
             }
         }
+        storedSessionsCache = storedSessionsCache.filterNot { sessionIds.contains(it.sessionId) }
         renderTransferState(
             if (deletedCount > 0) {
                 if (archiveDeleted) {
@@ -1768,7 +1850,7 @@ class MainActivity : AppCompatActivity() {
         binding.sessionText.visibility = if (currentSession != null) View.VISIBLE else View.GONE
         binding.filesText.visibility = if (currentSession != null) View.VISIBLE else View.GONE
         binding.transferBlock.visibility =
-            if (!recording && (currentSession != null || loadStoredSessions().isNotEmpty())) View.VISIBLE else View.GONE
+            if (!recording && (currentSession != null || storedSessionsCache.isNotEmpty())) View.VISIBLE else View.GONE
         binding.transferExecuteBlock.visibility = binding.transferBlock.visibility
     }
 

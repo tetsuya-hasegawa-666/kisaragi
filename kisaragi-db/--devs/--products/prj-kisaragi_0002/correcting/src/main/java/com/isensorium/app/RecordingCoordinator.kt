@@ -502,10 +502,13 @@ class RecordingCoordinator(
                     cameraManager.getCameraCharacteristics(cameraId).get(CameraCharacteristics.LENS_FACING) ==
                         CameraCharacteristics.LENS_FACING_BACK
                 } ?: return null
-            cameraManager.getCameraCharacteristics(backCameraId).get(CameraCharacteristics.LENS_DISTORTION)?.toList()
+            readLensDistortion(backCameraId)
         } catch (_: Exception) {
             null
         }
+
+    private fun readLensDistortion(cameraId: String): List<Float>? =
+        cameraManager.getCameraCharacteristics(cameraId).get(CameraCharacteristics.LENS_DISTORTION)?.toList()
 
     private class ReplacementPreviewRenderer(
         private val imageView: ImageView,
@@ -608,6 +611,10 @@ class RecordingCoordinator(
         private val lifecycleMachine = TrialSharedCameraLifecycleMachine().apply { markPreviewReady() }
         private val cameraThread = HandlerThread("isensorium-shared-camera-trial").apply { start() }
         private val cameraHandler = Handler(cameraThread.looper)
+        private val captureResultThread = HandlerThread("isensorium-shared-camera-capture-result").apply { start() }
+        private val captureResultHandler = Handler(captureResultThread.looper)
+        private val videoCallbackThread = HandlerThread("isensorium-shared-camera-video").apply { start() }
+        private val videoCallbackHandler = Handler(videoCallbackThread.looper)
         private val poseResultThread = HandlerThread("isensorium-shared-camera-pose").apply { start() }
         private val poseResultHandler = Handler(poseResultThread.looper)
         private val cameraManager = context.getSystemService(CameraManager::class.java)
@@ -623,6 +630,7 @@ class RecordingCoordinator(
         private var sharedCameraResumed = false
         private var closingRuntime = false
         private var previewRotationDegrees = 0
+        private var cachedLensDistortion: List<Float>? = null
         private var collectorStatus: MutableMap<String, String> = mutableMapOf(
             "camera2" to "idle",
             "sharedCamera" to "idle",
@@ -735,6 +743,8 @@ class RecordingCoordinator(
             replacementPreviewRenderer.stop()
             cameraExecutor.shutdown()
             runCatching { cameraThread.quitSafely() }
+            runCatching { captureResultThread.quitSafely() }
+            runCatching { videoCallbackThread.quitSafely() }
             runCatching { poseResultThread.quitSafely() }
         }
 
@@ -761,6 +771,7 @@ class RecordingCoordinator(
                 sharedArSession = arSession
                 setCollectorStatus(session, "sharedCamera", "ar_session_created")
                 val cameraId = resolveBackCameraId(arSession)
+                cachedLensDistortion = readLensDistortion(cameraId)
                 updatePreviewRotation(cameraId)
                 replacementPreviewRenderer.setRotationDegrees(previewRotationDegrees)
                 prepareOutputRuntime(session)
@@ -802,9 +813,9 @@ class RecordingCoordinator(
                 TrialCpuImageVideoRecorder(
                     outputFile = session.videoFile,
                     recordingSize = Size(640, 480),
-                    callbackHandler = cameraHandler,
+                    callbackHandler = videoCallbackHandler,
                 ).also { it.prepare() }
-            videoRecorder?.setPreviewListener(replacementPreviewRenderer::onFrame, previewFps = 5)
+            videoRecorder?.setPreviewListener(replacementPreviewRenderer::onFrame, previewFps = 1)
             sessionManager.appendCollectorStatus(session, "video", "prepared")
         }
 
@@ -885,7 +896,7 @@ class RecordingCoordinator(
                         override fun onConfigured(cameraCaptureSession: CameraCaptureSession) {
                             captureSession = cameraCaptureSession
                             setCollectorStatus(session, "sharedCamera", "capture_session_configured")
-                            cameraCaptureSession.setRepeatingRequest(request.build(), captureCallback, cameraHandler)
+                            cameraCaptureSession.setRepeatingRequest(request.build(), captureCallback, captureResultHandler)
                             checkNotNull(videoRecorder).start()
                             setCollectorStatus(session, "video", "recording")
                             lifecycleMachine.markRunning()
@@ -937,7 +948,7 @@ class RecordingCoordinator(
             runCatching { activeSession.resume() }
                 .onSuccess {
                     sharedCameraResumed = true
-                    sharedCaptureCallback?.let { activeSession.sharedCamera.setCaptureCallback(it, cameraHandler) }
+                    sharedCaptureCallback?.let { activeSession.sharedCamera.setCaptureCallback(it, captureResultHandler) }
                     sessionManager.appendCollectorStatus(recordingSession, "arcore", "resumed")
                     lastPoseSamplerDiagnostics = poseSampler?.stop()
                     poseSampler =
@@ -948,7 +959,7 @@ class RecordingCoordinator(
                             recordingSession.recordingConfig.saveOnlyWhenTracking,
                         ) { poseFrame ->
                             val nowNs = SystemClock.elapsedRealtimeNanos()
-                            val lensDistortion = readBackCameraLensDistortion()
+                            val lensDistortion = cachedLensDistortion
                             sessionManager.appendArCorePose(
                                 recordingSession,
                                 ArCorePoseSample(
@@ -1039,6 +1050,7 @@ class RecordingCoordinator(
             videoRecorder = null
             poseSampler = null
             lastPoseSamplerDiagnostics = null
+            cachedLensDistortion = null
             sharedCameraHostResumed = false
             sharedCameraResumed = false
             closingRuntime = false
