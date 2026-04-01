@@ -393,8 +393,14 @@ image_dir_candidates = [
     session_outer / "trajectreview" / "images",
     session_outer / "trajectreview" / "image",
 ]
-images_dir = next((p for p in image_dir_candidates if p.exists()), None)
-assert images_dir is not None, {"image_dir_candidates": [str(p) for p in image_dir_candidates]}
+source_images_dir = next((p for p in image_dir_candidates if p.exists()), None)
+assert source_images_dir is not None, {"image_dir_candidates": [str(p) for p in image_dir_candidates]}
+canonical_images_dir = session_root / "images"
+if source_images_dir != canonical_images_dir:
+    if canonical_images_dir.exists():
+        shutil.rmtree(canonical_images_dir)
+    shutil.copytree(source_images_dir, canonical_images_dir)
+images_dir = canonical_images_dir
 smoke_output_root = results_root / f"{session_id}_da3_smoke_v24"
 multiframe_probe_root = results_root / f"{session_id}_da3_multiframe_probe_v01"
 context = {
@@ -403,6 +409,7 @@ context = {
     "session_id": session_id,
     "session_root": str(session_root),
     "session_outer": str(session_outer),
+    "source_images_dir": str(source_images_dir),
     "images_dir": str(images_dir),
     "results_root": str(results_root),
     "da3_smoke_output_root": str(smoke_output_root),
@@ -852,13 +859,19 @@ image_dir_candidates = [
     session_outer / "trajectreview" / "images",
     session_outer / "trajectreview" / "image",
 ]
-images_dir = next((p for p in image_dir_candidates if p.exists()), None)
+source_images_dir = next((p for p in image_dir_candidates if p.exists()), None)
 frame_pose_path = session_root / "frame_pose_index.csv"
 arcore_pose_path = session_root / "arcore_pose.jsonl"
 if not arcore_pose_path.exists():
     arcore_pose_path = session_outer / "arcore_pose.jsonl"
 
-assert images_dir is not None, {"image_dir_candidates": [str(p) for p in image_dir_candidates]}
+assert source_images_dir is not None, {"image_dir_candidates": [str(p) for p in image_dir_candidates]}
+canonical_images_dir = session_root / "images"
+if source_images_dir != canonical_images_dir:
+    if canonical_images_dir.exists():
+        shutil.rmtree(canonical_images_dir)
+    shutil.copytree(source_images_dir, canonical_images_dir)
+images_dir = canonical_images_dir
 assert frame_pose_path.exists(), frame_pose_path
 assert arcore_pose_path.exists(), arcore_pose_path
 
@@ -1598,8 +1611,25 @@ if input_path.is_file() and input_path.suffix.lower() == ".zip":
 else:
     session_root = input_path
 
-images_dir = next((p for p in session_root.rglob("image") if p.is_dir()), None)
-assert images_dir is not None, {"images_dir_not_found_under": str(session_root)}
+session_outer = session_root.parent
+image_dir_candidates = [
+    session_root / "images",
+    session_root / "image",
+    session_root / "trajectreview" / "images",
+    session_root / "trajectreview" / "image",
+    session_outer / "images",
+    session_outer / "image",
+    session_outer / "trajectreview" / "images",
+    session_outer / "trajectreview" / "image",
+]
+source_images_dir = next((p for p in image_dir_candidates if p.exists()), None)
+assert source_images_dir is not None, {"image_dir_candidates": [str(p) for p in image_dir_candidates]}
+canonical_images_dir = session_root / "images"
+if source_images_dir != canonical_images_dir:
+    if canonical_images_dir.exists():
+        shutil.rmtree(canonical_images_dir)
+    shutil.copytree(source_images_dir, canonical_images_dir)
+images_dir = canonical_images_dir
 image_paths = sorted(list(images_dir.glob("*.jpg")) + list(images_dir.glob("*.png")) + list(images_dir.glob("*.jpeg")))
 assert image_paths, {"images_not_found": str(images_dir)}
 
