@@ -60,6 +60,8 @@ import com.google.android.gms.location.Priority
 import com.google.ar.core.ArCoreApk
 import com.google.ar.core.Config
 import com.google.ar.core.Session
+import com.google.ar.core.TrackingState
+import com.google.ar.core.exceptions.NotYetAvailableException
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -919,6 +921,9 @@ class RecordingCoordinator(
                         OffscreenArCorePoseSampler(
                             cameraHandler,
                             recordingSession.recordingConfig.arCoreIntervalMs,
+                            recordingSession.imagesDir,
+                            recordingSession.recordingConfig.frameRecordEveryNUpdates,
+                            recordingSession.recordingConfig.saveOnlyWhenTracking,
                         ) { poseFrame ->
                             val nowNs = SystemClock.elapsedRealtimeNanos()
                             val lensDistortion = readBackCameraLensDistortion()
@@ -927,11 +932,13 @@ class RecordingCoordinator(
                                 ArCorePoseSample(
                                     sessionId = recordingSession.sessionId,
                                     recordIndex = recordingSession.arCoreSampleCount + 1L,
+                                    updateIndex = poseFrame.updateIndex,
                                     frameTimestampNs = poseFrame.frameTimestampNs,
-                                    captureTimestampNs = poseFrame.frameTimestampNs,
+                                    captureTimestampNs = poseFrame.captureTimestampNs,
                                     elapsedRealtimeNanos = nowNs,
                                     wallTimeMillis = System.currentTimeMillis(),
                                     trackingState = poseFrame.trackingState,
+                                    trackingFailureReason = poseFrame.trackingFailureReason,
                                     translation = poseFrame.translation.toList(),
                                     rotationQuaternion = poseFrame.rotationQuaternion.toList(),
                                     imageFocalLength = poseFrame.imageFocalLength,
@@ -951,6 +958,7 @@ class RecordingCoordinator(
                                     lensDistortionFailureReason = null,
                                     lensDistortion = lensDistortion,
                                     lensDistortionModel = if (lensDistortion != null) "android_lens_distortion" else null,
+                                    imageFileName = poseFrame.imageFileName,
                                 ),
                             )
                             recordingSession.arCoreSampleCount += 1
@@ -1311,6 +1319,7 @@ class RecordingCoordinator(
         private var session: RecordingSession? = null
         private var arSession: com.google.ar.core.Session? = null
         private var lastLoggedFrameAtNs: Long = 0L
+        private var arCoreUpdateIndex: Long = 0L
         private var textureId: Int = 0
         private var textureBound: Boolean = false
         private var hostResumed: Boolean = false
@@ -1349,28 +1358,51 @@ class RecordingCoordinator(
 
             try {
                 val frame = activeSession.update()
-                val nowNs = SystemClock.elapsedRealtimeNanos()
-                if (nowNs - lastLoggedFrameAtNs < recordingSession.recordingConfig.arCoreIntervalMs * 1_000_000L) {
+                arCoreUpdateIndex += 1
+                val updateIndex = arCoreUpdateIndex
+                if ((updateIndex % recordingSession.recordingConfig.frameRecordEveryNUpdates.toLong()) != 0L) {
                     return
                 }
                 val camera = frame.camera
-                val pose = camera.displayOrientedPose
+                if (recordingSession.recordingConfig.saveOnlyWhenTracking && camera.trackingState != TrackingState.TRACKING) {
+                    return
+                }
+                val savedImage =
+                    try {
+                        frame.acquireCameraImage().useImage { image ->
+                            saveFrameRecordImage(
+                                image = image,
+                                outputDir = recordingSession.imagesDir,
+                                timestampNs = frame.timestamp,
+                            )
+                        }
+                    } catch (_: NotYetAvailableException) {
+                        return
+                    } catch (_: Exception) {
+                        return
+                    }
+                val nowNs = SystemClock.elapsedRealtimeNanos()
+                val pose = camera.pose
+                val captureTimestampNs = runCatching { frame.androidCameraTimestamp }.getOrDefault(frame.timestamp)
                 val imageIntrinsicsResult = runCatching { camera.imageIntrinsics }
                 val textureIntrinsicsResult = runCatching { camera.textureIntrinsics }
                 val lensDistortionResult = runCatching { readBackCameraLensDistortion() }
                 val imageIntrinsics = imageIntrinsicsResult.getOrNull()
                 val textureIntrinsics = textureIntrinsicsResult.getOrNull()
                 val lensDistortion = lensDistortionResult.getOrNull()
+                val trackingFailureReason = runCatching { camera.trackingFailureReason.name }.getOrNull()
                 sessionManager.appendArCorePose(
                     recordingSession,
                     ArCorePoseSample(
                         sessionId = recordingSession.sessionId,
                         recordIndex = recordingSession.arCoreSampleCount + 1L,
+                        updateIndex = updateIndex,
                         frameTimestampNs = frame.timestamp,
-                        captureTimestampNs = frame.timestamp,
+                        captureTimestampNs = captureTimestampNs,
                         elapsedRealtimeNanos = nowNs,
                         wallTimeMillis = System.currentTimeMillis(),
                         trackingState = camera.trackingState.name,
+                        trackingFailureReason = trackingFailureReason,
                         translation = pose.translation.toList(),
                         rotationQuaternion = pose.rotationQuaternion.toList(),
                         imageFocalLength = imageIntrinsics?.focalLength?.toList() ?: emptyList(),
@@ -1390,6 +1422,7 @@ class RecordingCoordinator(
                         lensDistortionFailureReason = lensDistortionResult.exceptionOrNull()?.javaClass?.simpleName,
                         lensDistortion = lensDistortion,
                         lensDistortionModel = if (lensDistortion != null) "android_lens_distortion" else null,
+                        imageFileName = savedImage.fileName,
                     ),
                 )
                 recordingSession.arCoreSampleCount += 1
@@ -1431,6 +1464,7 @@ class RecordingCoordinator(
                 arSession = null
                 session = null
                 lastLoggedFrameAtNs = 0L
+                arCoreUpdateIndex = 0L
                 textureBound = false
                 started = false
             }
@@ -1511,6 +1545,7 @@ data class RecordingSession(
     val gnssFile: File,
     val bleFile: File,
     val arCoreFile: File,
+    val imagesDir: File,
     val frameTimestampsFile: File,
     val videoEventsFile: File,
     val timebase: SessionTimebase,
@@ -1542,9 +1577,11 @@ data class RecordingConfig(
     val imuIntervalMs: Long = 20L,
     val gnssIntervalMs: Long = 1000L,
     val bleIntervalMs: Long = 2000L,
-    val arCoreIntervalMs: Long = 2000L,
+    val arCoreIntervalMs: Long = 33L,
     val bleEnabled: Boolean = true,
     val arCoreEnabled: Boolean = true,
+    val frameRecordEveryNUpdates: Int = 1,
+    val saveOnlyWhenTracking: Boolean = true,
     val recordingMode: RecordingMode = RecordingMode.STANDARD_HANDHELD,
 )
 
@@ -1586,6 +1623,7 @@ data class BleEvent(
 data class ArCorePoseSample(
     val sessionId: String,
     val recordIndex: Long,
+    val updateIndex: Long,
     val frameTimestampNs: Long = 0L,
     val captureTimestampNs: Long = 0L,
     val elapsedRealtimeNanos: Long,
@@ -1611,6 +1649,7 @@ data class ArCorePoseSample(
     val lensDistortionFailureReason: String? = null,
     val lensDistortion: List<Float>? = null,
     val lensDistortionModel: String? = null,
+    val imageFileName: String? = null,
 )
 
 class SessionManager(
@@ -1638,7 +1677,8 @@ class SessionManager(
             imuFile = File(root, "imu.csv"),
             gnssFile = File(root, "gnss.csv"),
             bleFile = File(root, "ble_scan.jsonl"),
-            arCoreFile = File(root, "arcore_pose.jsonl"),
+            arCoreFile = File(root, "frame_record.jsonl"),
+            imagesDir = File(root, "images"),
             frameTimestampsFile = File(root, "video_frame_timestamps.csv"),
             videoEventsFile = File(root, "video_events.jsonl"),
             timebase = SessionTimebase(startedWall, startedMono),
@@ -1673,7 +1713,7 @@ class SessionManager(
                         .put(JSONObject().put("name", "imu").put("file", session.imuFile.name))
                         .put(JSONObject().put("name", "gnss").put("file", session.gnssFile.name))
                         .put(JSONObject().put("name", "ble").put("file", session.bleFile.name))
-                        .put(JSONObject().put("name", "arcore").put("file", session.arCoreFile.name)),
+                        .put(JSONObject().put("name", "frame_record").put("file", session.arCoreFile.name).put("imagesDir", session.imagesDir.name)),
                 )
                 .put("collectorStatus", JSONObject())
                 .toString(2),
@@ -1787,6 +1827,7 @@ class SessionManager(
         val payload = JSONObject()
             .put("sessionId", sample.sessionId)
             .put("recordIndex", sample.recordIndex)
+            .put("updateIndex", sample.updateIndex)
             .put("frameTimestampNs", sample.frameTimestampNs)
             .put("captureTimestampNs", sample.captureTimestampNs)
             .put("elapsedRealtimeNanos", sample.elapsedRealtimeNanos)
@@ -1855,6 +1896,7 @@ class SessionManager(
                     .put("coefficients", sample.lensDistortion?.let(::JSONArray) ?: JSONObject.NULL)
                     .put("model", sample.lensDistortionModel ?: JSONObject.NULL),
             )
+            .put("imageFileName", sample.imageFileName ?: JSONObject.NULL)
         synchronized(writers.arCoreWriter) {
             writers.arCoreWriter.append("${payload}\n")
         }
@@ -1882,7 +1924,12 @@ class SessionManager(
             imuFile = File(latestDir, "imu.csv"),
             gnssFile = File(latestDir, "gnss.csv"),
             bleFile = File(latestDir, "ble_scan.jsonl"),
-            arCoreFile = File(latestDir, "arcore_pose.jsonl"),
+            arCoreFile =
+                listOf("frame_record.jsonl", "arcore_pose.jsonl")
+                    .map { File(latestDir, it) }
+                    .firstOrNull { it.exists() }
+                    ?: File(latestDir, "frame_record.jsonl"),
+            imagesDir = File(latestDir, "images"),
             frameTimestampsFile = File(latestDir, "video_frame_timestamps.csv"),
             videoEventsFile = File(latestDir, "video_events.jsonl"),
             timebase = SessionTimebase(
@@ -1909,6 +1956,8 @@ class SessionManager(
             .put("arCoreIntervalMs", config.arCoreIntervalMs)
             .put("bleEnabled", config.bleEnabled)
             .put("arCoreEnabled", config.arCoreEnabled)
+            .put("frameRecordEveryNUpdates", config.frameRecordEveryNUpdates)
+            .put("saveOnlyWhenTracking", config.saveOnlyWhenTracking)
             .put("recordingMode", config.recordingMode.modeId)
 
     private fun modeBehaviorJson(config: RecordingConfig): JSONObject =
@@ -1925,6 +1974,8 @@ class SessionManager(
             .put("videoFrameLogIntervalMs", config.videoFrameLogIntervalMs)
             .put("bleIntervalMs", config.bleIntervalMs)
             .put("arCoreIntervalMs", config.arCoreIntervalMs)
+            .put("frameRecordEveryNUpdates", config.frameRecordEveryNUpdates)
+            .put("saveOnlyWhenTracking", config.saveOnlyWhenTracking)
 
     private fun recordingModeLabel(mode: RecordingMode): String =
         when (mode) {
@@ -1938,9 +1989,11 @@ class SessionManager(
             imuIntervalMs = json.optLong("imuIntervalMs", 20L),
             gnssIntervalMs = json.optLong("gnssIntervalMs", 1000L),
             bleIntervalMs = json.optLong("bleIntervalMs", 2000L),
-            arCoreIntervalMs = json.optLong("arCoreIntervalMs", 2000L),
+            arCoreIntervalMs = json.optLong("arCoreIntervalMs", 33L),
             bleEnabled = json.optBoolean("bleEnabled", true),
             arCoreEnabled = json.optBoolean("arCoreEnabled", true),
+            frameRecordEveryNUpdates = json.optInt("frameRecordEveryNUpdates", 1).coerceAtLeast(1),
+            saveOnlyWhenTracking = json.optBoolean("saveOnlyWhenTracking", true),
             recordingMode = RecordingMode.fromModeId(json.optString("recordingMode")),
         )
 

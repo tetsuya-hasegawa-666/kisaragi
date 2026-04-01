@@ -58,7 +58,7 @@
 
 | 項目 | 内容 |
 | --- | --- |
-| camera data | `ARCore` 相当の pose、intrinsics、時刻同期情報を取得できる |
+| camera data | `ARCore` の `camera.pose` を正として、採択 frame ごとの pose、intrinsics、時刻同期情報、対応 image を同時取得できる |
 | camera `IMU` | 動画撮影と同時取得できる |
 | 人物側 `IMU` | 映り込む人が `IMU` 付き smartphone を保持している |
 | 取得頻度 | `5` から `10fps` 程度 |
@@ -87,7 +87,7 @@
 
 ## 開発原則
 
-- 空間生成の主経路は `DA3Metric-Large` と `ARCore pose` / intrinsics の統合とする。
+- 空間生成の主経路は、採択 frame ごとの image、`camera.pose`、intrinsics を正にした `DA3Metric-Large` / `3DGS` 前処理入力とする。
 - 通常の重い再構成 flow を主経路にしない。
 - route は最初から 1 本に固定せず、比較したうえで暫定採用 route を決める。
 - `IMU` は初期から全部統合せず、価値が大きい箇所に限定して使う。
@@ -107,12 +107,28 @@
 - `trajectreview-correcting` の data 削除は、app 内 session root だけでなく `端末保存先` に同期済みの同名 directory まで含めて完了させる。
 - `端末保存先` に正規に残るものは session directory だけとし、app が生成した転送 zip は削除時の cleanup 対象とする。
 
+## スマホ側 data 抽出根拠
+
+- `DA3` / `3DGS` 前段では、同一 update で観測した image、pose、intrinsics、timestamp の結び付きが壊れないことを最優先にする。
+- そのため、smartphone 側では `ARCore Session.update()` の採択 frame を recording 中に直接 `frame_record` と対応 image へ保存し、転送後の nearest-link や再抽出を canonical route にしない。
+- pose の正規値は画面向き依存の `displayOrientedPose` ではなく、後段計算で座標系の意味を固定しやすい `camera.pose` を使う。
+- `video.mp4` は重要な再確認入力であり、取得品質の見直し、再抽出、debug、後段比較に使うため保持する。ただし canonical な時系列参照は採択 frame record 側に置く。
+- `textureIntrinsics`、`lensDistortion`、`captureDiagnostics` は後段比較、端末差診断、quality audit に有益なため残すが、主入力成立の必須条件には置かない。
+- image を取得できなかった update は、pose だけ残すと image と pose の時系列一貫性が壊れるため、主記録として採択しない。
+- JPEG を毎 update 保存すると recording 安定性を損ないやすいため、保存対象は採択 frame のみに限定する。
+- 採択条件は data 契約の一部であるため、`Sampling条件` popup で user が収録前に確認・変更できるようにする。
+- parser、transfer、runbook、modeling script は同じ canonical input を読む必要があるため、smartphone 側抽出方式の変更は app 内実装だけでなく handoff 契約全体へ同時反映する。
+
 ## artifact 契約
 
 ### `SessionPackage`
 
 - 単一入力単位の正規化 artifact とする。
-- 主 camera 動画、`IMU`、`ARCore` pose、`BT`、品質要約を束ねる。
+- 主入力は、時系列一貫性を保つ canonical 参照として、採択 frame ごとの image と `camera.pose` / intrinsics を束ねた `frame_record` 系列とする。
+- `video.mp4` は重要度を下げずに補助入力として保持し、再確認、再抽出、検証に使える状態を維持する。ただし `DA3` / `3DGS` 前段の canonical 時系列参照には置かない。
+- `textureIntrinsics`、`lensDistortion`、`captureDiagnostics` は残してよいが、主入力成立の必須条件には置かない。
+- `NotYetAvailableException` などで image を取得できなかった update は、主記録として採択しない。
+- `IMU`、`BT`、品質要約を同じ package へ束ねる。
 - 任意入力として `GNSS` を許容する。
 
 ### `SpacePackage`
@@ -160,6 +176,8 @@
 - `correcting` の停止は UI thread を塞がず、停止処理中であることを明示しながら完了まで待てるようにする。
 - `correcting` は前面表示中の screen off と自動減光で収録を止めない。
 - 長時間収録の安定化では、まず `通常計測` の `10min` 連続稼働を成立条件とする。
+- `correcting` の `frame画像群` は recording 中に採択 frame だけを保存し、毎 update 全保存は行わない。
+- `correcting` の pose 正規化では `displayOrientedPose` ではなく `camera.pose` を正とする。
 
 ## ネーミング
 

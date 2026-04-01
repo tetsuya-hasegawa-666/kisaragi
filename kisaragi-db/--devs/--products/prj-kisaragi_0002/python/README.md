@@ -8,7 +8,7 @@
 
 ## 互換境界
 
-- `iSensorium` 由来の `ble_scan.jsonl` と `arcore_pose.jsonl` を読める
+- `iSensorium` 由来の `ble_scan.jsonl` と `frame_record.jsonl` を primary に読める
 - `trajectreview` 用の `bt.jsonl` と `poses.jsonl` も読める
 - legacy alias として `bt_events.csv` と `arcore_pose.csv` も読める
 - `gnss` は optional input とする

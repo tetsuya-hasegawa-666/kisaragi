@@ -90,7 +90,7 @@ class LocalModelingService {
                 .put("specVersion", "2026-03-26")
                 .put("executionMode", "colab_preflight")
                 .put("baselineRouteId", defaultRoute.routeId)
-                .put("uploadArtifacts", JSONArray(listOf("video.mp4", "session_package.json", "frame_pose_index.csv", "sensor_quality.json", "space_handoff_manifest.json", "camera_calibration_summary.json", "arcore_pose.jsonl", "images")))
+                .put("uploadArtifacts", JSONArray(listOf("video.mp4", "session_package.json", "frame_pose_index.csv", "sensor_quality.json", "space_handoff_manifest.json", "camera_calibration_summary.json", "frame_record.jsonl", "images")))
                 .put("routes", JSONArray(routeProfiles.map { it.toExperimentJson() }))
 
         val da3InputManifest =
@@ -99,7 +99,7 @@ class LocalModelingService {
                 .put("imageInputMode", "session_bundle_images")
                 .put("frameSource", "images/")
                 .put("frameIndexSource", "frame_pose_index.csv")
-                .put("poseSource", "arcore_pose.jsonl")
+                .put("poseSource", "frame_record.jsonl")
                 .put("intrinsicsSource", "camera_calibration_summary.json")
                 .put("readyForRemoteExecution", blockers.isEmpty())
                 .put(
@@ -147,7 +147,7 @@ class LocalModelingService {
                 .put("targetEngine", "colab_da3metric_large")
                 .put("accountStatus", "pending_admin_account")
                 .put("localVerification", "pass")
-                .put("requiredUploadArtifacts", JSONArray(listOf("video.mp4", "session_package.json", "frame_pose_index.csv", "sensor_quality.json", "space_handoff_manifest.json", "camera_calibration_summary.json", "arcore_pose.jsonl", "images")))
+                .put("requiredUploadArtifacts", JSONArray(listOf("video.mp4", "session_package.json", "frame_pose_index.csv", "sensor_quality.json", "space_handoff_manifest.json", "camera_calibration_summary.json", "frame_record.jsonl", "images")))
                 .put("recommendedNotebookId", "trajectreview-da3metric-large")
                 .put("recommendedNotebookPath", "modeling/trajectreview_da3metric_large_colab.ipynb")
                 .put("defaultRouteId", defaultRoute.routeId)

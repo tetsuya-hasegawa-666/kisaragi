@@ -21,10 +21,10 @@ def build_stage_handoff_contracts() -> list[StageHandoffContract]:
             owned_by="入力受理と時刻整列",
             input_contracts=[
                 "session_manifest.json",
-                "video_frame_timestamps.csv",
+                "frame_record.jsonl or video_frame_timestamps.csv",
                 "imu.csv",
                 "bt.jsonl or ble_scan.jsonl",
-                "poses.jsonl or arcore_pose.jsonl",
+                "frame_record.jsonl or poses.jsonl or arcore_pose.jsonl",
                 "gnss.csv",
             ],
             output_contracts=[
@@ -34,7 +34,7 @@ def build_stage_handoff_contracts() -> list[StageHandoffContract]:
                 "frame_pose_index.csv",
                 "camera_calibration_summary.json",
                 "images/",
-                "arcore_pose.jsonl",
+                "frame_record.jsonl",
                 "member_identity_map.json",
                 "session_package.json",
                 "space_handoff_manifest.json",
@@ -57,7 +57,7 @@ def build_stage_handoff_contracts() -> list[StageHandoffContract]:
                 "sensor_quality.json",
                 "frame_pose_index.csv",
                 "camera_calibration_summary.json",
-                "arcore_pose.jsonl",
+                "frame_record.jsonl",
                 "images/",
             ],
             output_contracts=[

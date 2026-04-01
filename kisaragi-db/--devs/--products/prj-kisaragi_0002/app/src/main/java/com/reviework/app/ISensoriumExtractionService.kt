@@ -92,16 +92,17 @@ class ISensoriumExtractionService {
         val imuSelection = loadFirstAvailable(resolvedSource, listOf("imu.csv"))
         val gnssSelection = loadFirstAvailable(resolvedSource, listOf("gnss.csv"))
         val btSelection = loadFirstAvailable(resolvedSource, listOf("bt.jsonl", "ble_scan.jsonl", "bt_events.csv", "bt.csv"))
-        val poseSelection = loadFirstAvailable(resolvedSource, listOf("poses.jsonl", "arcore_pose.jsonl", "arcore_pose.csv"))
+        val poseSelection = loadFirstAvailable(resolvedSource, listOf("frame_record.jsonl", "poses.jsonl", "arcore_pose.jsonl", "arcore_pose.csv"))
         val trackingSelection = loadFirstAvailable(resolvedSource, listOf("arcore_tracking.csv"))
         val qualitySelection = loadFirstAvailable(resolvedSource, listOf("quality_flags.csv", "frame_quality.csv"))
         val videoPresent = resolvedSource.exists("video.mp4")
         val videoEventsPresent = resolvedSource.exists("video_events.jsonl")
-        val frameRows = frameSelection?.rows ?: emptyList()
+        val rawFrameRows = frameSelection?.rows ?: emptyList()
         val imuRows = imuSelection?.rows ?: emptyList()
         val gnssRows = gnssSelection?.rows ?: emptyList()
         val btRows = btSelection?.rows ?: emptyList()
         val poseRows = poseSelection?.rows ?: emptyList()
+        val frameRows = if (poseRows.any { !(it["imageFileName"].isNullOrBlank()) }) poseRows else rawFrameRows
 
         val requiredInputs =
             linkedMapOf(

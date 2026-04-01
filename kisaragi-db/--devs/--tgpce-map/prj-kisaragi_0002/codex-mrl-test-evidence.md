@@ -13,6 +13,28 @@
 
 ## Entries
 
+- record date: `2026-04-01`
+  target MRL: `MRL-2R`
+  target mRL: `mRL-2R.1`、`mRL-2R.2`、`mRL-2R.3`
+  gate change: `active`
+  issue: canonical input を `frame_record.jsonl` と record 単位 `images/` へ切り替える方針は固まっていたが、runtime、`Sampling条件` popup、Google Drive 転送、parser、modeling preflight が旧 `arcore_pose.jsonl` / 転送時抽出前提のまま分断していた
+  cause: `correcting` は `ARCore` pose を jsonl に保存していた一方、画像は `MediaMetadataRetriever` で転送時抽出し、popup も `ARCoreのtimestamp(ms)` / `ARCore 記録` という旧入力を持っていた。さらに `Google Drive` への `.jsonl` 書き込みでは MIME が `application/json` になっており、provider 側で `.jsonl.json` へ変形されていた
+  resolution: `RecordingCoordinator.kt` と `CoreCameraTrialRuntime.kt` を更新し、`camera.pose` を正とした採択 frame だけを `frame_record.jsonl` と session root `images/` へ recording 中に保存する構成へ切り替えた。`MainActivity.kt` の `Sampling条件` popup は `主記録採択間隔` と `TRACKING時のみ主記録化` を持つ構成へ変更し、`.jsonl` は generic MIME で転送して拡張子二重化を防止した。`CorrectingDataCheckService.kt`、`session_parser.py`、`LocalModelingService.kt`、`review_contracts.py` も `frame_record.jsonl` と root `images/` を primary に読むよう更新した。`correcting` / `app` の Kotlin compile、unit test、`correcting:installDebug` を実施済み
+  recurrence prevention: record 単位で取得した data は全段で record 単位のまま扱い、画像の後抽出や nearest-link を canonical route に戻さない。`jsonl` 転送では MIME による provider 側 rename を避け、表示名の拡張子を正として保つ
+  remaining work: `MRL-2R` の admin UX check を実機で行い、`Sampling条件` popup、record 生成、`Google Drive` 転送 zip 内の `frame_record.jsonl` / `images/`、modeling 側 preflight 読込を batch で確認する。legacy fallback に残る `MediaMetadataRetriever` route は compatibility 隔離として整理を続ける
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/RecordingCoordinator.kt`
+
+- record date: `2026-04-01`
+  target MRL: `MRL-2`
+  target mRL: `mRL-2.3`
+  gate change: `active`
+  issue: `frame画像群` は転送時にだけ生成する方針へ変えた後も、抽出元の pose sample を基準に間引いていたため、学習用 frame が `5fps` を下回り得た
+  cause: `CorrectingDataCheckService.extractImages()` が `selectedImageFrameIndexes()` で pose timestamp 近傍 frame だけを選び、転送用 `images/` の sampling floor を持っていなかった
+  resolution: 転送用 `images/` 選択を frame timeline 基準へ変更し、元の frame timeline が `5fps` 以上なら抽出後も `5fps` を下回らず、元の frame timeline が `5fps` 未満なら無間引きで保持する `min 5fps or all if sparse` 方針へ修正した。unit test も追加し、dense source と sparse source の両方で選択結果を固定した
+  recurrence prevention: 学習入力に使う `images/` は pose sample や lightweight check 都合へ従属させず、modeling の最低成立条件から sampling floor を先に固定する
+  remaining work: 実機で `frame画像群` を ON にした転送を 1 回行い、生成された `images/` の枚数と session duration から `5fps` floor を満たすことを admin 手順で確認する
+  evidence path: `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/correcting-test/java/com/isensorium/app/CorrectingDataCheckServiceTest.java`
+
 - record date: `2026-03-31`
   target MRL: `MRL-2S`
   target mRL: `mRL-2S.1`、`mRL-2S.2`

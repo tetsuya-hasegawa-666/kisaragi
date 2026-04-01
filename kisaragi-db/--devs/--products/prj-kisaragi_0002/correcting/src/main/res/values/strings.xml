@@ -6,10 +6,10 @@
     <string name="refresh_session">再読み込み</string>
     <string name="guarded_route_switch">guarded replacement route を使う</string>
     <string name="ble_switch">BLE 記録を有効化</string>
-    <string name="arcore_switch">ARCore 記録を有効化</string>
+    <string name="arcore_switch">主記録 frame を有効化</string>
     <string name="capture_mode_switch">ARCore撮影(ON)・ポケット計測(OFF)</string>
-    <string name="sampling_header">サンプリング間隔 (ms)</string>
-    <string name="video_interval_label">ARCoreのtimestamp(ms)</string>
+    <string name="sampling_header">サンプリング条件</string>
+    <string name="video_interval_label">補助 video timeline(ms)</string>
     <string name="config_block_title">1. 記録設定</string>
     <string name="record_block_title">2. 収録</string>
     <string name="data_check_block_title">data-check</string>
@@ -32,7 +32,7 @@
     <string name="imu_interval_label">IMU 記録</string>
     <string name="gnss_interval_label">GNSS 記録</string>
     <string name="ble_interval_label">BLE 記録</string>
-    <string name="arcore_interval_label">ARCore 記録</string>
+    <string name="arcore_interval_label">主記録更新 cadence(ms)</string>
     <string name="recording_overlay_default">記録中です</string>
     <string name="recording_mode_header">記録モード</string>
     <string name="recording_mode_standard">通常計測: 画面を見ながら操作する</string>

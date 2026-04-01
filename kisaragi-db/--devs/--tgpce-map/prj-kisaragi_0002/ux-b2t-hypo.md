@@ -10,7 +10,7 @@
 
 | 項目 | 状況 |
 | --- | --- |
-| `correcting` | `MRL-1` と `MRL-2` の実装と証跡はそろっている。長時間収録では screen off は抑止済みで、`shared-camera` 動画化の `OutOfMemoryError` と停止時 finalize hang は修正済みである。admin 実機では `3分` 収録で停止成功まで確認できたため、残りは `MRL-2S` の `10min` 実収録確認である |
+| `correcting` | `MRL-1` と `MRL-2` の実装と証跡はそろっている。長時間収録では screen off は抑止済みで、`shared-camera` 動画化の `OutOfMemoryError` と停止時 finalize hang は修正済みである。admin 実機では `3分` 収録で停止成功まで確認できたため、残りは `MRL-2S` の `10min` 実収録確認である。加えて、`DA3` / `3DGS` 向け canonical input を採択 frame record へ寄せる `MRL-2R` を新設し、recording runtime、popup、handoff script を同時に揃える |
 | `modeling` | `MRL-3` から `MRL-9` は `p-done` である。`MRL-7` は `mRL-7.1` と `mRL-7.2` が `p-done` になり、multi-frame point cloud から gaussian short optimization まで到達した。`MRL-8` では runbook 本体の前段に Drive input candidate scan / widget select を追加し、selected input を bootstrap 本体と `MRL-7` one-block の両方へ handoff できる状態を閉じた。運用形は notebook 全体の `Run all` ではなく、widget 選択を 1 回挟んでから残りを上から順に流す方式である。`MRL-9` は `da3-giant` の `inference()` に `infer_gs=True` を与え、`e3nn` install を import 前に置くことで `gs_ply`、`gs_video`、`scene.glb`、`exports/npz/results.npz` を `MyDrive/trajectreview/modeling/...` へ保存し、さらに `gs_ply/0000.ply` を `PlayCanvas Model Viewer` で開けるところまで進んだ。次は後続 `MRL-**` の top camera renderer と reviewing viewer 連携である |
 | `reviewing` | summary と stub 読込まではあるが、実 `ReviewArtifact` viewer と same-time highlight 操作は未実装である |
 
@@ -26,14 +26,26 @@
 | `BLK-6` | `correcting` の短中時間帯は `3分` 収録まで停止成功を確認したが、`10min` 連続収録はまだ未確認である | 現場記録の本機能成立を `i-pass` にできない | `MRL-2S` で `10min` 実収録を行い、screen off 抑止と finalize 完了を確認する |
 | `BLK-7` | `DA3 Colab` runbook は Drive 上の特定 zip path を hardcode しており、任意 input を script だけで選んで本体へ渡せない | fresh runtime で入力を差し替えるたびに手編集が必要になり、bootstrap の再現性が落ちる | `MRL-8 p-done` により解消済み。Drive input candidate scan、widget select、selected input handoff を runbook 正本へ反映済み |
 | `BLK-8` | `DA3 Giant` / `Giant Large` の `infer_gs=True` route は、`gs_ply` / `gs_video` を返せる前提があるが、現行 project は `DA3Metric-Large` 固定で contract 未整備である | `gs_ply` を正式 `gs_model` として扱う route と top camera viewer 拡張が止まる | `MRL-9` で `MetricLarge route` を rollback baseline に固定したまま、`Giant` Gaussian branch の実装 route を追加し、`gs_ply` / `gs_video` と viewer 導線を順に固める |
+| `BLK-9` | `correcting` は canonical input を採択 frame record へ寄せる方針へ変わったが、recording runtime、`Sampling条件` popup、transfer 契約、parser / modeling script がまだ旧前提で分断している | `DA3` / `3DGS` 前段の入力定義が実装系と文書系でずれ、転送時抽出や旧 thinning logic を残したままになる | `MRL-2R` を新設し、recording、popup、handoff 契約、script 整合、旧抽出 logic 削除を同じ gate で閉じる |
+
+### project 固有 decision 要約
+
+- `correcting` の `DA3` / `3DGS` 前段 input は、`ARCore Session.update()` の採択 frame ごとに image、`camera.pose`、intrinsics、timestamp を同時保存した `frame_record` 系を正とする。
+- pose の正規値は `displayOrientedPose` ではなく `camera.pose` とする。
+- `frame_record.jsonl` は現行 `arcore_pose.jsonl` の後継として扱い、移行期間の alias 受理は許容する。
+- `video.mp4` は raw bundle に残し、重要な再確認入力として扱う。ただし `DA3` / `3DGS` 前段では、時系列一貫性を保つ canonical input は `frame_record` 系に置く。
+- `textureIntrinsics`、`lensDistortion`、`captureDiagnostics` は保持するが、主入力成立の必須条件には置かない。
+- `NotYetAvailableException` などで image を取得できない update は、主記録として採択しない。
+- JPEG は毎 update 全保存せず、採択 frame だけを recording 中に保存する。
 
 ### 次の一手
 
-1. `MRL-2S` で `correcting` の bounded stop 修正 build を `10min` 実収録で確認し、連続収録安定化を閉じる
-2. `MRL-7` を `TraceCore` の最小表示に限定し、route 比較と viewer 後続論点を `MRL-**` へ切り分ける
-3. `MRL-9` として、`DA3 Giant` / `Giant Large` の `infer_gs=True` route を実装し、`fps = 1`、`frames = 60`、`process_res = 504`、`chunk = 20` または `30` を first config に `gs_ply` / `gs_video` 出力と viewer 可視化を固める
-4. 後続 `MRL-**` として、`gs_ply` を top camera renderer と reviewing viewer へ接続する route、multi-view / 長時間 optimization、request / status / result download UX を整理する
-5. `reviewing` と admin `UX check` の後続 gate を整理し、`ux-b2t-hypo.md` と証跡文書の closeout 基準を揃える
+1. `MRL-2R` として、canonical input を採択 frame record へ切り替え、recording runtime、`Sampling条件` popup、transfer 契約、parser / modeling script、旧 thinning logic 削除を 1 本の計画でそろえる
+2. `MRL-2S` を redesigned runtime 上で再実施し、`correcting` の bounded stop 修正 build を `10min` 実収録で確認して連続収録安定化を閉じる
+3. `MRL-7` を `TraceCore` の最小表示に限定し、route 比較と viewer 後続論点を `MRL-**` へ切り分ける
+4. `MRL-9` として、`DA3 Giant` / `Giant Large` の `infer_gs=True` route を実装し、`fps = 1`、`frames = 60`、`process_res = 504`、`chunk = 20` または `30` を first config に `gs_ply` / `gs_video` 出力と viewer 可視化を固める
+5. 後続 `MRL-**` として、`gs_ply` を top camera renderer と reviewing viewer へ接続する route、multi-view / 長時間 optimization、request / status / result download UX を整理する
+6. `reviewing` と admin `UX check` の後続 gate を整理し、`ux-b2t-hypo.md` と証跡文書の closeout 基準を揃える
 
 
 ## BDD
@@ -111,6 +123,7 @@
 | `su4` | 利用者 | 記録停止後に同じ入口で品質確認結果と修正指示を読める |
 | `su5` | 利用者 | 品質確認を通した session を遠隔の保存場所へ転送できる |
 | `su6` | 利用者 | 後段の空間再構成で使うカメラ校正情報と<br>frame 対応情報を、記録時点で失わず残せる |
+| `su6b` | 利用者 | `DA3` / `3DGS` 用に採択する frame の取得条件を、収録前に popup で決めて反映できる |
 | `su6a` | 利用者 | `trajectreview-correcting` を前面表示したまま、screen off や自動減光で収録が落ちない状態で長時間記録できる |
 | `su7` | 利用者 | 必要な入力がそろっているかを受理時点で把握できる |
 | `su8` | 利用者 | 人物の映り込みが十分かどうかを、<br>不足入力や品質低下とあわせて診断で読める |
@@ -128,6 +141,7 @@
 | `sd1` | 運営者 | 4 分担の境界と出力契約だけで、開発と運用を継続できる |
 | `sd2` | 運営者 | 抽出 bundle を見れば raw と<br>`trajectreview` 派生出力の境界を追える |
 | `sd3` | 運営者 | 抽出直後の bundle だけで `SpaceReconstruction` 着手可否と<br>blocker を判断できる |
+| `sd3a` | 運営者 | 採択 frame record を primary input とする contract を、parser、transfer、modeling script で同じ前提のまま扱える |
 | `sd4` | 運営者 | 入力補正、モデル生成、レビュー操作を、app 単位で分けて実行できる |
 | `sd5` | 運営者 | 統合 app からも同じ workflow を通しで扱え、<br>手戻り時にどの app 範囲で問題が起きたかを即座に切り分けられる |
 | `sd6` | 運営者 | 4 app の各画面で mock ではなく直近の実 bundle を読み、<br>同じ project truth で UX 確認できる |
@@ -141,7 +155,7 @@
 
 | behavior-id | 区分 | 内容 |
 | --- | --- | --- |
-| `bu1` | 利用者起点 | `InputPackaging` app は入力セッション folder またはその 1 段上の parent directory を選択し、<br>`session_manifest.json` / `manifest.json`、`video_frame_timestamps.csv` / `frames.csv`、`imu.csv`、<br>`bt.jsonl` / `ble_scan.jsonl` / `bt_events.csv` / `bt.csv`、`poses.jsonl` / `arcore_pose.jsonl` / `arcore_pose.csv` を読める |
+| `bu1` | 利用者起点 | `InputPackaging` app は入力セッション folder またはその 1 段上の parent directory を選択し、<br>`session_manifest.json` / `manifest.json`、`frame_record.jsonl` / `arcore_pose.jsonl` / `arcore_pose.csv`、`imu.csv`、<br>`bt.jsonl` / `ble_scan.jsonl` / `bt_events.csv` / `bt.csv`、必要に応じて `video.mp4` を読める |
 | `bu2` | 利用者起点 | extractor は raw file を `isensorium/`、<br>派生 file を `trajectreview/` に分離して app export dir へ出力する |
 | `bu3` | 利用者起点 | extractor は `sensor_quality.json` に時刻整列 delta、<br>completeness score、pose coverage ratio を含める |
 | `bu4` | 利用者起点 | Android UI は抽出元、抽出先、`ready_for_diagnose`、<br>欠落入力、主要 quality 数値を 1 画面で返す |
@@ -150,7 +164,8 @@
 | `bu7` | 利用者起点 | `trajectreview-correcting` は保存済み session 一覧を表示し、<br>取得日時と長さを確認でき、既存 session を選択して再転送、rename、削除できる |
 | `bu8` | 利用者起点 | `trajectreview-correcting` は `data-check` 済みの session を選び、<br>送信する data group を選んだうえで、`Storage Access Framework` を通じて選択された `Google Drive` 保存場所へ zip 転送する |
 | `bu9` | 利用者起点 | `trajectreview-correcting` は `Storage Access Framework` で選ばれた `Google Drive` 保存場所に対して、<br>選択 session 数に応じた zip を作成して同期できる |
-| `bu10` | 利用者起点 | `trajectreview-correcting` は `ARCore Session.update()` で得た同一 frame から pose、frame timestamp、capture timestamp、<br>image intrinsics、texture intrinsics、lens distortion、tracking state を 1 record として保存し、<br>`camera_calibration_summary.json`、`frame_pose_index.csv`、`images/` を派生出力する |
+| `bu10` | 利用者起点 | `trajectreview-correcting` は `ARCore Session.update()` で得た update のうち採択した frame だけを、対応 image、`camera.pose`、frame timestamp、<br>image intrinsics、任意 `texture intrinsics` / `lens distortion` / `captureDiagnostics`、tracking state を 1 record として recording 中に保存し、<br>その canonical record を `frame_record.jsonl` として保持する |
+| `bu10b` | 利用者起点 | `trajectreview-correcting` は `Sampling条件` popup で、採択 frame の update 間隔と `tracking中のみ採択` 条件を設定し、その値で recording を開始できる |
 | `bu10a` | 利用者起点 | `trajectreview-correcting` を前面表示している間は端末を自動 sleep させず、`通常計測` では少なくとも `10min` の連続収録を app 側で維持する |
 | `bu11` | 利用者起点 | 受理時に、主カメラ動画、主カメラ `IMU`、人物側 `IMU`、<br>任意 `poses` / `gnss` の充足状況を `SessionPackage` へ要約する |
 | `bu12` | 利用者起点 | `Diagnose` は、人物映り込みの十分性、不足入力、品質低下、<br>修正理由を `Thin Status` で返す |
@@ -166,11 +181,12 @@
 | `bu22` | 利用者起点 | `Verify` は空間品質と経路品質を同時に返し、`Interpret` は同時刻ハイライト候補、`attention point`、<br>滞留箇所、往復や交錯の兆候を返す |
 | `bu23` | 利用者起点 | `trajectreview-reviewing` は `ReviewArtifact` 実体を読み、viewer 操作、same-time highlight、<br>`attention point` jump、滞留や交錯の確認操作を返す |
 | `bu24` | 利用者起点 | `Assembly` は `3DGS` 系空間表現の操作情報、経路、同時刻ハイライト情報、<br>`attention point` を束ねた `ReviewArtifact` を唯一生成する |
-| `bd1` | 運営者起点 | parser は `bt.jsonl` / `poses.jsonl` と `ble_scan.jsonl` / `arcore_pose.jsonl` の両方を受理する |
+| `bd1` | 運営者起点 | parser は `bt.jsonl` / `poses.jsonl`、`ble_scan.jsonl` / `arcore_pose.jsonl`、および後継 `frame_record.jsonl` の各 alias を受理する |
 | `bd2` | 運営者起点 | `trajectreview` の docs、build、test、生成物経路は `prj-kisaragi_0002` 配下で完結し、要約と生の生成物を分離する |
 | `bd3` | 運営者起点 | `InputPackaging` は取得元 raw に加えて、`input_readiness.json`、`sensor_quality.json`、<br>`frame_pose_index.csv`、`member_identity_map.json` を分担インターフェースとして出力する |
 | `bd4` | 運営者起点 | 4 分担の各段階は、前段の出力契約だけを読めば次段へ着手できる |
-| `bd5` | 運営者起点 | extractor は `video.mp4` と `video_events.jsonl` を含む raw bundle を維持し、後段が主カメラ動画を再利用できる |
+| `bd5` | 運営者起点 | extractor は `video.mp4` と `video_events.jsonl` を raw bundle の重要な再確認入力として維持し、canonical な時系列参照は採択 frame record と対応 image 群へ置く |
+| `bd5a` | 運営者起点 | `correcting` の transfer と handoff は recording 中に保存済みの採択 frame image 群を canonical input として扱い、転送時追加抽出と `5fps floor` thinning logic に依存しない |
 | `bd6` | 運営者起点 | extractor は `session_package.json` に source file、timebase、stream count、quality 指標、<br>required / optional input を正規化して出力する |
 | `bd7` | 運営者起点 | extractor は `space_handoff_manifest.json` に `ready_for_space_reconstruction`、blocker、<br>利用 artifact、次 action を出力する |
 | `bd8` | 運営者起点 | Android UI は `ready_for_space_reconstruction` と blocker を抽出結果画面で返す |
@@ -183,7 +199,8 @@
 | `bd15` | 運営者起点 | `trajectreview-reviewing` と統合 app は `local_model_summary.json` と `review_artifact_stub.json` を読んで、<br>verify / review 状態を組み立てる |
 | `bd16` | 運営者起点 | `trajectreview-modeling` は、指定した `Google Drive` directory から zip または `session_root/` を正規化して読み、<br>`Colab` runtime、status 更新、result URL 公開先を再現可能に構築できる |
 | `bd16a` | 運営者起点 | `DA3 Colab` runbook は、Drive 上の session zip または session folder 候補を script だけで列挙し、<br>選んだ 1 件を `selected input` として固定したうえで、後続の bootstrap / `TraceCore` one-block が同じ入力から進められる |
-| `bd17` | 運営者起点 | `trajectreview-modeling` は `session_package.json`、`arcore_pose.jsonl`、`frame_pose_index.csv`、<br>`camera_calibration_summary.json`、frame 群から、`DA3Metric-Large` 用の前処理入力、metric depth 推定、<br>world projection、`3DGS` 系主空間モデル生成を route 単位で実行できる |
+| `bd17` | 運営者起点 | `trajectreview-modeling` は `session_package.json`、`frame_record.jsonl` 後継 record、<br>`camera_calibration_summary.json`、採択 frame image 群から、`DA3Metric-Large` 用の前処理入力、metric depth 推定、<br>world projection、`3DGS` 系主空間モデル生成を route 単位で実行できる |
+| `bd17a` | 運営者起点 | parser、preflight、runbook、script は `frame_record.jsonl` と採択 frame image 群を primary input とし、`video.mp4` は重要な再確認用 supplemental input として扱える |
 | `bd18` | 運営者起点 | `trajectreview-modeling` は、まず `10s` 前後の整った実動画から `TraceCore` の `multi-frame` densify を行い、<br>`GNSS` なしでも `ARCore` 基準で主空間、主カメラ path、人軌跡の重なりを安っぽく見えない形で返せる。<br>最低限、全体俯瞰、時系列、camera と人の相対表示、滞留や交錯の兆候を検討できることを要件にし、<br>route 比較が必要になった時は、sampling route、intrinsics route ごとの quality、runtime、resource usage、<br>failure reason を `benchmark_summary.json` へ集約できる |
 | `bd18a` | 運営者起点 | `trajectreview-modeling` は、`DA3 Giant` または `Giant Large` の Gaussian branch を `infer_gs=True` で別 route として実装できる。`gs_ply` / `gs_video` を生成し、外部 viewer で可視化しつつ、失敗時は rollback baseline である `MetricLarge route`、既存 runbook、既存 artifact 契約を巻き戻しなしで継続できる |
 | `bd19` | 運営者起点 | `trajectreview-modeling` は比較結果から `selected_route.json` を生成し、採用 route と research route を分離できる |
@@ -199,7 +216,8 @@
 | `su3` | `bu5` | correcting 本機能 | `trajectreview-correcting` だけで現場記録開始、停止、session 保存、input export まで進められる |
 | `su4` | `bu6` | correcting data-check | `trajectreview-correcting` が同じ app 内で `data-check` 結果、blocker、recommended correction を返す |
 | `su5` | `bu7`,`bu8`,<br>`bu9` | Google Drive transfer | `trajectreview-correcting` が `data-check` 済み session を 1 件以上選び、`送信Dataset` popup と data 一覧 popup を使って転送対象を確定し、懸念がある data を `▲` 表示したうえで、選択した `Google Drive` 保存場所へ zip を保存できる |
-| `su6` | `bu10` | `DA3` 前段 calibration | `trajectreview-correcting` が `ARCore` frame ごとの camera intrinsics、texture intrinsics、lens distortion、frame timestamp を保存し、後段 `DA3 MetricLarge` へ渡せる |
+| `su6` | `bu10` | `DA3` 前段 calibration | `trajectreview-correcting` が採択 frame ごとの image、`camera.pose`、camera intrinsics、任意 `texture intrinsics` / `lens distortion`、frame timestamp を recording 中に保存し、後段 `DA3 MetricLarge` へ渡せる |
+| `su6b` | `bu10b` | 採択条件 popup | `Sampling条件` popup で adopted frame の update 間隔と `tracking中のみ採択` 条件を変更でき、次回 recording に反映される |
 | `su6a` | `bu10a` | 長時間収録安定性 | `trajectreview-correcting` を前面表示したまま `通常計測` で `10min` 収録しても、screen off や lifecycle stop を原因に記録が途切れない |
 | `su7` | `bu11`,`bd1`,<br>`bd3` | 受理契約 | 主カメラ動画、主カメラ `IMU`、人物側 `IMU`、任意 `poses` / `gnss`、追加出力の有無が 1 つの要約として読め、`GNSS` なしでも `ARCore` 基準で処理前提を判断できる |
 | `su8` | `bu12` | diagnose UX | 人物映り込みの十分性、不足入力、品質低下、修正理由が `Thin Status` で読める |
@@ -216,7 +234,8 @@
 | `su19` | `bu23`,`bu24` | 閲覧成果物 | `ReviewArtifact` を開き、`3DGS` 操作、経路表示、同時刻ハイライト、`attention point` を同じ review 文脈で操作できる |
 | `sd1` | `bd2`,`bd3`,<br>`bd4` | 独立運用 | docs / build / test が project 内で完結し、段階間契約だけで分担着手できる |
 | `sd2` | `bu2`,`bd2` | bundle 境界 | `isensorium/` と `trajectreview/` が分離され、raw と派生出力を誤読しない |
-| `sd3` | `bd5`,`bd6`,<br>`bd7`,`bd8` | 後段 handoff | `video.mp4` を含む raw bundle と `session_package.json` / `space_handoff_manifest.json` だけで `SpaceReconstruction` 着手可否と blocker を判断できる |
+| `sd3` | `bd5`,`bd6`,<br>`bd7`,`bd8` | 後段 handoff | 採択 frame record と対応 image 群を含む raw bundle、`session_package.json`、`space_handoff_manifest.json` だけで `SpaceReconstruction` 着手可否と blocker を判断できる |
+| `sd3a` | `bd5a`,`bd17a` | canonical handoff 整合 | `frame_record.jsonl` と採択 frame image 群を primary input とする contract が parser、transfer、modeling script で一致し、転送時 image 生成を要しない |
 | `sd4` | `bd9`,`bd10`,<br>`bd11`,`bd12` | 作業分割 | 補正、モデル生成、レビュー操作を app 単位で分け、各 app が担当段階を明示できる |
 | `sd5` | `bd9`,`bd12` | 統合運用 | 統合 app からも同じ workflow を通しで扱え、問題発生時に app 単位で切り分けられる |
 | `sd6` | `bd13`,`bd15` | 実データ UX | 各 app が抽出済みまたは modeling 済み bundle を読み、直近実データに基づく状態を表示できる |
@@ -245,11 +264,14 @@
 | `tu9` | `bu8` | correcting Drive transfer gate | `data-check` 済み artifact を持つ selected session が 1 件以上あり、かつ転送先が選択済みなら `転送実行` を許可し、画面直下のコメントで設定済み / 未設定を示せる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/MainActivity.kt` |
 | `tu10` | `bu8`,`bu9` | Google Drive zip transfer | selected `Google Drive` 保存場所へ、1 件選択時は `<session_id>.zip`、複数件選択時は複数 session を含む zip を作成し、選択した data group だけを zip に含めて保存できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/MainActivity.kt` |
 | `tu11` | `bu9` | SAF transfer contract | `CreateDocument` で選んだ `Google Drive` 保存場所へ write でき、転送先状態を app 内で設定済み / 未設定として確認できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/MainActivity.kt` |
-| `tu12` | `bu10` | correcting camera calibration capture | `ARCore` record に `sessionId`、`recordIndex`、`captureTimestampNs`、nested `pose` / `imageIntrinsics` / `textureIntrinsics` / `lensDistortion` を含め、`camera_calibration_summary.json` と `frame_pose_index.csv` を生成できる。`images/` は転送で要求された時だけ生成する | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/RecordingCoordinator.kt` |
+| `tu12` | `bu10` | correcting camera calibration capture | 採択 frame record に `sessionId`、`recordIndex`、`frameTimestampNs`、`camera.pose`、`imageIntrinsics`、任意 `textureIntrinsics` / `lensDistortion` / `captureDiagnostics`、`imageFileName` を含めた `frame_record` 後継 jsonl を recording 中に保存できる。image 取得に失敗した update は主記録へ採択せず、JPEG は採択 frame だけ保存する | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/RecordingCoordinator.kt` |
 | `tu13` | `bu10`,`bd20` | correcting calibration diagnostic separation | `camera_calibration_summary.json` が `読取試行あり成功 0 件`、`calibration export 実装前 data の可能性`、`coverage 低下` を区別して示せる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/CorrectingDataCheckService.kt` |
-| `tu14` | `bu10`,`bd20` | shared camera intrinsics acquisition | `corecamera_shared_camera_trial` route の `arcore_pose.jsonl` で `captureDiagnostics.*.requested=true` が出て、intrinsics 未取得なら `request failure` として診断できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/CoreCameraTrialRuntime.kt` |
+| `tu14` | `bu10`,`bd20` | shared camera intrinsics acquisition | `corecamera_shared_camera_trial` route の `frame_record` 後継 jsonl で `captureDiagnostics.*.requested=true` が出て、intrinsics 未取得なら `request failure` として診断できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/CoreCameraTrialRuntime.kt` |
 | `tu14a` | `bu10a` | correcting keep-awake control | `correcting` 前面表示中は app が `screen off timeout` に入らず、preview と録画 UI を維持できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/MainActivity.kt` |
 | `tu14b` | `bu10a` | correcting long-run recording stability | `通常計測` で `10min` 連続収録しても screen off を契機とした lifecycle stop や記録中断が発生しない | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/RecordingCoordinator.kt` |
+| `tu14c` | `bu10` | correcting canonical frame record runtime | 採択 frame だけを `frame_record.jsonl` と対応 image 群へ recording 中に保存し、`camera.pose`、timestamp、intrinsics、`imageFileName` を同一 record に束ねられる。`NotYetAvailableException` 時は主記録へ採択しない | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/RecordingCoordinator.kt` |
+| `tu14d` | `bu10b` | correcting acquisition conditions popup | `Sampling条件` popup で adopted frame の update 間隔と `tracking中のみ採択` を編集でき、画面の現設定表示と recording runtime へ反映できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/MainActivity.kt` |
+| `tu14e` | `bu8`,`bd5a` | correcting canonical transfer bundle UX | `送信Dataset` と `転送Data選択` は recording 中に保存済みの採択 frame image 群と `frame_record` 契約を前提に動き、転送時 image 抽出や `5fps` thinning を呼ばない | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/MainActivity.kt` |
 | `tu15` | `bu11` | `SessionPackage` intake summary | 主カメラ動画、主カメラ `IMU`、人物側 `IMU`、任意入力、時刻基準、品質状態を 1 summary に落とせる | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_session_parser.py` |
 | `tu16` | `bu12` | `Thin Status` diagnose formatter | 人物映り込みの十分性、不足入力、品質、理由を `phase`、`pipeline`、`data_health`、`quality`、`issues` で返せる | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt` |
 | `tu17` | `bu13` | execute readiness gate | 主カメラ動画、主カメラ `IMU`、人物側 `IMU`、空間再構成前提、経路前提がそろわない限り `処理を開始` を返さない | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt` |
@@ -265,7 +287,7 @@
 | `tu27` | `bu22` | interpret attention point synthesis | `attention point` と同時刻ハイライトに時間範囲、理由、不確実区間情報を持たせ、注視区間を絞り込める | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt` |
 | `tu28` | `bu23` | review artifact viewer | `reviewing` app が実 `ReviewArtifact` を読み、viewer と timeline 操作、same-time highlight、`attention point` jump、滞留や交錯の確認操作を提供できる | ready | `kisaragi-db/--devs/--products/prj-kisaragi_0002/reviewing/` |
 | `tu29` | `bu24` | `ReviewArtifact` boundary contract | `Assembly` だけが `3DGS` 操作、経路表示、同時刻ハイライト、`attention point` を含む `ReviewArtifact` を生成する | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt` |
-| `td1` | `bd1` | Python session parser alias compatibility | `bt.jsonl` / `poses.jsonl` と `ble_scan.jsonl` / `arcore_pose.jsonl` の両方を 1 parser で読める | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_session_parser.py` |
+| `td1` | `bd1` | Python session parser alias compatibility | `bt.jsonl` / `poses.jsonl`、`ble_scan.jsonl` / `arcore_pose.jsonl`、`frame_record.jsonl` の各 alias を 1 parser で読める | active | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_session_parser.py` |
 | `td2` | `bd2` | independent project boundary scan | `prj-kisaragi_0002` products と docs が外部 project の shared 参照なしで継続できる | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_project_contracts.py` |
 | `td3` | `bd2` | output routing hygiene | Android build cache と raw test report が `--exsams`、summary が `--testlogs` に分離される | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/scripts/run_android_unit_tests.ps1` |
 | `td4` | `bd3` | `InputPackaging` interface manifest | 取得元 raw に加え、受理判定、品質、frame-pose 対応、主体対応表が JSON と CSV の契約で出力される | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_session_parser.py` |
@@ -273,6 +295,9 @@
 | `td6` | `bd5` | video raw bundle export | app 抽出が `video.mp4` と `video_events.jsonl` を raw bundle に保持する | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ISensoriumExtractionServiceTest.kt` |
 | `td7` | `bd6`,`bd7` | normalized handoff payload | Python parser と Android extractor が `session_package.json` と `space_handoff_manifest.json` を同じ契約で生成する | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_session_parser.py` |
 | `td8` | `bd8` | space reconstruction gate summary UI | Android UI が `ready_for_space_reconstruction` と blocker を結果画面で返す | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/MainActivity.kt` |
+| `td8a` | `bd5a` | canonical frame bundle manifest alignment | `session_package.json` と `space_handoff_manifest.json` が `frame_record.jsonl` と採択 frame image 群を primary input として表現し、`video.mp4` は重要な supplemental input として残せる | active | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_session_parser.py` |
+| `td8b` | `bd17a` | modeling parser and preflight canonical input | parser、preflight、runbook、script が `frame_record.jsonl` と採択 frame image 群を primary に読み、旧 `frame_pose_index.csv` / 転送時抽出前提なしで `da3_input_manifest.json` を組める | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/LocalModelingService.kt` |
+| `td8c` | `bd5a`,`bd17a` | legacy thinning and transfer-time extraction removal | `MediaMetadataRetriever` による転送時 image 抽出と `5fps floor` thinning logic が canonical route から除去され、残る場合も legacy compatibility に隔離される | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/CorrectingDataCheckService.kt` |
 | `td9` | `bd9` | multi-app module build | `correcting`、`modeling`、`reviewing`、統合 app の 4 module が同じ repository で build できる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/settings.gradle.kts` |
 | `td10` | `bd10`,`bd11`,`bd12` | role-specific workflow filter | 各 app が自分の役割に対応する workflow 範囲と文言だけを主表示にする | pass | `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt` |
 | `td11` | `bd12` | integrated app overview | 統合 app が 3 app の担当境界を俯瞰表示し、切り分け理由を示せる | pass | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/MainActivity.kt` |
@@ -298,6 +323,7 @@
 | `MRL-1` | `correcting` | `tu1`-`tu7`, `tu12`-`tu14` | 記録、抽出、`data-check`、calibration 診断を 1 app UX として固める | `correcting` の記録系と品質診断系を先に閉じ、後段へ渡せる bundle を安定化する |
 | `MRL-2` | `correcting` | `tu8`-`tu11`, `td6`-`td8` | `Google Drive` 転送、raw video 維持、handoff bundle 生成を固める | 転送導線と handoff 契約を同じ batch で追い、`SpaceReconstruction` 着手可否まで閉じる |
 | `MRL-2S` | `correcting` | `tu14a`-`tu14b` | screen off を回避し、`通常計測` の長時間連続収録を固める | 現場収録が `1min` 超で止まる問題を切り離して閉じ、後段の input 信頼性を上げる |
+| `MRL-2R` | `correcting / handoff` | `tu14c`-`tu14e`, `td1`, `td8a`-`td8c` | canonical input を採択 frame record へ切り替え、recording runtime、popup、transfer、parser、modeling preflight を同じ契約へ寄せる | recording 中保存を正にし、転送時 image 抽出と thinning logic を canonical route から外し、script 側まで整合させる |
 | `MRL-3` | `modeling` | `td13`, `tu20` | bootstrap / install と request 起点の導線を固める | runbook と request preflight を先にそろえ、remote 実行前の入口を固定する |
 | `MRL-4` | `modeling` | `td12`, `td22`, `td14`, `tu18`, `tu21`, `td23` | 実 bundle 読込、request preflight、directory intake、review 側の状態読込を固める | 実データ snapshot と remote intake を先に通し、review 側は stub と結果読込で追従させる |
 | `MRL-5` | `modeling` | `td16`-`td18`, `tu22`, `tu23` | single-frame `3DGS` smoke と `SpacePackage` 契約を固める | `DA3Metric-Large` の最小 route を通し、主空間要約と download 導線を残す |
@@ -312,6 +338,7 @@
 | --- | --- | --- | --- | --- |
 | `correcting` 基礎 | `tu1`-`tu7`, `td1`-`td8` | 契約実装、project 境界 scan、output routing 実行まで通っており、この範囲は `p-done` と読める | `MRL-1`, `MRL-2` | Python unittest、Android unit test、PowerShell script 実行で入口契約から成果物 routing まで固定した |
 | 転送導線 | `tu8`-`tu11` | 転送 close 導線は `現場撮影データ保存 -> data-check -> Google Drive転送 -> handoff bundle` で閉じる前提にそろっている | `MRL-2` | 事前設定は `転送先を選択 -> URL を確認または変更 -> 保存先fileを設定する -> Google Drive 上で保存先 file を選ぶ` を既定導線とする |
+| canonical frame redesign | `tu14c`-`tu14e`, `td1`, `td8a`-`td8c` | runtime、popup、transfer、parser、modeling preflight の実装と compile / unit test / install までは通った。残りは admin UX check と legacy compatibility の切り分け close である | `MRL-2R` | `frame_record.jsonl`、record 単位 `images/`、`.jsonl` 拡張子維持、`camera.pose` 正規化を実装済み。旧抽出 route は legacy compatibility へ隔離して整理を続ける |
 | `modeling` 入口 | `td13`, `tu20`, `td12`, `td14`, `tu18`, `tu21`, `td23`, `td22` | bootstrap / install、実 bundle 読込、request preflight、directory intake、review 側の状態読込までそろった範囲は `p-done` と読める | `MRL-3`, `MRL-4` | `td9` 以降の `modeling` / `reviewing` task は基礎として有効だが、本機能 close には未達である |
 | single-frame 主空間 | `td16`-`td18`, `tu22`, `tu23` | `correcting` 実データを使った single-frame `3DGS` 系主空間モデル候補の smoke 生成と artifact 取得までを根拠に `p-done` と読める | `MRL-5` | `SpacePackage` と download 導線の最小契約は通っている |
 | evidence 再参照 | `tu22`, `tu23`, `td23` | notebook evidence と local downloaded artifact bundle を product 側 evidence として取得できる段まで通っている | `MRL-6` | product 側 evidence として再参照できることを主に見る |
@@ -339,6 +366,10 @@
 | `MRL-2S` | `-` | `correcting` 前面表示中の screen off 回避と、`通常計測` の `10min` 連続収録安定性を固める | `su6a` | `bu10a` | `tu14a`,`tu14b` | `active` | `active` | 操作手順 16-19 と長時間収録追補 | 2026-03-31 `MRL-2S` bounded stop candidate evidence |
 | `MRL-2S` | `mRL-2S.1` | app 前面表示中の keep-awake により、自動減光や screen off で収録が止まらないことを確認する | `su6a` | `bu10a` | `tu14a` | `active` | `active` | 操作手順 16-19 | 2026-03-31 `MRL-2S` bounded stop candidate evidence |
 | `MRL-2S` | `mRL-2S.2` | `通常計測` で `10min` 連続収録しても app が落ちず、session が finalizable であることを確認する | `su6a` | `bu10a` | `tu14b` | `active` | `active` | 操作手順 16-19 と長時間収録追補 | 2026-03-31 `MRL-2S` bounded stop candidate evidence |
+| `MRL-2R` | `-` | `trajectreview-correcting` で<br>採択 frame record を canonical input にし、<br>recording runtime、popup、transfer、handoff script を<br>同じ契約へ揃える | `su6`,`su6b`,<br>`sd3a`,`sd11` | `bu10`,`bu10b`,<br>`bd5a`,`bd17a`,<br>`bd20` | `tu14c`,`tu14d`,<br>`tu14e`,`td1`,<br>`td8a`,`td8b`,<br>`td8c` | `active` | `active` | 操作手順 4,21,32 | `未収載` |
+| `MRL-2R` | `mRL-2R.1` | 採択 frame の image、`camera.pose`、intrinsics、timestamp を<br>recording 中に同時保存し、image 不在 update を主記録へ入れないことを確認する | `su6` | `bu10` | `tu14c` | `active` | `active` | 操作手順 11-15,21 | `未収載` |
+| `MRL-2R` | `mRL-2R.2` | `Sampling条件` popup で adopted frame 条件を設定でき、<br>`送信Dataset` と transfer UX が保存済み採択 frame 群を前提に動くことを確認する | `su5`,`su6b` | `bu8`,`bu10b`,<br>`bd5a` | `tu14d`,`tu14e` | `active` | `active` | 操作手順 4,23-32 | `未収載` |
+| `MRL-2R` | `mRL-2R.3` | parser、handoff manifest、modeling preflight、script が<br>`frame_record.jsonl` と採択 frame image 群を primary に読み、<br>転送時 image 抽出と thinning logic を canonical route から外すことを確認する | `sd3a`,`sd11` | `bd5a`,`bd17a`,<br>`bd20` | `td1`,`td8a`,<br>`td8b`,`td8c` | `active` | `active` | modeling batch 前提確認 1-4 | `未収載` |
 | `MRL-3` | `-` | `Colab` 実行前の<br>package / config / runbook 導線と<br>bootstrap / install を<br>たどれることを確認する | `sd7`,`su12` | `bd14`,`bu16` | `td13`,`tu20` | `p-done` | `p-done` | modeling batch<br>操作手順 4-6<br>da3_colab_<br>clean_bootstrap_<br>runbook.md | modeling batch 定義,<br>2026-03-29 modeling bootstrap candidate evidence |
 | `MRL-3` | `mRL-3.1` | `Colab` 実行前の package / config / runbook 導線を手動でたどれることを確認する | `sd7`,`su12` | `bd14`,`bu16` | `td13`,`tu20` | `p-done` | `p-done` | modeling batch <br>操作手順 4-6 と<br>da3_colab_<br>clean_bootstrap_<br>runbook.md | 2026-03-29 modeling bootstrap candidate evidence |
 | `MRL-4` | `-` | `trajectreview-modeling` で<br>実 bundle 読込、<br>request preflight、<br>review 側 state 組立て、<br>`Google Drive` directory intake までを成立させる | `sd6`,`sd7`,<br>`sd8`,`su12`,<br>`su19`,`sd11` | `bd13`,`bd14`,<br>`bd15`,`bd16`,<br>`bu16`,`bd20` | `td12`,`td13`,<br>`td22`,`td14`,<br>`tu20`,`td23` | `p-done` | `p-done` | modeling batch<br>操作手順 1-9 | modeling batch 定義,<br>2026-03-29 modeling preflight close evidence |

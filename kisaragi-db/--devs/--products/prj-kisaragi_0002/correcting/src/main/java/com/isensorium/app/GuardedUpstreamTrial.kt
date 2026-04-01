@@ -52,7 +52,8 @@ object GuardedUpstreamTrialContract {
         "imu.csv",
         "gnss.csv",
         "ble_scan.jsonl",
-        "arcore_pose.jsonl",
+        "frame_record.jsonl",
+        "images",
         "video_frame_timestamps.csv",
         "video_events.jsonl",
     )

@@ -23,50 +23,52 @@
             android:layout_marginTop="12dp"
             android:text="BLE記録" />
 
+        <TextView
+            android:id="@+id/dialogFrameRecordNoteText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="主記録は image + pose + intrinsics + timestamp を同一 update で 1 record として保存します。" />
+
+        <LinearLayout
+            android:id="@+id/dialogFrameRecordEveryContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="主記録採択間隔(N updateごと)" />
+
+            <EditText
+                android:id="@+id/dialogFrameRecordEveryInput"
+                android:layout_width="96dp"
+                android:layout_height="wrap_content"
+                android:inputType="number" />
+        </LinearLayout>
+
+        <com.google.android.material.materialswitch.MaterialSwitch
+            android:id="@+id/dialogTrackingOnlySwitch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="TRACKING時のみ主記録化" />
+
+        <TextView
+            android:id="@+id/dialogVideoSupplementNoteText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="video.mp4 は補助入力として常時保存し、主時系列は frame record を正とします。" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="ARCoreのtimestamp(ms)" />
-
-            <EditText
-                android:id="@+id/dialogVideoIntervalInput"
-                android:layout_width="96dp"
-                android:layout_height="wrap_content"
-                android:inputType="number" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="ARCore 記録" />
-
-            <EditText
-                android:id="@+id/dialogArcoreIntervalInput"
-                android:layout_width="96dp"
-                android:layout_height="wrap_content"
-                android:inputType="number" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
             android:gravity="center_vertical"
             android:orientation="horizontal">
 

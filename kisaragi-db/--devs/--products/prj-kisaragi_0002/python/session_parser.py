@@ -124,7 +124,7 @@ class SessionParser:
         return self.load_csv_aliases("bt_events.csv", "bt.csv")
 
     def load_pose_rows(self) -> list[dict[str, Any]]:
-        rows = self.load_jsonl_aliases("poses.jsonl", "arcore_pose.jsonl")
+        rows = self.load_jsonl_aliases("frame_record.jsonl", "poses.jsonl", "arcore_pose.jsonl")
         if rows:
             return rows
         return self.load_csv_aliases("arcore_pose.csv")
@@ -162,13 +162,14 @@ class SessionParser:
         gnss_rows = self.load_csv("gnss.csv")
         bt_rows = self.load_bt_rows()
         pose_rows = self.load_pose_rows()
+        has_frame_records = any(row.get("imageFileName") for row in pose_rows)
         video_present = (self.session_dir / "video.mp4").exists()
         video_events_present = (self.session_dir / "video_events.jsonl").exists()
 
         required_inputs = {
             "session_manifest": self.manifest_path is not None and self.manifest_path.exists(),
             "video": video_present,
-            "frames": len(frame_rows) > 0,
+            "frames": has_frame_records or len(frame_rows) > 0,
             "imu": len(imu_rows) > 0,
             "bt": len(bt_rows) > 0,
         }
@@ -202,7 +203,9 @@ class SessionParser:
         calibration = self._camera_calibration_summary(self.load_pose_rows())
         recording_config = self.manifest.get("recordingConfig", {})
         arcore_enabled = bool(recording_config.get("arCoreEnabled", self.manifest.get("arCoreEnabled", True)))
-        arcore_interval_ms = int(recording_config.get("arCoreIntervalMs", self.manifest.get("arCoreIntervalMs", 2000)))
+        arcore_interval_ms = int(recording_config.get("arCoreIntervalMs", self.manifest.get("arCoreIntervalMs", 33)))
+        frame_record_every_n_updates = int(recording_config.get("frameRecordEveryNUpdates", self.manifest.get("frameRecordEveryNUpdates", 1)))
+        image_directory = "images" if (self.session_dir / "images").exists() else "trajectreview/images"
 
         return {
             "sessionId": summary.session_id,
@@ -221,7 +224,7 @@ class SessionParser:
                     frame_rows=self.load_frame_rows(),
                     pose_rows=self.load_pose_rows(),
                     arcore_enabled=arcore_enabled,
-                    arcore_interval_ms=arcore_interval_ms,
+                    arcore_interval_ms=arcore_interval_ms * max(frame_record_every_n_updates, 1),
                 ),
                 "imageIntrinsicsCoverageRatio": calibration["imageIntrinsicsCoverageRatio"],
                 "lensDistortionCoverageRatio": calibration["lensDistortionCoverageRatio"],
@@ -234,10 +237,11 @@ class SessionParser:
                 "poseNearestDeltaNs": join_report["poseNearestDeltaNs"],
             },
             "mainVideoPath": "video.mp4",
-            "imageDirectory": "trajectreview/images",
+            "imageDirectory": image_directory,
             "framePoseIndexPath": "trajectreview/frame_pose_index.csv",
             "cameraCalibrationSummaryPath": "trajectreview/camera_calibration_summary.json",
-            "arcorePosePath": self._first_existing_name("poses.jsonl", "arcore_pose.jsonl", "arcore_pose.csv"),
+            "frameRecordPath": self._first_existing_name("frame_record.jsonl", "poses.jsonl", "arcore_pose.jsonl", "arcore_pose.csv"),
+            "arcorePosePath": self._first_existing_name("frame_record.jsonl", "poses.jsonl", "arcore_pose.jsonl", "arcore_pose.csv"),
             "sourceFiles": {
                 "manifest": self.manifest_path.name if self.manifest_path is not None else None,
                 "video": "video.mp4" if (self.session_dir / "video.mp4").exists() else None,
@@ -245,7 +249,8 @@ class SessionParser:
                 "imu": "imu.csv" if (self.session_dir / "imu.csv").exists() else None,
                 "gnss": "gnss.csv" if (self.session_dir / "gnss.csv").exists() else None,
                 "bt": self._first_existing_name("bt.jsonl", "ble_scan.jsonl", "bt_events.csv", "bt.csv"),
-                "poses": self._first_existing_name("poses.jsonl", "arcore_pose.jsonl", "arcore_pose.csv"),
+                "frameRecord": self._first_existing_name("frame_record.jsonl", "poses.jsonl", "arcore_pose.jsonl", "arcore_pose.csv"),
+                "poses": self._first_existing_name("frame_record.jsonl", "poses.jsonl", "arcore_pose.jsonl", "arcore_pose.csv"),
                 "videoEvents": "video_events.jsonl" if (self.session_dir / "video_events.jsonl").exists() else None,
                 "cameraCalibrationSummary": "camera_calibration_summary.json",
             },
@@ -265,7 +270,7 @@ class SessionParser:
         if not metadata["hasMonotonicSessionBase"]:
             blockers.append("sessionStartElapsedRealtimeNanos が不足している")
         if not self.load_pose_rows():
-            blockers.append("arcore_pose.jsonl が不足している")
+            blockers.append("frame_record.jsonl が不足している")
 
         return {
             "sessionId": package["sessionId"],
@@ -279,7 +284,7 @@ class SessionParser:
                 "sensor_quality.json",
                 "frame_pose_index.csv",
                 "camera_calibration_summary.json",
-                "arcore_pose.jsonl",
+                "frame_record.jsonl",
                 "images",
             ],
             "availableSourceFiles": package["sourceFiles"],

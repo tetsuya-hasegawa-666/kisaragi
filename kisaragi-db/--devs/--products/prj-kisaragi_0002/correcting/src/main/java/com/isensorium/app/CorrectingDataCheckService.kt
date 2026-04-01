@@ -31,7 +31,7 @@ class CorrectingDataCheckService {
     fun run(sessionDir: File): CorrectingDataCheckResult {
         val parsed = parse(sessionDir)
         val derivedDir = File(sessionDir, ARTIFACT_DERIVED_DIR).apply { mkdirs() }
-        val imagesDir = File(derivedDir, ARTIFACT_IMAGES_DIR)
+        val imagesDir = resolveImagesDirectory(sessionDir, derivedDir)
         val validatedParsed =
             parsed
 
@@ -63,8 +63,16 @@ class CorrectingDataCheckService {
 
     fun exportImages(sessionDir: File): File {
         val parsed = parse(sessionDir)
-        val imagesDir = File(sessionDir, "$ARTIFACT_DERIVED_DIR/$ARTIFACT_IMAGES_DIR").apply { mkdirs() }
-        extractImages(parsed, imagesDir)
+        val derivedDir = File(sessionDir, ARTIFACT_DERIVED_DIR).apply { mkdirs() }
+        val existingImagesDir = File(sessionDir, ARTIFACT_IMAGES_DIR)
+        val imagesDir =
+            if ((existingImagesDir.listFiles()?.any { it.isFile } ?: false)) {
+                existingImagesDir
+            } else {
+                File(derivedDir, ARTIFACT_IMAGES_DIR).apply { mkdirs() }.also {
+                    extractImages(parsed, it)
+                }
+            }
         return imagesDir
     }
 
@@ -104,15 +112,17 @@ class CorrectingDataCheckService {
         val imuSelection = loadFirstAvailable(sessionDir, listOf("imu.csv"))
         val gnssSelection = loadFirstAvailable(sessionDir, listOf("gnss.csv"))
         val btSelection = loadFirstAvailable(sessionDir, listOf("bt.jsonl", "ble_scan.jsonl", "bt_events.csv", "bt.csv"))
-        val poseSelection = loadFirstAvailable(sessionDir, listOf("poses.jsonl", "arcore_pose.jsonl", "arcore_pose.csv"))
+        val poseSelection = loadFirstAvailable(sessionDir, listOf("frame_record.jsonl", "poses.jsonl", "arcore_pose.jsonl", "arcore_pose.csv"))
         val videoFile = File(sessionDir, "video.mp4").takeIf { it.exists() }
         val videoEventsFile = File(sessionDir, "video_events.jsonl").takeIf { it.exists() }
 
-        val frameRows = frameSelection?.rows ?: emptyList()
+        val rawFrameRows = frameSelection?.rows ?: emptyList()
         val imuRows = imuSelection?.rows ?: emptyList()
         val gnssRows = gnssSelection?.rows ?: emptyList()
         val btRows = btSelection?.rows ?: emptyList()
         val poseRows = poseSelection?.rows ?: emptyList()
+        val recordLinkedFrameRows = poseRows.filter { !stringValue(it, listOf("imageFileName")).isNullOrBlank() }
+        val frameRows = if (recordLinkedFrameRows.isNotEmpty()) recordLinkedFrameRows else rawFrameRows
 
         val requiredInputs =
             linkedMapOf(
@@ -140,10 +150,10 @@ class CorrectingDataCheckService {
             )
         val nearestDeltas =
             linkedMapOf(
-                "imuNearestDeltaNs" to nearestDelta(frameRows, imuRows, listOf("elapsed_realtime_ns", "timestamp_ns")),
-                "gnssNearestDeltaNs" to nearestDelta(frameRows, gnssRows, listOf("elapsed_realtime_ns", "timestamp_ns")),
-                "btNearestDeltaNs" to nearestDelta(frameRows, btRows, listOf("elapsedRealtimeNanos", "timestamp_ns")),
-                "poseNearestDeltaNs" to nearestDelta(frameRows, poseRows, listOf("elapsedRealtimeNanos", "timestamp_ns")),
+                "imuNearestDeltaNs" to nearestDelta(frameRows, imuRows, listOf("elapsedRealtimeNanos", "captureTimestampNs", "frameTimestampNs", "elapsed_realtime_ns", "timestamp_ns")),
+                "gnssNearestDeltaNs" to nearestDelta(frameRows, gnssRows, listOf("elapsedRealtimeNanos", "captureTimestampNs", "frameTimestampNs", "elapsed_realtime_ns", "timestamp_ns")),
+                "btNearestDeltaNs" to nearestDelta(frameRows, btRows, listOf("elapsedRealtimeNanos", "captureTimestampNs", "frameTimestampNs", "timestamp_ns")),
+                "poseNearestDeltaNs" to nearestDelta(frameRows, poseRows, listOf("elapsedRealtimeNanos", "captureTimestampNs", "frameTimestampNs", "timestamp_ns")),
             )
         val completenessScore = requiredInputs.values.count { it }.toDouble() / requiredInputs.size.toDouble()
         val arCoreEnabled = manifest.optJSONObject("recordingConfig")?.optBoolean("arCoreEnabled", true)
@@ -151,12 +161,15 @@ class CorrectingDataCheckService {
         val configuredArCoreIntervalMs =
             manifest.optJSONObject("recordingConfig")?.optLong("arCoreIntervalMs", 2000L)
                 ?: manifest.optLong("arCoreIntervalMs", 2000L)
+        val frameRecordEveryNUpdates =
+            manifest.optJSONObject("recordingConfig")?.optInt("frameRecordEveryNUpdates", 1)
+                ?: manifest.optInt("frameRecordEveryNUpdates", 1)
         val poseCoverageRatio =
             computePoseCoverageRatio(
                 frameRows = frameRows,
                 poseRows = poseRows,
                 arCoreEnabled = arCoreEnabled,
-                configuredArCoreIntervalMs = configuredArCoreIntervalMs,
+                configuredArCoreIntervalMs = configuredArCoreIntervalMs * frameRecordEveryNUpdates.coerceAtLeast(1),
             )
         val calibrationFrameCount =
             poseRows.count {
@@ -259,11 +272,11 @@ class CorrectingDataCheckService {
         val blockers =
             buildList {
                 if (videoFile == null) add("video.mp4 が不足しています")
-                if (frameRows.isEmpty()) add("video_frame_timestamps.csv が不足しています")
+                if (frameRows.isEmpty()) add("frame timeline が不足しています")
                 if (imuRows.isEmpty()) add("imu.csv が不足しています")
                 if (btRows.isEmpty()) add("人物側の BLE 記録が不足しています")
                 if (!timebase.has("sessionStartElapsedRealtimeNanos")) add("sessionStartElapsedRealtimeNanos が不足しています")
-                if (poseRows.isEmpty()) add("arcore_pose.jsonl が不足しています")
+                if (poseRows.isEmpty()) add("frame_record.jsonl が不足しています")
                 if (validPoseCount == 0) add("pose がほぼ 0 件です")
                 if (imageIntrinsicsCount == 0) add("intrinsics がほぼ 0 件です")
                 if (imageIntrinsicsAttemptCount > 0 && imageIntrinsicsSuccessCount == 0) add("intrinsics_request_failed")
@@ -321,7 +334,7 @@ class CorrectingDataCheckService {
             manifest = manifest,
             manifestFilename = manifestFile.name,
             timebase = timebase,
-            frameFilename = frameSelection?.filename,
+            frameFilename = if (recordLinkedFrameRows.isNotEmpty()) poseSelection?.filename else frameSelection?.filename,
             gnssFilename = gnssSelection?.filename,
             btFilename = btSelection?.filename,
             poseFilename = poseSelection?.filename,
@@ -444,7 +457,7 @@ class CorrectingDataCheckService {
             .put("recommendedModelingRoutes", JSONArray(parsed.recommendedModelingRoutes))
             .put("warnings", JSONArray(parsed.warnings))
             .put("blockers", JSONArray(parsed.spaceReconstructionBlockers))
-            .put("coordinateSystem", "right-handed world space from ARCore displayOrientedPose")
+            .put("coordinateSystem", "right-handed world space from ARCore camera.pose")
             .toString(2)
 
     private fun buildFramePoseIndexCsv(parsed: ParsedSession, imagesDir: File): String {
@@ -456,21 +469,38 @@ class CorrectingDataCheckService {
             val frameTime =
                 longValue(
                     row,
-                    listOf("camera_sensor_timestamp_ns", "timestamp_ns", "elapsed_realtime_ns"),
+                    listOf("frameTimestampNs", "captureTimestampNs", "elapsedRealtimeNanos", "camera_sensor_timestamp_ns", "timestamp_ns", "elapsed_realtime_ns"),
                 ) ?: return@forEachIndexed
+            val directImageFileName = stringValue(row, listOf("imageFileName")).orEmpty()
             val nearestPose =
-                nearestRow(
-                    frameTime,
-                    parsed.poseRows,
-                    listOf("frameTimestampNs", "captureTimestampNs", "elapsedRealtimeNanos", "timestamp_ns"),
-                )
+                if (directImageFileName.isNotBlank()) {
+                    row
+                } else {
+                    nearestRow(
+                        frameTime,
+                        parsed.poseRows,
+                        listOf("frameTimestampNs", "captureTimestampNs", "elapsedRealtimeNanos", "timestamp_ns"),
+                    )
+                }
             val poseTime = nearestPose?.let { longValue(it, listOf("frameTimestampNs", "captureTimestampNs", "elapsedRealtimeNanos", "timestamp_ns")) }
-            val deltaMs = if (poseTime == null) "" else "%.3f".format(abs(frameTime - poseTime) / 1_000_000.0)
-            val imageFileName = imageFileName(index)
+            val deltaMs =
+                if (poseTime == null) {
+                    ""
+                } else if (directImageFileName.isNotBlank()) {
+                    "0.000"
+                } else {
+                    "%.3f".format(abs(frameTime - poseTime) / 1_000_000.0)
+                }
+            val legacyImageFileName = imageFileName(index)
+            val resolvedImageFileName =
+                firstNonBlank(
+                    directImageFileName.takeIf { File(imagesDir, it).exists() },
+                    legacyImageFileName.takeIf { File(imagesDir, it).exists() },
+                ) ?: ""
             rows +=
                 listOf(
                     index.toString(),
-                    if (File(imagesDir, imageFileName).exists()) imageFileName else "",
+                    resolvedImageFileName,
                     frameTime.toString(),
                     stringValue(nearestPose, listOf("recordIndex")) ?: "",
                     poseTime?.toString() ?: "",
@@ -564,9 +594,10 @@ class CorrectingDataCheckService {
             )
             .put("nearestDeltaNs", JSONObject().apply { parsed.nearestDeltas.forEach { (k, v) -> put(k, v) } })
             .put("mainVideoPath", "video.mp4")
-            .put("imageDirectory", if ((imagesDir.listFiles()?.count { it.isFile } ?: 0) > 0) "${ARTIFACT_DERIVED_DIR}/${ARTIFACT_IMAGES_DIR}" else JSONObject.NULL)
+            .put("imageDirectory", if ((imagesDir.listFiles()?.count { it.isFile } ?: 0) > 0) relativePathFromSession(parsed.sessionDir, imagesDir) else JSONObject.NULL)
             .put("framePoseIndexPath", "${ARTIFACT_DERIVED_DIR}/${ARTIFACT_FRAME_POSE_INDEX}")
             .put("cameraCalibrationSummaryPath", "${ARTIFACT_DERIVED_DIR}/${ARTIFACT_CAMERA_CALIBRATION_SUMMARY}")
+            .put("frameRecordPath", parsed.poseFilename ?: JSONObject.NULL)
             .put("arcorePosePath", parsed.poseFilename ?: JSONObject.NULL)
             .put(
                 "sourceFiles",
@@ -577,10 +608,11 @@ class CorrectingDataCheckService {
                     .put("imu", if (File(parsed.sessionDir, "imu.csv").exists()) "imu.csv" else JSONObject.NULL)
                     .put("gnss", parsed.gnssFilename ?: JSONObject.NULL)
                     .put("bt", parsed.btFilename ?: JSONObject.NULL)
+                    .put("frameRecord", parsed.poseFilename ?: JSONObject.NULL)
                     .put("poses", parsed.poseFilename ?: JSONObject.NULL)
                     .put("videoEvents", if (File(parsed.sessionDir, "video_events.jsonl").exists()) "video_events.jsonl" else JSONObject.NULL)
                     .put("cameraCalibrationSummary", ARTIFACT_CAMERA_CALIBRATION_SUMMARY)
-                    .put("images", if ((imagesDir.listFiles()?.count { it.isFile } ?: 0) > 0) "${ARTIFACT_DERIVED_DIR}/${ARTIFACT_IMAGES_DIR}" else JSONObject.NULL),
+                    .put("images", if ((imagesDir.listFiles()?.count { it.isFile } ?: 0) > 0) relativePathFromSession(parsed.sessionDir, imagesDir) else JSONObject.NULL),
             )
             .put("rawBundleRoot", parsed.sessionDir.absolutePath)
             .put("derivedBundleRoot", File(parsed.sessionDir, ARTIFACT_DERIVED_DIR).absolutePath)
@@ -612,9 +644,9 @@ class CorrectingDataCheckService {
             .put(
                 "recommendedNextAction",
                 if (parsed.spaceReconstructionBlockers.isEmpty()) {
-                    "modeling へ進める。frame画像群が必要なら転送前に生成する"
+                    "modeling へ進める。frame画像群は record 単位の images/ を優先して渡す"
                 } else {
-                    "warning を確認したうえで modeling へ進める。frame画像群が必要なら転送前に生成する"
+                    "warning を確認したうえで modeling へ進める。frame画像群は record 単位の images/ を優先して渡す"
                 },
             )
             .toString(2)
@@ -683,20 +715,28 @@ class CorrectingDataCheckService {
         if (frameTimes.isEmpty()) {
             return setOf(0)
         }
-        if (parsed.poseRows.isEmpty()) {
+        if (frameTimes.size == 1) {
             return setOf(frameTimes.first().first)
         }
-        return parsed.poseRows.mapNotNull { poseRow ->
-            val poseTime = longValue(poseRow, listOf("elapsedRealtimeNanos", "frameTimestampNs", "captureTimestampNs", "timestamp_ns"))
-                ?: return@mapNotNull null
-            frameTimes.minByOrNull { (_, frameTime) -> abs(frameTime - poseTime) }?.first
-        }.toSet()
+        return selectTransferImageFrameIndexes(frameTimes)
     }
 
     private fun firstExistingFile(sessionDir: File, candidates: List<String>): File? =
         candidates.firstNotNullOfOrNull { filename ->
             File(sessionDir, filename).takeIf { it.exists() }
         }
+
+    private fun resolveImagesDirectory(sessionDir: File, derivedDir: File): File {
+        val sessionImagesDir = File(sessionDir, ARTIFACT_IMAGES_DIR)
+        return if ((sessionImagesDir.listFiles()?.any { it.isFile } ?: false)) {
+            sessionImagesDir
+        } else {
+            File(derivedDir, ARTIFACT_IMAGES_DIR).apply { mkdirs() }
+        }
+    }
+
+    private fun relativePathFromSession(sessionDir: File, file: File): String =
+        file.relativeTo(sessionDir).invariantSeparatorsPath
 
     private fun parseCsv(text: String): List<Map<String, String>> {
         val lines = text.lineSequence().filter { it.isNotBlank() }.toList()
@@ -751,7 +791,7 @@ class CorrectingDataCheckService {
         }
         var nearest: Long? = null
         frameRows.take(60).forEach { row ->
-            val frameValue = longValue(row, listOf("elapsed_realtime_ns", "timestamp_ns")) ?: return@forEach
+            val frameValue = longValue(row, listOf("elapsedRealtimeNanos", "captureTimestampNs", "frameTimestampNs", "elapsed_realtime_ns", "timestamp_ns")) ?: return@forEach
             val candidate = sensorValues.minOf { value -> abs(frameValue - value) }
             nearest = if (nearest == null) candidate else min(nearest ?: candidate, candidate)
         }
@@ -770,7 +810,7 @@ class CorrectingDataCheckService {
         if (poseRows.isEmpty()) {
             return 0.0
         }
-        val frameTimes = frameRows.mapNotNull { row -> longValue(row, listOf("elapsed_realtime_ns", "timestamp_ns")) }
+        val frameTimes = frameRows.mapNotNull { row -> longValue(row, listOf("elapsedRealtimeNanos", "captureTimestampNs", "frameTimestampNs", "elapsed_realtime_ns", "timestamp_ns")) }
         val durationNs =
             if (frameTimes.size >= 2) {
                 (frameTimes.maxOrNull() ?: 0L) - (frameTimes.minOrNull() ?: 0L)
@@ -914,6 +954,44 @@ class CorrectingDataCheckService {
         private const val ARTIFACT_MEMBER_IDENTITY_MAP = "member_identity_map.json"
         private const val ARTIFACT_SESSION_PACKAGE = "session_package.json"
         private const val ARTIFACT_SPACE_HANDOFF_MANIFEST = "space_handoff_manifest.json"
-        private const val ARTIFACT_ARCORE_POSE = "arcore_pose.jsonl"
+        private const val ARTIFACT_ARCORE_POSE = "frame_record.jsonl"
+        private const val MIN_TRANSFER_IMAGE_FPS = 5.0
+        private const val MIN_TRANSFER_IMAGE_INTERVAL_NS = 200_000_000L
+
+        @JvmStatic
+        fun selectTransferImageFrameIndexes(frameTimes: List<Pair<Int, Long>>): Set<Int> {
+            if (frameTimes.isEmpty()) {
+                return emptySet()
+            }
+            if (frameTimes.size == 1) {
+                return setOf(frameTimes.first().first)
+            }
+
+            val firstTimeNs = frameTimes.first().second
+            val lastTimeNs = frameTimes.last().second
+            val durationNs = (lastTimeNs - firstTimeNs).coerceAtLeast(0L)
+            val estimatedSourceFps =
+                if (durationNs <= 0L) {
+                    frameTimes.size.toDouble()
+                } else {
+                    ((frameTimes.size - 1).toDouble() * 1_000_000_000.0) / durationNs.toDouble()
+                }
+            if (estimatedSourceFps <= MIN_TRANSFER_IMAGE_FPS) {
+                return frameTimes.map { it.first }.toSet()
+            }
+
+            val selected = linkedSetOf(frameTimes.first().first)
+            var nextTargetTimeNs = firstTimeNs + MIN_TRANSFER_IMAGE_INTERVAL_NS
+            frameTimes.drop(1).forEach { (index, frameTimeNs) ->
+                if (frameTimeNs >= nextTargetTimeNs) {
+                    selected.add(index)
+                    while (frameTimeNs >= nextTargetTimeNs) {
+                        nextTargetTimeNs += MIN_TRANSFER_IMAGE_INTERVAL_NS
+                    }
+                }
+            }
+            selected.add(frameTimes.last().first)
+            return selected
+        }
     }
 }

@@ -63,6 +63,8 @@ class MainActivity : AppCompatActivity() {
     private var transferDestinationStatusMessage: String? = null
     private var transferDestinationUri: Uri? = null
     private var captureModeSyncInProgress: Boolean = false
+    private var frameRecordEveryNUpdatesState: Int = 1
+    private var saveOnlyWhenTrackingState: Boolean = true
     private var processingWakeLock: PowerManager.WakeLock? = null
     private val uiHandler = Handler(Looper.getMainLooper())
     private var latestSessionStatusText: String = ""
@@ -504,11 +506,11 @@ class MainActivity : AppCompatActivity() {
     private fun resolveRecordingConfig(): RecordingConfigResolution =
         mainScreenController.resolveRecordingConfig(
             MainScreenFormState(
-                videoFrameLogIntervalMs = readMs(binding.videoIntervalInput, 100L),
                 imuIntervalMs = readMs(binding.imuIntervalInput, 20L),
                 gnssIntervalMs = readMs(binding.gnssIntervalInput, 1000L),
                 bleIntervalMs = readMs(binding.bleIntervalInput, 2000L),
-                arCoreIntervalMs = readMs(binding.arcoreIntervalInput, 2000L),
+                frameRecordEveryNUpdates = frameRecordEveryNUpdatesState,
+                saveOnlyWhenTracking = saveOnlyWhenTrackingState,
                 bleEnabled = binding.bleSwitch.isChecked,
                 arCoreEnabled = binding.arcoreSwitch.isChecked,
                 recordingMode = selectedRecordingMode(),
@@ -543,6 +545,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun readMs(input: EditText, fallback: Long): Long =
         input.text?.toString()?.trim()?.toLongOrNull()?.coerceAtLeast(1L) ?: fallback
+
+    private fun readInt(input: EditText, fallback: Int): Int =
+        input.text?.toString()?.trim()?.toIntOrNull()?.coerceAtLeast(1) ?: fallback
 
     private fun refreshLatestSessionDetails() {
         runCatching {
@@ -709,7 +714,7 @@ class MainActivity : AppCompatActivity() {
     private fun summarizeIssueLabel(issue: String): String =
         when {
             issue.contains("video.mp4") -> "主動画不足"
-            issue.contains("video_frame_timestamps") -> "frame timeline 不足"
+            issue.contains("frame timeline") || issue.contains("video_frame_timestamps") -> "frame timeline 不足"
             issue.contains("imu.csv") -> "IMU 不足"
             issue.contains("BLE") || issue.contains("bt") -> "BLE 不足"
             issue.contains("arcore_pose") -> "pose 不足"
@@ -1017,19 +1022,38 @@ class MainActivity : AppCompatActivity() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_sampling_conditions, null)
         val captureSwitch = dialogView.findViewById<MaterialSwitch>(R.id.dialogCaptureModeSwitch)
         val bleSwitch = dialogView.findViewById<MaterialSwitch>(R.id.dialogBleSwitch)
-        val videoInput = dialogView.findViewById<EditText>(R.id.dialogVideoIntervalInput)
-        val arcoreInput = dialogView.findViewById<EditText>(R.id.dialogArcoreIntervalInput)
+        val frameRecordEveryInput = dialogView.findViewById<EditText>(R.id.dialogFrameRecordEveryInput)
+        val trackingOnlySwitch = dialogView.findViewById<MaterialSwitch>(R.id.dialogTrackingOnlySwitch)
+        val frameRecordEveryContainer = dialogView.findViewById<View>(R.id.dialogFrameRecordEveryContainer)
+        val frameRecordNoteText = dialogView.findViewById<TextView>(R.id.dialogFrameRecordNoteText)
+        val videoSupplementNoteText = dialogView.findViewById<TextView>(R.id.dialogVideoSupplementNoteText)
         val imuInput = dialogView.findViewById<EditText>(R.id.dialogImuIntervalInput)
         val gnssInput = dialogView.findViewById<EditText>(R.id.dialogGnssIntervalInput)
         val bleInput = dialogView.findViewById<EditText>(R.id.dialogBleIntervalInput)
 
         captureSwitch.isChecked = binding.captureModeSwitch.isChecked
         bleSwitch.isChecked = binding.bleSwitch.isChecked
-        videoInput.setText(binding.videoIntervalInput.text)
-        arcoreInput.setText(binding.arcoreIntervalInput.text)
+        frameRecordEveryInput.setText(frameRecordEveryNUpdatesState.toString())
+        frameRecordEveryInput.inputType = InputType.TYPE_CLASS_NUMBER
+        trackingOnlySwitch.isChecked = saveOnlyWhenTrackingState
         imuInput.setText(binding.imuIntervalInput.text)
         gnssInput.setText(binding.gnssIntervalInput.text)
         bleInput.setText(binding.bleIntervalInput.text)
+        val refreshSamplingDialogState = {
+            val captureEnabled = captureSwitch.isChecked
+            frameRecordEveryContainer.isEnabled = captureEnabled
+            frameRecordEveryInput.isEnabled = captureEnabled
+            trackingOnlySwitch.isEnabled = captureEnabled
+            frameRecordNoteText.alpha = if (captureEnabled) 1.0f else 0.5f
+            videoSupplementNoteText.alpha = if (captureEnabled) 1.0f else 0.7f
+            bleInput.isEnabled = bleSwitch.isChecked
+            if (!captureEnabled) {
+                trackingOnlySwitch.isChecked = false
+            }
+        }
+        captureSwitch.setOnCheckedChangeListener { _, _ -> refreshSamplingDialogState() }
+        bleSwitch.setOnCheckedChangeListener { _, _ -> refreshSamplingDialogState() }
+        refreshSamplingDialogState()
 
         AlertDialog.Builder(this)
             .setTitle("サンプリング条件")
@@ -1037,8 +1061,8 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton("確定") { _, _ ->
                 binding.captureModeSwitch.isChecked = captureSwitch.isChecked
                 binding.bleSwitch.isChecked = bleSwitch.isChecked
-                binding.videoIntervalInput.setText(videoInput.text)
-                binding.arcoreIntervalInput.setText(arcoreInput.text)
+                frameRecordEveryNUpdatesState = readInt(frameRecordEveryInput, 1).coerceAtLeast(1)
+                saveOnlyWhenTrackingState = captureSwitch.isChecked && trackingOnlySwitch.isChecked
                 binding.imuIntervalInput.setText(imuInput.text)
                 binding.gnssIntervalInput.setText(gnssInput.text)
                 binding.bleIntervalInput.setText(bleInput.text)
@@ -1623,7 +1647,12 @@ class MainActivity : AppCompatActivity() {
             imuFile = File(sessionDir, "imu.csv"),
             gnssFile = File(sessionDir, "gnss.csv"),
             bleFile = File(sessionDir, "ble_scan.jsonl"),
-            arCoreFile = File(sessionDir, "arcore_pose.jsonl"),
+            arCoreFile =
+                listOf("frame_record.jsonl", "arcore_pose.jsonl")
+                    .map { File(sessionDir, it) }
+                    .firstOrNull { it.exists() }
+                    ?: File(sessionDir, "frame_record.jsonl"),
+            imagesDir = File(sessionDir, "images"),
             frameTimestampsFile = File(sessionDir, "video_frame_timestamps.csv"),
             videoEventsFile = File(sessionDir, "video_events.jsonl"),
             timebase = SessionTimebase(
@@ -1983,9 +2012,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun detectMimeType(name: String): String =
         when {
-            name.endsWith(".json") || name.endsWith(".jsonl") -> "application/json"
+            name.endsWith(".json") -> "application/json"
+            name.endsWith(".jsonl") -> "application/octet-stream"
             name.endsWith(".csv") -> "text/csv"
             name.endsWith(".mp4") -> "video/mp4"
+            name.endsWith(".jpg") || name.endsWith(".jpeg") -> "image/jpeg"
             else -> "application/octet-stream"
         }
 
@@ -1995,9 +2026,11 @@ class MainActivity : AppCompatActivity() {
             imuIntervalMs = json.optLong("imuIntervalMs", 20L),
             gnssIntervalMs = json.optLong("gnssIntervalMs", 1000L),
             bleIntervalMs = json.optLong("bleIntervalMs", 2000L),
-            arCoreIntervalMs = json.optLong("arCoreIntervalMs", 2000L),
+            arCoreIntervalMs = json.optLong("arCoreIntervalMs", 33L),
             bleEnabled = json.optBoolean("bleEnabled", true),
             arCoreEnabled = json.optBoolean("arCoreEnabled", true),
+            frameRecordEveryNUpdates = json.optInt("frameRecordEveryNUpdates", 1).coerceAtLeast(1),
+            saveOnlyWhenTracking = json.optBoolean("saveOnlyWhenTracking", true),
             recordingMode = RecordingMode.fromModeId(json.optString("recordingMode")),
         )
 
@@ -2111,7 +2144,7 @@ class MainActivity : AppCompatActivity() {
                     "imu.csv",
                     "gnss.csv",
                     "ble_scan.jsonl",
-                    "arcore_pose.jsonl",
+                    "frame_record.jsonl",
                 ),
         ),
         DERIVED(
@@ -2129,7 +2162,7 @@ class MainActivity : AppCompatActivity() {
         ),
         IMAGES(
             label = "frame画像群",
-            relativePaths = listOf("trajectreview/images"),
+            relativePaths = listOf("images"),
         ),
     }
 

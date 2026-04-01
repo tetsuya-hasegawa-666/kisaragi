@@ -21,6 +21,8 @@ import android.util.Size
 import android.view.Surface
 import android.util.Log
 import com.google.ar.core.Session
+import com.google.ar.core.TrackingState
+import com.google.ar.core.exceptions.NotYetAvailableException
 import java.io.File
 import java.nio.ByteBuffer
 
@@ -449,8 +451,11 @@ class TrialCpuImageVideoRecorder(
 }
 
 data class OffscreenArCorePoseFrame(
+    val updateIndex: Long,
     val frameTimestampNs: Long,
+    val captureTimestampNs: Long,
     val trackingState: String,
+    val trackingFailureReason: String?,
     val translation: FloatArray,
     val rotationQuaternion: FloatArray,
     val imageFocalLength: List<Float> = emptyList(),
@@ -465,16 +470,21 @@ data class OffscreenArCorePoseFrame(
     val textureIntrinsicsRequested: Boolean = false,
     val textureIntrinsicsSucceeded: Boolean = false,
     val textureIntrinsicsFailureReason: String? = null,
+    val imageFileName: String,
 )
 
 class OffscreenArCorePoseSampler(
     private val handler: Handler,
     private val sampleIntervalMs: Long,
+    private val imageOutputDir: File,
+    private val frameRecordEveryNUpdates: Int,
+    private val saveOnlyWhenTracking: Boolean,
     private val onPose: (OffscreenArCorePoseFrame) -> Unit,
 ) {
     private var session: Session? = null
     private var running = false
     private var lastFrameTimestampNs = -1L
+    private var updateIndex = 0L
 
     private var eglDisplay: EGLDisplay = EGL14.EGL_NO_DISPLAY
     private var eglContext: EGLContext = EGL14.EGL_NO_CONTEXT
@@ -493,7 +503,32 @@ class OffscreenArCorePoseSampler(
                     val frame = arSession.update()
                     val timestampNs = frame.timestamp
                     if (timestampNs > 0L && timestampNs != lastFrameTimestampNs) {
+                        updateIndex += 1
                         val camera = frame.camera
+                        if ((updateIndex % frameRecordEveryNUpdates.coerceAtLeast(1).toLong()) != 0L) {
+                            lastFrameTimestampNs = timestampNs
+                            return@runCatching
+                        }
+                        if (saveOnlyWhenTracking && camera.trackingState != TrackingState.TRACKING) {
+                            lastFrameTimestampNs = timestampNs
+                            return@runCatching
+                        }
+                        val savedImage =
+                            try {
+                                frame.acquireCameraImage().useImage { image ->
+                                    saveFrameRecordImage(
+                                        image = image,
+                                        outputDir = imageOutputDir,
+                                        timestampNs = timestampNs,
+                                    )
+                                }
+                            } catch (_: NotYetAvailableException) {
+                                lastFrameTimestampNs = timestampNs
+                                return@runCatching
+                            } catch (_: Exception) {
+                                lastFrameTimestampNs = timestampNs
+                                return@runCatching
+                            }
                         val pose = camera.pose
                         val imageIntrinsicsResult = runCatching { camera.imageIntrinsics }
                         val textureIntrinsicsResult = runCatching { camera.textureIntrinsics }
@@ -501,8 +536,11 @@ class OffscreenArCorePoseSampler(
                         val textureIntrinsics = textureIntrinsicsResult.getOrNull()
                         onPose(
                             OffscreenArCorePoseFrame(
+                                updateIndex = updateIndex,
                                 frameTimestampNs = timestampNs,
+                                captureTimestampNs = runCatching { frame.androidCameraTimestamp }.getOrDefault(timestampNs),
                                 trackingState = camera.trackingState.name,
+                                trackingFailureReason = runCatching { camera.trackingFailureReason.name }.getOrNull(),
                                 translation = pose.translation,
                                 rotationQuaternion = pose.rotationQuaternion,
                                 imageFocalLength = imageIntrinsics?.focalLength?.toList() ?: emptyList(),
@@ -517,6 +555,7 @@ class OffscreenArCorePoseSampler(
                                 textureIntrinsicsRequested = true,
                                 textureIntrinsicsSucceeded = textureIntrinsics != null,
                                 textureIntrinsicsFailureReason = textureIntrinsicsResult.exceptionOrNull()?.javaClass?.simpleName,
+                                imageFileName = savedImage.fileName,
                             ),
                         )
                         lastFrameTimestampNs = timestampNs
@@ -538,6 +577,7 @@ class OffscreenArCorePoseSampler(
                 return@post
             }
             initializeGl(session)
+            updateIndex = 0L
             handler.post(samplingRunnable)
         }
     }
@@ -549,6 +589,7 @@ class OffscreenArCorePoseSampler(
             releaseGl()
             session = null
             lastFrameTimestampNs = -1L
+            updateIndex = 0L
         }
     }
 

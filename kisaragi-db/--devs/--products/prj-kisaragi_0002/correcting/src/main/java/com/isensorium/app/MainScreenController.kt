@@ -3,11 +3,11 @@ package com.isensorium.app
 import java.util.Locale
 
 data class MainScreenFormState(
-    val videoFrameLogIntervalMs: Long,
     val imuIntervalMs: Long,
     val gnssIntervalMs: Long,
     val bleIntervalMs: Long,
-    val arCoreIntervalMs: Long,
+    val frameRecordEveryNUpdates: Int,
+    val saveOnlyWhenTracking: Boolean,
     val bleEnabled: Boolean,
     val arCoreEnabled: Boolean,
     val recordingMode: RecordingMode,
@@ -29,24 +29,27 @@ class MainScreenController {
         resolveRecordingConfig(formState).config
 
     fun resolveRecordingConfig(formState: MainScreenFormState): RecordingConfigResolution {
-        val normalizedVideoIntervalMs =
-            if (formState.recordingMode == RecordingMode.POCKET_RECORDING) {
-                formState.videoFrameLogIntervalMs.coerceAtLeast(250L)
-            } else {
-                formState.videoFrameLogIntervalMs
-            }
         val normalizedBleIntervalMs =
             if (formState.recordingMode == RecordingMode.POCKET_RECORDING && formState.bleEnabled) {
                 formState.bleIntervalMs.coerceAtLeast(5000L)
             } else {
                 formState.bleIntervalMs
             }
-        val normalizedArCoreIntervalMs =
-            if (formState.recordingMode == RecordingMode.POCKET_RECORDING && formState.arCoreEnabled) {
-                formState.arCoreIntervalMs.coerceAtLeast(5000L)
+        val normalizedArCoreEnabled =
+            if (formState.recordingMode == RecordingMode.POCKET_RECORDING) {
+                false
             } else {
-                formState.arCoreIntervalMs
+                formState.arCoreEnabled
             }
+        val normalizedArCoreIntervalMs = if (normalizedArCoreEnabled) 33L else 5000L
+        val normalizedVideoIntervalMs = if (formState.recordingMode == RecordingMode.POCKET_RECORDING) 250L else 100L
+        val normalizedFrameRecordEveryNUpdates =
+            if (normalizedArCoreEnabled) {
+                formState.frameRecordEveryNUpdates.coerceAtLeast(1)
+            } else {
+                1
+            }
+        val normalizedSaveOnlyWhenTracking = normalizedArCoreEnabled && formState.saveOnlyWhenTracking
         val config =
             RecordingConfig(
                 videoFrameLogIntervalMs = normalizedVideoIntervalMs,
@@ -55,15 +58,16 @@ class MainScreenController {
                 bleIntervalMs = normalizedBleIntervalMs,
                 arCoreIntervalMs = normalizedArCoreIntervalMs,
                 bleEnabled = formState.bleEnabled,
-                arCoreEnabled = formState.arCoreEnabled,
+                arCoreEnabled = normalizedArCoreEnabled,
+                frameRecordEveryNUpdates = normalizedFrameRecordEveryNUpdates,
+                saveOnlyWhenTracking = normalizedSaveOnlyWhenTracking,
                 recordingMode = formState.recordingMode,
             )
         val issue =
             if (formState.recordingMode == RecordingMode.POCKET_RECORDING) {
                 buildPocketModeIssue(
                     bleAdjusted = formState.bleEnabled && normalizedBleIntervalMs != formState.bleIntervalMs,
-                    arCoreAdjusted = formState.arCoreEnabled && normalizedArCoreIntervalMs != formState.arCoreIntervalMs,
-                    videoAdjusted = normalizedVideoIntervalMs != formState.videoFrameLogIntervalMs,
+                    frameRecordSuppressed = formState.arCoreEnabled || formState.frameRecordEveryNUpdates != 1 || formState.saveOnlyWhenTracking,
                     config = config,
                 )
             } else {
@@ -74,10 +78,12 @@ class MainScreenController {
 
     fun buildModeSummary(config: RecordingConfig, routeId: String): String {
         val sensorSummary =
-            if (config.bleEnabled || config.arCoreEnabled) {
-                "動画・IMU・GNSS を基準に、BLE / ARCore を低頻度確認として有効"
+            if (config.arCoreEnabled) {
+                "主記録=${config.frameRecordEveryNUpdates} updateごと / trackingOnly=${config.saveOnlyWhenTracking} / IMU・GNSS・BLE を補助記録"
+            } else if (config.bleEnabled) {
+                "動画・IMU・GNSS を基準に、BLE を補助記録"
             } else {
-                "動画・IMU・GNSS を基準に、BLE / ARCore は無効"
+                "動画・IMU・GNSS を基準に補助記録のみ"
             }
         return "記録モード: ${recordingModeLabel(config.recordingMode)} / route=$routeId / $sensorSummary"
     }
@@ -175,21 +181,19 @@ class MainScreenController {
 
     private fun buildPocketModeIssue(
         bleAdjusted: Boolean,
-        arCoreAdjusted: Boolean,
-        videoAdjusted: Boolean,
+        frameRecordSuppressed: Boolean,
         config: RecordingConfig,
     ): RecordingIssue {
         val adjustments =
             buildList {
-                if (videoAdjusted) add("動画 timestamp 間隔を ${config.videoFrameLogIntervalMs} ms に調整")
                 if (bleAdjusted) add("BLE 間隔を ${config.bleIntervalMs} ms に調整")
-                if (arCoreAdjusted) add("ARCore 間隔を ${config.arCoreIntervalMs} ms に調整")
+                if (frameRecordSuppressed) add("ポケット収納計測では主記録 frame を無効化")
             }
         val message =
             if (adjustments.isEmpty()) {
-                "ポケット収納計測では、動画・IMU・GNSS を主軸に記録し、BLE / ARCore は低頻度確認として扱います。"
+                "ポケット収納計測では、動画・IMU・GNSS を主軸に記録し、主記録 frame は扱いません。"
             } else {
-                "ポケット収納計測向けに低頻度設定へ調整しました。"
+                "ポケット収納計測向けに補助記録設定へ調整しました。"
             }
         val suggestedAction =
             if (adjustments.isEmpty()) {
