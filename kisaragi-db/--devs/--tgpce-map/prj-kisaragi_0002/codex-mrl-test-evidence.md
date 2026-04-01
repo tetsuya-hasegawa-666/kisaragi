@@ -15,13 +15,36 @@
 
 - record date: `2026-04-01`
   target MRL: `MRL-2R`
+  target mRL: `mRL-2R.1`
+  gate change: `active`
+  issue: 実機では `frame_record.jsonl` と image の 1:1 は成立したが、`採択数=1` でも `record_fps ≒ 7.67` に留まり、停止後は画面に error が残り `session_manifest.json` も `finalized_with_error` / `sharedCamera=closed_with_error` になっていた。場当たり patch を続ける前に、`ARCore shared-camera` の公式 route と現行実装の差分を確認する必要があった
+  cause: 現行 `correcting` は `shared-camera` route で `CameraCaptureSession.onConfigured()` 中に `Session.resume()` を呼び、`Config.UpdateMode.LATEST_CAMERA_IMAGE` のまま `33ms` delay polling で `Session.update()` を回していた。これに対し Google の `Shared camera access with ARCore` は、`setRepeatingRequest()` を `onConfigured()` で行い、`Session.resume()` は `onActive()` で行う sample を示している。また `Config.UpdateMode` reference は、`BLOCKING` では `update()` が通常 new camera image を待ち、`LATEST_CAMERA_IMAGE` は即 return して最新 frame を返すだけだと明記している。`Frame.acquireCameraImage()` reference でも、画像は数 frame 分 `NotYetAvailableException` を返し得るとされているため、`LATEST + postDelayed` で fixed polling する構成は canonical record 採択 loop と相性が悪い
+  resolution: 公式 route に合わせて `RecordingCoordinator.kt` を修正し、`shared-camera` session の `updateMode` を `BLOCKING` へ変更した。`createSharedCaptureSession()` では `Session.resume()` を `onConfigured()` から `onActive()` へ移し、`sharedCamera.setCaptureCallback()` も resume 成功後に設定する形へ寄せた。さらに `OffscreenArCorePoseSampler` は `sampleIntervalMs` による delay polling をやめ、`BLOCKING` `Session.update()` を連続実行する loop に変えた。補助の `ArCoreLogger` 側 session も `BLOCKING` へそろえた。これで `採択数=1` の意味を `ARCore` update cadence により素直に近づけ、`record` 採択を handler の timing ずれへ依存させない構成にした
+  source: [ARCore Shared camera access with ARCore](https://developers.google.com/ar/develop/java/camera-sharing) `Last updated 2024-10-31 UTC`、[ARCore Config.UpdateMode reference](https://developers.google.com/ar/reference/java/com/google/ar/core/Config.UpdateMode) `Last updated 2024-10-31 UTC`、[ARCore Frame.acquireCameraImage reference](https://developers.google.com/ar/reference/java/com/google/ar/core/Frame#acquireCameraImage()) `Last updated 2024-10-31 UTC`、[official shared_camera_java sample](https://raw.githubusercontent.com/google-ar/arcore-android-sdk/master/samples/shared_camera_java/app/src/main/java/com/google/ar/core/examples/java/sharedcamera/SharedCameraActivity.java)
+  recurrence prevention: `ARCore` の lifecycle と frame cadence は独自推測で調整せず、`shared-camera` の resume / pause 位置、`updateMode` の意味、`acquireCameraImage()` の例外条件を公式 reference に照らしてから変更する。record 採択 loop は `sleep` / `postDelayed` 依存より、`Session.update()` の契約に沿って設計する
+  remaining work: この修正 build は compile / install / launch まで確認したが、まだ実機で再収録して `record_fps` と stop 後 error 消失を再測定していない。次は `SO-53B` で短時間収録を行い、`採択数=1` での `frame_record.jsonl` 件数、`trajectreview/image/` 件数、`video_fps`、`sharedCamera=closed_with_error` の残存有無を確認する
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/RecordingCoordinator.kt`
+
+- record date: `2026-04-01`
+  target MRL: `MRL-2R`
+  target mRL: `mRL-2R.1`
+  gate change: `active`
+  issue: `採択数=1` で `約30fps` 相当の `frame_record.jsonl` と対応 image を取りたいが、実機 `SO-53B` の `corecamera_shared_camera_trial` route では初回実測が `47s / 25 record / 25 image` と極端に低かった
+  cause: `OffscreenArCorePoseSampler` が `cameraHandler` を video recorder callback と共有し、さらに image 保存を同期 JPEG 化で処理していたため、`ARCore update` と image 保存が同じ lane で詰まっていた。加えて `TrialCpuImageVideoRecorder` でも frame ごとの大きな allocation があり、`OOM` で収録継続を壊していた
+  resolution: `FrameRecordImageIo.kt` を `raw plane snapshotter` / `JPEG persister` / `save queue` に分離し、`TrialCpuImageVideoRecorder` は codec input buffer へ直接 I420 を書く形へ変更した。`OffscreenArCorePoseSampler` は sampler 専用 thread と image save queue を持つ構成へ変更し、preview bitmap の recycle も追加した。実機再測定では `session-20260401-215102` で `frame_record.jsonl = 56`、`trajectreview/image = 56`、`video_frame_timestamps.csv = 314` を確認し、record と image の 1:1 は成立した
+  recurrence prevention: image 保存方式、preview 表示、video encoder feed をそれぞれ独立 service に分離し、record 採択 loop を blocking I/O と大きな heap allocation へ従属させない
+  remaining work: `採択数=1 -> 約30fps` にはまだ未達で、同 session の実測は `record_fps ≒ 7.67`、`video_fps ≒ 36.29` だった。さらに `session_manifest.json` は `finalized_with_error` / `sharedCamera=closed_with_error` が残っている。次は `shared-camera` route で `Session.update()` 自体が低 cadence になる原因を切り分け、`ARCore update cadence`、`acquireCameraImage` availability、stop 時の runtime close error を個別に潰す必要がある
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/CoreCameraTrialRuntime.kt`
+
+- record date: `2026-04-01`
+  target MRL: `MRL-2R`
   target mRL: `mRL-2R.1`、`mRL-2R.2`、`mRL-2R.3`
   gate change: `active`
-  issue: canonical input を `frame_record.jsonl` と record 単位 `images/` へ切り替える方針は固まっていたが、runtime、`Sampling条件` popup、Google Drive 転送、parser、modeling preflight が旧 `arcore_pose.jsonl` / 転送時抽出前提のまま分断していた
+  issue: canonical input を `frame_record.jsonl` と record 単位 `trajectreview/image/` へ切り替える方針は固まっていたが、runtime、`Sampling条件` popup、Google Drive 転送、parser、modeling preflight が旧 `arcore_pose.jsonl` / 転送時抽出前提のまま分断していた
   cause: `correcting` は `ARCore` pose を jsonl に保存していた一方、画像は `MediaMetadataRetriever` で転送時抽出し、popup も `ARCoreのtimestamp(ms)` / `ARCore 記録` という旧入力を持っていた。さらに `Google Drive` への `.jsonl` 書き込みでは MIME が `application/json` になっており、provider 側で `.jsonl.json` へ変形されていた
-  resolution: `RecordingCoordinator.kt` と `CoreCameraTrialRuntime.kt` を更新し、`camera.pose` を正とした採択 frame だけを `frame_record.jsonl` と session root `images/` へ recording 中に保存する構成へ切り替えた。`MainActivity.kt` の `Sampling条件` popup は `主記録採択間隔` と `TRACKING時のみ主記録化` を持つ構成へ変更し、`.jsonl` は generic MIME で転送して拡張子二重化を防止した。`CorrectingDataCheckService.kt`、`session_parser.py`、`LocalModelingService.kt`、`review_contracts.py` も `frame_record.jsonl` と root `images/` を primary に読むよう更新した。`correcting` / `app` の Kotlin compile、unit test、`correcting:installDebug` を実施済み
+  resolution: `RecordingCoordinator.kt` と `CoreCameraTrialRuntime.kt` を更新し、`camera.pose` を正とした採択 frame だけを `frame_record.jsonl` と `trajectreview/image/` へ recording 中に保存する構成へ切り替えた。`MainActivity.kt` の `Sampling条件` popup は `主記録採択間隔` と `TRACKING時のみ主記録化` を持つ構成へ変更し、`.jsonl` は generic MIME で転送して拡張子二重化を防止した。`CorrectingDataCheckService.kt`、`session_parser.py`、`LocalModelingService.kt`、`review_contracts.py` も `frame_record.jsonl` と `trajectreview/image/` を primary に読むよう更新した。`correcting` / `app` の Kotlin compile、unit test、`correcting:installDebug` を実施済み
   recurrence prevention: record 単位で取得した data は全段で record 単位のまま扱い、画像の後抽出や nearest-link を canonical route に戻さない。`jsonl` 転送では MIME による provider 側 rename を避け、表示名の拡張子を正として保つ
-  remaining work: `MRL-2R` の admin UX check を実機で行い、`Sampling条件` popup、record 生成、`Google Drive` 転送 zip 内の `frame_record.jsonl` / `images/`、modeling 側 preflight 読込を batch で確認する。legacy fallback に残る `MediaMetadataRetriever` route は compatibility 隔離として整理を続ける
+  remaining work: `MRL-2R` の admin UX check を実機で行い、`Sampling条件` popup、record 生成、`Google Drive` 転送 zip 内の `frame_record.jsonl` / `trajectreview/image/`、modeling 側 preflight 読込を batch で確認する。legacy fallback に残る `MediaMetadataRetriever` route は compatibility 隔離として整理を続ける
   evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/src/main/java/com/isensorium/app/RecordingCoordinator.kt`
 
 - record date: `2026-04-01`

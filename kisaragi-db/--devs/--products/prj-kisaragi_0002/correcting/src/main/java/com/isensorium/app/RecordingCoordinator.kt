@@ -514,6 +514,7 @@ class RecordingCoordinator(
         private var active = false
         private var firstFrame = true
         private var rotationDegrees: Int = 0
+        private var latestBitmap: Bitmap? = null
         private val logTag = "isensorium-preview"
 
         fun start() {
@@ -530,6 +531,8 @@ class RecordingCoordinator(
             active = false
             imageView.post {
                 imageView.setImageDrawable(null)
+                latestBitmap?.recycle()
+                latestBitmap = null
                 imageView.visibility = View.GONE
             }
             Log.d(logTag, "preview renderer stopped")
@@ -543,13 +546,21 @@ class RecordingCoordinator(
         }
 
         fun onFrame(bitmap: Bitmap, timestampNs: Long) {
-            if (!active) return
+            if (!active) {
+                bitmap.recycle()
+                return
+            }
             imageView.post {
-                if (!active) return@post
+                if (!active) {
+                    bitmap.recycle()
+                    return@post
+                }
                 if (firstFrame) {
                     firstFrame = false
                     Log.d(logTag, "preview renderer first frame ${bitmap.width}x${bitmap.height}")
                 }
+                latestBitmap?.recycle()
+                latestBitmap = bitmap
                 imageView.setImageBitmap(bitmap)
             }
         }
@@ -602,6 +613,7 @@ class RecordingCoordinator(
         private var sharedArSession: Session? = null
         private var cameraDevice: CameraDevice? = null
         private var captureSession: CameraCaptureSession? = null
+        private var sharedCaptureCallback: CameraCaptureSession.CaptureCallback? = null
         private var videoRecorder: TrialCpuImageVideoRecorder? = null
         private var poseSampler: OffscreenArCorePoseSampler? = null
         private var sharedCameraHostResumed = false
@@ -739,7 +751,7 @@ class RecordingCoordinator(
                 val arSession = Session(context, setOf(Session.Feature.SHARED_CAMERA))
                 arSession.configure(
                     Config(arSession).apply {
-                        updateMode = Config.UpdateMode.LATEST_CAMERA_IMAGE
+                        updateMode = Config.UpdateMode.BLOCKING
                     },
                 )
                 sharedArSession = arSession
@@ -862,7 +874,7 @@ class RecordingCoordinator(
                         )
                     }
                 }
-            arSession.sharedCamera.setCaptureCallback(captureCallback, cameraHandler)
+            sharedCaptureCallback = captureCallback
             val wrappedSessionCallback =
                 arSession.sharedCamera.createARSessionStateCallback(
                     object : CameraCaptureSession.StateCallback() {
@@ -886,7 +898,6 @@ class RecordingCoordinator(
                                 ),
                             )
                             sessionManager.finalizeManifest(session, "recording")
-                            resumeSharedArSession(session)
                             statusListener(
                                 SessionUiState(
                                     recording = true,
@@ -895,6 +906,12 @@ class RecordingCoordinator(
                                     toastMessage = "replacement route を有効化しました",
                                 ),
                             )
+                        }
+
+                        override fun onActive(cameraCaptureSession: CameraCaptureSession) {
+                            if (!sharedCameraResumed) {
+                                resumeSharedArSession(session)
+                            }
                         }
 
                         override fun onConfigureFailed(cameraCaptureSession: CameraCaptureSession) {
@@ -912,15 +929,18 @@ class RecordingCoordinator(
             if (!recordingSession.recordingConfig.arCoreEnabled) {
                 return
             }
+            if (sharedCameraResumed) {
+                return
+            }
             runCatching { activeSession.resume() }
                 .onSuccess {
                     sharedCameraResumed = true
+                    sharedCaptureCallback?.let { activeSession.sharedCamera.setCaptureCallback(it, cameraHandler) }
                     sessionManager.appendCollectorStatus(recordingSession, "arcore", "resumed")
                     poseSampler?.stop()
                     poseSampler =
                         OffscreenArCorePoseSampler(
                             cameraHandler,
-                            recordingSession.recordingConfig.arCoreIntervalMs,
                             recordingSession.imagesDir,
                             recordingSession.recordingConfig.frameRecordEveryNUpdates,
                             recordingSession.recordingConfig.saveOnlyWhenTracking,
@@ -1012,6 +1032,7 @@ class RecordingCoordinator(
             runCatching { sharedArSession?.close() }
                 .onFailure { runtimeStatus = "error" }
             sharedArSession = null
+            sharedCaptureCallback = null
             videoRecorder = null
             poseSampler = null
             sharedCameraHostResumed = false
@@ -1443,7 +1464,7 @@ class RecordingCoordinator(
                 val createdSession = com.google.ar.core.Session(context)
                 createdSession.configure(
                     Config(createdSession).apply {
-                        updateMode = Config.UpdateMode.LATEST_CAMERA_IMAGE
+                        updateMode = Config.UpdateMode.BLOCKING
                     },
                 )
                 createdSession.resume()
@@ -1678,7 +1699,7 @@ class SessionManager(
             gnssFile = File(root, "gnss.csv"),
             bleFile = File(root, "ble_scan.jsonl"),
             arCoreFile = File(root, "frame_record.jsonl"),
-            imagesDir = File(root, "images"),
+            imagesDir = canonicalImageDir(root),
             frameTimestampsFile = File(root, "video_frame_timestamps.csv"),
             videoEventsFile = File(root, "video_events.jsonl"),
             timebase = SessionTimebase(startedWall, startedMono),
@@ -1713,7 +1734,12 @@ class SessionManager(
                         .put(JSONObject().put("name", "imu").put("file", session.imuFile.name))
                         .put(JSONObject().put("name", "gnss").put("file", session.gnssFile.name))
                         .put(JSONObject().put("name", "ble").put("file", session.bleFile.name))
-                        .put(JSONObject().put("name", "frame_record").put("file", session.arCoreFile.name).put("imagesDir", session.imagesDir.name)),
+                        .put(
+                            JSONObject()
+                                .put("name", "frame_record")
+                                .put("file", session.arCoreFile.name)
+                                .put("imagesDir", relativePathFromSessionRoot(session.sessionDir, session.imagesDir)),
+                        ),
                 )
                 .put("collectorStatus", JSONObject())
                 .toString(2),
@@ -1929,7 +1955,7 @@ class SessionManager(
                     .map { File(latestDir, it) }
                     .firstOrNull { it.exists() }
                     ?: File(latestDir, "frame_record.jsonl"),
-            imagesDir = File(latestDir, "images"),
+            imagesDir = resolveExistingImageDir(latestDir),
             frameTimestampsFile = File(latestDir, "video_frame_timestamps.csv"),
             videoEventsFile = File(latestDir, "video_events.jsonl"),
             timebase = SessionTimebase(
@@ -1959,6 +1985,19 @@ class SessionManager(
             .put("frameRecordEveryNUpdates", config.frameRecordEveryNUpdates)
             .put("saveOnlyWhenTracking", config.saveOnlyWhenTracking)
             .put("recordingMode", config.recordingMode.modeId)
+
+    private fun canonicalImageDir(sessionDir: File): File = File(File(sessionDir, "trajectreview"), "image")
+
+    private fun resolveExistingImageDir(sessionDir: File): File =
+        listOf(
+            canonicalImageDir(sessionDir),
+            File(File(sessionDir, "trajectreview"), "images"),
+            File(sessionDir, "image"),
+            File(sessionDir, "images"),
+        ).firstOrNull { it.exists() } ?: canonicalImageDir(sessionDir)
+
+    private fun relativePathFromSessionRoot(sessionDir: File, child: File): String =
+        sessionDir.toPath().relativize(child.toPath()).toString().replace('\\', '/')
 
     private fun modeBehaviorJson(config: RecordingConfig): JSONObject =
         JSONObject()

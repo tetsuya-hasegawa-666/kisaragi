@@ -16,6 +16,7 @@ import android.opengl.EGLSurface
 import android.opengl.GLES11Ext
 import android.opengl.GLES20
 import android.os.Handler
+import android.os.HandlerThread
 import android.os.SystemClock
 import android.util.Size
 import android.view.Surface
@@ -180,9 +181,8 @@ class TrialCpuImageVideoRecorder(
                 return
             }
             val startTimestamp = startSensorTimestampNs ?: timestampNs.also { startSensorTimestampNs = it }
-            val frameBytes = yuv420888ToI420(current)
             queueFrame(
-                frameData = frameBytes,
+                frameImage = current,
                 presentationTimeUs = ((timestampNs - startTimestamp) / 1_000L).coerceAtLeast(0L),
             )
             lastAcceptedTimestampNs = timestampNs
@@ -242,7 +242,7 @@ class TrialCpuImageVideoRecorder(
     }
 
     private fun queueFrame(
-        frameData: ByteArray,
+        frameImage: Image,
         presentationTimeUs: Long,
     ) {
         val activeCodec = codec ?: return
@@ -254,12 +254,13 @@ class TrialCpuImageVideoRecorder(
         }
         activeCodec.getInputBuffer(inputIndex)?.apply {
             clear()
-            put(frameData)
+            writeYuv420888ToI420(frameImage, this)
         } ?: run {
             logCodecDrop("encoder input buffer missing")
             return
         }
-        activeCodec.queueInputBuffer(inputIndex, 0, frameData.size, presentationTimeUs, 0)
+        val frameSize = frameImage.width * frameImage.height * 3 / 2
+        activeCodec.queueInputBuffer(inputIndex, 0, frameSize, presentationTimeUs, 0)
         drainCodec(activeCodec, endOfStream = false)
     }
 
@@ -366,16 +367,18 @@ class TrialCpuImageVideoRecorder(
         }
     }
 
-    private fun yuv420888ToI420(image: Image): ByteArray {
+    private fun writeYuv420888ToI420(
+        image: Image,
+        output: ByteBuffer,
+    ) {
         val width = image.width
         val height = image.height
         val ySize = width * height
-        val uvSize = width * height / 4
-        val output = ByteArray(ySize + uvSize * 2)
+        val uvSize = ySize / 4
+        output.limit(ySize + uvSize * 2)
         copyPlane(image.planes[0], width, height, output, 0)
         copyPlane(image.planes[1], width / 2, height / 2, output, ySize)
         copyPlane(image.planes[2], width / 2, height / 2, output, ySize + uvSize)
-        return output
     }
 
     private fun yuv420888ToBitmap(image: Image): Bitmap? {
@@ -425,10 +428,10 @@ class TrialCpuImageVideoRecorder(
         plane: Image.Plane,
         width: Int,
         height: Int,
-        output: ByteArray,
+        output: ByteBuffer,
         outputOffset: Int,
     ) {
-        val buffer = plane.buffer
+        val buffer = plane.buffer.duplicate()
         val rowStride = plane.rowStride
         val pixelStride = plane.pixelStride
         var outputIndex = outputOffset
@@ -439,7 +442,7 @@ class TrialCpuImageVideoRecorder(
             buffer.get(rowData, 0, length)
             var column = 0
             while (column < width) {
-                output[outputIndex++] = rowData[column * pixelStride]
+                output.put(outputIndex++, rowData[column * pixelStride])
                 column += 1
             }
         }
@@ -473,9 +476,30 @@ data class OffscreenArCorePoseFrame(
     val imageFileName: String,
 )
 
+private data class PendingOffscreenArCorePoseFrame(
+    val updateIndex: Long,
+    val frameTimestampNs: Long,
+    val captureTimestampNs: Long,
+    val trackingState: String,
+    val trackingFailureReason: String?,
+    val translation: FloatArray,
+    val rotationQuaternion: FloatArray,
+    val imageFocalLength: List<Float> = emptyList(),
+    val imagePrincipalPoint: List<Float> = emptyList(),
+    val imageDimensions: List<Int> = emptyList(),
+    val textureFocalLength: List<Float> = emptyList(),
+    val texturePrincipalPoint: List<Float> = emptyList(),
+    val textureDimensions: List<Int> = emptyList(),
+    val imageIntrinsicsRequested: Boolean = false,
+    val imageIntrinsicsSucceeded: Boolean = false,
+    val imageIntrinsicsFailureReason: String? = null,
+    val textureIntrinsicsRequested: Boolean = false,
+    val textureIntrinsicsSucceeded: Boolean = false,
+    val textureIntrinsicsFailureReason: String? = null,
+)
+
 class OffscreenArCorePoseSampler(
-    private val handler: Handler,
-    private val sampleIntervalMs: Long,
+    private val callbackHandler: Handler,
     private val imageOutputDir: File,
     private val frameRecordEveryNUpdates: Int,
     private val saveOnlyWhenTracking: Boolean,
@@ -485,6 +509,9 @@ class OffscreenArCorePoseSampler(
     private var running = false
     private var lastFrameTimestampNs = -1L
     private var updateIndex = 0L
+    private val samplerThread = HandlerThread("arcore-pose-sampler")
+    private var samplerHandler: Handler? = null
+    private val imageSaveQueue = FrameRecordImageSaveQueue(imageOutputDir, "arcore-frame-image-writer")
 
     private var eglDisplay: EGLDisplay = EGL14.EGL_NO_DISPLAY
     private var eglContext: EGLContext = EGL14.EGL_NO_CONTEXT
@@ -513,14 +540,10 @@ class OffscreenArCorePoseSampler(
                             lastFrameTimestampNs = timestampNs
                             return@runCatching
                         }
-                        val savedImage =
+                        val payload =
                             try {
                                 frame.acquireCameraImage().useImage { image ->
-                                    saveFrameRecordImage(
-                                        image = image,
-                                        outputDir = imageOutputDir,
-                                        timestampNs = timestampNs,
-                                    )
+                                    captureFrameImagePayload(image)
                                 }
                             } catch (_: NotYetAvailableException) {
                                 lastFrameTimestampNs = timestampNs
@@ -534,8 +557,8 @@ class OffscreenArCorePoseSampler(
                         val textureIntrinsicsResult = runCatching { camera.textureIntrinsics }
                         val imageIntrinsics = imageIntrinsicsResult.getOrNull()
                         val textureIntrinsics = textureIntrinsicsResult.getOrNull()
-                        onPose(
-                            OffscreenArCorePoseFrame(
+                        val pendingPose =
+                            PendingOffscreenArCorePoseFrame(
                                 updateIndex = updateIndex,
                                 frameTimestampNs = timestampNs,
                                 captureTimestampNs = runCatching { frame.androidCameraTimestamp }.getOrDefault(timestampNs),
@@ -555,14 +578,40 @@ class OffscreenArCorePoseSampler(
                                 textureIntrinsicsRequested = true,
                                 textureIntrinsicsSucceeded = textureIntrinsics != null,
                                 textureIntrinsicsFailureReason = textureIntrinsicsResult.exceptionOrNull()?.javaClass?.simpleName,
-                                imageFileName = savedImage.fileName,
-                            ),
-                        )
+                            )
+                        imageSaveQueue.enqueue(payload, timestampNs) { savedImage ->
+                            callbackHandler.post {
+                                onPose(
+                                    OffscreenArCorePoseFrame(
+                                        updateIndex = pendingPose.updateIndex,
+                                        frameTimestampNs = pendingPose.frameTimestampNs,
+                                        captureTimestampNs = pendingPose.captureTimestampNs,
+                                        trackingState = pendingPose.trackingState,
+                                        trackingFailureReason = pendingPose.trackingFailureReason,
+                                        translation = pendingPose.translation,
+                                        rotationQuaternion = pendingPose.rotationQuaternion,
+                                        imageFocalLength = pendingPose.imageFocalLength,
+                                        imagePrincipalPoint = pendingPose.imagePrincipalPoint,
+                                        imageDimensions = pendingPose.imageDimensions,
+                                        textureFocalLength = pendingPose.textureFocalLength,
+                                        texturePrincipalPoint = pendingPose.texturePrincipalPoint,
+                                        textureDimensions = pendingPose.textureDimensions,
+                                        imageIntrinsicsRequested = pendingPose.imageIntrinsicsRequested,
+                                        imageIntrinsicsSucceeded = pendingPose.imageIntrinsicsSucceeded,
+                                        imageIntrinsicsFailureReason = pendingPose.imageIntrinsicsFailureReason,
+                                        textureIntrinsicsRequested = pendingPose.textureIntrinsicsRequested,
+                                        textureIntrinsicsSucceeded = pendingPose.textureIntrinsicsSucceeded,
+                                        textureIntrinsicsFailureReason = pendingPose.textureIntrinsicsFailureReason,
+                                        imageFileName = savedImage.fileName,
+                                    ),
+                                )
+                            }
+                        }
                         lastFrameTimestampNs = timestampNs
                     }
                 }
             }
-            handler.postDelayed(this, sampleIntervalMs.coerceAtLeast(33L))
+            samplerHandler?.post(this)
         }
     }
 
@@ -572,24 +621,32 @@ class OffscreenArCorePoseSampler(
         }
         running = true
         this.session = session
-        handler.post {
+        if (!samplerThread.isAlive) {
+            samplerThread.start()
+            samplerHandler = Handler(samplerThread.looper)
+        }
+        samplerHandler?.post {
             if (!running) {
                 return@post
             }
+            imageSaveQueue.start()
             initializeGl(session)
             updateIndex = 0L
-            handler.post(samplingRunnable)
+            samplerHandler?.post(samplingRunnable)
         }
     }
 
     fun stop() {
         running = false
-        handler.removeCallbacks(samplingRunnable)
-        handler.post {
+        samplerHandler?.removeCallbacks(samplingRunnable)
+        samplerHandler?.post {
+            imageSaveQueue.stop()
             releaseGl()
             session = null
             lastFrameTimestampNs = -1L
             updateIndex = 0L
+            samplerThread.quitSafely()
+            samplerHandler = null
         }
     }
 
