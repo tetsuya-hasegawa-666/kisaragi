@@ -21,6 +21,7 @@ import android.os.SystemClock
 import android.util.Size
 import android.view.Surface
 import android.util.Log
+import com.google.ar.core.Frame
 import com.google.ar.core.Session
 import com.google.ar.core.TrackingState
 import com.google.ar.core.exceptions.NotYetAvailableException
@@ -91,6 +92,7 @@ class TrialCpuImageVideoRecorder(
     private val targetFrameRate: Int = 10,
 ) {
     private val logTag = "isensorium-preview"
+    private val codecLock = Any()
     private val minFrameIntervalNs = 1_000_000_000L / targetFrameRate
     private var previewListener: ((Bitmap, Long) -> Unit)? = null
     private var previewFrameIntervalNs: Long = 200_000_000L
@@ -105,6 +107,7 @@ class TrialCpuImageVideoRecorder(
     private var muxerStarted = false
     private var encoderStarted = false
     private var recording = false
+    private var stopping = false
     private var startSensorTimestampNs: Long? = null
     private var lastAcceptedTimestampNs = Long.MIN_VALUE
 
@@ -128,17 +131,23 @@ class TrialCpuImageVideoRecorder(
                 handleImage(image)
             }, callbackHandler)
         }
-        releaseEncoder()
-        startSensorTimestampNs = null
-        lastAcceptedTimestampNs = Long.MIN_VALUE
-        lastPreviewTimestampNs = Long.MIN_VALUE
-        lastPreviewLogNs = Long.MIN_VALUE
-        recording = false
+        synchronized(codecLock) {
+            releaseEncoder()
+            startSensorTimestampNs = null
+            lastAcceptedTimestampNs = Long.MIN_VALUE
+            lastPreviewTimestampNs = Long.MIN_VALUE
+            lastPreviewLogNs = Long.MIN_VALUE
+            recording = false
+            stopping = false
+        }
     }
 
     fun start() {
-        initializeEncoder()
-        recording = true
+        synchronized(codecLock) {
+            initializeEncoder()
+            stopping = false
+            recording = true
+        }
     }
 
     fun setPreviewListener(listener: ((Bitmap, Long) -> Unit)?, previewFps: Int = 5) {
@@ -150,43 +159,55 @@ class TrialCpuImageVideoRecorder(
     }
 
     fun stopAndRelease(): Long {
-        recording = false
-        finishEncoding()
-        imageReader?.close()
-        imageReader = null
-        startSensorTimestampNs = null
-        lastAcceptedTimestampNs = Long.MIN_VALUE
+        synchronized(codecLock) {
+            stopping = true
+            recording = false
+            finishEncoding()
+            imageReader?.setOnImageAvailableListener(null, null)
+            imageReader?.close()
+            imageReader = null
+            startSensorTimestampNs = null
+            lastAcceptedTimestampNs = Long.MIN_VALUE
+            stopping = false
+        }
         return outputFile.length()
     }
 
     fun release() {
-        recording = false
-        releaseEncoder()
-        imageReader?.close()
-        imageReader = null
-        startSensorTimestampNs = null
-        lastAcceptedTimestampNs = Long.MIN_VALUE
+        synchronized(codecLock) {
+            stopping = true
+            recording = false
+            releaseEncoder()
+            imageReader?.setOnImageAvailableListener(null, null)
+            imageReader?.close()
+            imageReader = null
+            startSensorTimestampNs = null
+            lastAcceptedTimestampNs = Long.MIN_VALUE
+            stopping = false
+        }
     }
 
     private fun handleImage(image: Image) {
         image.use { current ->
-            if (!recording) {
-                return
+            synchronized(codecLock) {
+                if (!recording || stopping) {
+                    return
+                }
+                val timestampNs = current.timestamp
+                if (timestampNs <= 0L) {
+                    return
+                }
+                if (lastAcceptedTimestampNs != Long.MIN_VALUE && timestampNs - lastAcceptedTimestampNs < minFrameIntervalNs) {
+                    return
+                }
+                val startTimestamp = startSensorTimestampNs ?: timestampNs.also { startSensorTimestampNs = it }
+                queueFrame(
+                    frameImage = current,
+                    presentationTimeUs = ((timestampNs - startTimestamp) / 1_000L).coerceAtLeast(0L),
+                )
+                lastAcceptedTimestampNs = timestampNs
+                maybeEmitPreview(current, timestampNs)
             }
-            val timestampNs = current.timestamp
-            if (timestampNs <= 0L) {
-                return
-            }
-            if (lastAcceptedTimestampNs != Long.MIN_VALUE && timestampNs - lastAcceptedTimestampNs < minFrameIntervalNs) {
-                return
-            }
-            val startTimestamp = startSensorTimestampNs ?: timestampNs.also { startSensorTimestampNs = it }
-            queueFrame(
-                frameImage = current,
-                presentationTimeUs = ((timestampNs - startTimestamp) / 1_000L).coerceAtLeast(0L),
-            )
-            lastAcceptedTimestampNs = timestampNs
-            maybeEmitPreview(current, timestampNs)
         }
     }
 
@@ -246,8 +267,17 @@ class TrialCpuImageVideoRecorder(
         presentationTimeUs: Long,
     ) {
         val activeCodec = codec ?: return
-        drainCodec(activeCodec, endOfStream = false)
-        val inputIndex = activeCodec.dequeueInputBuffer(0L)
+        if (!drainCodec(activeCodec, endOfStream = false)) {
+            return
+        }
+        val inputIndex =
+            try {
+                activeCodec.dequeueInputBuffer(0L)
+            } catch (_: IllegalStateException) {
+                recording = false
+                logCodecDrop("encoder input dequeue illegal state")
+                return
+            }
         if (inputIndex < 0) {
             logCodecDrop("encoder input buffer unavailable")
             return
@@ -260,7 +290,13 @@ class TrialCpuImageVideoRecorder(
             return
         }
         val frameSize = frameImage.width * frameImage.height * 3 / 2
-        activeCodec.queueInputBuffer(inputIndex, 0, frameSize, presentationTimeUs, 0)
+        try {
+            activeCodec.queueInputBuffer(inputIndex, 0, frameSize, presentationTimeUs, 0)
+        } catch (_: IllegalStateException) {
+            recording = false
+            logCodecDrop("encoder queue input illegal state")
+            return
+        }
         drainCodec(activeCodec, endOfStream = false)
     }
 
@@ -295,9 +331,9 @@ class TrialCpuImageVideoRecorder(
     private fun drainCodec(
         activeCodec: MediaCodec,
         endOfStream: Boolean,
-    ) {
-        val activeMuxer = muxer ?: return
-        val activeBufferInfo = bufferInfo ?: return
+    ): Boolean {
+        val activeMuxer = muxer ?: return false
+        val activeBufferInfo = bufferInfo ?: return false
         val stopDeadlineNs =
             if (endOfStream) {
                 SystemClock.elapsedRealtimeNanos() + STOP_DRAIN_TIMEOUT_NS
@@ -305,13 +341,20 @@ class TrialCpuImageVideoRecorder(
                 Long.MAX_VALUE
             }
         while (true) {
-            val outputIndex = activeCodec.dequeueOutputBuffer(activeBufferInfo, TIMEOUT_US)
+            val outputIndex =
+                try {
+                    activeCodec.dequeueOutputBuffer(activeBufferInfo, TIMEOUT_US)
+                } catch (_: IllegalStateException) {
+                    recording = false
+                    logCodecDrop("encoder output dequeue illegal state")
+                    return false
+                }
             when {
-                outputIndex == MediaCodec.INFO_TRY_AGAIN_LATER && !endOfStream -> return
+                outputIndex == MediaCodec.INFO_TRY_AGAIN_LATER && !endOfStream -> return true
                 outputIndex == MediaCodec.INFO_TRY_AGAIN_LATER -> {
                     if (SystemClock.elapsedRealtimeNanos() >= stopDeadlineNs) {
                         logCodecDrop("encoder EOS drain timeout")
-                        return
+                        return false
                     }
                     continue
                 }
@@ -331,11 +374,12 @@ class TrialCpuImageVideoRecorder(
                     }
                     activeCodec.releaseOutputBuffer(outputIndex, false)
                     if ((activeBufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
-                        return
+                        return true
                     }
                 }
             }
         }
+        return false
     }
 
     private fun releaseEncoder() {
@@ -476,6 +520,16 @@ data class OffscreenArCorePoseFrame(
     val imageFileName: String,
 )
 
+data class FrameRecordSamplerDiagnostics(
+    val loopCount: Long = 0L,
+    val uniqueFrameCount: Long = 0L,
+    val adoptedUpdateCount: Long = 0L,
+    val skippedNotTrackingCount: Long = 0L,
+    val skippedImageUnavailableCount: Long = 0L,
+    val skippedQueueFullCount: Long = 0L,
+    val savedRecordCount: Long = 0L,
+)
+
 private data class PendingOffscreenArCorePoseFrame(
     val updateIndex: Long,
     val frameTimestampNs: Long,
@@ -517,38 +571,47 @@ class OffscreenArCorePoseSampler(
     private var eglContext: EGLContext = EGL14.EGL_NO_CONTEXT
     private var eglSurface: EGLSurface = EGL14.EGL_NO_SURFACE
     private var cameraTextureId = 0
+    private var diagnostics = FrameRecordSamplerDiagnostics()
+    @Volatile private var samplePosted = false
 
     private val samplingRunnable = object : Runnable {
         override fun run() {
+            samplePosted = false
             if (!running) {
                 return
             }
             val arSession = session
             if (arSession != null) {
                 runCatching {
+                    diagnostics = diagnostics.copy(loopCount = diagnostics.loopCount + 1L)
                     makeCurrent()
                     val frame = arSession.update()
                     val timestampNs = frame.timestamp
                     if (timestampNs > 0L && timestampNs != lastFrameTimestampNs) {
+                        diagnostics = diagnostics.copy(uniqueFrameCount = diagnostics.uniqueFrameCount + 1L)
                         updateIndex += 1
                         val camera = frame.camera
                         if ((updateIndex % frameRecordEveryNUpdates.coerceAtLeast(1).toLong()) != 0L) {
                             lastFrameTimestampNs = timestampNs
                             return@runCatching
                         }
+                        diagnostics = diagnostics.copy(adoptedUpdateCount = diagnostics.adoptedUpdateCount + 1L)
                         if (saveOnlyWhenTracking && camera.trackingState != TrackingState.TRACKING) {
+                            diagnostics = diagnostics.copy(skippedNotTrackingCount = diagnostics.skippedNotTrackingCount + 1L)
                             lastFrameTimestampNs = timestampNs
                             return@runCatching
                         }
                         val payload =
                             try {
-                                frame.acquireCameraImage().useImage { image ->
+                                acquireCameraImageWithRetry(frame).useImage { image ->
                                     captureFrameImagePayload(image)
                                 }
                             } catch (_: NotYetAvailableException) {
+                                diagnostics = diagnostics.copy(skippedImageUnavailableCount = diagnostics.skippedImageUnavailableCount + 1L)
                                 lastFrameTimestampNs = timestampNs
                                 return@runCatching
                             } catch (_: Exception) {
+                                diagnostics = diagnostics.copy(skippedImageUnavailableCount = diagnostics.skippedImageUnavailableCount + 1L)
                                 lastFrameTimestampNs = timestampNs
                                 return@runCatching
                             }
@@ -579,7 +642,9 @@ class OffscreenArCorePoseSampler(
                                 textureIntrinsicsSucceeded = textureIntrinsics != null,
                                 textureIntrinsicsFailureReason = textureIntrinsicsResult.exceptionOrNull()?.javaClass?.simpleName,
                             )
-                        imageSaveQueue.enqueue(payload, timestampNs) { savedImage ->
+                        val enqueued =
+                            imageSaveQueue.enqueue(payload, timestampNs) { savedImage ->
+                                diagnostics = diagnostics.copy(savedRecordCount = diagnostics.savedRecordCount + 1L)
                             callbackHandler.post {
                                 onPose(
                                     OffscreenArCorePoseFrame(
@@ -607,11 +672,13 @@ class OffscreenArCorePoseSampler(
                                 )
                             }
                         }
+                        if (!enqueued) {
+                            diagnostics = diagnostics.copy(skippedQueueFullCount = diagnostics.skippedQueueFullCount + 1L)
+                        }
                         lastFrameTimestampNs = timestampNs
                     }
                 }
             }
-            samplerHandler?.post(this)
         }
     }
 
@@ -632,22 +699,52 @@ class OffscreenArCorePoseSampler(
             imageSaveQueue.start()
             initializeGl(session)
             updateIndex = 0L
-            samplerHandler?.post(samplingRunnable)
+            diagnostics = FrameRecordSamplerDiagnostics()
         }
     }
 
-    fun stop() {
+    fun requestSample() {
+        if (!running) {
+            return
+        }
+        val handler = samplerHandler ?: return
+        if (samplePosted) {
+            return
+        }
+        samplePosted = true
+        handler.post(samplingRunnable)
+    }
+
+    fun stop(): FrameRecordSamplerDiagnostics {
         running = false
         samplerHandler?.removeCallbacks(samplingRunnable)
+        val finished = diagnostics
         samplerHandler?.post {
             imageSaveQueue.stop()
             releaseGl()
             session = null
             lastFrameTimestampNs = -1L
             updateIndex = 0L
+            samplePosted = false
             samplerThread.quitSafely()
             samplerHandler = null
         }
+        return finished
+    }
+
+    private fun acquireCameraImageWithRetry(frame: Frame): Image {
+        var lastError: NotYetAvailableException? = null
+        repeat(CAMERA_IMAGE_RETRY_COUNT) { retryIndex ->
+            try {
+                return frame.acquireCameraImage()
+            } catch (error: NotYetAvailableException) {
+                lastError = error
+                if (retryIndex < CAMERA_IMAGE_RETRY_COUNT - 1) {
+                    SystemClock.sleep(CAMERA_IMAGE_RETRY_DELAY_MS)
+                }
+            }
+        }
+        throw checkNotNull(lastError)
     }
 
     private fun initializeGl(session: Session) {
@@ -735,5 +832,10 @@ class OffscreenArCorePoseSampler(
             EGL14.eglTerminate(eglDisplay)
             eglDisplay = EGL14.EGL_NO_DISPLAY
         }
+    }
+
+    private companion object {
+        const val CAMERA_IMAGE_RETRY_COUNT = 4
+        const val CAMERA_IMAGE_RETRY_DELAY_MS = 5L
     }
 }

@@ -608,6 +608,8 @@ class RecordingCoordinator(
         private val lifecycleMachine = TrialSharedCameraLifecycleMachine().apply { markPreviewReady() }
         private val cameraThread = HandlerThread("isensorium-shared-camera-trial").apply { start() }
         private val cameraHandler = Handler(cameraThread.looper)
+        private val poseResultThread = HandlerThread("isensorium-shared-camera-pose").apply { start() }
+        private val poseResultHandler = Handler(poseResultThread.looper)
         private val cameraManager = context.getSystemService(CameraManager::class.java)
 
         private var sharedArSession: Session? = null
@@ -616,6 +618,7 @@ class RecordingCoordinator(
         private var sharedCaptureCallback: CameraCaptureSession.CaptureCallback? = null
         private var videoRecorder: TrialCpuImageVideoRecorder? = null
         private var poseSampler: OffscreenArCorePoseSampler? = null
+        private var lastPoseSamplerDiagnostics: FrameRecordSamplerDiagnostics? = null
         private var sharedCameraHostResumed = false
         private var sharedCameraResumed = false
         private var closingRuntime = false
@@ -732,6 +735,7 @@ class RecordingCoordinator(
             replacementPreviewRenderer.stop()
             cameraExecutor.shutdown()
             runCatching { cameraThread.quitSafely() }
+            runCatching { poseResultThread.quitSafely() }
         }
 
         override fun onHostResume() {
@@ -755,8 +759,7 @@ class RecordingCoordinator(
                     },
                 )
                 sharedArSession = arSession
-                collectorStatus["sharedCamera"] = "ar_session_created"
-                sessionManager.appendCollectorStatus(session, "sharedCamera", "ar_session_created")
+                setCollectorStatus(session, "sharedCamera", "ar_session_created")
                 val cameraId = resolveBackCameraId(arSession)
                 updatePreviewRotation(cameraId)
                 replacementPreviewRenderer.setRotationDegrees(previewRotationDegrees)
@@ -812,8 +815,7 @@ class RecordingCoordinator(
                     object : CameraDevice.StateCallback() {
                         override fun onOpened(device: CameraDevice) {
                             cameraDevice = device
-                            collectorStatus["camera2"] = "camera_opened"
-                            sessionManager.appendCollectorStatus(session, "camera2", "camera_opened")
+                            setCollectorStatus(session, "camera2", "camera_opened")
                             createSharedCaptureSession(device, arSession, session, cameraId)
                         }
 
@@ -861,8 +863,7 @@ class RecordingCoordinator(
                         request: CaptureRequest,
                         result: TotalCaptureResult,
                     ) {
-                        collectorStatus["camera2"] = "streaming"
-                        sessionManager.appendCollectorStatus(session, "camera2", "streaming")
+                        setCollectorStatus(session, "camera2", "streaming")
                         sessionManager.appendFrameTimestamp(
                             session,
                             FrameTimestamp(
@@ -872,6 +873,9 @@ class RecordingCoordinator(
                                 rotationDegrees = 0,
                             ),
                         )
+                        if (sharedCameraResumed && session.recordingConfig.arCoreEnabled) {
+                            poseSampler?.requestSample()
+                        }
                     }
                 }
             sharedCaptureCallback = captureCallback
@@ -880,12 +884,10 @@ class RecordingCoordinator(
                     object : CameraCaptureSession.StateCallback() {
                         override fun onConfigured(cameraCaptureSession: CameraCaptureSession) {
                             captureSession = cameraCaptureSession
-                            collectorStatus["sharedCamera"] = "capture_session_configured"
-                            sessionManager.appendCollectorStatus(session, "sharedCamera", "capture_session_configured")
+                            setCollectorStatus(session, "sharedCamera", "capture_session_configured")
                             cameraCaptureSession.setRepeatingRequest(request.build(), captureCallback, cameraHandler)
                             checkNotNull(videoRecorder).start()
-                            collectorStatus["video"] = "recording"
-                            sessionManager.appendCollectorStatus(session, "video", "recording")
+                            setCollectorStatus(session, "video", "recording")
                             lifecycleMachine.markRunning()
                             sessionManager.appendVideoEvent(
                                 session,
@@ -937,10 +939,10 @@ class RecordingCoordinator(
                     sharedCameraResumed = true
                     sharedCaptureCallback?.let { activeSession.sharedCamera.setCaptureCallback(it, cameraHandler) }
                     sessionManager.appendCollectorStatus(recordingSession, "arcore", "resumed")
-                    poseSampler?.stop()
+                    lastPoseSamplerDiagnostics = poseSampler?.stop()
                     poseSampler =
                         OffscreenArCorePoseSampler(
-                            cameraHandler,
+                            poseResultHandler,
                             recordingSession.imagesDir,
                             recordingSession.recordingConfig.frameRecordEveryNUpdates,
                             recordingSession.recordingConfig.saveOnlyWhenTracking,
@@ -982,8 +984,8 @@ class RecordingCoordinator(
                                 ),
                             )
                             recordingSession.arCoreSampleCount += 1
-                            sessionManager.appendCollectorStatus(recordingSession, "pose", "sampling")
-                            sessionManager.appendCollectorStatus(recordingSession, "arcore", "active")
+                            setCollectorStatus(recordingSession, "pose", "sampling")
+                            setCollectorStatus(recordingSession, "arcore", "active")
                             sessionManager.appendFrameTimestamp(
                                 recordingSession,
                                 FrameTimestamp(
@@ -1001,7 +1003,7 @@ class RecordingCoordinator(
         }
 
         private fun pauseSharedArSession() {
-            poseSampler?.stop()
+            lastPoseSamplerDiagnostics = poseSampler?.stop()
             poseSampler = null
             runCatching { sharedArSession?.pause() }
             sharedCameraResumed = false
@@ -1014,6 +1016,7 @@ class RecordingCoordinator(
             pauseSharedArSession()
             sessionManager.appendCollectorStatus(session, "pose", "stopped")
             sessionManager.appendCollectorStatus(session, "arcore", "stopped")
+            lastPoseSamplerDiagnostics?.let { sessionManager.writeFrameRecordDiagnostics(session, it) }
             runCatching { captureSession?.stopRepeating() }
             val videoBytes =
                 runCatching { videoRecorder?.stopAndRelease() ?: session.videoFile.length() }
@@ -1035,14 +1038,15 @@ class RecordingCoordinator(
             sharedCaptureCallback = null
             videoRecorder = null
             poseSampler = null
+            lastPoseSamplerDiagnostics = null
             sharedCameraHostResumed = false
             sharedCameraResumed = false
             closingRuntime = false
-            sessionManager.appendCollectorStatus(session, "video", if (videoBytes > 0L) "captured" else "empty_output")
-            sessionManager.appendCollectorStatus(session, "sharedCamera", "closed")
-            sessionManager.appendCollectorStatus(session, "camera2", "closed")
+            setCollectorStatus(session, "video", if (videoBytes > 0L) "captured" else "empty_output")
+            setCollectorStatus(session, "sharedCamera", "closed")
+            setCollectorStatus(session, "camera2", "closed")
             if (runtimeStatus == "error") {
-                sessionManager.appendCollectorStatus(session, "sharedCamera", "closed_with_error")
+                setCollectorStatus(session, "sharedCamera", "closed_with_error")
             }
             sessionManager.appendVideoEvent(
                 session,
@@ -1097,6 +1101,14 @@ class RecordingCoordinator(
                     issue = issue,
                 ),
             )
+        }
+
+        private fun setCollectorStatus(session: RecordingSession, collector: String, status: String) {
+            if (collectorStatus[collector] == status) {
+                return
+            }
+            collectorStatus[collector] = status
+            sessionManager.appendCollectorStatus(session, collector, status)
         }
     }
 
@@ -1679,6 +1691,7 @@ class SessionManager(
 ) {
     private val timestampFormat = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US)
     private val sessionWriters = ConcurrentHashMap<String, SessionWriters>()
+    private val manifestLocks = ConcurrentHashMap<String, Any>()
 
     fun createSession(): RecordingSession {
         val startedWall = System.currentTimeMillis()
@@ -1709,7 +1722,8 @@ class SessionManager(
 
     fun writeInitialManifest(session: RecordingSession) {
         sessionWriters.putIfAbsent(session.sessionId, SessionWriters.openFor(session))
-        session.manifestFile.writeText(
+        writeManifestAtomically(
+            session,
             JSONObject()
                 .put("sessionId", session.sessionId)
                 .put("status", "initialized")
@@ -1725,6 +1739,12 @@ class SessionManager(
                 .put("recordingModeLabel", recordingModeLabel(session.recordingConfig.recordingMode))
                 .put("recordingConfig", recordingConfigJson(session.recordingConfig))
                 .put("modeBehavior", modeBehaviorJson(session.recordingConfig))
+                .put(
+                    "frameRecordPolicy",
+                    JSONObject()
+                        .put("recordUnit", "one_adopted_frame_update")
+                        .put("recordUnitReason", "DA3 / 3DGS 前段では image、pose、intrinsics、timestamp を同じ採択 frame の 1 record として扱い、後段で nearest-link や video 後抽出へ戻さずに時系列一貫性を保つ必要があるため"),
+                )
                 .put("sessionAdapter", GuardedUpstreamTrialContract.sessionAdapterMetadataJson(session.adapterMetadata))
                 .put("guardedUpstreamTrial", GuardedUpstreamTrialContract.guardedUpstreamTrialJson(routeResolution))
                 .put(
@@ -1741,26 +1761,23 @@ class SessionManager(
                                 .put("imagesDir", relativePathFromSessionRoot(session.sessionDir, session.imagesDir)),
                         ),
                 )
-                .put("collectorStatus", JSONObject())
-                .toString(2),
+                .put("collectorStatus", JSONObject()),
         )
     }
 
     fun finalizeManifest(session: RecordingSession, status: String) {
-        val manifest = JSONObject(
-            session.manifestFile.takeIf { it.exists() }?.readText()
-                ?: JSONObject().put("sessionId", session.sessionId).toString(),
-        )
-        manifest.put("status", status)
-        manifest.put("imuSampleCount", session.sensorSampleCount)
-        manifest.put("gnssSampleCount", session.gnssSampleCount)
-        manifest.put("bleSampleCount", session.bleSampleCount)
-        manifest.put("arCoreSampleCount", session.arCoreSampleCount)
-        manifest.put("recordingMode", session.recordingConfig.recordingMode.modeId)
-        manifest.put("recordingModeLabel", recordingModeLabel(session.recordingConfig.recordingMode))
-        manifest.put("recordingConfig", recordingConfigJson(session.recordingConfig))
-        manifest.put("modeBehavior", modeBehaviorJson(session.recordingConfig))
-        writeManifestWithResolvedFileSizes(session, manifest)
+        updateManifest(session) { manifest ->
+            manifest.put("status", status)
+            manifest.put("imuSampleCount", session.sensorSampleCount)
+            manifest.put("gnssSampleCount", session.gnssSampleCount)
+            manifest.put("bleSampleCount", session.bleSampleCount)
+            manifest.put("arCoreSampleCount", session.arCoreSampleCount)
+            manifest.put("recordingMode", session.recordingConfig.recordingMode.modeId)
+            manifest.put("recordingModeLabel", recordingModeLabel(session.recordingConfig.recordingMode))
+            manifest.put("recordingConfig", recordingConfigJson(session.recordingConfig))
+            manifest.put("modeBehavior", modeBehaviorJson(session.recordingConfig))
+            writeManifestWithResolvedFileSizes(session, manifest)
+        }
     }
 
     fun flushSessionOutputs(session: RecordingSession) {
@@ -1772,11 +1789,12 @@ class SessionManager(
     }
 
     fun appendCollectorStatus(session: RecordingSession, collector: String, status: String) {
-        val manifest = JSONObject(session.manifestFile.readText())
-        val statusObject = manifest.optJSONObject("collectorStatus") ?: JSONObject()
-        statusObject.put(collector, status)
-        manifest.put("collectorStatus", statusObject)
-        session.manifestFile.writeText(manifest.toString(2))
+        updateManifest(session) { manifest ->
+            val statusObject = manifest.optJSONObject("collectorStatus") ?: JSONObject()
+            statusObject.put(collector, status)
+            manifest.put("collectorStatus", statusObject)
+            writeManifestAtomically(session, manifest)
+        }
     }
 
     fun appendFrameTimestamp(session: RecordingSession, frameTimestamp: FrameTimestamp) {
@@ -1792,6 +1810,23 @@ class SessionManager(
         }
     }
 
+    fun writeFrameRecordDiagnostics(session: RecordingSession, diagnostics: FrameRecordSamplerDiagnostics) {
+        updateManifest(session) { manifest ->
+            manifest.put(
+                "frameRecordDiagnostics",
+                JSONObject()
+                    .put("loopCount", diagnostics.loopCount)
+                    .put("uniqueFrameCount", diagnostics.uniqueFrameCount)
+                    .put("adoptedUpdateCount", diagnostics.adoptedUpdateCount)
+                    .put("skippedNotTrackingCount", diagnostics.skippedNotTrackingCount)
+                    .put("skippedImageUnavailableCount", diagnostics.skippedImageUnavailableCount)
+                    .put("skippedQueueFullCount", diagnostics.skippedQueueFullCount)
+                    .put("savedRecordCount", diagnostics.savedRecordCount),
+            )
+            writeManifestAtomically(session, manifest)
+        }
+    }
+
     private fun writeManifestWithResolvedFileSizes(session: RecordingSession, manifest: JSONObject) {
         val firstPassFiles =
             JSONArray().apply {
@@ -1800,7 +1835,7 @@ class SessionManager(
                 }
             }
         manifest.put("files", firstPassFiles)
-        session.manifestFile.writeText(manifest.toString(2))
+        writeManifestAtomically(session, manifest)
 
         val secondPassFiles =
             JSONArray().apply {
@@ -1813,7 +1848,38 @@ class SessionManager(
                 }
             }
         manifest.put("files", secondPassFiles)
-        session.manifestFile.writeText(manifest.toString(2))
+        writeManifestAtomically(session, manifest)
+    }
+
+    private fun updateManifest(session: RecordingSession, updater: (JSONObject) -> Unit) {
+        synchronized(manifestLocks.getOrPut(session.sessionId) { Any() }) {
+            val manifest = readManifestOrDefault(session)
+            updater(manifest)
+        }
+    }
+
+    private fun readManifestOrDefault(session: RecordingSession): JSONObject {
+        val raw = session.manifestFile.takeIf { it.exists() }?.readText()?.trim().orEmpty()
+        return if (raw.isBlank()) {
+            JSONObject().put("sessionId", session.sessionId)
+        } else {
+            JSONObject(raw)
+        }
+    }
+
+    private fun writeManifestAtomically(session: RecordingSession, manifest: JSONObject) {
+        val target = session.manifestFile
+        val temp = File(target.parentFile, "${target.name}.tmp")
+        temp.writeText(manifest.toString(2))
+        if (target.exists() && !target.delete()) {
+            temp.copyTo(target, overwrite = true)
+            temp.delete()
+            return
+        }
+        if (!temp.renameTo(target)) {
+            temp.copyTo(target, overwrite = true)
+            temp.delete()
+        }
     }
 
     fun appendVideoEvent(session: RecordingSession, event: VideoEvent) {

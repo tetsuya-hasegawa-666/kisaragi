@@ -1,0 +1,18 @@
+session-20260401-224032/
+  ble_scan.jsonl
+  frame_record.jsonl
+  gnss.csv
+  imu.csv
+  session_manifest.json
+  trajectreview/
+    camera_calibration_summary.json
+    frame_pose_index.csv
+    image/ (83 jpg)
+    input_readiness.json
+    member_identity_map.json
+    sensor_quality.json
+    session_package.json
+    space_handoff_manifest.json
+  video.mp4
+  video_events.jsonl
+  video_frame_timestamps.csv

@@ -1605,12 +1605,11 @@ class MainActivity : AppCompatActivity() {
         freshResult: CorrectingDataCheckResult? = null,
     ): StoredSessionSummary? {
         val recordingSession = buildRecordingSessionFromDir(sessionDir) ?: return null
-        val manifest =
-            recordingSession.manifestFile.takeIf { it.exists() }?.readText()?.let(::JSONObject)
+        val manifest = readJsonObjectOrNull(recordingSession.manifestFile)
         val startedAtMillis = recordingSession.timebase.sessionStartWallTimeMs
         val durationMillis = readDurationMillis(recordingSession.videoEventsFile)
         val sensorQualityFile = File(sessionDir, "trajectreview/sensor_quality.json")
-        val sensorQuality = sensorQualityFile.takeIf { it.exists() }?.readText()?.let(::JSONObject)
+        val sensorQuality = readJsonObjectOrNull(sensorQualityFile)
         val warnings = freshResult?.warnings ?: (sensorQuality?.optJSONArray("warnings")?.toStringList() ?: emptyList())
         val blockers = freshResult?.blockers ?: (sensorQuality?.optJSONArray("blockers")?.toStringList() ?: emptyList())
         return StoredSessionSummary(
@@ -1632,7 +1631,7 @@ class MainActivity : AppCompatActivity() {
             return null
         }
         val manifestFile = File(sessionDir, "session_manifest.json")
-        val manifest = manifestFile.takeIf { it.exists() }?.readText()?.let(::JSONObject)
+        val manifest = readJsonObjectOrNull(manifestFile)
         val timebase = manifest?.optJSONObject("timebase")
         val adapterMetadata =
             GuardedUpstreamTrialContract.sessionAdapterMetadataFromJson(manifest?.optJSONObject("sessionAdapter"))
@@ -1652,7 +1651,7 @@ class MainActivity : AppCompatActivity() {
                     .map { File(sessionDir, it) }
                     .firstOrNull { it.exists() }
                     ?: File(sessionDir, "frame_record.jsonl"),
-            imagesDir = File(sessionDir, "images"),
+            imagesDir = resolveSessionImageDir(sessionDir),
             frameTimestampsFile = File(sessionDir, "video_frame_timestamps.csv"),
             videoEventsFile = File(sessionDir, "video_events.jsonl"),
             timebase = SessionTimebase(
@@ -1668,6 +1667,25 @@ class MainActivity : AppCompatActivity() {
                 manifest?.optJSONObject("recordingConfig")?.let(::recordingConfigFromJson)
                     ?: RecordingConfig(recordingMode = RecordingMode.fromModeId(manifest?.optString("recordingMode"))),
         )
+    }
+
+    private fun resolveSessionImageDir(sessionDir: File): File =
+        listOf(
+            File(File(sessionDir, "trajectreview"), "image"),
+            File(File(sessionDir, "trajectreview"), "images"),
+            File(sessionDir, "image"),
+            File(sessionDir, "images"),
+        ).firstOrNull { it.exists() } ?: File(File(sessionDir, "trajectreview"), "image")
+
+    private fun readJsonObjectOrNull(file: File): JSONObject? {
+        if (!file.exists()) {
+            return null
+        }
+        val raw = runCatching { file.readText().trim() }.getOrNull().orEmpty()
+        if (raw.isBlank()) {
+            return null
+        }
+        return runCatching { JSONObject(raw) }.getOrNull()
     }
 
     private fun readDurationMillis(videoEventsFile: File): Long {
@@ -2162,7 +2180,7 @@ class MainActivity : AppCompatActivity() {
         ),
         IMAGES(
             label = "frame画像群",
-            relativePaths = listOf("images"),
+            relativePaths = listOf("trajectreview/image"),
         ),
     }
 
