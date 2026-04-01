@@ -479,6 +479,7 @@ import json
 import numpy as np
 import pandas as pd
 import torch
+from PIL import Image
 from depth_anything_3.api import DepthAnything3
 
 ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
@@ -501,8 +502,6 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = DepthAnything3.from_pretrained("depth-anything/DA3METRIC-LARGE").to(device=device)
 proof_prediction = model.inference(
     image=proof_images,
-    intrinsics=proof_intrinsics,
-    extrinsics=proof_extrinsics,
     infer_gs=False,
     process_res=504,
     export_dir=str(proof_metric_dir),
@@ -510,8 +509,6 @@ proof_prediction = model.inference(
 )
 prod_prediction = model.inference(
     image=prod_images,
-    intrinsics=prod_intrinsics,
-    extrinsics=prod_extrinsics,
     infer_gs=False,
     process_res=504,
     export_dir=str(prod_metric_dir),
@@ -573,18 +570,21 @@ proof_summary = {
     "image_count": len(proof_images),
     "proof_metric_dir": str(proof_metric_dir),
     "prediction_type": str(type(proof_prediction).__name__),
+    "da3_camera_input_mode": "image_only",
 }
 prod_summary = {
     "route": "MetricLarge-production",
     "image_count": len(prod_images),
     "prod_metric_dir": str(prod_metric_dir),
     "prediction_type": str(type(prod_prediction).__name__),
+    "da3_camera_input_mode": "image_only",
 }
 world_summary = {
     "route": "MetricLarge-production-world",
     "processed_frames": len(per_frame),
     "total_points": int(len(merged)),
     "stride": stride,
+    "world_projection_input_mode": "frame_record_intrinsics_and_pose",
     "npy_path": str(world_dir / "world_points_multiframe.npy"),
     "ply_path": str(world_dir / "world_points_multiframe.ply"),
 }
