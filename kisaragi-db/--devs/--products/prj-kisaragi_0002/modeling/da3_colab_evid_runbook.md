@@ -515,16 +515,17 @@ prod_prediction = model.inference(
     export_format="mini_npz-depth_vis",
 )
 
-results_npz_candidates = sorted(prod_metric_dir.rglob("results.npz"))
-assert results_npz_candidates, {"prod_metric_dir": str(prod_metric_dir)}
-results_npz = np.load(results_npz_candidates[0])
-depths = results_npz["depth"]
+depths = np.asarray(prod_prediction.depth)
+assert depths is not None and len(depths) == len(prod_df), {
+    "depth_count": None if depths is None else len(depths),
+    "prod_selected_count": len(prod_df),
+}
 
 all_points = []
 per_frame = []
 stride = 24
 for idx, row in enumerate(prod_df.itertuples(index=False)):
-    depth = depths[idx].astype(np.float32)
+    depth = np.asarray(depths[idx]).astype(np.float32)
     K = prod_intrinsics[idx]
     w2c = prod_extrinsics[idx]
     c2w = np.linalg.inv(w2c)
@@ -586,7 +587,7 @@ world_summary = {
     "processed_frames": len(per_frame),
     "total_points": int(len(merged)),
     "stride": stride,
-    "results_npz_path": str(results_npz_candidates[0]),
+    "depth_source": "prod_prediction.depth",
     "world_projection_input_mode": "frame_record_intrinsics_and_pose",
     "npy_path": str(world_dir / "world_points_multiframe.npy"),
     "ply_path": str(world_dir / "world_points_multiframe.ply"),
