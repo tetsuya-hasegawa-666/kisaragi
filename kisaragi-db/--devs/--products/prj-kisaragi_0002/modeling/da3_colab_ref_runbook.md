@@ -730,64 +730,6 @@ print(json.dumps({
 }, indent=2, ensure_ascii=False))
 ```
 
-## `MyDrive` 可視 folder への copy block
-
-```python
-from pathlib import Path
-import shutil
-import json
-
-visible_dir = Path("/content/drive/MyDrive/trajectreview/modeling_visible") / session_id / "world_fusion_v01"
-visible_dir.mkdir(parents=True, exist_ok=True)
-
-targets = [
-    "mrl7_window_probe.json",
-    "depth_batch_manifest.json",
-    "world_points_multiframe.npy",
-    "world_points_multiframe.ply",
-    "world_points_multiframe_preview.png",
-    "world_fusion_summary.json",
-    "mrl7_closeout_summary.json",
-    "gaussian_params_init.pt",
-    "gaussian_params_optim20.pt",
-    "gaussian_render_init.png",
-    "gaussian_render_optim20.png",
-    "gaussian_optim20_summary.json",
-    "gaussian_params_optim500.pt",
-    "gaussian_render_optim500.png",
-    "gaussian_optim500_summary.json",
-    "gaussian_params_optim1000.pt",
-    "gaussian_render_optim1000.png",
-    "gaussian_optim1000_summary.json",
-    "gaussian_params_optim2500.pt",
-    "gaussian_render_optim2500.png",
-    "gaussian_optim2500_summary.json",
-    "gaussian_params_optim3000.pt",
-    "gaussian_render_optim3000.png",
-    "gaussian_optim3000_summary.json",
-]
-
-copied = []
-missing = []
-for name in targets:
-    src = world_dir / name
-    if src.exists():
-        shutil.copy2(src, visible_dir / name)
-        copied.append(name)
-    else:
-        missing.append(name)
-
-summary = {
-    "source_world_dir": str(world_dir),
-    "visible_dir": str(visible_dir),
-    "copied_count": len(copied),
-    "missing_count": len(missing),
-    "copied": copied,
-    "missing": missing,
-}
-print(json.dumps(summary, indent=2, ensure_ascii=False))
-```
-
 ## `MRL-9` giant Gaussian branch
 
 ```python
@@ -981,6 +923,8 @@ Viewer check:
 3. orbit / pan / zoom で scene が表示されれば pass
 ```
 
+# 可視化ブロックは重複しているので必要な場合のみ使う
+
 ```python
 from pathlib import Path
 from google.colab import files
@@ -1029,4 +973,62 @@ if bundle_zip.exists():
 shutil.make_archive(str(bundle_zip.with_suffix("")), "zip", root_dir=str(bundle_dir))
 print(bundle_zip)
 files.download(str(bundle_zip))
+```
+
+## `MyDrive` 可視 folder への copy block
+
+```python
+from pathlib import Path
+import shutil
+import json
+
+visible_dir = Path("/content/drive/MyDrive/trajectreview/modeling_visible") / session_id / "world_fusion_v01"
+visible_dir.mkdir(parents=True, exist_ok=True)
+
+targets = [
+    "mrl7_window_probe.json",
+    "depth_batch_manifest.json",
+    "world_points_multiframe.npy",
+    "world_points_multiframe.ply",
+    "world_points_multiframe_preview.png",
+    "world_fusion_summary.json",
+    "mrl7_closeout_summary.json",
+    "gaussian_params_init.pt",
+    "gaussian_params_optim20.pt",
+    "gaussian_render_init.png",
+    "gaussian_render_optim20.png",
+    "gaussian_optim20_summary.json",
+    "gaussian_params_optim500.pt",
+    "gaussian_render_optim500.png",
+    "gaussian_optim500_summary.json",
+    "gaussian_params_optim1000.pt",
+    "gaussian_render_optim1000.png",
+    "gaussian_optim1000_summary.json",
+    "gaussian_params_optim2500.pt",
+    "gaussian_render_optim2500.png",
+    "gaussian_optim2500_summary.json",
+    "gaussian_params_optim3000.pt",
+    "gaussian_render_optim3000.png",
+    "gaussian_optim3000_summary.json",
+]
+
+copied = []
+missing = []
+for name in targets:
+    src = world_dir / name
+    if src.exists():
+        shutil.copy2(src, visible_dir / name)
+        copied.append(name)
+    else:
+        missing.append(name)
+
+summary = {
+    "source_world_dir": str(world_dir),
+    "visible_dir": str(visible_dir),
+    "copied_count": len(copied),
+    "missing_count": len(missing),
+    "copied": copied,
+    "missing": missing,
+}
+print(json.dumps(summary, indent=2, ensure_ascii=False))
 ```
