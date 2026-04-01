@@ -569,9 +569,13 @@ import json
 context = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
 SESSION_ROOT = Path(context["session_root"])
 SESSION_BUNDLE_ROOT = SESSION_ROOT.parent
-arcore_pose_path = SESSION_ROOT / "arcore_pose.jsonl"
-if not arcore_pose_path.exists():
-    arcore_pose_path = SESSION_BUNDLE_ROOT / "arcore_pose.jsonl"
+pose_record_candidates = [
+    SESSION_ROOT / "frame_record.jsonl",
+    SESSION_BUNDLE_ROOT / "frame_record.jsonl",
+    SESSION_ROOT / "arcore_pose.jsonl",
+    SESSION_BUNDLE_ROOT / "arcore_pose.jsonl",
+]
+arcore_pose_path = next((p for p in pose_record_candidates if p.exists()), pose_record_candidates[-1])
 
 print("session_root_exists", SESSION_ROOT.exists(), SESSION_ROOT)
 print("bundle_root_exists", SESSION_BUNDLE_ROOT.exists(), SESSION_BUNDLE_ROOT)
@@ -593,9 +597,14 @@ context = json.loads(Path("/content/runbook_session_context.json").read_text(enc
 SESSION_ROOT = Path(context["session_root"])
 SESSION_BUNDLE_ROOT = SESSION_ROOT.parent
 OUTPUT_ROOT = Path(context["da3_smoke_output_root"])
-arcore_pose_path = SESSION_ROOT / "arcore_pose.jsonl"
-if not arcore_pose_path.exists():
-    arcore_pose_path = SESSION_BUNDLE_ROOT / "arcore_pose.jsonl"
+pose_record_candidates = [
+    SESSION_ROOT / "frame_record.jsonl",
+    SESSION_BUNDLE_ROOT / "frame_record.jsonl",
+    SESSION_ROOT / "arcore_pose.jsonl",
+    SESSION_BUNDLE_ROOT / "arcore_pose.jsonl",
+]
+arcore_pose_path = next((p for p in pose_record_candidates if p.exists()), None)
+assert arcore_pose_path is not None, {"pose_record_candidates": [str(p) for p in pose_record_candidates]}
 
 depth = np.load(OUTPUT_ROOT / "depth_raw.npy")
 frame_index = pd.read_csv(SESSION_ROOT / "frame_pose_index.csv")
@@ -649,9 +658,14 @@ context = json.loads(Path("/content/runbook_session_context.json").read_text(enc
 SESSION_ROOT = Path(context["session_root"])
 SESSION_BUNDLE_ROOT = SESSION_ROOT.parent
 OUTPUT_ROOT = Path(context["da3_smoke_output_root"])
-arcore_pose_path = SESSION_ROOT / "arcore_pose.jsonl"
-if not arcore_pose_path.exists():
-    arcore_pose_path = SESSION_BUNDLE_ROOT / "arcore_pose.jsonl"
+pose_record_candidates = [
+    SESSION_ROOT / "frame_record.jsonl",
+    SESSION_BUNDLE_ROOT / "frame_record.jsonl",
+    SESSION_ROOT / "arcore_pose.jsonl",
+    SESSION_BUNDLE_ROOT / "arcore_pose.jsonl",
+]
+arcore_pose_path = next((p for p in pose_record_candidates if p.exists()), None)
+assert arcore_pose_path is not None, {"pose_record_candidates": [str(p) for p in pose_record_candidates]}
 
 points = np.load(OUTPUT_ROOT / "world_points_smoke.npy").astype(np.float32)[:128]
 
@@ -862,8 +876,17 @@ image_dir_candidates = [
 source_images_dir = next((p for p in image_dir_candidates if p.exists()), None)
 frame_pose_path = session_root / "frame_pose_index.csv"
 arcore_pose_path = session_root / "arcore_pose.jsonl"
-if not arcore_pose_path.exists():
-    arcore_pose_path = session_outer / "arcore_pose.jsonl"
+pose_record_candidates = [
+    session_root / "frame_record.jsonl",
+    session_outer / "frame_record.jsonl",
+    session_root / "trajectreview" / "frame_record.jsonl",
+    session_outer / "trajectreview" / "frame_record.jsonl",
+    session_root / "arcore_pose.jsonl",
+    session_outer / "arcore_pose.jsonl",
+    session_root / "trajectreview" / "arcore_pose.jsonl",
+    session_outer / "trajectreview" / "arcore_pose.jsonl",
+]
+arcore_pose_path = next((p for p in pose_record_candidates if p.exists()), None)
 
 assert source_images_dir is not None, {"image_dir_candidates": [str(p) for p in image_dir_candidates]}
 canonical_images_dir = session_root / "images"
@@ -873,7 +896,7 @@ if source_images_dir != canonical_images_dir:
     shutil.copytree(source_images_dir, canonical_images_dir)
 images_dir = canonical_images_dir
 assert frame_pose_path.exists(), frame_pose_path
-assert arcore_pose_path.exists(), arcore_pose_path
+assert arcore_pose_path is not None, {"pose_record_candidates": [str(p) for p in pose_record_candidates]}
 
 probe_dir.mkdir(parents=True, exist_ok=True)
 world_dir.mkdir(parents=True, exist_ok=True)
