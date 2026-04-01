@@ -282,6 +282,8 @@ image_dir_candidates = [
     session_root / "image",
     session_root / "trajectreview" / "images",
     session_root / "trajectreview" / "image",
+    session_outer / "images",
+    session_outer / "image",
     session_outer / "trajectreview" / "images",
     session_outer / "trajectreview" / "image",
 ]
