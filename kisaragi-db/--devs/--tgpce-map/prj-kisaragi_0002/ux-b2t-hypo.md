@@ -11,7 +11,7 @@
 | 項目 | 状況 |
 | --- | --- |
 | `correcting` | `MRL-1` と `MRL-2` の実装と証跡はそろっている。長時間収録では screen off は抑止済みで、`shared-camera` 動画化の `OutOfMemoryError` と停止時 finalize hang は修正済みである。admin 実機では `3分` 収録で停止成功まで確認できたため、残りは `MRL-2S` の `10min` 実収録確認である。加えて、`DA3` / `3DGS` 向け canonical input を採択 frame record へ寄せる `MRL-2R` を新設し、recording runtime、popup、handoff script を同時に揃える。`2026-04-01` には ARCore 公式 `shared-camera` route を再確認し、`Session.resume()` を `onActive()` 側へ、`Session.update()` を `BLOCKING` 前提へ寄せる修正を入れた。実機再測定は次 batch で行う |
-| `modeling` | `MRL-3` から `MRL-9` は `p-done` である。`MRL-7` は `mRL-7.1` と `mRL-7.2` が `p-done` になり、multi-frame point cloud から gaussian short optimization まで到達した。`MRL-8` では runbook 本体の前段に Drive input candidate scan / widget select を追加し、selected input を bootstrap 本体と `MRL-7` one-block の両方へ handoff できる状態を閉じた。運用形は notebook 全体の `Run all` ではなく、widget 選択を 1 回挟んでから残りを上から順に流す方式である。`MRL-9` は `da3-giant` の `inference()` に `infer_gs=True` を与え、`e3nn` install を import 前に置くことで `gs_ply`、`gs_video`、`scene.glb`、`exports/npz/results.npz` を `MyDrive/trajectreview/modeling/...` へ保存し、さらに `gs_ply/0000.ply` を `PlayCanvas Model Viewer` で開けるところまで進んだ。次は後続 `MRL-**` の top camera renderer と reviewing viewer 連携である |
+| `modeling` | `MRL-3` から `MRL-9` は `p-done` である。`MRL-7` は `mRL-7.1` と `mRL-7.2` が `p-done` になり、multi-frame point cloud から gaussian short optimization まで到達した。`MRL-8` では runbook 本体の前段に Drive input candidate scan / widget select を追加し、selected input を bootstrap 本体と `MRL-7` one-block の両方へ handoff できる状態を閉じた。`MRL-9` は `da3-giant` の `inference()` に `infer_gs=True` を与え、`gs_ply`、`gs_video`、`scene.glb`、`exports/npz/results.npz` を保存し、さらに `gs_ply/0000.ply` を `PlayCanvas Model Viewer` で開けるところまで進んだ。次の主対象は `MRL-10` で、`frame_record.jsonl + images` を正本にし、`frame_pose_index.csv` 中心設計、固定 12/60 枚間引き、K / pose 未入力をやめ、`proof route` と `production route` を分けた record-native `Colab` route を canonical 化することである |
 | `reviewing` | summary と stub 読込まではあるが、実 `ReviewArtifact` viewer と same-time highlight 操作は未実装である |
 
 ### 現在の blocker
@@ -27,6 +27,7 @@
 | `BLK-7` | `DA3 Colab` runbook は Drive 上の特定 zip path を hardcode しており、任意 input を script だけで選んで本体へ渡せない | fresh runtime で入力を差し替えるたびに手編集が必要になり、bootstrap の再現性が落ちる | `MRL-8 p-done` により解消済み。Drive input candidate scan、widget select、selected input handoff を runbook 正本へ反映済み |
 | `BLK-8` | `DA3 Giant` / `Giant Large` の `infer_gs=True` route は、`gs_ply` / `gs_video` を返せる前提があるが、現行 project は `DA3Metric-Large` 固定で contract 未整備である | `gs_ply` を正式 `gs_model` として扱う route と top camera viewer 拡張が止まる | `MRL-9` で `MetricLarge route` を rollback baseline に固定したまま、`Giant` Gaussian branch の実装 route を追加し、`gs_ply` / `gs_video` と viewer 導線を順に固める |
 | `BLK-9` | `correcting` は canonical input を採択 frame record へ寄せる方針へ変わったが、recording runtime、`Sampling条件` popup、transfer 契約、parser / modeling script がまだ旧前提で分断している | `DA3` / `3DGS` 前段の入力定義が実装系と文書系でずれ、転送時抽出や旧 thinning logic を残したままになる | `MRL-2R` を新設し、recording、popup、handoff 契約、script 整合、旧抽出 logic 削除を同じ gate で閉じる |
+| `BLK-10` | `Colab` runbook の canonical route がまだ `frame_pose_index.csv` 中心、固定枚数 cap、K / pose 未入力の旧 proof 設計を引きずっている | `1 record` 化した data を `DA3` へ渡す前に `Colab` 側で整合を壊し、`MetricLarge route` と `Giant route` の本番品質を落とす | `MRL-10` を新設し、`frame_record.jsonl + images` を正にした input 正規化、QC、explicit `intrinsics` / `extrinsics_w2c`、proof / production 分離、評価出力追加を main runbook pair に統合する |
 
 ### project 固有 decision 要約
 
@@ -43,9 +44,10 @@
 1. `MRL-2R` として、canonical input を採択 frame record へ切り替え、recording runtime、`Sampling条件` popup、transfer 契約、parser / modeling script、旧 thinning logic 削除を 1 本の計画でそろえる
 2. `MRL-2S` を redesigned runtime 上で再実施し、`correcting` の bounded stop 修正 build を `10min` 実収録で確認して連続収録安定化を閉じる
 3. `MRL-7` を `TraceCore` の最小表示に限定し、route 比較と viewer 後続論点を `MRL-**` へ切り分ける
-4. `MRL-9` として、`DA3 Giant` / `Giant Large` の `infer_gs=True` route を実装し、`fps = 1`、`frames = 60`、`process_res = 504`、`chunk = 20` または `30` を first config に `gs_ply` / `gs_video` 出力と viewer 可視化を固める
-5. 後続 `MRL-**` として、`gs_ply` を top camera renderer と reviewing viewer へ接続する route、multi-view / 長時間 optimization、request / status / result download UX を整理する
-6. `reviewing` と admin `UX check` の後続 gate を整理し、`ux-b2t-hypo.md` と証跡文書の closeout 基準を揃える
+4. `MRL-10` として、`frame_record.jsonl + images` を正にした record-native `Colab` route を canonical 化し、`proof route` と `production route` を分けたうえで `DA3` へ explicit `intrinsics` / `extrinsics_w2c` を渡す
+5. `MRL-10` の後で、`DA3 Giant` / `Giant Large` の `infer_gs=True` route も同じ record-native contract に揃え、`gs_ply` / `gs_video` の品質改善と top camera renderer への接続条件を整理する
+6. 後続 `MRL-**` として、`gs_ply` を top camera renderer と reviewing viewer へ接続する route、multi-view / 長時間 optimization、request / status / result download UX を整理する
+7. `reviewing` と admin `UX check` の後続 gate を整理し、`ux-b2t-hypo.md` と証跡文書の closeout 基準を揃える
 
 
 ## BDD
@@ -331,6 +333,7 @@
 | `MRL-7` | `modeling` | `td19` | `TraceCore` の `multi-frame` densify と高価値な見方を検討できる最小表示を固める | `10s` 前後の整った実動画で、全体俯瞰、時系列、相対表示、滞留、交錯を読めるかを first target に置く |
 | `MRL-8` | `modeling` | `td14a` | runbook 本体の前段で Drive 上の任意 input を script だけで選び、後続 bootstrap と `TraceCore` one-block へ同じ入力を渡せるようにする | hardcoded zip 編集を廃止し、fresh runtime で入力差し替えの再現性を上げる |
 | `MRL-9` | `modeling` | `td19a`, `td19b` | `DA3 Giant` / `Giant Large` の Gaussian branch を `infer_gs=True` で実装し、`gs_ply` / `gs_video` 生成と外部 viewer 可視化を first route として固める | rollback baseline の `MetricLarge route` を維持したまま `Colab-first` 実装 route として進め、成立後に後続 top camera renderer へ接続する |
+| `MRL-10` | `modeling` | `td16`, `td17`, `td18`, `td19a`, `td23` | `frame_record.jsonl + images` を正とする record-native `Colab` route を canonical 化し、QC、explicit `intrinsics` / `extrinsics_w2c`、proof / production 分離、評価出力をそろえる | 旧 `frame_pose_index.csv` 中心 runbook を置き換え、`MetricLarge route` と `Giant route` の両方が同じ 1-record contract で動く main runbook pair を整える |
 | `MRL-**` | `reviewing` / `system統合` | `tu24`-`tu29`, `td20`-`td23` | route 比較、採用 route 固定、reviewing viewer、統合 UX を順次切り出す | admin が手を動かす実態に合わせ、比較、viewer、handoff、統合を後続 gate へ分割する |
 
 ### 現在の見立て
@@ -345,6 +348,7 @@
 | `TraceCore` 次段 | `td19` | 次段の first target は、実 session の最長連続 windowを使って gaussian parameter を正式 artifact として扱える形へ寄せ、`TraceCore` の最小表示へ進むことである | `MRL-7` | `MRL-7` はこの段で `p-done`。次は後続 `MRL-**` として viewer 向け形式、長時間 optimization、multi-view 拡張へ進む |
 | `Drive input 選択` | `td14a` | runbook の前段で任意 input を選べる script を追加し、selected input を本体と `MRL-7` one-block へ受け渡す段は成立済みである | `MRL-8` | hardcoded path を除去し、admin が Colab 上で入力差し替えを手編集なしで進められる状態まで `p-done` |
 | `Giant Gaussian branch` | `td19a`,`td19b` | `DA3 Giant` / `Giant Large` と `infer_gs=True` を `Colab-first` 実装 route として進め、`gs_ply` / `gs_video` 生成と外部 viewer 可視化を先に固める | `MRL-9` | rollback baseline は `MetricLarge route` とし、`MRL-9` artifact は別 output root へ保存する |
+| `record-native canonical route` | `td16`,`td17`,`td18`,`td19a`,`td23` | 新前提では最重要課題は `frame_record.jsonl + images` の 1-record 構造を `Colab` 側で壊さないことである。`MRL-10` では `frame_pose_index.csv` 中心設計、固定 12/60 枚 cap、K / pose 未入力を外し、proof / production 分離と explicit `intrinsics` / `extrinsics_w2c` 入力を main runbook pair に統合する | `MRL-10` | `MetricLarge route` を rollback baseline としつつ、本番 canonical は record-native route へ移す |
 | 後続 backlog | `tu24`-`tu29`, `td20`-`td23` | `multi-route` 比較、`selected_route.json` 固定、request / status UX、result 返却、viewer 実装、統合 UX は後続 `MRL-**` へ残っている | `MRL-**` | task 実測で課題の大小が見えた時点で `MRL` / `mRL` の切り方を調整する |
 | 共通方針 | `TDD` 全体 | `MRL` の達成品質として求める UX は薄めず、north star に沿って各段の到達像を明記し続ける | 全体 | modeling は admin の手作業を含むため、後続 `MRL` の粒度は実測に合わせて更新する |
 
@@ -391,6 +395,9 @@
 | `MRL-9` | `-` | `DA3 Giant` または<br>`Giant Large` の<br>Gaussian branch を<br>`infer_gs=True` で実装し、<br>`gs_ply` / `gs_video` 生成と<br>外部 viewer 可視化を first route として固める | `sd9`,`su15`,<br>`sd11` | `bd18a`,`bd20` | `td19a`,`td19b`,<br>`td23` | `p-done` | `p-done` | da3_colab_<br>evid_runbook.md<br>の `MRL-9` section | 2026-03-31 `MRL-9`<br>viewer close evidence |
 | `MRL-9` | `mRL-9.1` | `fps = 1`、`frames = 60`、`process_res = 504`、`chunk = 20` または `30` を first config とし、`infer_gs=True` で `gs_ply` / `gs_video` の少なくとも片方を `Colab` に保存できる | `sd9`,`sd11` | `bd18a` | `td19a` | `p-done` | `p-done` | da3_colab_<br>evid_runbook.md<br>の `MRL-9` section | 2026-03-31 `mRL-9.1`<br>giant infer_gs close evidence |
 | `MRL-9` | `mRL-9.2` | `gs_ply` を `SuperSplat`、`PlayCanvas Model Viewer`、または同等 viewer のいずれかで開き、自由視点 scene として読めることを確認する。top camera renderer と path overlay は後段へ送る | `su15`,`sd11` | `bd18a`,`bd20` | `td19b`,`td23` | `p-done` | `p-done` | PlayCanvas Model<br>Viewer で<br>`gs_ply/0000.ply` を開く | 2026-03-31 `MRL-9`<br>viewer close evidence |
+| `MRL-10` | `-` | `frame_record.jsonl + images` を正とする record-native `Colab` route を canonical 化し、`MetricLarge route` と `Giant route` の両方へ explicit `intrinsics` / `extrinsics_w2c` を渡せる main runbook pair を成立させる。proof と production を分離し、QC、baseline thinning、評価 manifest を備える | `sd9`,`su12`,<br>`su14`,`sd11` | `bd16`,`bd17`,<br>`bd18a`,`bd20` | `td16`,`td17`,<br>`td18`,`td19a`,<br>`td23` | `active` | `ready` | da3_colab_<br>evid_runbook.md<br>の `MRL-10` section | `未収載` |
+| `MRL-10` | `mRL-10.1` | `frame_record.jsonl`、対応 image 群、tracking / K / pose / timestamp を正に読んで、`input_frame_manifest.csv`、`input_frame_qc.csv`、`pose_conversion_check.csv`、`k_resize_check.csv`、`da3_input_manifest_*.csv` を生成できる | `sd9`,`sd11` | `bd16`,`bd17`,<br>`bd20` | `td16`,`td23` | `active` | `ready` | da3_colab_<br>evid_runbook.md<br>の `MRL-10` Phase A-C | `未収載` |
+| `MRL-10` | `mRL-10.2` | proof / production を分離した `MetricLarge route` が explicit `intrinsics` / `extrinsics_w2c` 入力で通り、production 側では world point cloud と評価 summary まで保存できる | `sd9`,`su14`,<br>`sd11` | `bd17`,`bd18`,<br>`bd20` | `td17`,`td18`,<br>`td23` | `active` | `ready` | da3_colab_<br>evid_runbook.md<br>の `MRL-10` Phase D | `未収載` |
 
 ### 利用者向け後続 `MRL-**` に紐づく運営者補助 MRL
 | MRL | mRL | gate test 項目 | story-id | behavior-id | task-id | 現在 gate | UX評価状態 | admin UX確認手順 | admin evidence |

@@ -88,6 +88,9 @@
 ## 開発原則
 
 - 空間生成の主経路は、採択 frame ごとの image、`camera.pose`、intrinsics を正にした `DA3Metric-Large` / `3DGS` 前処理入力とする。
+- remote modeling の canonical `Colab` route でも、主入力は `frame_record.jsonl` と対応 image 群を正とし、`frame_pose_index.csv` は診断用の二次資料として扱う。
+- `Colab` 側は `1 record = image + pose + intrinsics + timestamp` の構造を壊さずに読み、`DA3` へは `image[]`、`intrinsics[N,3,3]`、`extrinsics_w2c[N,4,4]` を明示入力する。
+- `Colab` runbook は `proof route` と `production route` を分離し、軽量確認と本番 candidate を混在させない。
 - 通常の重い再構成 flow を主経路にしない。
 - route は最初から 1 本に固定せず、比較したうえで暫定採用 route を決める。
 - `IMU` は初期から全部統合せず、価値が大きい箇所に限定して使う。
@@ -190,7 +193,7 @@ summary:
 ### remote modeling
 
 - remote modeling の主経路は `Google Drive` と `Colab` を使う route とする。
-- `Colab` runtime の bootstrap は product 側 runbook を正本とする。
+- `Colab` runtime の bootstrap は product 側 runbook を正本とし、record-native canonical input、明示 `K` / `pose` 入力、`proof` / `production` 分離を同じ contract で維持する。
 
 ### route 比較
 

@@ -2,8 +2,19 @@
 
 - `da3_colab_evid_runbook.md` の貼り付け用 companion とする。
 - 更新は必ず `da3_colab_evid_runbook.md` と 2 file set で行う。
-- fresh runtime では上から順に実行し、`準備確認 3` の widget 選択を挟んでから残りを流す。
-- rollback baseline は `MetricLarge route` とし、末尾の `MRL-9` section で `DA3 Giant` / `Giant Large` の `infer_gs=True` route を扱う。
+- canonical input は `session_manifest.json`、`frame_record.jsonl`、`trajectreview/image` または `trajectreview/images` とする。
+- canonical route は `MRL-10 record-native DA3 route` とし、`proof route` と `production route` を分離する。
+
+## 実行順
+
+1. `準備確認 1-4`
+2. `install 1-4`
+3. `MRL-10 Phase A`
+4. `MRL-10 Phase B`
+5. `MRL-10 Phase C`
+6. `MRL-10 Phase D proof`
+7. `MRL-10 Phase D production`
+8. 必要時のみ `MRL-10 Phase E giant`
 
 ## 準備確認 1
 
@@ -29,27 +40,19 @@ from pathlib import Path
 import json
 
 shortcut_root = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_")
-writable_results_root_candidates = [
-    Path("/content/drive/MyDrive/trajectreview/modeling"),
-    shortcut_root / "trajectreview" / "modeling",
-]
 scan_roots = [
     shortcut_root / "trajectreview",
     Path("/content/drive/MyDrive/trajectreview"),
 ]
-results_root = next((p for p in writable_results_root_candidates if p.exists()), writable_results_root_candidates[0])
+results_root_candidates = [
+    Path("/content/drive/MyDrive/trajectreview/modeling"),
+    shortcut_root / "trajectreview" / "modeling",
+]
+results_root = next((p for p in results_root_candidates if p.exists()), results_root_candidates[0])
 candidate_doc_path = Path("/content/runbook_drive_candidates.json")
 
 def infer_session_id(path: Path) -> str:
     return path.stem if path.suffix.lower() == ".zip" else path.name
-
-def candidate_rank(path: Path) -> int:
-    s = str(path)
-    if ".shortcut-targets-by-id" in s:
-        return 0
-    if "/MyDrive/" in s:
-        return 1
-    return 9
 
 zip_map = {}
 dir_map = {}
@@ -59,63 +62,33 @@ for root in scan_roots:
     for zip_path in sorted(root.rglob("*.zip")):
         stat = zip_path.stat()
         key = (infer_session_id(zip_path), stat.st_size)
-        cand = {
+        zip_map[key] = {
             "kind": "zip",
             "session_id": infer_session_id(zip_path),
             "label": f"{infer_session_id(zip_path)} [zip]",
             "path": str(zip_path),
             "size_bytes": stat.st_size,
         }
-        prev = zip_map.get(key)
-        if prev is None or candidate_rank(zip_path) < candidate_rank(Path(prev["path"])):
-            zip_map[key] = cand
     for manifest_path in sorted(root.rglob("session_manifest.json")):
         session_dir = manifest_path.parent
-        key = infer_session_id(session_dir)
-        cand = {
+        dir_map[infer_session_id(session_dir)] = {
             "kind": "dir",
             "session_id": infer_session_id(session_dir),
             "label": f"{infer_session_id(session_dir)} [dir]",
             "path": str(session_dir),
         }
-        prev = dir_map.get(key)
-        if prev is None or candidate_rank(session_dir) < candidate_rank(Path(prev["path"])):
-            dir_map[key] = cand
-    for pkg_path in sorted(root.rglob("session_package.json")):
-        session_dir = pkg_path.parent.parent if pkg_path.parent.name == "trajectreview" else pkg_path.parent
-        key = infer_session_id(session_dir)
-        cand = {
-            "kind": "dir",
-            "session_id": infer_session_id(session_dir),
-            "label": f"{infer_session_id(session_dir)} [dir]",
-            "path": str(session_dir),
-        }
-        prev = dir_map.get(key)
-        if prev is None or candidate_rank(session_dir) < candidate_rank(Path(prev["path"])):
-            dir_map[key] = cand
-
-candidates = sorted(
-    list(zip_map.values()) + list(dir_map.values()),
-    key=lambda x: (x["session_id"], x["kind"], x["path"]),
-)
 
 candidate_doc = {
-    "scan_roots": [str(p) for p in scan_roots if p.exists()],
-    "scan_root_exists": {str(p): p.exists() for p in scan_roots},
     "results_root": str(results_root),
-    "candidate_count": len(candidates),
-    "candidates": candidates,
+    "candidate_count": len(zip_map) + len(dir_map),
+    "candidates": sorted(list(zip_map.values()) + list(dir_map.values()), key=lambda x: (x["session_id"], x["kind"], x["path"])),
 }
 candidate_doc_path.write_text(json.dumps(candidate_doc, indent=2, ensure_ascii=False), encoding="utf-8")
-
 print("candidate_doc_path", candidate_doc_path)
 print("results_root", results_root)
-for root in scan_roots:
-    print("scan_root_exists", root.exists(), root)
-print("candidate_count", len(candidates))
-for idx, item in enumerate(candidates):
-    extra = f" size={item['size_bytes']}" if "size_bytes" in item else ""
-    print(f"[{idx}] {item['label']}: {item['path']}{extra}")
+print("candidate_count", candidate_doc["candidate_count"])
+for idx, item in enumerate(candidate_doc["candidates"]):
+    print(f"[{idx}] {item['label']}: {item['path']}")
 ```
 
 ## 準備確認 3
@@ -126,22 +99,17 @@ import json
 import ipywidgets as widgets
 from IPython.display import display
 
-candidate_doc_path = Path("/content/runbook_drive_candidates.json")
+candidate_doc = json.loads(Path("/content/runbook_drive_candidates.json").read_text(encoding="utf-8"))
 selected_doc_path = Path("/content/runbook_selected_input.json")
-
-candidate_doc = json.loads(candidate_doc_path.read_text(encoding="utf-8"))
-assert candidate_doc["candidate_count"] >= 1, candidate_doc
-
 options = [(f"[{idx}] {item['label']}", idx) for idx, item in enumerate(candidate_doc["candidates"])]
 dropdown = widgets.Dropdown(options=options, description="input", layout=widgets.Layout(width="95%"))
 button = widgets.Button(description="selected input を保存", button_style="success")
 output = widgets.Output()
 
 def on_click(_):
-    selected_index = dropdown.value
-    selected = candidate_doc["candidates"][selected_index]
+    selected = candidate_doc["candidates"][dropdown.value]
     selected_doc = {
-        "selected_index": selected_index,
+        "selected_index": dropdown.value,
         "kind": selected["kind"],
         "session_id": selected["session_id"],
         "label": selected["label"],
@@ -156,7 +124,6 @@ def on_click(_):
 
 button.on_click(on_click)
 display(dropdown, button, output)
-print("操作: dropdown で 1 件選び、`selected input を保存` を押す")
 ```
 
 ## 準備確認 4
@@ -166,22 +133,8 @@ from pathlib import Path
 import json
 
 selected_doc = json.loads(Path("/content/runbook_selected_input.json").read_text(encoding="utf-8"))
-selected_path = Path(selected_doc["path"])
-results_root = Path(selected_doc["results_root"])
-
-print("selected_kind", selected_doc["kind"])
-print("selected_session_id", selected_doc["session_id"])
-print("selected_path_exists", selected_path.exists(), selected_path)
-print("results_root_parent_exists", results_root.parent.exists(), results_root.parent)
-```
-
-## 準備確認 5
-
-```python
-from pathlib import Path
-
-print("repo_exists_before_bootstrap", Path("/content/Depth-Anything-3").exists())
-print("extract_root_exists_before_bootstrap", Path("/content/trajectreview_input").exists())
+print("selected_path_exists", Path(selected_doc["path"]).exists(), selected_doc["path"])
+print("results_root", selected_doc["results_root"])
 ```
 
 ## install 1
@@ -194,11 +147,7 @@ import subprocess
 repo_root = Path("/content/Depth-Anything-3")
 if repo_root.exists():
     shutil.rmtree(repo_root)
-
-subprocess.run(
-    ["git", "clone", "https://github.com/ByteDance-Seed/Depth-Anything-3.git", str(repo_root)],
-    check=True,
-)
+subprocess.run(["git", "clone", "https://github.com/ByteDance-Seed/Depth-Anything-3.git", str(repo_root)], check=True)
 print("repo_exists", repo_root.exists(), repo_root)
 ```
 
@@ -206,27 +155,11 @@ print("repo_exists", repo_root.exists(), repo_root)
 
 ```python
 import subprocess
-
-subprocess.run(
-    ["python", "-m", "pip", "install", "--quiet", "addict", "evo", "moviepy==1.0.3", "pygame", "pycolmap", "plyfile", "trimesh"],
-    check=True,
-)
-print("custom_dependency_install_ok")
+subprocess.run(["python", "-m", "pip", "install", "--quiet", "addict", "evo", "moviepy==1.0.3", "pygame", "pycolmap", "plyfile", "trimesh", "gsplat", "e3nn"], check=True)
+print("dependency_install_ok")
 ```
 
 ## install 3
-
-```python
-import subprocess
-
-subprocess.run(
-    ["python", "-m", "pip", "install", "--quiet", "gsplat"],
-    check=True,
-)
-print("gsplat_install_ok")
-```
-
-## install 4
 
 ```python
 import sys
@@ -239,40 +172,37 @@ if str(src_root) not in sys.path:
 
 from depth_anything_3.api import DepthAnything3
 import gsplat
+import e3nn
 
-print("repo_root_exists", repo_root.exists(), repo_root)
-print("src_root_exists", src_root.exists(), src_root)
 print("depth_anything_3_import_ok", DepthAnything3)
-print("gsplat_module", gsplat.__file__)
 print("gsplat_version", getattr(gsplat, "__version__", "unknown"))
+print("e3nn_version", getattr(e3nn, "__version__", "unknown"))
 ```
 
-## `MRL-7` adopted one-block
+## install 4
+
+```python
+import inspect
+from depth_anything_3.api import DepthAnything3
+
+print("inference_sig", inspect.signature(DepthAnything3.inference))
+```
+
+## MRL-10 Phase A
 
 ```python
 from pathlib import Path
 import json
-import math
 import shutil
 import zipfile
-
-import imageio.v3 as iio
-import numpy as np
-import pandas as pd
-import torch
-from PIL import Image
-import gsplat
-from depth_anything_3.api import DepthAnything3
 
 selected_doc = json.loads(Path("/content/runbook_selected_input.json").read_text(encoding="utf-8"))
 selected_path = Path(selected_doc["path"])
 selected_kind = selected_doc["kind"]
 session_id = selected_doc["session_id"]
 results_root = Path(selected_doc["results_root"])
-extract_root = Path("/content/trajectreview_input")
-probe_dir = results_root / f"{session_id}_da3_multiframe_probe_v01"
-world_dir = probe_dir / "world_fusion_v01"
 
+extract_root = Path("/content/trajectreview_input")
 if extract_root.exists():
     shutil.rmtree(extract_root)
 extract_root.mkdir(parents=True, exist_ok=True)
@@ -281,161 +211,174 @@ if selected_kind == "zip":
     with zipfile.ZipFile(selected_path, "r") as zf:
         zf.extractall(extract_root)
 else:
-    dest_root = extract_root / selected_path.name
-    shutil.copytree(selected_path, dest_root)
+    shutil.copytree(selected_path, extract_root / selected_path.name)
 
 session_manifest_hits = sorted(extract_root.rglob("session_manifest.json"))
 if session_manifest_hits:
     session_outer = session_manifest_hits[0].parent
 else:
     pkg_hits = sorted(extract_root.rglob("session_package.json"))
-    assert pkg_hits, f"session_manifest.json / session_package.json not found under {extract_root}"
+    assert pkg_hits, f"session_manifest.json or session_package.json not found under {extract_root}"
     session_outer = pkg_hits[0].parent.parent if pkg_hits[0].parent.name == "trajectreview" else pkg_hits[0].parent
-session_root = session_outer / "trajectreview"
-if not session_root.exists():
-    session_root = session_outer
+
+session_root = session_outer / "trajectreview" if (session_outer / "trajectreview").exists() else session_outer
+
 image_dir_candidates = [
     session_root / "images",
     session_root / "image",
-    session_root / "trajectreview" / "images",
-    session_root / "trajectreview" / "image",
     session_outer / "images",
     session_outer / "image",
-    session_outer / "trajectreview" / "images",
-    session_outer / "trajectreview" / "image",
 ]
 source_images_dir = next((p for p in image_dir_candidates if p.exists()), None)
-frame_pose_path = session_root / "frame_pose_index.csv"
-pose_record_candidates = [
-    session_root / "frame_record.jsonl",
+assert source_images_dir is not None, {"image_dir_candidates": [str(p) for p in image_dir_candidates]}
+
+images_dir = session_root / "images"
+if source_images_dir != images_dir:
+    if images_dir.exists():
+        shutil.rmtree(images_dir)
+    shutil.copytree(source_images_dir, images_dir)
+
+frame_record_candidates = [
     session_outer / "frame_record.jsonl",
-    session_root / "trajectreview" / "frame_record.jsonl",
-    session_outer / "trajectreview" / "frame_record.jsonl",
+    session_root / "frame_record.jsonl",
     session_root / "arcore_pose.jsonl",
     session_outer / "arcore_pose.jsonl",
-    session_root / "trajectreview" / "arcore_pose.jsonl",
-    session_outer / "trajectreview" / "arcore_pose.jsonl",
 ]
-pose_record_path = next((p for p in pose_record_candidates if p.exists()), None)
+frame_record_path = next((p for p in frame_record_candidates if p.exists()), None)
+assert frame_record_path is not None, {"frame_record_candidates": [str(p) for p in frame_record_candidates]}
 
-assert source_images_dir is not None, {"image_dir_candidates": [str(p) for p in image_dir_candidates]}
-canonical_images_dir = session_root / "images"
-if source_images_dir != canonical_images_dir:
-    if canonical_images_dir.exists():
-        shutil.rmtree(canonical_images_dir)
-    shutil.copytree(source_images_dir, canonical_images_dir)
-images_dir = canonical_images_dir
-assert frame_pose_path.exists(), frame_pose_path
-assert pose_record_path is not None, {"pose_record_candidates": [str(p) for p in pose_record_candidates]}
+frame_pose_index_path = session_root / "frame_pose_index.csv"
+probe_root = results_root / f"{session_id}_da3_record_route_v01"
+proof_metric_dir = probe_root / "proof_metriclarge"
+prod_metric_dir = probe_root / "prod_metriclarge"
+proof_giant_dir = probe_root / "proof_giant"
+world_dir = probe_root / "world_fusion_v01"
+manifest_dir = probe_root / "manifests"
 
-probe_dir.mkdir(parents=True, exist_ok=True)
-world_dir.mkdir(parents=True, exist_ok=True)
+for p in [probe_root, proof_metric_dir, prod_metric_dir, proof_giant_dir, world_dir, manifest_dir]:
+    p.mkdir(parents=True, exist_ok=True)
 
-frame_pose_df = pd.read_csv(frame_pose_path)
-assert "frame_timestamp_ns" in frame_pose_df.columns
-assert "pose_record_index" in frame_pose_df.columns
-image_files = sorted(images_dir.glob("*.png")) + sorted(images_dir.glob("*.jpg")) + sorted(images_dir.glob("*.jpeg"))
-assert image_files, images_dir
-
-frame_name_col = "image_file_name" if "image_file_name" in frame_pose_df.columns else None
-has_named_frames = False
-if frame_name_col is not None:
-    frame_names = frame_pose_df[frame_name_col].fillna("").astype(str).str.strip()
-    has_named_frames = bool((frame_names != "").any())
-
-if has_named_frames:
-    rows = frame_pose_df.loc[frame_names != ""].copy()
-    rows["frame_name"] = rows[frame_name_col].astype(str).str.strip()
-    derived_frame_mapping = False
-else:
-    assert "frame_index" in frame_pose_df.columns, frame_pose_df.columns.tolist()
-    rows = frame_pose_df.sort_values("frame_index").reset_index(drop=True).copy()
-    assign_count = min(len(rows), len(image_files))
-    assert assign_count >= 1, {"rows": len(rows), "image_files": len(image_files)}
-    rows = rows.iloc[:assign_count].copy()
-    rows["frame_name"] = [p.name for p in image_files[:assign_count]]
-    derived_frame_mapping = True
-
-rows["timestamp_sec"] = rows["frame_timestamp_ns"].astype(np.float64) / 1e9
-rows = rows.sort_values("timestamp_sec").reset_index(drop=True)
-
-gaps = rows["timestamp_sec"].diff().fillna(0.0)
-window_break = gaps > 0.2
-window_id = window_break.cumsum()
-rows["window_id"] = window_id
-
-best_window = None
-for _, g in rows.groupby("window_id"):
-    span = float(g["timestamp_sec"].iloc[-1] - g["timestamp_sec"].iloc[0])
-    item = {
-        "span_sec": span,
-        "frame_count": int(len(g)),
-        "rows": g.reset_index(drop=True),
-    }
-    if best_window is None or item["span_sec"] > best_window["span_sec"]:
-        best_window = item
-
-assert best_window is not None
-g = best_window["rows"]
-sample_count = min(12, len(g))
-pick = np.linspace(0, len(g) - 1, sample_count).astype(int)
-sample_rows = g.iloc[pick].reset_index(drop=True)
-
-window_probe = {
-    "session_root": str(session_root),
+context_doc = {
+    "session_id": session_id,
+    "selected_kind": selected_kind,
+    "selected_path": str(selected_path),
     "session_outer": str(session_outer),
+    "session_root": str(session_root),
     "images_dir": str(images_dir),
-    "pose_record_path": str(pose_record_path),
-    "frame_index_path": str(frame_pose_path),
-    "frame_col": "frame_name",
-    "derived_frame_mapping": derived_frame_mapping,
-    "time_col": "frame_timestamp_ns",
-    "aligned_frame_count": int(len(rows)),
-    "window_span_sec": float(best_window["span_sec"]),
-    "window_frame_count": int(best_window["frame_count"]),
-    "window_start_sec": float(g["timestamp_sec"].iloc[0]),
-    "window_end_sec": float(g["timestamp_sec"].iloc[-1]),
-    "sample_frame_count": int(len(sample_rows)),
-    "sample_frames": sample_rows[["frame_name", "pose_record_index", "timestamp_sec"]].to_dict(orient="records"),
+    "frame_record_path": str(frame_record_path),
+    "frame_pose_index_path": str(frame_pose_index_path),
+    "probe_root": str(probe_root),
+    "proof_metric_dir": str(proof_metric_dir),
+    "prod_metric_dir": str(prod_metric_dir),
+    "proof_giant_dir": str(proof_giant_dir),
+    "world_dir": str(world_dir),
+    "manifest_dir": str(manifest_dir),
 }
-(probe_dir / "mrl7_window_probe.json").write_text(json.dumps(window_probe, indent=2, ensure_ascii=False), encoding="utf-8")
+Path("/content/runbook_session_context.json").write_text(json.dumps(context_doc, indent=2, ensure_ascii=False), encoding="utf-8")
+print(json.dumps(context_doc, indent=2, ensure_ascii=False))
+```
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = DepthAnything3.from_pretrained("depth-anything/DA3METRIC-LARGE").to(device=device)
+## MRL-10 Phase B
 
-depth_dir = probe_dir / "depth_batch_v01"
-depth_dir.mkdir(parents=True, exist_ok=True)
-depth_manifest = []
-for rec in window_probe["sample_frames"]:
-    frame_name = rec["frame_name"]
-    image_path = images_dir / frame_name
-    prediction = model.inference([str(image_path)])
-    depth = np.asarray(prediction.depth[0]).astype(np.float32)
-    out_npy = depth_dir / f"{Path(frame_name).stem}_depth.npy"
-    np.save(out_npy, depth)
-    depth_manifest.append({
-        "frame_name": frame_name,
-        "pose_record_index": int(rec["pose_record_index"]),
-        "timestamp_sec": float(rec["timestamp_sec"]),
-        "depth_path": str(out_npy),
-        "depth_shape": list(depth.shape),
+```python
+from pathlib import Path
+import csv
+import json
+
+import imageio.v3 as iio
+import numpy as np
+import pandas as pd
+
+ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
+images_dir = Path(ctx["images_dir"])
+frame_record_path = Path(ctx["frame_record_path"])
+manifest_dir = Path(ctx["manifest_dir"])
+
+with frame_record_path.open("r", encoding="utf-8") as f:
+    frame_records = [json.loads(line) for line in f if line.strip()]
+
+def lap_var(image_path: Path) -> float:
+    img = iio.imread(image_path)
+    if img.ndim == 3:
+        gray = img[..., :3].mean(axis=2).astype(np.float32)
+    else:
+        gray = img.astype(np.float32)
+    gx = gray[:, 1:] - gray[:, :-1]
+    gy = gray[1:, :] - gray[:-1, :]
+    return float(np.var(gx) + np.var(gy))
+
+rows = []
+for rec in sorted(frame_records, key=lambda x: int(x.get("frameTimestampNs", 0))):
+    image_name = str(rec.get("imageFileName", "")).strip()
+    image_path = images_dir / image_name if image_name else None
+    image_exists = bool(image_name) and image_path.exists()
+    intr = rec.get("imageIntrinsics") or {}
+    pose = rec.get("pose") or {}
+    blur_score = lap_var(image_path) if image_exists else None
+    rows.append({
+        "session_id": rec.get("sessionId"),
+        "record_index": rec.get("recordIndex"),
+        "frame_timestamp_ns": rec.get("frameTimestampNs"),
+        "capture_timestamp_ns": rec.get("captureTimestampNs"),
+        "tracking_state": rec.get("trackingState"),
+        "image_file_name": image_name,
+        "image_path": str(image_path) if image_path else "",
+        "image_exists": image_exists,
+        "fx": intr.get("fx"),
+        "fy": intr.get("fy"),
+        "cx": intr.get("cx"),
+        "cy": intr.get("cy"),
+        "width": intr.get("width"),
+        "height": intr.get("height"),
+        "tx": pose.get("tx"),
+        "ty": pose.get("ty"),
+        "tz": pose.get("tz"),
+        "qx": pose.get("qx"),
+        "qy": pose.get("qy"),
+        "qz": pose.get("qz"),
+        "qw": pose.get("qw"),
+        "blur_score": blur_score,
     })
-(probe_dir / "depth_batch_manifest.json").write_text(json.dumps(depth_manifest, indent=2, ensure_ascii=False), encoding="utf-8")
 
-with pose_record_path.open("r", encoding="utf-8") as f:
-    pose_records = [json.loads(line) for line in f if line.strip()]
+manifest_df = pd.DataFrame(rows)
+manifest_df.to_csv(manifest_dir / "input_frame_manifest.csv", index=False, encoding="utf-8")
 
-pose_record_by_index = {}
-for i, rec in enumerate(pose_records):
-    rec_idx = rec.get("recordIndex", i)
-    pose_record_by_index[int(rec_idx)] = rec
+qc_df = manifest_df.copy()
+qc_df["qc_tracking_ok"] = qc_df["tracking_state"].fillna("") == "TRACKING"
+qc_df["qc_image_ok"] = qc_df["image_exists"].fillna(False)
+qc_df["qc_intrinsics_ok"] = qc_df[["fx", "fy", "cx", "cy", "width", "height"]].notna().all(axis=1)
+qc_df["qc_pose_ok"] = qc_df[["tx", "ty", "tz", "qx", "qy", "qz", "qw"]].notna().all(axis=1)
+qc_df["qc_blur_ok"] = qc_df["blur_score"].fillna(0.0) >= 8.0
+qc_df["qc_pass"] = qc_df[["qc_tracking_ok", "qc_image_ok", "qc_intrinsics_ok", "qc_pose_ok", "qc_blur_ok"]].all(axis=1)
+qc_df["skip_reason"] = ""
+qc_df.loc[~qc_df["qc_tracking_ok"], "skip_reason"] = "tracking_not_ok"
+qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_image_ok"], "skip_reason"] = "image_missing"
+qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_intrinsics_ok"], "skip_reason"] = "intrinsics_missing"
+qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_pose_ok"], "skip_reason"] = "pose_missing"
+qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_blur_ok"], "skip_reason"] = "blur_low"
+qc_df.to_csv(manifest_dir / "input_frame_qc.csv", index=False, encoding="utf-8", quoting=csv.QUOTE_MINIMAL)
 
-def get_pose_record(pose_idx: int):
-    if pose_idx in pose_record_by_index:
-        return pose_record_by_index[pose_idx]
-    if 0 <= pose_idx < len(pose_records):
-        return pose_records[pose_idx]
-    return None
+summary = {
+    "frame_record_count": int(len(manifest_df)),
+    "qc_pass_count": int(qc_df["qc_pass"].sum()),
+    "qc_skip_count": int((~qc_df["qc_pass"]).sum()),
+}
+(manifest_dir / "qc_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+print(json.dumps(summary, indent=2, ensure_ascii=False))
+```
+
+## MRL-10 Phase C
+
+```python
+from pathlib import Path
+import json
+
+import numpy as np
+import pandas as pd
+
+ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
+manifest_dir = Path(ctx["manifest_dir"])
+qc_df = pd.read_csv(manifest_dir / "input_frame_qc.csv")
 
 def quat_to_rot(qx, qy, qz, qw):
     xx, yy, zz = qx*qx, qy*qy, qz*qz
@@ -447,629 +390,324 @@ def quat_to_rot(qx, qy, qz, qw):
         [2*(xz - wy), 2*(yz + wx), 1 - 2*(xx + yy)],
     ], dtype=np.float32)
 
+def pose_to_w2c(row):
+    R_c2w = quat_to_rot(float(row.qx), float(row.qy), float(row.qz), float(row.qw))
+    t_c2w = np.array([float(row.tx), float(row.ty), float(row.tz)], dtype=np.float32)
+    R_w2c = R_c2w.T
+    t_w2c = -R_w2c @ t_c2w
+    out = np.eye(4, dtype=np.float32)
+    out[:3, :3] = R_w2c
+    out[:3, 3] = t_w2c
+    return out
+
+def build_K(row):
+    return np.array([
+        [float(row.fx), 0.0, float(row.cx)],
+        [0.0, float(row.fy), float(row.cy)],
+        [0.0, 0.0, 1.0],
+    ], dtype=np.float32)
+
+adopt_df = qc_df.loc[qc_df["qc_pass"]].copy().sort_values("frame_timestamp_ns").reset_index(drop=True)
+assert len(adopt_df) >= 2, {"qc_pass_count": len(adopt_df)}
+
+adopted_rows = []
+last_t = None
+last_R = None
+for row in adopt_df.itertuples(index=False):
+    t = np.array([float(row.tx), float(row.ty), float(row.tz)], dtype=np.float32)
+    R = quat_to_rot(float(row.qx), float(row.qy), float(row.qz), float(row.qw))
+    baseline = None if last_t is None else float(np.linalg.norm(t - last_t))
+    rot_delta = None if last_R is None else float(np.degrees(np.arccos(np.clip((np.trace(last_R.T @ R) - 1.0) / 2.0, -1.0, 1.0))))
+    adopt = last_t is None or (baseline >= 0.05) or (rot_delta is not None and rot_delta >= 3.0)
+    adopted_rows.append({
+        **row._asdict(),
+        "baseline_from_prev_adopted_m": baseline,
+        "rotation_from_prev_adopted_deg": rot_delta,
+        "prod_adopted": adopt,
+        "prod_skip_reason": "" if adopt else "baseline_small",
+    })
+    if adopt:
+        last_t = t
+        last_R = R
+
+prod_df = pd.DataFrame(adopted_rows)
+prod_df.to_csv(manifest_dir / "pose_conversion_check.csv", index=False, encoding="utf-8")
+
+prod_selected = prod_df.loc[prod_df["prod_adopted"]].copy().reset_index(drop=True)
+proof_selected = prod_selected.head(min(24, len(prod_selected))).copy()
+assert len(proof_selected) >= 2, {"proof_selected": len(proof_selected)}
+
+for name, df in [("proof", proof_selected), ("prod", prod_selected)]:
+    Ks = np.stack([build_K(row) for row in df.itertuples(index=False)], axis=0)
+    exts = np.stack([pose_to_w2c(row) for row in df.itertuples(index=False)], axis=0)
+    np.save(manifest_dir / f"intrinsics_{name}.npy", Ks)
+    np.save(manifest_dir / f"extrinsics_w2c_{name}.npy", exts)
+    df.to_csv(manifest_dir / f"da3_input_manifest_{name}.csv", index=False, encoding="utf-8")
+
+k_check = prod_selected[["image_file_name", "width", "height", "fx", "fy", "cx", "cy"]].copy()
+k_check["resize_mode"] = "native"
+k_check.to_csv(manifest_dir / "k_resize_check.csv", index=False, encoding="utf-8")
+
+summary = {
+    "qc_pass_count": int(len(adopt_df)),
+    "prod_selected_count": int(len(prod_selected)),
+    "proof_selected_count": int(len(proof_selected)),
+}
+(manifest_dir / "da3_input_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+print(json.dumps(summary, indent=2, ensure_ascii=False))
+```
+
+## MRL-10 Phase D proof
+
+```python
+from pathlib import Path
+import json
+
+import numpy as np
+import pandas as pd
+import torch
+from depth_anything_3.api import DepthAnything3
+
+ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
+manifest_dir = Path(ctx["manifest_dir"])
+proof_metric_dir = Path(ctx["proof_metric_dir"])
+
+proof_df = pd.read_csv(manifest_dir / "da3_input_manifest_proof.csv")
+proof_images = proof_df["image_path"].tolist()
+proof_intrinsics = np.load(manifest_dir / "intrinsics_proof.npy")
+proof_extrinsics = np.load(manifest_dir / "extrinsics_w2c_proof.npy")
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = DepthAnything3.from_pretrained("depth-anything/DA3METRIC-LARGE").to(device=device)
+prediction = model.inference(
+    image=proof_images,
+    intrinsics=proof_intrinsics,
+    extrinsics=proof_extrinsics,
+    infer_gs=False,
+    process_res=504,
+    export_dir=str(proof_metric_dir),
+    export_format="mini_npz-glb-depth_vis",
+)
+
+summary = {
+    "route": "MetricLarge-proof",
+    "image_count": len(proof_images),
+    "proof_metric_dir": str(proof_metric_dir),
+    "prediction_type": str(type(prediction).__name__),
+}
+(proof_metric_dir / "export_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+print(json.dumps(summary, indent=2, ensure_ascii=False))
+```
+
+## MRL-10 Phase D production
+
+```python
+from pathlib import Path
+import json
+
+import numpy as np
+import pandas as pd
+import torch
+from depth_anything_3.api import DepthAnything3
+
+ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
+manifest_dir = Path(ctx["manifest_dir"])
+prod_metric_dir = Path(ctx["prod_metric_dir"])
+
+prod_df = pd.read_csv(manifest_dir / "da3_input_manifest_prod.csv")
+prod_images = prod_df["image_path"].tolist()
+prod_intrinsics = np.load(manifest_dir / "intrinsics_prod.npy")
+prod_extrinsics = np.load(manifest_dir / "extrinsics_w2c_prod.npy")
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = DepthAnything3.from_pretrained("depth-anything/DA3METRIC-LARGE").to(device=device)
+prediction = model.inference(
+    image=prod_images,
+    intrinsics=prod_intrinsics,
+    extrinsics=prod_extrinsics,
+    infer_gs=False,
+    process_res=504,
+    export_dir=str(prod_metric_dir),
+    export_format="mini_npz-glb-depth_vis",
+)
+
+summary = {
+    "route": "MetricLarge-production",
+    "image_count": len(prod_images),
+    "prod_metric_dir": str(prod_metric_dir),
+    "prediction_type": str(type(prediction).__name__),
+}
+(prod_metric_dir / "export_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+print(json.dumps(summary, indent=2, ensure_ascii=False))
+```
+
+## MRL-10 Phase D production world
+
+```python
+from pathlib import Path
+import json
+
+import numpy as np
+import pandas as pd
+from PIL import Image
+
+ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
+manifest_dir = Path(ctx["manifest_dir"])
+prod_metric_dir = Path(ctx["prod_metric_dir"])
+world_dir = Path(ctx["world_dir"])
+
+prod_df = pd.read_csv(manifest_dir / "da3_input_manifest_prod.csv")
+prod_intrinsics = np.load(manifest_dir / "intrinsics_prod.npy")
+prod_extrinsics = np.load(manifest_dir / "extrinsics_w2c_prod.npy")
+results_npz = np.load(prod_metric_dir / "exports" / "npz" / "results.npz")
+depths = results_npz["depth"]
+
 all_points = []
 per_frame = []
-skipped = []
 stride = 24
-for rec in depth_manifest:
-    pose_idx = int(rec["pose_record_index"])
-    record = get_pose_record(pose_idx)
-    if record is None:
-        skipped.append({"frame_name": rec["frame_name"], "reason": "pose_index_not_found", "pose_record_index": pose_idx})
-        continue
-    intr = record["imageIntrinsics"]
-    pose = record["pose"]
-    depth = np.load(rec["depth_path"]).astype(np.float32)
+for idx, row in enumerate(prod_df.itertuples(index=False)):
+    depth = depths[idx].astype(np.float32)
+    K = prod_intrinsics[idx]
+    w2c = prod_extrinsics[idx]
+    c2w = np.linalg.inv(w2c)
     h, w = depth.shape
     grid_y, grid_x = np.mgrid[0:h:stride, 0:w:stride]
     z = depth[grid_y, grid_x]
     valid = np.isfinite(z) & (z > 0.0)
     if not np.any(valid):
-        skipped.append({"frame_name": rec["frame_name"], "reason": "no_valid_depth"})
         continue
     px = grid_x[valid].astype(np.float32)
     py = grid_y[valid].astype(np.float32)
     zz = z[valid].astype(np.float32)
-    x = (px - float(intr["cx"])) * zz / float(intr["fx"])
-    y = (py - float(intr["cy"])) * zz / float(intr["fy"])
+    x = (px - K[0, 2]) * zz / K[0, 0]
+    y = (py - K[1, 2]) * zz / K[1, 1]
     cam = np.stack([x, y, zz], axis=-1)
-
-    R_wc = quat_to_rot(
-        float(pose["qx"]), float(pose["qy"]), float(pose["qz"]), float(pose["qw"])
-    )
-    t_wc = np.array([float(pose["tx"]), float(pose["ty"]), float(pose["tz"])], dtype=np.float32)
-    world = (R_wc @ cam.T).T + t_wc
+    cam_h = np.concatenate([cam, np.ones((len(cam), 1), dtype=np.float32)], axis=1)
+    world = (c2w @ cam_h.T).T[:, :3]
     all_points.append(world)
-    per_frame.append({
-        "frame_name": rec["frame_name"],
-        "pose_record_index": pose_idx,
-        "point_count": int(len(world)),
-        "timestamp_sec": float(rec["timestamp_sec"]),
-    })
+    per_frame.append({"image_file_name": row.image_file_name, "point_count": int(len(world))})
 
 assert all_points, "no world points generated"
 merged = np.concatenate(all_points, axis=0).astype(np.float32)
 np.save(world_dir / "world_points_multiframe.npy", merged)
 
 with (world_dir / "world_points_multiframe.ply").open("w", encoding="utf-8") as f:
-    f.write("ply\\nformat ascii 1.0\\n")
-    f.write(f"element vertex {len(merged)}\\n")
-    f.write("property float x\\nproperty float y\\nproperty float z\\n")
-    f.write("end_header\\n")
+    f.write("ply\nformat ascii 1.0\n")
+    f.write(f"element vertex {len(merged)}\n")
+    f.write("property float x\nproperty float y\nproperty float z\n")
+    f.write("end_header\n")
     for p in merged:
-        f.write(f"{p[0]} {p[1]} {p[2]}\\n")
-
-world_summary = {
-    "stride": stride,
-    "processed_frames": len(per_frame),
-    "skipped_frames": skipped,
-    "total_points": int(len(merged)),
-    "per_frame": per_frame,
-    "npy_path": str(world_dir / "world_points_multiframe.npy"),
-    "ply_path": str(world_dir / "world_points_multiframe.ply"),
-    "pose_record_path": str(pose_record_path),
-}
-(world_dir / "world_fusion_summary.json").write_text(json.dumps(world_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+        f.write(f"{p[0]} {p[1]} {p[2]}\n")
 
 sample = merged[::4] if len(merged) > 4000 else merged
-sample_min = sample.min(axis=0)
-sample_max = sample.max(axis=0)
-sample_norm = (sample - sample_min) / np.maximum(sample_max - sample_min, 1e-6)
+mins = sample.min(axis=0)
+maxs = sample.max(axis=0)
+norm = (sample - mins) / np.maximum(maxs - mins, 1e-6)
 preview = np.zeros((800, 800, 3), dtype=np.uint8)
-xy = sample_norm[:, :2]
-px = np.clip((xy[:, 0] * 799).astype(int), 0, 799)
-py = np.clip((xy[:, 1] * 799).astype(int), 0, 799)
+px = np.clip((norm[:, 0] * 799).astype(int), 0, 799)
+py = np.clip((norm[:, 1] * 799).astype(int), 0, 799)
 preview[799 - py, px] = 255
 Image.fromarray(preview).save(world_dir / "world_points_multiframe_preview.png")
 
-closeout = {
-    "status": "candidate-visible-proof",
-    "processed_frames": world_summary["processed_frames"],
-    "skipped_frames": world_summary["skipped_frames"],
-    "total_points": world_summary["total_points"],
-    "preview_path": str(world_dir / "world_points_multiframe_preview.png"),
-    "ply_path": world_summary["ply_path"],
-    "npy_path": world_summary["npy_path"],
-    "per_frame_point_count": [x["point_count"] for x in per_frame],
-}
-(world_dir / "mrl7_closeout_summary.json").write_text(json.dumps(closeout, indent=2, ensure_ascii=False), encoding="utf-8")
-
-first_frame = window_probe["sample_frames"][0]["frame_name"]
-first_rec = window_probe["sample_frames"][0]
-image = iio.imread(images_dir / first_frame)
-if image.ndim == 2:
-    image = np.stack([image, image, image], axis=-1)
-image = image[..., :3]
-target_h, target_w = image.shape[:2]
-target = torch.from_numpy(image.astype(np.float32) / 255.0).to(device)
-
-pose_index = int(first_rec["pose_record_index"])
-pose_rec = get_pose_record(pose_index)
-assert pose_rec is not None, {"pose_index": pose_index}
-intr = pose_rec["imageIntrinsics"]
-pose = pose_rec["pose"]
-R_wc = quat_to_rot(float(pose["qx"]), float(pose["qy"]), float(pose["qz"]), float(pose["qw"]))
-t_wc = np.array([float(pose["tx"]), float(pose["ty"]), float(pose["tz"])], dtype=np.float32)
-R_cw = R_wc.T
-t_cw = -R_cw @ t_wc
-viewmat = np.eye(4, dtype=np.float32)
-viewmat[:3, :3] = R_cw
-viewmat[:3, 3] = t_cw
-viewmat = torch.from_numpy(viewmat).to(device)
-K = torch.tensor([
-    [float(intr["fx"]), 0.0, float(intr["cx"])],
-    [0.0, float(intr["fy"]), float(intr["cy"])],
-    [0.0, 0.0, 1.0],
-], dtype=torch.float32, device=device)
-
-points_np = merged
-max_points = 1024
-if len(points_np) > max_points:
-    pick = np.linspace(0, len(points_np) - 1, max_points).astype(np.int64)
-    points_np = points_np[pick]
-
-means = torch.nn.Parameter(torch.from_numpy(points_np).to(device))
-scales = torch.nn.Parameter(torch.full((len(points_np), 3), math.log(0.03), dtype=torch.float32, device=device))
-quats = torch.nn.Parameter(torch.tensor([[0.0, 0.0, 0.0, 1.0]], dtype=torch.float32, device=device).repeat(len(points_np), 1))
-opacities = torch.nn.Parameter(torch.full((len(points_np),), 0.1, dtype=torch.float32, device=device))
-colors = torch.nn.Parameter(torch.full((len(points_np), 3), 0.7, dtype=torch.float32, device=device))
-
-def render_once():
-    render_colors, render_alphas, _ = gsplat.rasterization(
-        means=means,
-        quats=torch.nn.functional.normalize(quats, dim=-1),
-        scales=torch.exp(scales),
-        opacities=torch.sigmoid(opacities),
-        colors=colors,
-        viewmats=viewmat[None, ...],
-        Ks=K[None, ...],
-        width=target_w,
-        height=target_h,
-        packed=False,
-    )
-    return render_colors[0], render_alphas[0]
-
-def save_png(path: Path, tensor_img: torch.Tensor):
-    arr = torch.clamp(tensor_img.detach(), 0.0, 1.0).cpu().numpy()
-    Image.fromarray((arr * 255).astype(np.uint8)).save(path)
-
-optimizer = torch.optim.Adam([means, scales, quats, opacities, colors], lr=1e-2)
-
-pred_init, _ = render_once()
-loss_init = torch.mean((pred_init - target) ** 2)
-save_png(world_dir / "gaussian_render_init.png", pred_init)
-torch.save({
-    "means": means.detach().cpu(),
-    "scales_log": scales.detach().cpu(),
-    "quats": torch.nn.functional.normalize(quats.detach(), dim=-1).cpu(),
-    "opacities_logit": opacities.detach().cpu(),
-    "colors": colors.detach().cpu(),
-}, world_dir / "gaussian_params_init.pt")
-
-loss_history = [float(loss_init.detach().cpu().item())]
-for _ in range(20):
-    optimizer.zero_grad(set_to_none=True)
-    pred, alpha = render_once()
-    loss = torch.mean((pred - target) ** 2)
-    loss.backward()
-    optimizer.step()
-    loss_history.append(float(loss.detach().cpu().item()))
-
-pred_final, alpha_final = render_once()
-loss_final = torch.mean((pred_final - target) ** 2)
-save_png(world_dir / "gaussian_render_optim20.png", pred_final)
-torch.save({
-    "means": means.detach().cpu(),
-    "scales_log": scales.detach().cpu(),
-    "quats": torch.nn.functional.normalize(quats.detach(), dim=-1).cpu(),
-    "opacities_logit": opacities.detach().cpu(),
-    "colors": colors.detach().cpu(),
-}, world_dir / "gaussian_params_optim20.pt")
-
-gaussian_summary = {
-    "backward_ok": True,
-    "point_count": int(len(points_np)),
-    "target_frame": first_frame,
-    "loss_init": float(loss_init.detach().cpu().item()),
-    "loss_final": float(loss_final.detach().cpu().item()),
-    "loss_history_head": loss_history[:5],
-    "loss_history_tail": loss_history[-5:],
-    "alpha_mean_final": float(alpha_final.mean().detach().cpu().item()),
-    "init_pt": str(world_dir / "gaussian_params_init.pt"),
-    "optim20_pt": str(world_dir / "gaussian_params_optim20.pt"),
-    "init_png": str(world_dir / "gaussian_render_init.png"),
-    "optim20_png": str(world_dir / "gaussian_render_optim20.png"),
-}
-(world_dir / "gaussian_optim20_summary.json").write_text(json.dumps(gaussian_summary, indent=2, ensure_ascii=False), encoding="utf-8")
-
-print(json.dumps({
-    "pose_record_path": str(pose_record_path),
-    "window_span_sec": window_probe["window_span_sec"],
-    "sample_frame_count": window_probe["sample_frame_count"],
-    "processed_frames": world_summary["processed_frames"],
-    "skipped_frames": len(world_summary["skipped_frames"]),
-    "total_points": world_summary["total_points"],
-    "loss_init": gaussian_summary["loss_init"],
-    "loss_final": gaussian_summary["loss_final"],
-    "world_dir": str(world_dir),
-}, indent=2, ensure_ascii=False))
-```
-
-## `1000 step` 追加学習 block
-
-```python
-optimizer = torch.optim.Adam([means, scales, quats, opacities, colors], lr=1e-2)
-
-pred_init_1000, _ = render_once()
-loss_init_1000 = torch.mean((pred_init_1000 - target) ** 2)
-
-loss_history_1000 = [float(loss_init_1000.detach().cpu().item())]
-for step in range(1000):
-    optimizer.zero_grad(set_to_none=True)
-    pred, alpha = render_once()
-    loss = torch.mean((pred - target) ** 2)
-    loss.backward()
-    optimizer.step()
-    loss_history_1000.append(float(loss.detach().cpu().item()))
-
-pred_final_1000, alpha_final_1000 = render_once()
-loss_final_1000 = torch.mean((pred_final_1000 - target) ** 2)
-
-save_png(world_dir / "gaussian_render_optim1000.png", pred_final_1000)
-torch.save({
-    "means": means.detach().cpu(),
-    "scales_log": scales.detach().cpu(),
-    "quats": torch.nn.functional.normalize(quats.detach(), dim=-1).cpu(),
-    "opacities_logit": opacities.detach().cpu(),
-    "colors": colors.detach().cpu(),
-}, world_dir / "gaussian_params_optim1000.pt")
-
-gaussian_summary_1000 = {
-    "backward_ok": True,
-    "point_count": int(means.shape[0]),
-    "loss_init": float(loss_init_1000.detach().cpu().item()),
-    "loss_final": float(loss_final_1000.detach().cpu().item()),
-    "loss_history_head": loss_history_1000[:5],
-    "loss_history_tail": loss_history_1000[-5:],
-    "alpha_mean_final": float(alpha_final_1000.mean().detach().cpu().item()),
-    "optim1000_pt": str(world_dir / "gaussian_params_optim1000.pt"),
-    "optim1000_png": str(world_dir / "gaussian_render_optim1000.png"),
-}
-(world_dir / "gaussian_optim1000_summary.json").write_text(
-    json.dumps(gaussian_summary_1000, indent=2, ensure_ascii=False),
-    encoding="utf-8",
-)
-
-print(json.dumps({
-    "point_count": int(means.shape[0]),
-    "loss_init": gaussian_summary_1000["loss_init"],
-    "loss_final": gaussian_summary_1000["loss_final"],
-    "optim1000_pt": gaussian_summary_1000["optim1000_pt"],
-    "optim1000_png": gaussian_summary_1000["optim1000_png"],
-}, indent=2, ensure_ascii=False))
-```
-
-## `3000 step` 追加学習 block
-
-```python
-# gaussian optim 3000
-optimizer = torch.optim.Adam([means, scales, quats, opacities, colors], lr=1e-2)
-
-pred_init_3000, _ = render_once()
-loss_init_3000 = torch.mean((pred_init_3000 - target) ** 2)
-
-loss_history_3000 = [float(loss_init_3000.detach().cpu().item())]
-for step in range(3000):
-    optimizer.zero_grad(set_to_none=True)
-    pred, alpha = render_once()
-    loss = torch.mean((pred - target) ** 2)
-    loss.backward()
-    optimizer.step()
-    loss_history_3000.append(float(loss.detach().cpu().item()))
-
-pred_final_3000, alpha_final_3000 = render_once()
-loss_final_3000 = torch.mean((pred_final_3000 - target) ** 2)
-
-save_png(world_dir / "gaussian_render_optim3000.png", pred_final_3000)
-torch.save({
-    "means": means.detach().cpu(),
-    "scales_log": scales.detach().cpu(),
-    "quats": torch.nn.functional.normalize(quats.detach(), dim=-1).cpu(),
-    "opacities_logit": opacities.detach().cpu(),
-    "colors": colors.detach().cpu(),
-}, world_dir / "gaussian_params_optim3000.pt")
-
-gaussian_summary_3000 = {
-    "backward_ok": True,
-    "point_count": int(means.shape[0]),
-    "loss_init": float(loss_init_3000.detach().cpu().item()),
-    "loss_final": float(loss_final_3000.detach().cpu().item()),
-    "loss_history_head": loss_history_3000[:5],
-    "loss_history_tail": loss_history_3000[-5:],
-    "alpha_mean_final": float(alpha_final_3000.mean().detach().cpu().item()),
-    "optim3000_pt": str(world_dir / "gaussian_params_optim3000.pt"),
-    "optim3000_png": str(world_dir / "gaussian_render_optim3000.png"),
-}
-(world_dir / "gaussian_optim3000_summary.json").write_text(
-    json.dumps(gaussian_summary_3000, indent=2, ensure_ascii=False),
-    encoding="utf-8",
-)
-
-print(json.dumps({
-    "point_count": int(means.shape[0]),
-    "loss_init": gaussian_summary_3000["loss_init"],
-    "loss_final": gaussian_summary_3000["loss_final"],
-    "optim3000_pt": gaussian_summary_3000["optim3000_pt"],
-    "optim3000_png": gaussian_summary_3000["optim3000_png"],
-}, indent=2, ensure_ascii=False))
-```
-
-## `MRL-9` giant Gaussian branch
-
-```python
-# Step 9a giant-infer-gs entrypoint probe
-from pathlib import Path
-import json
-import inspect
-import sys
-
-repo_root = Path("/content/Depth-Anything-3")
-assert repo_root.exists(), {"repo_not_found": str(repo_root)}
-
-src_root = repo_root / "src"
-if str(src_root) not in sys.path:
-    sys.path.insert(0, str(src_root))
-
-patterns = ["infer_gs", "gs_ply", "gs_video", "giant", "Giant", "DA3"]
-hits = []
-
-for path in repo_root.rglob("*"):
-    if not path.is_file():
-        continue
-    if path.suffix.lower() not in {".py", ".md", ".txt", ".yaml", ".yml", ".json"}:
-        continue
-    try:
-        text = path.read_text(encoding="utf-8", errors="ignore")
-    except Exception:
-        continue
-    for lineno, line in enumerate(text.splitlines(), start=1):
-        if any(p in line for p in patterns):
-            hits.append({
-                "file": str(path),
-                "line": lineno,
-                "text": line.strip(),
-            })
-
-from depth_anything_3.api import DepthAnything3
-
 summary = {
-    "repo_root": str(repo_root),
-    "src_root": str(src_root),
-    "api_import_ok": True,
-    "from_pretrained_sig": str(inspect.signature(DepthAnything3.from_pretrained)),
-    "api_init_sig": str(inspect.signature(DepthAnything3.__init__)),
-    "hit_count": len(hits),
-    "hits_head": hits[:80],
+    "route": "MetricLarge-production-world",
+    "processed_frames": len(per_frame),
+    "total_points": int(len(merged)),
+    "stride": stride,
 }
-
-probe_path = Path("/content/mrl9_entrypoint_probe.json")
-probe_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
-
-print(json.dumps({
-    "probe_path": str(probe_path),
-    "hit_count": summary["hit_count"],
-    "from_pretrained_sig": summary["from_pretrained_sig"],
-    "api_init_sig": summary["api_init_sig"],
-}, indent=2, ensure_ascii=False))
-for item in summary["hits_head"][:40]:
-    print(f"{item['file']}:{item['line']}: {item['text']}")
+(world_dir / "export_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+print(json.dumps(summary, indent=2, ensure_ascii=False))
 ```
 
+## MRL-10 Phase E giant
+
 ```python
-# Step 9j adopted giant infer_gs export
 from pathlib import Path
 import json
-import shutil
-import zipfile
 import sys
-import subprocess
-import importlib
 
+import numpy as np
+import pandas as pd
 import torch
 
-def run(cmd):
-    print("RUN", " ".join(cmd))
-    subprocess.run(cmd, check=True)
-
-run(["python", "-m", "pip", "install", "--quiet", "e3nn"])
-
 for name in list(sys.modules.keys()):
-    if name == "depth_anything_3" or name.startswith("depth_anything_3."):
+    if name.startswith("depth_anything_3"):
         del sys.modules[name]
-importlib.invalidate_caches()
 
-repo_root = Path("/content/Depth-Anything-3")
-assert repo_root.exists(), {"repo_not_found": str(repo_root)}
-src_root = repo_root / "src"
-if str(src_root) not in sys.path:
-    sys.path.insert(0, str(src_root))
-
-import e3nn
-from e3nn.o3 import matrix_to_angles
 from depth_anything_3.api import DepthAnything3
 
-selected_doc_path = Path("/content/runbook_selected_input.json")
-assert selected_doc_path.exists(), {"selected_doc_not_found": str(selected_doc_path)}
-selected_doc = json.loads(selected_doc_path.read_text(encoding="utf-8"))
+ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
+manifest_dir = Path(ctx["manifest_dir"])
+proof_giant_dir = Path(ctx["proof_giant_dir"])
 
-input_path = Path(selected_doc["path"])
-results_root = Path(selected_doc["results_root"])
-assert input_path.exists(), {"input_not_found": str(input_path)}
-results_root.mkdir(parents=True, exist_ok=True)
+proof_df = pd.read_csv(manifest_dir / "da3_input_manifest_proof.csv")
+proof_images = proof_df["image_path"].tolist()
+proof_intrinsics = np.load(manifest_dir / "intrinsics_proof.npy")
+proof_extrinsics = np.load(manifest_dir / "extrinsics_w2c_proof.npy")
 
-extract_root = Path("/content/trajectreview_input")
-if extract_root.exists():
-    shutil.rmtree(extract_root)
-extract_root.mkdir(parents=True, exist_ok=True)
-
-if input_path.is_file() and input_path.suffix.lower() == ".zip":
-    with zipfile.ZipFile(input_path, "r") as zf:
-        zf.extractall(extract_root)
-    session_manifest_hits = sorted(extract_root.rglob("session_manifest.json"))
-    if session_manifest_hits:
-        session_outer = session_manifest_hits[0].parent
-    else:
-        session_package_hits = sorted(extract_root.rglob("session_package.json"))
-        assert session_package_hits, {"session_manifest_not_found_under": str(extract_root)}
-        session_outer = session_package_hits[0].parent.parent if session_package_hits[0].parent.name == "trajectreview" else session_package_hits[0].parent
-else:
-    session_outer = input_path
-
-session_root = session_outer / "trajectreview"
-if not session_root.exists():
-    session_root = session_outer
-
-image_dir_candidates = [
-    session_root / "images",
-    session_root / "image",
-    session_root / "trajectreview" / "images",
-    session_root / "trajectreview" / "image",
-    session_outer / "images",
-    session_outer / "image",
-    session_outer / "trajectreview" / "images",
-    session_outer / "trajectreview" / "image",
-]
-source_images_dir = next((p for p in image_dir_candidates if p.exists()), None)
-assert source_images_dir is not None, {"image_dir_candidates": [str(p) for p in image_dir_candidates]}
-canonical_images_dir = session_root / "images"
-if source_images_dir != canonical_images_dir:
-    if canonical_images_dir.exists():
-        shutil.rmtree(canonical_images_dir)
-    shutil.copytree(source_images_dir, canonical_images_dir)
-images_dir = canonical_images_dir
-image_paths = sorted(list(images_dir.glob("*.jpg")) + list(images_dir.glob("*.png")) + list(images_dir.glob("*.jpeg")))
-assert image_paths, {"images_not_found": str(images_dir)}
-
-sample_images = [str(p) for p in image_paths[: min(60, len(image_paths))]]
-session_id = selected_doc["session_id"]
-probe_root = results_root / f"{session_id}_da3_multiframe_probe_v01"
-probe_dir = probe_root / "probe_pass"
-probe_dir.mkdir(parents=True, exist_ok=True)
-
-device = "cuda" if torch.cuda.is_available() else "cpu"
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = DepthAnything3(model_name="da3-giant").to(device)
-outputs = model.inference(
-    image=sample_images,
+prediction = model.inference(
+    image=proof_images,
+    intrinsics=proof_intrinsics,
+    extrinsics=proof_extrinsics,
     infer_gs=True,
     process_res=504,
-    export_dir=str(probe_dir),
+    export_dir=str(proof_giant_dir),
     export_format="npz-glb-gs_ply-gs_video",
 )
 
-exported = []
-for p in sorted(probe_dir.rglob("*")):
-    if p.is_file():
-        exported.append(str(p))
-
 summary = {
-    "session_id": session_id,
-    "device": device,
-    "sample_count": len(sample_images),
-    "e3nn_version": getattr(e3nn, "__version__", "unknown"),
-    "matrix_to_angles_import_ok": callable(matrix_to_angles),
-    "output_type": type(outputs).__name__,
-    "probe_dir": str(probe_dir),
-    "exported_files": exported,
+    "route": "Giant-proof-explicit-pose",
+    "image_count": len(proof_images),
+    "proof_giant_dir": str(proof_giant_dir),
+    "prediction_type": str(type(prediction).__name__),
 }
-
-summary_path = probe_dir / "step9j_giant_infergs_summary.json"
-summary_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
-
-print(json.dumps({
-    "summary_path": str(summary_path),
-    "sample_count": summary["sample_count"],
-    "probe_dir": summary["probe_dir"],
-    "exported_file_count": len(exported),
-    "e3nn_version": summary["e3nn_version"],
-    "matrix_to_angles_import_ok": summary["matrix_to_angles_import_ok"],
-}, indent=2, ensure_ascii=False))
-for item in exported[:40]:
-    print(item)
+(proof_giant_dir / "export_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+print(json.dumps(summary, indent=2, ensure_ascii=False))
 ```
 
-```text
-Viewer check:
-1. PlayCanvas Model Viewer を開く
-2. probe_pass/gs_ply/0000.ply を読み込む
-3. orbit / pan / zoom で scene が表示されれば pass
-```
-
-# 可視化ブロックは重複しているので必要な場合のみ使う
+## Download bundle
 
 ```python
 from pathlib import Path
+import json
 from google.colab import files
 import shutil
-import json
 
-selected_doc = json.loads(Path("/content/runbook_selected_input.json").read_text(encoding="utf-8"))
-session_id = selected_doc["session_id"]
-probe_dir = Path(selected_doc["results_root"]) / f"{session_id}_da3_multiframe_probe_v01" / "probe_pass"
-bundle_dir = Path("/content/da3giant_probe_bundle")
-bundle_zip = Path("/content/da3giant_probe_bundle.zip")
-
-assert probe_dir.exists(), f"missing: {probe_dir}"
+probe_root = Path(json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))["probe_root"])
+bundle_dir = Path("/content/da3_record_route_bundle")
+bundle_zip = Path("/content/da3_record_route_bundle.zip")
 
 if bundle_dir.exists():
     shutil.rmtree(bundle_dir)
 bundle_dir.mkdir(parents=True, exist_ok=True)
 
 targets = [
-    "exports/npz/results.npz",
-    "gs_ply/0000.ply",
-    "gs_video/0000_extend.mp4",
-    "scene.glb",
-    "scene.jpg",
-    "step9j_giant_infergs_summary.json",
+    "manifests/input_frame_manifest.csv",
+    "manifests/input_frame_qc.csv",
+    "manifests/da3_input_manifest_proof.csv",
+    "manifests/da3_input_manifest_prod.csv",
+    "manifests/pose_conversion_check.csv",
+    "manifests/k_resize_check.csv",
+    "proof_metriclarge/export_summary.json",
+    "prod_metriclarge/export_summary.json",
+    "world_fusion_v01/world_points_multiframe.npy",
+    "world_fusion_v01/world_points_multiframe.ply",
+    "world_fusion_v01/world_points_multiframe_preview.png",
 ]
 
 for rel in targets:
-    src = probe_dir / rel
-    assert src.exists(), f"missing: {src}"
+    src = probe_root / rel
+    if not src.exists():
+        continue
     dst = bundle_dir / rel
     dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(src, dst)
 
-depth_vis_dir = probe_dir / "depth_vis"
-if depth_vis_dir.exists():
-    for src in sorted(depth_vis_dir.glob("*.jpg")):
-        rel = src.relative_to(probe_dir)
-        dst = bundle_dir / rel
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(src, dst)
-
 if bundle_zip.exists():
     bundle_zip.unlink()
-
 shutil.make_archive(str(bundle_zip.with_suffix("")), "zip", root_dir=str(bundle_dir))
 print(bundle_zip)
 files.download(str(bundle_zip))
-```
-
-## `MyDrive` 可視 folder への copy block
-
-```python
-from pathlib import Path
-import shutil
-import json
-
-visible_dir = Path("/content/drive/MyDrive/trajectreview/modeling_visible") / session_id / "world_fusion_v01"
-visible_dir.mkdir(parents=True, exist_ok=True)
-
-targets = [
-    "mrl7_window_probe.json",
-    "depth_batch_manifest.json",
-    "world_points_multiframe.npy",
-    "world_points_multiframe.ply",
-    "world_points_multiframe_preview.png",
-    "world_fusion_summary.json",
-    "mrl7_closeout_summary.json",
-    "gaussian_params_init.pt",
-    "gaussian_params_optim20.pt",
-    "gaussian_render_init.png",
-    "gaussian_render_optim20.png",
-    "gaussian_optim20_summary.json",
-    "gaussian_params_optim500.pt",
-    "gaussian_render_optim500.png",
-    "gaussian_optim500_summary.json",
-    "gaussian_params_optim1000.pt",
-    "gaussian_render_optim1000.png",
-    "gaussian_optim1000_summary.json",
-    "gaussian_params_optim2500.pt",
-    "gaussian_render_optim2500.png",
-    "gaussian_optim2500_summary.json",
-    "gaussian_params_optim3000.pt",
-    "gaussian_render_optim3000.png",
-    "gaussian_optim3000_summary.json",
-]
-
-copied = []
-missing = []
-for name in targets:
-    src = world_dir / name
-    if src.exists():
-        shutil.copy2(src, visible_dir / name)
-        copied.append(name)
-    else:
-        missing.append(name)
-
-summary = {
-    "source_world_dir": str(world_dir),
-    "visible_dir": str(visible_dir),
-    "copied_count": len(copied),
-    "missing_count": len(missing),
-    "copied": copied,
-    "missing": missing,
-}
-print(json.dumps(summary, indent=2, ensure_ascii=False))
 ```

@@ -70,7 +70,7 @@
 
 ### PC + Colab block
 
-38. `DA3Metric-Large` の `Colab bootstrap` は [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_evid_runbook.md) を正本として扱う。admin が Colab へ貼り付ける時は companion の [da3_colab_ref_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_ref_runbook.md) を使ってよい。runbook 本体へ入る前に、`evid` 側の `準備確認 2` から `準備確認 4` を実行して Drive 上の input 候補探索、selected input 固定、存在確認を済ませる。この runbook の admin 実行は `MRL-3` / `mRL-3.2` と `MRL-4` / `mRL-4.2` の candidate evidence を兼ねる。`gs_model` を含む `SpacePackage` 実生成確認は `MRL-4` 本体で確認し、`MRL-5` は 10s 前後の整った実動画からの `multi-frame` densify による粗い再現モデル段として別扱いにする。末尾の `MRL-9` section は同じ selected input / results_root を使って `DA3 Giant` / `Giant Large` の `infer_gs=True` route を `probe_pass` 配下へ保存する統合 section とし、temp runbook は使わない。route 比較と採用固定は後続 `MRL-**` の課題とする。
+38. `Colab` runbook の正本は [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_evid_runbook.md) とし、admin が Colab へ貼り付ける時は companion の [da3_colab_ref_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_ref_runbook.md) を使ってよい。canonical route は `MRL-10 record-native DA3 route` であり、`frame_record.jsonl + images` を正に読み、`intrinsics[N,3,3]` と `extrinsics_w2c[N,4,4]` を `DA3` へ明示入力する。`proof route` と `production route` は同 runbook の `MRL-10` section で分離され、末尾 `Phase E giant` は同じ selected input / results_root を使う `infer_gs=True` route として扱う。
 39. PC browser で [Google Colab](https://colab.research.google.com/) を開き、Google account で sign in する。
 40. `ファイル` -> `ノートブックをアップロード` を選び、[trajectreview_da3metric_large_colab.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\trajectreview_da3metric_large_colab.ipynb) を開く。menu 名が違う時は `Upload notebook` 相当を探す。
 41. `ランタイム` -> `ランタイムのタイプを変更` で `GPU` を選ぶ。候補に `T4`、`L4`、`A100` などが見えた時は、その表示を記録する。
@@ -118,22 +118,23 @@
   - `Colab` で使う時は、通常 `Google Drive/MyDrive/...` 配下へ置く。
   - まだ `Google Drive` に無い時は、その時点では `CONFIG` を確定できない。
 - 最低限必要な file
-  - `video.mp4`
-  - `session_package.json`
-  - `frame_pose_index.csv`
+  - `session_manifest.json`
+  - `frame_record.jsonl`
+  - `trajectreview/image/` または `trajectreview/images/`
   - `camera_calibration_summary.json`
   - `sensor_quality.json`
   - `space_handoff_manifest.json`
+  - `video.mp4` は補助入力として保持する
 - route 判断に使う file
   - `colab_job_request.json`
   - `selected_route.json`
   - `experiment_manifest.json`
   - `da3_input_manifest.json`
 - 画像入力
-  - notebook の現在仕様では `session_root/trajectreview/image/` に画像群がある前提で進む。
-  - 新仕様では `correcting` が recording 中に採択 frame の `trajectreview/image/` を保存する。`品質確認` や `転送実行` は canonical route で追加抽出しない。
-  - `trajectreview/image/` の各 file は `frame_record.jsonl` の `imageFileName` と 1 対 1 に対応し、record 単位で扱う。
-  - もし手元に動画しか無い legacy session の時は、そのままでは足りない。`video.mp4` に加えて、Colab へ渡す frame 画像群を `trajectreview/image/` に置く必要がある。
+  - canonical route は `frame_record.jsonl` の `imageFileName` と `trajectreview/image/` または `trajectreview/images/` の 1 対 1 対応を正として進む。
+  - `correcting` は recording 中に採択 frame だけを保存する。`品質確認` や `転送実行` は canonical route で追加抽出しない。
+  - `frame_pose_index.csv` は diagnostics 用の二次資料であり、main route の入力正本ではない。
+  - もし手元に動画しか無い legacy session の時は、そのままでは足りない。`video.mp4` に加えて、Colab へ渡す frame 画像群を `trajectreview/image/` または `trajectreview/images/` に置く必要がある。
   - 画像 file 名の例: `frame_<timestamp_ns>.jpg`
 - 置き場の完成形
   - `session_root/video.mp4`
@@ -165,7 +166,7 @@
   - `ランタイム` または `Runtime` menu から `ランタイムのタイプを変更` を探す。
   - 無ければ、今見えている menu 名と画面名を Codex へ伝える。
 - `trajectreview/image/` が無い時
-  - まず session root に `trajectreview/image/` と `frame_record.jsonl` がそろっているかを見る。
+  - まず session root に `trajectreview/image/` または `trajectreview/images/` と `frame_record.jsonl` がそろっているかを見る。
   - それでも無い時は、その時点で止めてよい。
   - `video.mp4` しか無い、または legacy session で frame 画像群が未生成、という状態を Codex へ伝える。
 
