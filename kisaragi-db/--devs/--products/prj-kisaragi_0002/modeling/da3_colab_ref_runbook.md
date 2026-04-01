@@ -9,12 +9,10 @@
 
 1. `準備確認 1-4`
 2. `install 1-4`
-3. `MRL-10 Phase A`
-4. `MRL-10 Phase B`
-5. `MRL-10 Phase C`
-6. `MRL-10 Phase D proof`
-7. `MRL-10 Phase D production`
-8. 必要時のみ `MRL-10 Phase E giant`
+3. `MRL-10 Block 1`
+4. `MRL-10 Block 2`
+5. 必要時のみ `MRL-10 Block 3`
+6. 必要時のみ `MRL-10 Block 4`
 
 ## 準備確認 1
 
@@ -188,7 +186,7 @@ from depth_anything_3.api import DepthAnything3
 print("inference_sig", inspect.signature(DepthAnything3.inference))
 ```
 
-## MRL-10 Phase A
+## MRL-10 Block 1
 
 ```python
 from pathlib import Path
@@ -358,28 +356,6 @@ qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_pose_ok"], "skip_reason"] = "
 qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_blur_ok"], "skip_reason"] = "blur_low"
 qc_df.to_csv(manifest_dir / "input_frame_qc.csv", index=False, encoding="utf-8", quoting=csv.QUOTE_MINIMAL)
 
-summary = {
-    "frame_record_count": int(len(manifest_df)),
-    "qc_pass_count": int(qc_df["qc_pass"].sum()),
-    "qc_skip_count": int((~qc_df["qc_pass"]).sum()),
-}
-(manifest_dir / "qc_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
-print(json.dumps(summary, indent=2, ensure_ascii=False))
-```
-
-## MRL-10 Phase C
-
-```python
-from pathlib import Path
-import json
-
-import numpy as np
-import pandas as pd
-
-ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
-manifest_dir = Path(ctx["manifest_dir"])
-qc_df = pd.read_csv(manifest_dir / "input_frame_qc.csv")
-
 def quat_to_rot(qx, qy, qz, qw):
     xx, yy, zz = qx*qx, qy*qy, qz*qz
     xy, xz, yz = qx*qy, qx*qz, qy*qz
@@ -449,15 +425,22 @@ k_check["resize_mode"] = "native"
 k_check.to_csv(manifest_dir / "k_resize_check.csv", index=False, encoding="utf-8")
 
 summary = {
+    "frame_record_count": int(len(manifest_df)),
     "qc_pass_count": int(len(adopt_df)),
+    "qc_skip_count": int((~qc_df["qc_pass"]).sum()),
     "prod_selected_count": int(len(prod_selected)),
     "proof_selected_count": int(len(proof_selected)),
 }
+(manifest_dir / "qc_summary.json").write_text(json.dumps({
+    "frame_record_count": summary["frame_record_count"],
+    "qc_pass_count": summary["qc_pass_count"],
+    "qc_skip_count": summary["qc_skip_count"],
+}, indent=2, ensure_ascii=False), encoding="utf-8")
 (manifest_dir / "da3_input_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
 print(json.dumps(summary, indent=2, ensure_ascii=False))
 ```
 
-## MRL-10 Phase D proof
+## MRL-10 Block 2
 
 ```python
 from pathlib import Path
@@ -471,48 +454,13 @@ from depth_anything_3.api import DepthAnything3
 ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
 manifest_dir = Path(ctx["manifest_dir"])
 proof_metric_dir = Path(ctx["proof_metric_dir"])
+prod_metric_dir = Path(ctx["prod_metric_dir"])
+world_dir = Path(ctx["world_dir"])
 
 proof_df = pd.read_csv(manifest_dir / "da3_input_manifest_proof.csv")
 proof_images = proof_df["image_path"].tolist()
 proof_intrinsics = np.load(manifest_dir / "intrinsics_proof.npy")
 proof_extrinsics = np.load(manifest_dir / "extrinsics_w2c_proof.npy")
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = DepthAnything3.from_pretrained("depth-anything/DA3METRIC-LARGE").to(device=device)
-prediction = model.inference(
-    image=proof_images,
-    intrinsics=proof_intrinsics,
-    extrinsics=proof_extrinsics,
-    infer_gs=False,
-    process_res=504,
-    export_dir=str(proof_metric_dir),
-    export_format="mini_npz-glb-depth_vis",
-)
-
-summary = {
-    "route": "MetricLarge-proof",
-    "image_count": len(proof_images),
-    "proof_metric_dir": str(proof_metric_dir),
-    "prediction_type": str(type(prediction).__name__),
-}
-(proof_metric_dir / "export_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
-print(json.dumps(summary, indent=2, ensure_ascii=False))
-```
-
-## MRL-10 Phase D production
-
-```python
-from pathlib import Path
-import json
-
-import numpy as np
-import pandas as pd
-import torch
-from depth_anything_3.api import DepthAnything3
-
-ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
-manifest_dir = Path(ctx["manifest_dir"])
-prod_metric_dir = Path(ctx["prod_metric_dir"])
 
 prod_df = pd.read_csv(manifest_dir / "da3_input_manifest_prod.csv")
 prod_images = prod_df["image_path"].tolist()
@@ -521,7 +469,16 @@ prod_extrinsics = np.load(manifest_dir / "extrinsics_w2c_prod.npy")
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = DepthAnything3.from_pretrained("depth-anything/DA3METRIC-LARGE").to(device=device)
-prediction = model.inference(
+proof_prediction = model.inference(
+    image=proof_images,
+    intrinsics=proof_intrinsics,
+    extrinsics=proof_extrinsics,
+    infer_gs=False,
+    process_res=504,
+    export_dir=str(proof_metric_dir),
+    export_format="mini_npz-glb-depth_vis",
+)
+prod_prediction = model.inference(
     image=prod_images,
     intrinsics=prod_intrinsics,
     extrinsics=prod_extrinsics,
@@ -531,37 +488,8 @@ prediction = model.inference(
     export_format="mini_npz-glb-depth_vis",
 )
 
-summary = {
-    "route": "MetricLarge-production",
-    "image_count": len(prod_images),
-    "prod_metric_dir": str(prod_metric_dir),
-    "prediction_type": str(type(prediction).__name__),
-}
-(prod_metric_dir / "export_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
-print(json.dumps(summary, indent=2, ensure_ascii=False))
-```
-
-## MRL-10 Phase D production world
-
-```python
-from pathlib import Path
-import json
-
-import numpy as np
-import pandas as pd
-from PIL import Image
-
-ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
-manifest_dir = Path(ctx["manifest_dir"])
-prod_metric_dir = Path(ctx["prod_metric_dir"])
-world_dir = Path(ctx["world_dir"])
-
-prod_df = pd.read_csv(manifest_dir / "da3_input_manifest_prod.csv")
-prod_intrinsics = np.load(manifest_dir / "intrinsics_prod.npy")
-prod_extrinsics = np.load(manifest_dir / "extrinsics_w2c_prod.npy")
 results_npz = np.load(prod_metric_dir / "exports" / "npz" / "results.npz")
 depths = results_npz["depth"]
-
 all_points = []
 per_frame = []
 stride = 24
@@ -609,17 +537,36 @@ py = np.clip((norm[:, 1] * 799).astype(int), 0, 799)
 preview[799 - py, px] = 255
 Image.fromarray(preview).save(world_dir / "world_points_multiframe_preview.png")
 
-summary = {
+proof_summary = {
+    "route": "MetricLarge-proof",
+    "image_count": len(proof_images),
+    "proof_metric_dir": str(proof_metric_dir),
+    "prediction_type": str(type(proof_prediction).__name__),
+}
+prod_summary = {
+    "route": "MetricLarge-production",
+    "image_count": len(prod_images),
+    "prod_metric_dir": str(prod_metric_dir),
+    "prediction_type": str(type(prod_prediction).__name__),
+}
+world_summary = {
     "route": "MetricLarge-production-world",
     "processed_frames": len(per_frame),
     "total_points": int(len(merged)),
     "stride": stride,
 }
-(world_dir / "export_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
-print(json.dumps(summary, indent=2, ensure_ascii=False))
+(proof_metric_dir / "export_summary.json").write_text(json.dumps(proof_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+(prod_metric_dir / "export_summary.json").write_text(json.dumps(prod_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+(world_dir / "export_summary.json").write_text(json.dumps(world_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+print(json.dumps({
+    "proof_image_count": proof_summary["image_count"],
+    "prod_image_count": prod_summary["image_count"],
+    "processed_frames": world_summary["processed_frames"],
+    "total_points": world_summary["total_points"],
+}, indent=2, ensure_ascii=False))
 ```
 
-## MRL-10 Phase E giant
+## MRL-10 Block 3
 
 ```python
 from pathlib import Path
@@ -667,7 +614,7 @@ summary = {
 print(json.dumps(summary, indent=2, ensure_ascii=False))
 ```
 
-## Download bundle
+## MRL-10 Block 4
 
 ```python
 from pathlib import Path
