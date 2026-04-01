@@ -124,12 +124,49 @@
 ### `SessionPackage`
 
 - 単一入力単位の正規化 artifact とする。
+- この機能の記載名は、trajectreview-correctingとする。
 - 主入力は、時系列一貫性を保つ canonical 参照として、採択 frame ごとの image と `camera.pose` / intrinsics を束ねた `frame_record` 系列とする。
 - `video.mp4` は重要度を下げずに補助入力として保持し、再確認、再抽出、検証に使える状態を維持する。ただし `DA3` / `3DGS` 前段の canonical 時系列参照には置かない。
 - `textureIntrinsics`、`lensDistortion`、`captureDiagnostics` は残してよいが、主入力成立の必須条件には置かない。
 - `NotYetAvailableException` などで image を取得できなかった update は、主記録として採択しない。
 - `IMU`、`BT`、品質要約を同じ package へ束ねる。
 - 任意入力として `GNSS` を許容する。
+- 以降に渡すデータの一例を以下に示す。trajectreview-correctingがtrajectreview-modelingに渡すもの。
+
+```text
+session-20260402-034558/
+  ble_scan.jsonl (14792 bytes)
+  frame_record.jsonl (5298736 bytes)
+  gnss.csv (2969 bytes)
+  imu.csv (1505158 bytes)
+  session_manifest.json (4746 bytes)
+  trajectreview/
+    camera_calibration_summary.json (1266 bytes)
+    frame_pose_index.csv (531517 bytes)
+    image/ (5336 jpg)
+      first:
+        frame_1324352771786398.jpg
+        frame_1324352805150461.jpg
+        frame_1324352838576222.jpg
+      last:
+        frame_1324530698930018.jpg
+        frame_1324530732294028.jpg
+        frame_1324530765658091.jpg
+    input_readiness.json (366 bytes)
+    member_identity_map.json (816 bytes)
+    sensor_quality.json (1631 bytes)
+    session_package.json (2339 bytes)
+    space_handoff_manifest.json (694 bytes)
+  video.mp4 (33005360 bytes)
+  video_events.jsonl (331 bytes)
+  video_frame_timestamps.csv (667797 bytes)
+
+summary:
+  frame_record_count: 5336
+  image_count: 5336
+  duration_sec: 177.993871693
+  effective_fps: 29.9785602124742
+```
 
 ### `SpacePackage`
 
@@ -176,7 +213,7 @@
 - `correcting` の停止は UI thread を塞がず、停止処理中であることを明示しながら完了まで待てるようにする。
 - `correcting` は前面表示中の screen off と自動減光で収録を止めない。
 - 長時間収録の安定化では、まず `通常計測` の `10min` 連続稼働を成立条件とする。
-- `correcting` の `frame画像群` は recording 中に採択 frame だけを保存し、毎 update 全保存は行わない。
+- `correcting` の `frame画像群` は recording 中に採択 frame だけを `trajectreview/image/` へ保存し、毎 update 全保存は行わない。
 - `correcting` の pose 正規化では `displayOrientedPose` ではなく `camera.pose` を正とする。
 
 ## ネーミング
