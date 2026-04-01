@@ -485,7 +485,9 @@ prod_prediction = model.inference(
     export_format="mini_npz-depth_vis",
 )
 
-results_npz = np.load(prod_metric_dir / "exports" / "npz" / "results.npz")
+results_npz_candidates = sorted(prod_metric_dir.rglob("results.npz"))
+assert results_npz_candidates, {"prod_metric_dir": str(prod_metric_dir)}
+results_npz = np.load(results_npz_candidates[0])
 depths = results_npz["depth"]
 all_points = []
 per_frame = []
@@ -553,6 +555,7 @@ world_summary = {
     "processed_frames": len(per_frame),
     "total_points": int(len(merged)),
     "stride": stride,
+    "results_npz_path": str(results_npz_candidates[0]),
     "world_projection_input_mode": "frame_record_intrinsics_and_pose",
 }
 (proof_metric_dir / "export_summary.json").write_text(json.dumps(proof_summary, indent=2, ensure_ascii=False), encoding="utf-8")
