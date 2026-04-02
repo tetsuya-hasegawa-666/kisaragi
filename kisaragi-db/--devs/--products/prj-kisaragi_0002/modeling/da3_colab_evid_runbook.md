@@ -794,7 +794,8 @@ proof_df = pd.read_csv(manifest_dir / "da3_input_manifest_proof.csv")
 proof_images = proof_df["image_path"].tolist()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = DepthAnything3.from_pretrained("depth-anything/DA3NESTED-GIANT-LARGE-1.1").to(device=device)
+MODEL_ID = "depth-anything/DA3NESTED-GIANT-LARGE-1.1"
+model = DepthAnything3.from_pretrained(MODEL_ID).to(device=device)
 
 PROCESS_RES = 504
 REF_VIEW_STRATEGY = "middle"
@@ -889,7 +890,7 @@ if gs_ply_path.exists():
     pd.DataFrame(focus_rows).to_csv(debug_read_dir / "0000_focus_stats.csv", index=False, encoding="utf-8")
     shutil.copy2(debug_read_dir / "0000_focus_stats.csv", debug_visible_dir / "0000_focus_stats.csv")
 
-bundle_model_slug = "giantlarge11"
+bundle_model_slug = "".join(ch.lower() for ch in MODEL_ID.split("/")[-1] if ch.isalnum()).replace("da3nested", "")
 drive_bundle_base = f"{modeling_session_id}_{bundle_model_slug}"
 drive_bundle_dir = results_root / drive_bundle_base
 drive_bundle_zip = results_root / f"{drive_bundle_base}.zip"
@@ -917,7 +918,7 @@ summary = {
     "proof_giant_dir": str(proof_giant_dir),
     "prediction_type": str(type(prediction).__name__),
     "camera_pose_source": "da3_estimated",
-    "model_id": "depth-anything/DA3NESTED-GIANT-LARGE-1.1",
+    "model_id": MODEL_ID,
     "process_res": PROCESS_RES,
     "ref_view_strategy": REF_VIEW_STRATEGY,
     "conf_thresh_percentile": CONF_THRESH_PERCENTILE,
@@ -952,7 +953,8 @@ ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encodin
 results_root = Path(ctx["results_root"])
 modeling_session_id = ctx["modeling_session_id"]
 
-bundle_model_slug = "giantlarge11"
+MODEL_ID = "depth-anything/DA3NESTED-GIANT-LARGE-1.1"
+bundle_model_slug = "".join(ch.lower() for ch in MODEL_ID.split("/")[-1] if ch.isalnum()).replace("da3nested", "")
 drive_bundle_base = f"{modeling_session_id}_{bundle_model_slug}"
 drive_bundle_zip = results_root / f"{drive_bundle_base}.zip"
 local_bundle_zip = Path("/content") / f"{drive_bundle_base}.zip"
