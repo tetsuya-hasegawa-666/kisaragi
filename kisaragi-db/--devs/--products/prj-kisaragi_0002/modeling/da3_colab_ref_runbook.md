@@ -850,7 +850,7 @@ if gs_ply_path.exists():
     pd.DataFrame(focus_rows).to_csv(debug_read_dir / "0000_focus_stats.csv", index=False, encoding="utf-8")
     shutil.copy2(debug_read_dir / "0000_focus_stats.csv", debug_visible_dir / "0000_focus_stats.csv")
 
-bundle_model_slug = "giant"
+bundle_model_slug = "giantlarge11"
 drive_bundle_base = f"{modeling_session_id}_{bundle_model_slug}"
 drive_bundle_dir = results_root / drive_bundle_base
 drive_bundle_zip = results_root / f"{drive_bundle_base}.zip"
@@ -913,7 +913,7 @@ ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encodin
 results_root = Path(ctx["results_root"])
 modeling_session_id = ctx["modeling_session_id"]
 
-bundle_model_slug = "giant"
+bundle_model_slug = "giantlarge11"
 drive_bundle_base = f"{modeling_session_id}_{bundle_model_slug}"
 drive_bundle_zip = results_root / f"{drive_bundle_base}.zip"
 local_bundle_zip = Path("/content") / f"{drive_bundle_base}.zip"
