@@ -796,7 +796,7 @@ proof_images = proof_df["image_path"].tolist()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = DepthAnything3.from_pretrained("depth-anything/DA3NESTED-GIANT-LARGE-1.1").to(device=device)
 
-PROCESS_RES = 1008
+PROCESS_RES = 504
 REF_VIEW_STRATEGY = "middle"
 CONF_THRESH_PERCENTILE = 25.0
 NUM_MAX_POINTS = 1250000
