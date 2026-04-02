@@ -1,0 +1,82 @@
+{
+  "stride": 24,
+  "processed_frames": 12,
+  "skipped_frames": [],
+  "total_points": 4032,
+  "per_frame": [
+    {
+      "frame_name": "frame_000052.jpg",
+      "pose_record_index": 1,
+      "point_count": 336,
+      "timestamp_sec": 1151705.116150917
+    },
+    {
+      "frame_name": "frame_000174.jpg",
+      "pose_record_index": 1,
+      "point_count": 336,
+      "timestamp_sec": 1151705.18287899
+    },
+    {
+      "frame_name": "frame_000296.jpg",
+      "pose_record_index": 1,
+      "point_count": 336,
+      "timestamp_sec": 1151705.249607063
+    },
+    {
+      "frame_name": "frame_000419.jpg",
+      "pose_record_index": 1,
+      "point_count": 336,
+      "timestamp_sec": 1151705.316335188
+    },
+    {
+      "frame_name": "frame_000604.jpg",
+      "pose_record_index": 1,
+      "point_count": 336,
+      "timestamp_sec": 1151705.416427324
+    },
+    {
+      "frame_name": "frame_000726.jpg",
+      "pose_record_index": 1,
+      "point_count": 336,
+      "timestamp_sec": 1151705.483155397
+    },
+    {
+      "frame_name": "frame_000849.jpg",
+      "pose_record_index": 1,
+      "point_count": 336,
+      "timestamp_sec": 1151705.549883469
+    },
+    {
+      "frame_name": "frame_000973.jpg",
+      "pose_record_index": 1,
+      "point_count": 336,
+      "timestamp_sec": 1151705.616611542
+    },
+    {
+      "frame_name": "frame_001158.jpg",
+      "pose_record_index": 1,
+      "point_count": 336,
+      "timestamp_sec": 1151705.716703678
+    },
+    {
+      "frame_name": "frame_001281.jpg",
+      "pose_record_index": 1,
+      "point_count": 336,
+      "timestamp_sec": 1151705.783431803
+    },
+    {
+      "frame_name": "frame_001403.jpg",
+      "pose_record_index": 1,
+      "point_count": 336,
+      "timestamp_sec": 1151705.850159876
+    },
+    {
+      "frame_name": "frame_001588.jpg",
+      "pose_record_index": 1,
+      "point_count": 336,
+      "timestamp_sec": 1151705.950252011
+    }
+  ],
+  "npy_path": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/trajectreview-correcting-session-20260331-034831_da3_multiframe_probe_v01/world_fusion_v01/world_points_multiframe.npy",
+  "ply_path": "/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_/trajectreview/results/trajectreview-correcting-session-20260331-034831_da3_multiframe_probe_v01/world_fusion_v01/world_points_multiframe.ply"
+}

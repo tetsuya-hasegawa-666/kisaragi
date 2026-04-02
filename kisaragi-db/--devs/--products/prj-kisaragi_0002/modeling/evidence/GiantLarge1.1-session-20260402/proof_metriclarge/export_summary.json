@@ -1,0 +1,8 @@
+{
+  "route": "MetricLarge-proof",
+  "image_count": 24,
+  "proof_metric_dir": "/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260402-051025_da3_record_route_v01/proof_metriclarge",
+  "prediction_type": "Prediction",
+  "da3_camera_input_mode": "image_only",
+  "camera_pose_source": "not_used_here"
+}

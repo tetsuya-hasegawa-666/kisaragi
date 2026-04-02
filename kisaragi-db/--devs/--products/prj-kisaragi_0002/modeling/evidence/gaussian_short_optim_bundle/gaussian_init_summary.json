@@ -1,9 +1,0 @@
-{
-  "point_count": 1024,
-  "target_frame": "frame_000009.jpg",
-  "target_hw": [
-    480,
-    640
-  ],
-  "arcore_pose_path": "/content/trajectreview_input/session-20260328-103250/arcore_pose.jsonl"
-}

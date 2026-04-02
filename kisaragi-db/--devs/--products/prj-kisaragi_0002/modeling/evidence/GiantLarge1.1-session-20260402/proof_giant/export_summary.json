@@ -1,0 +1,18 @@
+{
+  "route": "Giant-proof-da3-estimated-pose",
+  "image_count": 24,
+  "proof_giant_dir": "/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260402-051025_da3_record_route_v01/proof_giant",
+  "prediction_type": "Prediction",
+  "camera_pose_source": "da3_estimated",
+  "model_id": "depth-anything/DA3NESTED-GIANT-LARGE-1.1",
+  "ref_view_strategy": "middle",
+  "process_res": 1008,
+  "conf_thresh_percentile": 25.0,
+  "num_max_points": 2000000,
+  "has_pred_intrinsics": true,
+  "has_pred_extrinsics": true,
+  "generated_file_count": 70,
+  "generated_gs_related_file_count": 10,
+  "generated_files_manifest": "/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260402-051025_da3_record_route_v01/proof_giant/generated_files_debug.csv",
+  "generated_gs_related_manifest": "/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260402-051025_da3_record_route_v01/proof_giant/generated_gs_related_files_debug.csv"
+}

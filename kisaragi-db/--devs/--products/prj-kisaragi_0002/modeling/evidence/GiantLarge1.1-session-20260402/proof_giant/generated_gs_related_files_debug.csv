@@ -1,0 +1,11 @@
+relative_path,size_bytes
+debug_da3_estimated_no_gs/simple_points/frame0_simple_points_all_positive.ply,13182772
+debug_da3_estimated_no_gs/simple_points/frame0_simple_points_confpct_0.ply,13182772
+debug_da3_estimated_no_gs/simple_points/frame0_simple_points_confpct_10.ply,11892688
+debug_da3_estimated_no_gs/simple_points/frame0_simple_points_confpct_20.ply,10591750
+debug_da3_estimated_no_gs/simple_points/frame0_simple_points_confpct_40.ply,7965229
+debug_gs_readback/0000_xyz_only.ply,207831088
+gs_ply/0000.ply,971783182
+gs_video/0000_extend.mp4,4228968
+proof_gs_input_frames.csv,4794
+scene.glb,32022032

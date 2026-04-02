@@ -1,0 +1,11 @@
+{
+  "route": "Giant-proof-da3-estimated-debug-no-gs",
+  "image_count": 24,
+  "proof_giant_dir": "/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260402-051025_da3_record_route_v01/proof_giant",
+  "debug_dir": "/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260402-051025_da3_record_route_v01/proof_giant/debug_da3_estimated_no_gs",
+  "prediction_type": "Prediction",
+  "camera_pose_source": "da3_estimated",
+  "has_pred_intrinsics": true,
+  "has_pred_extrinsics": true,
+  "frame0_valid_depth_count": 114307
+}
