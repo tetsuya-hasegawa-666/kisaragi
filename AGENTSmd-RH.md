@@ -12,6 +12,20 @@
 
 ## 更新履歴
 
+### 2026-04-02 AGENTS.md 100MB 超 artifact の手元管理 rule 追加
+
+- 日時: `2026-04-02`
+- 文書名: `AGENTS.md`
+- 標題: `100MB` を超える file の repository 管理禁止
+- 背景: `prj-kisaragi_0002` の modeling evidence で `gs_ply` などの巨大 artifact を push したところ、remote 管理と再取得負荷が大きく、以後は手元管理へ切り替える指示が出た。
+- 目的: oversized binary を repository に蓄積せず、証跡として必要な軽量情報だけを正本へ残す shared rule を固定する。
+- 対処方法: `文字コードと commit / push hygiene` に、`100MB` を超える file は commit / push せず手元管理とする条項と、evidence は manifest、summary、screenshot、reduced derivative へ縮約する条項を追加した。
+- 対応内容: oversized artifact の Git 管理を shared rule として禁止し、今後の evidence は軽量 trace を正本へ残す運用にそろえた。
+- 更新結果: 今後は `100MB` 超の binary を repository へ入れず、必要時も local-only artifact と lightweight evidence に分けて扱う。
+- 新旧比較:
+  - 旧: oversized binary の push 禁止が shared rule として明文化されていなかった。
+  - 新: `100MB` 超 file は手元管理とし、正本へは軽量 evidence だけを残す rule になった。
+
 ### 2026-03-31 AGENTS.md notebook runbook 2-file set shared rule 化
 
 - 日時: `2026-03-31`

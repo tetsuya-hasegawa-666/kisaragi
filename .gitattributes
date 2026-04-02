@@ -1,2 +1,0 @@
-kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/GiantLarge1.1-session-20260402/proof_giant/debug_gs_readback/*.ply filter=lfs diff=lfs merge=lfs -text
-kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/GiantLarge1.1-session-20260402/proof_giant/gs_ply/*.ply filter=lfs diff=lfs merge=lfs -text

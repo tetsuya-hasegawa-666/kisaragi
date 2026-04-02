@@ -10,3 +10,5 @@ dist/
 tmp/
 kisaragi-db/--exsams/prj-*/**
 kisaragi-tree/prj-*/
+kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/GiantLarge1.1-session-20260402/proof_giant/gs_ply/0000.ply
+kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/GiantLarge1.1-session-20260402/proof_giant/debug_gs_readback/0000_xyz_only.ply

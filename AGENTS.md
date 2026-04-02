@@ -235,6 +235,8 @@ kisaragi-tree/
 - Python を使う場合も UTF-8 を明示して読む。
 - 文字化けが疑われる表示は再読込なしに真実とみなさない。
 - build output、generated file、cache、device dump、screen capture、tmp、`__pycache__`、`.pytest_cache`、`*.egg-info` は commit / push しない。
+- 100MB を超える file は repository 管理対象に入れず、手元管理とする。
+- 100MB 超の evidence が必要な時は、正本には manifest、summary、screenshot、reduced derivative、download 手順などの軽量 trace だけを置き、実体 binary は commit / push しない。
 - stage は原則として明示 path で行う。
 
 ## Guard
