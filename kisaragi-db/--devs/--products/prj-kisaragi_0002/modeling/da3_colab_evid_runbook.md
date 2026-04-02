@@ -27,9 +27,11 @@
 
 ## Orientation Policy
 
-- 現在の `MRL-10` は raw image 向きをそのまま扱う。
-- 左へ `90度` 倒れた render を `90度右回転` の upright 基準へ正規化する実装は `MRL-11` で行う。
-- `MRL-11` では image 回転だけでなく、`width` / `height`、`K(cx, cy, fx, fy)`、manifest、export 画像の整合を同時に扱う。
+- canonical image は `correcting` 側で `90度右回転` 済みの upright JPEG を受け取る前提とする。
+- `Colab` 側は image pixel を再回転しない。
+- `Block 1` では、実画像の `width` / `height` と `frame_record.jsonl` の `imageIntrinsics` を照合し、すでに upright ならそのまま使う。
+- legacy session のように intrinsics だけ raw 向きで `width` / `height` が swap している時は、`90度右回転` の式で `fx` / `fy` / `cx` / `cy` を canonical upright 基準へ補正する。
+- 上記の判定結果は `input_frame_manifest.csv`、`k_resize_check.csv`、`orientation_summary.json` に残す。
 
 ## 実行順
 
@@ -318,11 +320,15 @@ import json
 import imageio.v3 as iio
 import numpy as np
 import pandas as pd
+from PIL import Image
 
 ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
 images_dir = Path(ctx["images_dir"])
 frame_record_path = Path(ctx["frame_record_path"])
 manifest_dir = Path(ctx["manifest_dir"])
+
+CANONICAL_ORIENTATION_POLICY = "upright_rot90cw_from_correcting"
+BLUR_THRESHOLD = 8.0
 
 with frame_record_path.open("r", encoding="utf-8") as f:
     frame_records = [json.loads(line) for line in f if line.strip()]
@@ -337,6 +343,73 @@ def lap_var(image_path: Path) -> float:
     gy = gray[1:, :] - gray[:-1, :]
     return float(np.var(gx) + np.var(gy))
 
+def read_actual_wh(image_path: Path):
+    with Image.open(image_path) as img:
+        width, height = img.size
+    return int(width), int(height)
+
+def normalize_intrinsics_to_upright(intr, actual_width: int, actual_height: int):
+    fx = intr.get("fx")
+    fy = intr.get("fy")
+    cx = intr.get("cx")
+    cy = intr.get("cy")
+    intr_width = intr.get("width")
+    intr_height = intr.get("height")
+
+    if None in [fx, fy, cx, cy, intr_width, intr_height]:
+        return {
+            "intrinsics_case": "missing_intrinsics",
+            "rotation_applied_deg": None,
+            "fx_canonical": None,
+            "fy_canonical": None,
+            "cx_canonical": None,
+            "cy_canonical": None,
+            "width_canonical": None,
+            "height_canonical": None,
+        }
+
+    fx = float(fx)
+    fy = float(fy)
+    cx = float(cx)
+    cy = float(cy)
+    intr_width = int(intr_width)
+    intr_height = int(intr_height)
+
+    if intr_width == actual_width and intr_height == actual_height:
+        return {
+            "intrinsics_case": "already_upright",
+            "rotation_applied_deg": 0,
+            "fx_canonical": fx,
+            "fy_canonical": fy,
+            "cx_canonical": cx,
+            "cy_canonical": cy,
+            "width_canonical": actual_width,
+            "height_canonical": actual_height,
+        }
+
+    if intr_width == actual_height and intr_height == actual_width:
+        return {
+            "intrinsics_case": "rot90cw_intrinsics_fixed",
+            "rotation_applied_deg": 90,
+            "fx_canonical": fy,
+            "fy_canonical": fx,
+            "cx_canonical": float(intr_height - 1) - cy,
+            "cy_canonical": cx,
+            "width_canonical": actual_width,
+            "height_canonical": actual_height,
+        }
+
+    return {
+        "intrinsics_case": "dimension_mismatch",
+        "rotation_applied_deg": None,
+        "fx_canonical": None,
+        "fy_canonical": None,
+        "cx_canonical": None,
+        "cy_canonical": None,
+        "width_canonical": None,
+        "height_canonical": None,
+    }
+
 rows = []
 for rec in sorted(frame_records, key=lambda x: int(x.get("frameTimestampNs", 0))):
     image_name = str(rec.get("imageFileName", "")).strip()
@@ -345,6 +418,21 @@ for rec in sorted(frame_records, key=lambda x: int(x.get("frameTimestampNs", 0))
     intr = rec.get("imageIntrinsics") or {}
     pose = rec.get("pose") or {}
     blur_score = lap_var(image_path) if image_exists else None
+    actual_width = None
+    actual_height = None
+    intr_norm = {
+        "intrinsics_case": "image_missing",
+        "rotation_applied_deg": None,
+        "fx_canonical": None,
+        "fy_canonical": None,
+        "cx_canonical": None,
+        "cy_canonical": None,
+        "width_canonical": None,
+        "height_canonical": None,
+    }
+    if image_exists:
+        actual_width, actual_height = read_actual_wh(image_path)
+        intr_norm = normalize_intrinsics_to_upright(intr, actual_width, actual_height)
     rows.append({
         "session_id": rec.get("sessionId"),
         "record_index": rec.get("recordIndex"),
@@ -354,12 +442,23 @@ for rec in sorted(frame_records, key=lambda x: int(x.get("frameTimestampNs", 0))
         "image_file_name": image_name,
         "image_path": str(image_path) if image_path else "",
         "image_exists": image_exists,
+        "canonical_orientation_policy": CANONICAL_ORIENTATION_POLICY,
+        "actual_width": actual_width,
+        "actual_height": actual_height,
         "fx": intr.get("fx"),
         "fy": intr.get("fy"),
         "cx": intr.get("cx"),
         "cy": intr.get("cy"),
         "width": intr.get("width"),
         "height": intr.get("height"),
+        "intrinsics_case": intr_norm["intrinsics_case"],
+        "rotation_applied_deg": intr_norm["rotation_applied_deg"],
+        "fx_canonical": intr_norm["fx_canonical"],
+        "fy_canonical": intr_norm["fy_canonical"],
+        "cx_canonical": intr_norm["cx_canonical"],
+        "cy_canonical": intr_norm["cy_canonical"],
+        "width_canonical": intr_norm["width_canonical"],
+        "height_canonical": intr_norm["height_canonical"],
         "tx": pose.get("tx"),
         "ty": pose.get("ty"),
         "tz": pose.get("tz"),
@@ -376,13 +475,15 @@ manifest_df.to_csv(manifest_dir / "input_frame_manifest.csv", index=False, encod
 qc_df = manifest_df.copy()
 qc_df["qc_tracking_ok"] = qc_df["tracking_state"].fillna("") == "TRACKING"
 qc_df["qc_image_ok"] = qc_df["image_exists"].fillna(False)
-qc_df["qc_intrinsics_ok"] = qc_df[["fx", "fy", "cx", "cy", "width", "height"]].notna().all(axis=1)
+qc_df["qc_orientation_ok"] = qc_df["intrinsics_case"].isin(["already_upright", "rot90cw_intrinsics_fixed"])
+qc_df["qc_intrinsics_ok"] = qc_df[["fx_canonical", "fy_canonical", "cx_canonical", "cy_canonical", "width_canonical", "height_canonical"]].notna().all(axis=1)
 qc_df["qc_pose_ok"] = qc_df[["tx", "ty", "tz", "qx", "qy", "qz", "qw"]].notna().all(axis=1)
-qc_df["qc_blur_ok"] = qc_df["blur_score"].fillna(0.0) >= 8.0
-qc_df["qc_pass"] = qc_df[["qc_tracking_ok", "qc_image_ok", "qc_intrinsics_ok", "qc_pose_ok", "qc_blur_ok"]].all(axis=1)
+qc_df["qc_blur_ok"] = qc_df["blur_score"].fillna(0.0) >= BLUR_THRESHOLD
+qc_df["qc_pass"] = qc_df[["qc_tracking_ok", "qc_image_ok", "qc_orientation_ok", "qc_intrinsics_ok", "qc_pose_ok", "qc_blur_ok"]].all(axis=1)
 qc_df["skip_reason"] = ""
 qc_df.loc[~qc_df["qc_tracking_ok"], "skip_reason"] = "tracking_not_ok"
 qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_image_ok"], "skip_reason"] = "image_missing"
+qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_orientation_ok"], "skip_reason"] = "orientation_mismatch"
 qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_intrinsics_ok"], "skip_reason"] = "intrinsics_missing"
 qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_pose_ok"], "skip_reason"] = "pose_missing"
 qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_blur_ok"], "skip_reason"] = "blur_low"
@@ -410,8 +511,8 @@ def pose_to_w2c(row):
 
 def build_K(row):
     return np.array([
-        [float(row.fx), 0.0, float(row.cx)],
-        [0.0, float(row.fy), float(row.cy)],
+        [float(row.fx_canonical), 0.0, float(row.cx_canonical)],
+        [0.0, float(row.fy_canonical), float(row.cy_canonical)],
         [0.0, 0.0, 1.0],
     ], dtype=np.float32)
 
@@ -452,9 +553,37 @@ for name, df in [("proof", proof_selected), ("prod", prod_selected)]:
     np.save(manifest_dir / f"extrinsics_w2c_{name}.npy", exts)
     df.to_csv(manifest_dir / f"da3_input_manifest_{name}.csv", index=False, encoding="utf-8")
 
-k_check = prod_selected[["image_file_name", "width", "height", "fx", "fy", "cx", "cy"]].copy()
+k_check = prod_selected[[
+    "image_file_name",
+    "canonical_orientation_policy",
+    "intrinsics_case",
+    "rotation_applied_deg",
+    "width",
+    "height",
+    "actual_width",
+    "actual_height",
+    "width_canonical",
+    "height_canonical",
+    "fx",
+    "fy",
+    "cx",
+    "cy",
+    "fx_canonical",
+    "fy_canonical",
+    "cx_canonical",
+    "cy_canonical",
+]].copy()
 k_check["resize_mode"] = "native"
 k_check.to_csv(manifest_dir / "k_resize_check.csv", index=False, encoding="utf-8")
+
+orientation_summary = {
+    "canonical_orientation_policy": CANONICAL_ORIENTATION_POLICY,
+    "already_upright_count": int((manifest_df["intrinsics_case"] == "already_upright").sum()),
+    "rot90cw_intrinsics_fixed_count": int((manifest_df["intrinsics_case"] == "rot90cw_intrinsics_fixed").sum()),
+    "dimension_mismatch_count": int((manifest_df["intrinsics_case"] == "dimension_mismatch").sum()),
+    "image_missing_count": int((manifest_df["intrinsics_case"] == "image_missing").sum()),
+}
+(manifest_dir / "orientation_summary.json").write_text(json.dumps(orientation_summary, indent=2, ensure_ascii=False), encoding="utf-8")
 
 summary = {
     "frame_record_count": int(len(manifest_df)),
@@ -462,10 +591,12 @@ summary = {
     "qc_skip_count": int((~qc_df["qc_pass"]).sum()),
     "prod_selected_count": int(len(prod_selected)),
     "proof_selected_count": int(len(proof_selected)),
+    "canonical_orientation_policy": CANONICAL_ORIENTATION_POLICY,
     "proof_intrinsics_path": str(manifest_dir / "intrinsics_proof.npy"),
     "proof_extrinsics_path": str(manifest_dir / "extrinsics_w2c_proof.npy"),
     "prod_intrinsics_path": str(manifest_dir / "intrinsics_prod.npy"),
     "prod_extrinsics_path": str(manifest_dir / "extrinsics_w2c_prod.npy"),
+    "orientation_summary_path": str(manifest_dir / "orientation_summary.json"),
 }
 (manifest_dir / "qc_summary.json").write_text(json.dumps({
     "frame_record_count": summary["frame_record_count"],
@@ -473,6 +604,7 @@ summary = {
     "qc_skip_count": summary["qc_skip_count"],
     "frame_record_path": str(frame_record_path),
     "images_dir": str(images_dir),
+    "canonical_orientation_policy": CANONICAL_ORIENTATION_POLICY,
 }, indent=2, ensure_ascii=False), encoding="utf-8")
 (manifest_dir / "da3_input_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
 print(json.dumps(summary, indent=2, ensure_ascii=False))
@@ -582,6 +714,8 @@ proof_summary = {
     "proof_metric_dir": str(proof_metric_dir),
     "prediction_type": str(type(proof_prediction).__name__),
     "da3_camera_input_mode": "image_only",
+    "canonical_orientation_policy": str(proof_df["canonical_orientation_policy"].iloc[0]),
+    "intrinsics_case_counts": proof_df["intrinsics_case"].value_counts().to_dict(),
 }
 prod_summary = {
     "route": "MetricLarge-production",
@@ -589,6 +723,8 @@ prod_summary = {
     "prod_metric_dir": str(prod_metric_dir),
     "prediction_type": str(type(prod_prediction).__name__),
     "da3_camera_input_mode": "image_only",
+    "canonical_orientation_policy": str(prod_df["canonical_orientation_policy"].iloc[0]),
+    "intrinsics_case_counts": prod_df["intrinsics_case"].value_counts().to_dict(),
 }
 world_summary = {
     "route": "MetricLarge-production-world",
@@ -597,6 +733,7 @@ world_summary = {
     "stride": stride,
     "depth_source": "prod_prediction.depth",
     "world_projection_input_mode": "frame_record_intrinsics_and_pose",
+    "canonical_orientation_policy": str(prod_df["canonical_orientation_policy"].iloc[0]),
     "npy_path": str(world_dir / "world_points_multiframe.npy"),
     "ply_path": str(world_dir / "world_points_multiframe.ply"),
 }
@@ -750,6 +887,8 @@ summary = {
     "generated_files_manifest": str(proof_giant_dir / "generated_files_debug.csv"),
     "generated_gs_related_manifest": str(proof_giant_dir / "generated_gs_related_files_debug.csv"),
     "debug_gs_readback_dir": str(debug_read_dir),
+    "canonical_orientation_policy": str(proof_df["canonical_orientation_policy"].iloc[0]),
+    "intrinsics_case_counts": proof_df["intrinsics_case"].value_counts().to_dict(),
 }
 (proof_giant_dir / "export_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
 print(json.dumps(summary, indent=2, ensure_ascii=False))
@@ -780,6 +919,7 @@ targets = [
     "manifests/da3_input_manifest_prod.csv",
     "manifests/pose_conversion_check.csv",
     "manifests/k_resize_check.csv",
+    "manifests/orientation_summary.json",
     "proof_metriclarge/export_summary.json",
     "prod_metriclarge/export_summary.json",
     "proof_giant/export_summary.json",

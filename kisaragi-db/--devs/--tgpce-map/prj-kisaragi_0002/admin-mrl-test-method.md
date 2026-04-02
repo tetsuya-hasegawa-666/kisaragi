@@ -70,7 +70,7 @@
 
 ### PC + Colab block
 
-38. `Colab` runbook の正本は [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_evid_runbook.md) とし、admin が Colab へ貼り付ける時は companion の [da3_colab_ref_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_ref_runbook.md) を使ってよい。canonical route は `MRL-10 record-native DA3 route` であり、`frame_record.jsonl + images` を正に読み、`intrinsics[N,3,3]` と `extrinsics_w2c[N,4,4]` を canonical manifest として生成する。`MetricLarge route` は image-only 推論、`Giant route` は `DA3NESTED-GIANT-LARGE-1.1` と `da3_estimated pose` の living spec を使い、`proof route` と `production route` は同 runbook の `MRL-10` section で分離される。
+38. `Colab` runbook の正本は [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_evid_runbook.md) とし、admin が Colab へ貼り付ける時は companion の [da3_colab_ref_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_ref_runbook.md) を使ってよい。canonical route は `MRL-10 record-native DA3 route` であり、`frame_record.jsonl + images` を正に読み、`intrinsics[N,3,3]` と `extrinsics_w2c[N,4,4]` を canonical manifest として生成する。画像は `correcting` 側で `90度右回転` 済みの upright JPEG を受け取る前提で、`Colab` は pixel を再回転しない。legacy session の intrinsics だけ raw 向きだった時は `Block 1` が `k_resize_check.csv` と `orientation_summary.json` に補正結果を残す。`MetricLarge route` は image-only 推論、`Giant route` は `DA3NESTED-GIANT-LARGE-1.1` と `da3_estimated pose` の living spec を使い、`proof route` と `production route` は同 runbook の `MRL-10` section で分離される。
 39. PC browser で [Google Colab](https://colab.research.google.com/) を開き、Google account で sign in する。
 40. `ファイル` -> `ノートブックをアップロード` を選び、[trajectreview_da3metric_large_colab.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\trajectreview_da3metric_large_colab.ipynb) を開く。menu 名が違う時は `Upload notebook` 相当を探す。
 41. `ランタイム` -> `ランタイムのタイプを変更` で `GPU` を選ぶ。候補に `T4`、`L4`、`A100` などが見えた時は、その表示を記録する。
@@ -132,6 +132,8 @@
   - `da3_input_manifest.json`
 - 画像入力
   - canonical route は `frame_record.jsonl` の `imageFileName` と `trajectreview/image/` または `trajectreview/images/` の 1 対 1 対応を正として進む。
+  - `correcting` 側の canonical image は `90度右回転` 済み upright JPEG であり、`Colab` 側で再回転しない。
+  - legacy session で `imageIntrinsics.width` / `height` だけ raw 向きの時は、runbook が `orientation_summary.json` と `k_resize_check.csv` に補正結果を残す。
   - `correcting` は recording 中に採択 frame だけを保存する。`品質確認` や `転送実行` は canonical route で追加抽出しない。
   - `frame_pose_index.csv` は diagnostics 用の二次資料であり、main route の入力正本ではない。
   - もし手元に動画しか無い legacy session の時は、そのままでは足りない。`video.mp4` に加えて、Colab へ渡す frame 画像群を `trajectreview/image/` または `trajectreview/images/` に置く必要がある。

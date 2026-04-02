@@ -24,7 +24,7 @@
 - `MRL-3` から `MRL-6` は `modeling` phase の `p-done` であり、bootstrap / install、bundle 読込、single-frame `3DGS` smoke、evidence bundle 取得まで閉じている。
 - `MRL-7` は `multi-frame` densify と gaussian short optimization まで `p-done` である。
 - `MRL-8` は `p-done` であり、`DA3 Colab` runbook 本体の前段で Drive 上の任意 session zip / session folder を script だけで選び、selected input を bootstrap 本体と `MRL-7` one-block の両方へ渡せる状態を閉じた。
-- 現在の main target は `MRL-2S` と `MRL-10` であり、`correcting` の `10min` 実収録安定化と、`frame_record.jsonl + images` を正にした record-native `Colab` route を canonical 化することである。
+- 現在の main target は `MRL-2S` と `MRL-10` であり、`correcting` の `10min` 実収録安定化と、`frame_record.jsonl + images` を正にした record-native `Colab` route を canonical 化し、`90度右回転` upright image 契約、legacy intrinsics 補正、`orientation_summary.json` を main runbook pair に固定することである。
 - `MRL-**` は細かく固定せず大まかな順番だけを置き、実測で見えた課題の大小に応じて `MRL` / `mRL` を切り直す。
 - ただし後続 `MRL` でも UX 到達品質は元の目標に沿わせる。特に modeling では、利用者が主空間の見え方、主カメラ経路、処理状態、次 action を迷わず把握できる方向を維持する。
 - 後続 `MRL-**` で最低限残る項目は、`multi-route` 比較、`selected_route.json` 固定、request 起点 UX、`job_status.json` と waiting ring、download URL を含む result 返却、`SpacePackage` / `TrajectoryPackage` / `ReviewArtifact` handoff、reviewing viewer 実装、`gs_ply` を使う top camera renderer である。
@@ -42,7 +42,7 @@
 ## 次回の主残件
 
 - `MRL-9` は `p-done` であり、`da3-giant` の `infer_gs=True` route で `gs_ply/0000.ply`、`gs_video/0000_extend.mp4`、`scene.glb`、`exports/npz/results.npz` を保存でき、`PlayCanvas Model Viewer` で開けるところまで確認済みである。
-- 次の main target は `MRL-10` であり、`frame_record.jsonl + images` を正にした input 正規化、QC、explicit `intrinsics` / `extrinsics_w2c` 入力、proof / production 分離を main runbook pair へ固定することである。
+- 次の main target は `MRL-10` であり、`frame_record.jsonl + images` を正にした input 正規化、QC、explicit `intrinsics` / `extrinsics_w2c` 入力、proof / production 分離、upright orientation 整合を main runbook pair へ固定することである。
 - `sampling` / `intrinsics` / `projection` の route 比較、`benchmark_summary.json`、`selected_route.json` の本機能 close は `MRL-**` 側の後続課題として未達。
 - request 元画面から `Google Drive` input directory / result directory を指定する UX は未実装。
 - remote 実行中の `waiting ring`、現在 stage、更新時刻表示は未実装。
@@ -55,7 +55,7 @@
 1. [sharedlogs_da3-colab.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\sharedlogs_da3-colab.md) の最下部を読んで、最新の `# codex v**` と `# admin` を確認する。
 2. [ux-b2t-hypo.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\ux-b2t-hypo.md) で `MRL-2S` と後続 `MRL-**` の current_state を確認する。
 3. record-native route を blank runtime から進める時は [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_evid_runbook.md) の `準備確認 1-4` と `install 1-4` を共通で使う。
-4. `MRL-10` を進める時は同 runbook の `MRL-10 Phase A` から `Phase D production` を順に実行し、`input_frame_manifest.csv`、`input_frame_qc.csv`、`pose_conversion_check.csv`、`k_resize_check.csv`、`da3_input_manifest_*.csv` が出ることを先に確認する。
+4. `MRL-10` を進める時は同 runbook の `MRL-10 Phase A` から `Phase D production` を順に実行し、`input_frame_manifest.csv`、`input_frame_qc.csv`、`pose_conversion_check.csv`、`k_resize_check.csv`、`orientation_summary.json`、`da3_input_manifest_*.csv` が出ることを先に確認する。
 5. `MRL-9` の `PlayCanvas Model Viewer` 確認は維持しつつ、top camera renderer、path overlay、request / status UX は後続 `MRL-**` として切り分ける。
 
 ## 引き継ぎ上の重要判断

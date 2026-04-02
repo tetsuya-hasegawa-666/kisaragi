@@ -6337,3 +6337,44 @@ Moviepy - video ready /content/drive/MyDrive/trajectreview/modeling/trajectrevie
 /content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/step9h_giant_infergs_summary.json
 
 ```
+
+
+
+
+
+
+# admin
+
+RUN python -m pip install --quiet e3nn
+[INFO ] using SwiGLU layer as FFN
+[INFO ] Processed Images Done taking 0.08192300796508789 seconds. Shape:  torch.Size([26, 3, 378, 504])
+[INFO ] Selecting reference view using strategy: saddle_balanced
+[INFO ] Model Forward Pass Done. Time: 5.419279336929321 seconds
+[INFO ] Conversion to Prediction Done. Time: 0.008611917495727539 seconds
+[INFO ] conf_thresh_percentile: 40.0
+[INFO ] num max points: 1000000
+[INFO ] Exporting to GLB with num_max_points: 1000000
+[ERROR] No valid depth values found. Reason: quantile() input tensor must be non-empty
+WARNING:py.warnings:/content/Depth-Anything-3/src/depth_anything_3/utils/layout_helpers.py:116: UserWarning: Using a non-tuple sequence for multidimensional indexing is deprecated and will be changed in pytorch 2.9; use x[tuple(seq)] instead of x[seq]. In pytorch 2.9 this will be interpreted as tensor index, x[torch.tensor(seq)], which will result either in an error or a different result (Triggered internally at /pytorch/torch/csrc/autograd/python_variable_indexing.cpp:357.)
+  result[selector] = overlay
+
+Moviepy - Building video /content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/gs_video/0000_extend.mp4.
+Moviepy - Writing video /content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/gs_video/0000_extend.mp4
+
+                                                               Moviepy - Done !
+Moviepy - video ready /content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/gs_video/0000_extend.mp4
+[INFO ] Export Results Done. Time: 22.63803482055664 seconds
+
+# codex v70
+
+- `correcting` 側の canonical image を `90度右回転` 済み upright JPEG とする前提で、main runbook pair を刷新した。
+- `MRL-10 Block 1` は image pixel を再回転せず、実画像寸法と `imageIntrinsics` を照合して legacy session のみ `K` を upright 基準へ補正する。
+- 新規 manifest は `orientation_summary.json` を追加し、`input_frame_manifest.csv`、`k_resize_check.csv`、`MetricLarge` / `Giant` の `export_summary.json` に同じ orientation policy を残す。
+- `MRL-11` は単独 route ではなく `MRL-10` へ吸収する方針へ整理した。
+
+# admin
+
+```text
+# MRL-10 upright route res
+
+```

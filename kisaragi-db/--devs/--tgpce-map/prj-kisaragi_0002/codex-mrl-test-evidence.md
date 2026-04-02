@@ -13,6 +13,17 @@
 
 ## Entries
 
+- record date: `2026-04-02`
+  target MRL: `MRL-10`
+  target mRL: `mRL-10.1`、`mRL-10.2`、`mRL-10.3`
+  gate change: `active`
+  issue: `correcting` 側の canonical image が `90度右回転` 済み upright JPEG に変わる前提が固まった一方、main runbook pair と計画文書はまだ `MRL-11` を別立てし、`Colab` 側で orientation をどう扱うかが一貫していなかった。さらに添付 notebook の `DA3NESTED-GIANT-LARGE-1.1` living spec と `debug_gs_readback` 系証跡も、main canonical route へ完全には吸収できていなかった
+  cause: これまでの runbook は raw 向き由来の回転論点を `viewer 側の後処理` に寄せており、`frame_record.jsonl`、upright image、legacy intrinsics 補正、manifest 記録を 1 つの canonical contract に束ね切れていなかった
+  resolution: [da3_colab_evid_runbook.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_evid_runbook.md) と [da3_colab_ref_runbook.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_ref_runbook.md) を更新し、`correcting` から渡る `90度右回転` 済み upright image を canonical input として固定した。`MRL-10 Block 1` は image pixel を再回転せず、実画像寸法と `imageIntrinsics` の照合で legacy session だけ `K` を upright 基準へ補正し、`input_frame_manifest.csv`、`k_resize_check.csv`、`orientation_summary.json` に残す構成へ変更した。`MetricLarge` / `Giant` の summary も同じ orientation policy と `intrinsics_case_counts` を返すようそろえ、計画側では `MRL-11` を単独 gate にせず `MRL-10` へ吸収する方向へ整理した
+  recurrence prevention: image 向きの問題は `viewer` の見え方だけで処理せず、input image、`K`、manifest、export summary、downloader bundle を同じ task で同時更新する。`correcting` 側 contract が変わった時は runbook pair と `ux-b2t-hypo.md` を同日中に更新し、別 `MRL` に残しっぱなしにしない
+  remaining work: admin 実測で `MRL-10` を通し、`orientation_summary.json`、`k_resize_check.csv`、`proof_giant` export が upright 基準で整合することを確認して `p-done` / `i-pass` 判定へ進める。後続は top camera renderer と reviewing viewer 接続である
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_evid_runbook.md`
+
 - record date: `2026-04-01`
   target MRL: `MRL-2R`
   target mRL: `mRL-2R.1`
