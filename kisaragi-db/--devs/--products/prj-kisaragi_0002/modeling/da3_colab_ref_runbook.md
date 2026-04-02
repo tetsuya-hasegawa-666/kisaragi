@@ -8,6 +8,8 @@
 - canonical image は `correcting` 側で `90度右回転` 済みの upright JPEG を受け取る前提とする。
 - `Colab` 側は image pixel を再回転しない。
 - `Block 1` では実画像の `width` / `height` と `frame_record.jsonl` の `imageIntrinsics` を照合し、legacy session だけ `K` を `90度右回転` の式で補正する。
+- `correcting` input が `trajectreview-correcting-session-YYYYMMDD-HHMMSS.zip` の時、modeling bundle zip は `trajectreview-modeling-session-YYYYMMDD-HHMMSS_<model_slug>.zip` として `MyDrive/trajectreview/modeling` へ保存する。
+- binary `gs_ply` は text viewer で文字化けするため、runbook は `debug_gs_visible_copy/` に header、property stats、focus stats、`xyz_only.ply` を複製し、bundle zip に同梱する。
 
 ## 実行順
 
@@ -256,14 +258,17 @@ prod_metric_dir = probe_root / "prod_metriclarge"
 proof_giant_dir = probe_root / "proof_giant"
 world_dir = probe_root / "world_fusion_v01"
 manifest_dir = probe_root / "manifests"
+modeling_session_id = session_id.replace("trajectreview-correcting-session-", "trajectreview-modeling-session-", 1) if session_id.startswith("trajectreview-correcting-session-") else f"trajectreview-modeling-session-{session_id}"
 
 for p in [probe_root, proof_metric_dir, prod_metric_dir, proof_giant_dir, world_dir, manifest_dir]:
     p.mkdir(parents=True, exist_ok=True)
 
 context_doc = {
     "session_id": session_id,
+    "modeling_session_id": modeling_session_id,
     "selected_kind": selected_kind,
     "selected_path": str(selected_path),
+    "results_root": str(results_root),
     "session_outer": str(session_outer),
     "session_root": str(session_root),
     "images_dir": str(images_dir),
@@ -743,6 +748,8 @@ ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encodin
 manifest_dir = Path(ctx["manifest_dir"])
 proof_giant_dir = Path(ctx["proof_giant_dir"])
 probe_root = Path(ctx["probe_root"])
+results_root = Path(ctx["results_root"])
+modeling_session_id = ctx["modeling_session_id"]
 
 proof_df = pd.read_csv(manifest_dir / "da3_input_manifest_proof.csv")
 proof_images = proof_df["image_path"].tolist()
@@ -786,12 +793,15 @@ gs_related.to_csv(proof_giant_dir / "generated_gs_related_files_debug.csv", inde
 
 gs_ply_path = proof_giant_dir / "gs_ply" / "0000.ply"
 debug_read_dir = proof_giant_dir / "debug_gs_readback"
+debug_visible_dir = proof_giant_dir / "debug_gs_visible_copy"
 debug_read_dir.mkdir(parents=True, exist_ok=True)
+debug_visible_dir.mkdir(parents=True, exist_ok=True)
 
 if gs_ply_path.exists():
     with open(gs_ply_path, "rb") as f:
         head = f.read(8192).decode("latin1", errors="ignore")
     (debug_read_dir / "0000_header.txt").write_text(head, encoding="utf-8")
+    shutil.copy2(debug_read_dir / "0000_header.txt", debug_visible_dir / "0000_header.txt")
 
     ply = PlyData.read(str(gs_ply_path))
     v = ply["vertex"]
@@ -812,6 +822,7 @@ if gs_ply_path.exists():
                 rec["mean"] = float(af.mean())
         rows.append(rec)
     pd.DataFrame(rows).to_csv(debug_read_dir / "0000_property_stats.csv", index=False, encoding="utf-8")
+    shutil.copy2(debug_read_dir / "0000_property_stats.csv", debug_visible_dir / "0000_property_stats.csv")
 
     xyz = np.stack([np.asarray(v["x"]), np.asarray(v["y"]), np.asarray(v["z"])], axis=1)
     xyz_mask = np.isfinite(xyz).all(axis=1)
@@ -822,6 +833,7 @@ if gs_ply_path.exists():
         f.write("end_header\n")
         for p in xyz[xyz_mask]:
             f.write(f"{p[0]} {p[1]} {p[2]}\n")
+    shutil.copy2(debug_read_dir / "0000_xyz_only.ply", debug_visible_dir / "0000_xyz_only.ply")
 
     focus_cols = [n for n in names if any(k in n.lower() for k in ["scale", "opacity", "rot", "quaternion"])]
     focus_rows = []
@@ -836,6 +848,29 @@ if gs_ply_path.exists():
             rec["mean"] = float(af.mean())
         focus_rows.append(rec)
     pd.DataFrame(focus_rows).to_csv(debug_read_dir / "0000_focus_stats.csv", index=False, encoding="utf-8")
+    shutil.copy2(debug_read_dir / "0000_focus_stats.csv", debug_visible_dir / "0000_focus_stats.csv")
+
+bundle_model_slug = "giant"
+drive_bundle_base = f"{modeling_session_id}_{bundle_model_slug}"
+drive_bundle_dir = results_root / drive_bundle_base
+drive_bundle_zip = results_root / f"{drive_bundle_base}.zip"
+
+if drive_bundle_dir.exists():
+    shutil.rmtree(drive_bundle_dir)
+drive_bundle_dir.mkdir(parents=True, exist_ok=True)
+
+bundle_file_count = 0
+for src in sorted(probe_root.rglob("*")):
+    if not src.is_file():
+        continue
+    dst = drive_bundle_dir / src.relative_to(probe_root)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src, dst)
+    bundle_file_count += 1
+
+if drive_bundle_zip.exists():
+    drive_bundle_zip.unlink()
+shutil.make_archive(str(drive_bundle_zip.with_suffix("")), "zip", root_dir=str(drive_bundle_dir))
 
 summary = {
     "route": "Giant-proof-da3-estimated-pose",
@@ -853,6 +888,10 @@ summary = {
     "generated_files_manifest": str(proof_giant_dir / "generated_files_debug.csv"),
     "generated_gs_related_manifest": str(proof_giant_dir / "generated_gs_related_files_debug.csv"),
     "debug_gs_readback_dir": str(debug_read_dir),
+    "debug_gs_visible_copy_dir": str(debug_visible_dir),
+    "drive_bundle_dir": str(drive_bundle_dir),
+    "drive_bundle_zip": str(drive_bundle_zip),
+    "drive_bundle_file_count": int(bundle_file_count),
     "canonical_orientation_policy": str(proof_df["canonical_orientation_policy"].iloc[0]),
     "intrinsics_case_counts": proof_df["intrinsics_case"].value_counts().to_dict(),
 }
@@ -870,51 +909,18 @@ import json
 from google.colab import files
 import shutil
 
-probe_root = Path(json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))["probe_root"])
-bundle_dir = Path("/content/da3_record_route_bundle")
-bundle_zip = Path("/content/da3_record_route_bundle.zip")
+ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
+results_root = Path(ctx["results_root"])
+modeling_session_id = ctx["modeling_session_id"]
 
-if bundle_dir.exists():
-    shutil.rmtree(bundle_dir)
-bundle_dir.mkdir(parents=True, exist_ok=True)
+bundle_model_slug = "giant"
+drive_bundle_base = f"{modeling_session_id}_{bundle_model_slug}"
+drive_bundle_zip = results_root / f"{drive_bundle_base}.zip"
+local_bundle_zip = Path("/content") / f"{drive_bundle_base}.zip"
 
-targets = [
-    "manifests/input_frame_manifest.csv",
-    "manifests/input_frame_qc.csv",
-    "manifests/da3_input_manifest_proof.csv",
-    "manifests/da3_input_manifest_prod.csv",
-    "manifests/pose_conversion_check.csv",
-    "manifests/k_resize_check.csv",
-    "manifests/orientation_summary.json",
-    "proof_metriclarge/export_summary.json",
-    "prod_metriclarge/export_summary.json",
-    "proof_giant/export_summary.json",
-    "proof_giant/proof_gs_input_frames.csv",
-    "proof_giant/generated_files_debug.csv",
-    "proof_giant/generated_gs_related_files_debug.csv",
-    "proof_giant/gs_ply/0000.ply",
-    "proof_giant/gs_video/0000_extend.mp4",
-    "proof_giant/scene.glb",
-    "proof_giant/debug_gs_readback/0000_header.txt",
-    "proof_giant/debug_gs_readback/0000_property_stats.csv",
-    "proof_giant/debug_gs_readback/0000_focus_stats.csv",
-    "proof_giant/debug_gs_readback/0000_xyz_only.ply",
-    "world_fusion_v01/world_points_multiframe.npy",
-    "world_fusion_v01/world_points_multiframe.ply",
-    "world_fusion_v01/world_points_multiframe_preview.png",
-]
-
-for rel in targets:
-    src = probe_root / rel
-    if not src.exists():
-        continue
-    dst = bundle_dir / rel
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(src, dst)
-
-if bundle_zip.exists():
-    bundle_zip.unlink()
-shutil.make_archive(str(bundle_zip.with_suffix("")), "zip", root_dir=str(bundle_dir))
-print(bundle_zip)
-files.download(str(bundle_zip))
+assert drive_bundle_zip.exists(), drive_bundle_zip
+shutil.copy2(drive_bundle_zip, local_bundle_zip)
+print("drive_bundle_zip", drive_bundle_zip)
+print("local_bundle_zip", local_bundle_zip)
+files.download(str(local_bundle_zip))
 ```
