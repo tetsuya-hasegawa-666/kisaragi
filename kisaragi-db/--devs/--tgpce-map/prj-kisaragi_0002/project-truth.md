@@ -93,6 +93,7 @@
 - `DA3Metric-Large` の現行 canonical route は image-only 推論とし、`frame_record` 由来の `intrinsics` / `extrinsics_w2c` は world projection、QC、比較証跡に使う。
 - `DA3 Giant` / `Giant Large` の現行 living route は `DA3NESTED-GIANT-LARGE-1.1` を使い、`da3_estimated pose` で `gs_ply` / `gs_video` を生成し、`debug_gs_readback` と bundle manifest を残す。
 - 画像向きは main contract の一部とし、raw 向きのまま silently 扱わない。回転正規化を行う時は image 回転、`width` / `height`、`K` 補正、manifest 記録を同時に行う。
+- `trajectreview-correcting` の canonical 静止画は、現行端末では raw image が左へ `90度` 倒れて見える前提で、record 保存時に `90度右回転` の portrait upright へ正規化して保持する。`frame_record.jsonl` の `imageIntrinsics` と manifest も同じ向き基準へそろえる。
 - `Colab` runbook は `proof route` と `production route` を分離し、軽量確認と本番 candidate を混在させない。
 - 通常の重い再構成 flow を主経路にしない。
 - route は最初から 1 本に固定せず、比較したうえで暫定採用 route を決める。
@@ -122,6 +123,7 @@
 - `textureIntrinsics`、`lensDistortion`、`captureDiagnostics` は後段比較、端末差診断、quality audit に有益なため残すが、主入力成立の必須条件には置かない。
 - image を取得できなかった update は、pose だけ残すと image と pose の時系列一貫性が壊れるため、主記録として採択しない。
 - JPEG を毎 update 保存すると recording 安定性を損ないやすいため、保存対象は採択 frame のみに限定する。
+- 学習用の静止画は raw sensor 向きのままでは左へ `90度` 倒れて読みにくいため、smartphone 側で `90度右回転` の upright JPEG を canonical image とする。その時は `imageIntrinsics.width` / `height` と principal point を同時に補正し、record と manifest に回転 policy を残す。
 - 採択条件は data 契約の一部であるため、`Sampling条件` popup で user が収録前に確認・変更できるようにする。
 - parser、transfer、runbook、modeling script は同じ canonical input を読む必要があるため、smartphone 側抽出方式の変更は app 内実装だけでなく handoff 契約全体へ同時反映する。
 
@@ -135,6 +137,7 @@
 - `video.mp4` は重要度を下げずに補助入力として保持し、再確認、再抽出、検証に使える状態を維持する。ただし `DA3` / `3DGS` 前段の canonical 時系列参照には置かない。
 - `textureIntrinsics`、`lensDistortion`、`captureDiagnostics` は残してよいが、主入力成立の必須条件には置かない。
 - `NotYetAvailableException` などで image を取得できなかった update は、主記録として採択しない。
+- `trajectreview/image/` に保存する canonical 静止画は `90度右回転` の upright JPEG とし、`frame_record.jsonl` と manifest に同じ orientation policy を残す。
 - `IMU`、`BT`、品質要約を同じ package へ束ねる。
 - 任意入力として `GNSS` を許容する。
 - 以降に渡すデータの一例を以下に示す。trajectreview-correctingがtrajectreview-modelingに渡すもの。

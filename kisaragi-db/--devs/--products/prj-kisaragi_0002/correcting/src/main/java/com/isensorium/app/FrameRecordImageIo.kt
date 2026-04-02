@@ -15,6 +15,9 @@ data class SavedFrameImage(
     val fileName: String,
     val width: Int,
     val height: Int,
+    val rawWidth: Int,
+    val rawHeight: Int,
+    val rotationClockwiseDegrees: Int,
 )
 
 data class FrameImagePlanePayload(
@@ -79,11 +82,25 @@ object JpegFrameImagePersister : FrameImagePersister {
         outputDir.mkdirs()
         val fileName = "frame_${timestampNs}.jpg"
         val outputFile = File(outputDir, fileName)
-        val nv21 = payload.toNv21()
-        val yuvImage = YuvImage(nv21, ImageFormat.NV21, payload.width, payload.height, null)
+        val geometry = FrameRecordOrientationPolicy.normalizedGeometry(payload.width, payload.height)
+        val normalizedNv21 = FrameRecordOrientationPolicy.rotateNv21Clockwise90(payload.toNv21(), payload.width, payload.height)
+        val yuvImage =
+            YuvImage(
+                normalizedNv21,
+                ImageFormat.NV21,
+                geometry.normalizedWidth,
+                geometry.normalizedHeight,
+                null,
+            )
         val jpegBytes =
-            ByteArrayOutputStream(nv21.size).use { output ->
-                check(yuvImage.compressToJpeg(Rect(0, 0, payload.width, payload.height), JPEG_QUALITY, output)) {
+            ByteArrayOutputStream(normalizedNv21.size).use { output ->
+                check(
+                    yuvImage.compressToJpeg(
+                        Rect(0, 0, geometry.normalizedWidth, geometry.normalizedHeight),
+                        JPEG_QUALITY,
+                        output,
+                    ),
+                ) {
                     "Failed to encode frame image as JPEG."
                 }
                 output.toByteArray()
@@ -91,8 +108,11 @@ object JpegFrameImagePersister : FrameImagePersister {
         FileOutputStream(outputFile).use { output -> output.write(jpegBytes) }
         return SavedFrameImage(
             fileName = fileName,
-            width = payload.width,
-            height = payload.height,
+            width = geometry.normalizedWidth,
+            height = geometry.normalizedHeight,
+            rawWidth = geometry.rawWidth,
+            rawHeight = geometry.rawHeight,
+            rotationClockwiseDegrees = geometry.rotationClockwiseDegrees,
         )
     }
 

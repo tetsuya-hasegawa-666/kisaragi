@@ -517,6 +517,12 @@ data class OffscreenArCorePoseFrame(
     val textureIntrinsicsRequested: Boolean = false,
     val textureIntrinsicsSucceeded: Boolean = false,
     val textureIntrinsicsFailureReason: String? = null,
+    val imageOrientationPolicy: String? = null,
+    val imageRotationClockwiseDegrees: Int = 0,
+    val rawImageWidth: Int? = null,
+    val rawImageHeight: Int? = null,
+    val normalizedImageWidth: Int? = null,
+    val normalizedImageHeight: Int? = null,
     val imageFileName: String,
 )
 
@@ -550,6 +556,12 @@ private data class PendingOffscreenArCorePoseFrame(
     val textureIntrinsicsRequested: Boolean = false,
     val textureIntrinsicsSucceeded: Boolean = false,
     val textureIntrinsicsFailureReason: String? = null,
+    val imageOrientationPolicy: String? = null,
+    val imageRotationClockwiseDegrees: Int = 0,
+    val rawImageWidth: Int? = null,
+    val rawImageHeight: Int? = null,
+    val normalizedImageWidth: Int? = null,
+    val normalizedImageHeight: Int? = null,
 )
 
 class OffscreenArCorePoseSampler(
@@ -618,6 +630,14 @@ class OffscreenArCorePoseSampler(
                         val textureIntrinsicsResult = runCatching { camera.textureIntrinsics }
                         val imageIntrinsics = imageIntrinsicsResult.getOrNull()
                         val textureIntrinsics = textureIntrinsicsResult.getOrNull()
+                        val normalizedImageIntrinsics =
+                            imageIntrinsics?.let {
+                                FrameRecordOrientationPolicy.normalizeImageIntrinsics(
+                                    focalLength = it.focalLength.toList(),
+                                    principalPoint = it.principalPoint.toList(),
+                                    dimensions = it.imageDimensions.toList(),
+                                )
+                            }
                         val pendingPose =
                             PendingOffscreenArCorePoseFrame(
                                 updateIndex = updateIndex,
@@ -627,9 +647,9 @@ class OffscreenArCorePoseSampler(
                                 trackingFailureReason = runCatching { camera.trackingFailureReason.name }.getOrNull(),
                                 translation = pose.translation,
                                 rotationQuaternion = pose.rotationQuaternion,
-                                imageFocalLength = imageIntrinsics?.focalLength?.toList() ?: emptyList(),
-                                imagePrincipalPoint = imageIntrinsics?.principalPoint?.toList() ?: emptyList(),
-                                imageDimensions = imageIntrinsics?.imageDimensions?.toList() ?: emptyList(),
+                                imageFocalLength = normalizedImageIntrinsics?.focalLength ?: imageIntrinsics?.focalLength?.toList() ?: emptyList(),
+                                imagePrincipalPoint = normalizedImageIntrinsics?.principalPoint ?: imageIntrinsics?.principalPoint?.toList() ?: emptyList(),
+                                imageDimensions = normalizedImageIntrinsics?.dimensions ?: imageIntrinsics?.imageDimensions?.toList() ?: emptyList(),
                                 textureFocalLength = textureIntrinsics?.focalLength?.toList() ?: emptyList(),
                                 texturePrincipalPoint = textureIntrinsics?.principalPoint?.toList() ?: emptyList(),
                                 textureDimensions = textureIntrinsics?.imageDimensions?.toList() ?: emptyList(),
@@ -639,6 +659,8 @@ class OffscreenArCorePoseSampler(
                                 textureIntrinsicsRequested = true,
                                 textureIntrinsicsSucceeded = textureIntrinsics != null,
                                 textureIntrinsicsFailureReason = textureIntrinsicsResult.exceptionOrNull()?.javaClass?.simpleName,
+                                imageOrientationPolicy = FrameRecordOrientationPolicy.POLICY_ID,
+                                imageRotationClockwiseDegrees = FrameRecordOrientationPolicy.ROTATION_CLOCKWISE_DEGREES,
                             )
                         val enqueued =
                             imageSaveQueue.enqueue(payload, timestampNs) { savedImage ->
@@ -665,6 +687,12 @@ class OffscreenArCorePoseSampler(
                                         textureIntrinsicsRequested = pendingPose.textureIntrinsicsRequested,
                                         textureIntrinsicsSucceeded = pendingPose.textureIntrinsicsSucceeded,
                                         textureIntrinsicsFailureReason = pendingPose.textureIntrinsicsFailureReason,
+                                        imageOrientationPolicy = pendingPose.imageOrientationPolicy,
+                                        imageRotationClockwiseDegrees = savedImage.rotationClockwiseDegrees,
+                                        rawImageWidth = savedImage.rawWidth,
+                                        rawImageHeight = savedImage.rawHeight,
+                                        normalizedImageWidth = savedImage.width,
+                                        normalizedImageHeight = savedImage.height,
                                         imageFileName = savedImage.fileName,
                                     ),
                                 )

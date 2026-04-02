@@ -64,7 +64,7 @@ class CorrectingDataCheckService {
     fun exportImages(sessionDir: File): File {
         val parsed = parse(sessionDir)
         val derivedDir = File(sessionDir, ARTIFACT_DERIVED_DIR).apply { mkdirs() }
-        val existingImagesDir = File(sessionDir, ARTIFACT_IMAGES_DIR)
+        val existingImagesDir = resolveExistingImageDir(sessionDir, derivedDir)
         val imagesDir =
             if ((existingImagesDir.listFiles()?.any { it.isFile } ?: false)) {
                 existingImagesDir
@@ -224,6 +224,7 @@ class CorrectingDataCheckService {
                 intrinsicsChangedDuringRecording -> "per_frame"
                 else -> "session_fixed"
             }
+        val imageOrientation = resolveImageOrientationSummary(manifest, poseRows)
         val legacySessionWithoutCalibration =
             poseRows.isNotEmpty() && imageIntrinsicsCount == 0 && textureIntrinsicsCount == 0 && lensDistortionCount == 0
         val possiblePreCalibrationImplementationData =
@@ -362,6 +363,7 @@ class CorrectingDataCheckService {
             timestampStartNs = timestampStartNs,
             timestampEndNs = timestampEndNs,
             intrinsicsModeCandidate = intrinsicsModeCandidate,
+            imageOrientation = imageOrientation,
             intrinsicsChangedDuringRecording = intrinsicsChangedDuringRecording,
             legacySessionWithoutCalibration = legacySessionWithoutCalibration,
             possiblePreCalibrationImplementationData = possiblePreCalibrationImplementationData,
@@ -458,6 +460,7 @@ class CorrectingDataCheckService {
             .put("warnings", JSONArray(parsed.warnings))
             .put("blockers", JSONArray(parsed.spaceReconstructionBlockers))
             .put("coordinateSystem", "right-handed world space from ARCore camera.pose")
+            .put("imageOrientation", imageOrientationJson(parsed.imageOrientation))
             .toString(2)
 
     private fun buildFramePoseIndexCsv(parsed: ParsedSession, imagesDir: File): String {
@@ -599,6 +602,7 @@ class CorrectingDataCheckService {
             .put("cameraCalibrationSummaryPath", "${ARTIFACT_DERIVED_DIR}/${ARTIFACT_CAMERA_CALIBRATION_SUMMARY}")
             .put("frameRecordPath", parsed.poseFilename ?: JSONObject.NULL)
             .put("arcorePosePath", parsed.poseFilename ?: JSONObject.NULL)
+            .put("imageOrientation", imageOrientationJson(parsed.imageOrientation))
             .put(
                 "sourceFiles",
                 JSONObject()
@@ -627,6 +631,7 @@ class CorrectingDataCheckService {
             .put("warnings", JSONArray(parsed.warnings))
             .put("blockers", JSONArray(parsed.spaceReconstructionBlockers))
             .put("recommendedCorrections", JSONArray(parsed.recommendedCorrections))
+            .put("imageOrientation", imageOrientationJson(parsed.imageOrientation))
             .put(
                 "requiredArtifacts",
                 JSONArray(
@@ -644,9 +649,9 @@ class CorrectingDataCheckService {
             .put(
                 "recommendedNextAction",
                 if (parsed.spaceReconstructionBlockers.isEmpty()) {
-                    "modeling へ進める。frame画像群は record 単位の images/ を優先して渡す"
+                    "modeling へ進める。frame画像群は record 単位の trajectreview/image を優先して渡す"
                 } else {
-                    "warning を確認したうえで modeling へ進める。frame画像群は record 単位の images/ を優先して渡す"
+                    "warning を確認したうえで modeling へ進める。frame画像群は record 単位の trajectreview/image を優先して渡す"
                 },
             )
             .toString(2)
@@ -727,13 +732,17 @@ class CorrectingDataCheckService {
         }
 
     private fun resolveImagesDirectory(sessionDir: File, derivedDir: File): File {
-        val sessionImagesDir = File(sessionDir, ARTIFACT_IMAGES_DIR)
-        return if ((sessionImagesDir.listFiles()?.any { it.isFile } ?: false)) {
-            sessionImagesDir
-        } else {
-            File(derivedDir, ARTIFACT_IMAGES_DIR).apply { mkdirs() }
-        }
+        val existing = resolveExistingImageDir(sessionDir, derivedDir)
+        return if ((existing.listFiles()?.any { it.isFile } ?: false)) existing else File(derivedDir, ARTIFACT_IMAGES_DIR).apply { mkdirs() }
     }
+
+    private fun resolveExistingImageDir(sessionDir: File, derivedDir: File): File =
+        listOf(
+            File(derivedDir, ARTIFACT_IMAGES_DIR),
+            File(derivedDir, LEGACY_ARTIFACT_IMAGES_DIR),
+            File(sessionDir, ARTIFACT_IMAGES_DIR),
+            File(sessionDir, LEGACY_ARTIFACT_IMAGES_DIR),
+        ).firstOrNull { it.exists() } ?: File(derivedDir, ARTIFACT_IMAGES_DIR)
 
     private fun relativePathFromSession(sessionDir: File, file: File): String =
         file.relativeTo(sessionDir).invariantSeparatorsPath
@@ -882,6 +891,58 @@ class CorrectingDataCheckService {
         return if (values.any { !it.isNullOrBlank() }) values.joinToString("|") else null
     }
 
+    private fun resolveImageOrientationSummary(
+        manifest: JSONObject,
+        poseRows: List<Map<String, String>>,
+    ): ImageOrientationSummary {
+        val firstPoseRow = poseRows.firstOrNull()
+        val frameRecordPolicy = manifest.optJSONObject("frameRecordPolicy")
+        return ImageOrientationSummary(
+            policy =
+                firstNonBlank(
+                    stringValue(firstPoseRow, listOf("imageOrientation.policy")),
+                    frameRecordPolicy?.optString("imageOrientationPolicy"),
+                ) ?: "raw",
+            rotationClockwiseDegrees =
+                (
+                    longValue(firstPoseRow ?: emptyMap(), listOf("imageOrientation.rotationClockwiseDegrees"))
+                        ?: frameRecordPolicy?.optLong("imageRotationClockwiseDegrees")
+                        ?: 0L
+                ).toInt(),
+            rawWidth =
+                (
+                    longValue(firstPoseRow ?: emptyMap(), listOf("imageOrientation.rawWidth"))
+                        ?: 0L
+                ).takeIf { it > 0L }?.toInt(),
+            rawHeight =
+                (
+                    longValue(firstPoseRow ?: emptyMap(), listOf("imageOrientation.rawHeight"))
+                        ?: 0L
+                ).takeIf { it > 0L }?.toInt(),
+            normalizedWidth =
+                (
+                    longValue(
+                        firstPoseRow ?: emptyMap(),
+                        listOf("imageOrientation.normalizedWidth", "imageIntrinsics.width", "imageDimensions"),
+                    ) ?: 0L
+                ).takeIf { it > 0L }?.toInt(),
+            normalizedHeight =
+                (
+                    longValue(firstPoseRow ?: emptyMap(), listOf("imageOrientation.normalizedHeight", "imageIntrinsics.height"))
+                        ?: 0L
+                ).takeIf { it > 0L }?.toInt(),
+        )
+    }
+
+    private fun imageOrientationJson(summary: ImageOrientationSummary): JSONObject =
+        JSONObject()
+            .put("policy", summary.policy)
+            .put("rotationClockwiseDegrees", summary.rotationClockwiseDegrees)
+            .put("rawWidth", summary.rawWidth ?: JSONObject.NULL)
+            .put("rawHeight", summary.rawHeight ?: JSONObject.NULL)
+            .put("normalizedWidth", summary.normalizedWidth ?: JSONObject.NULL)
+            .put("normalizedHeight", summary.normalizedHeight ?: JSONObject.NULL)
+
     private fun nsToMs(value: Long?): Double? =
         value?.toDouble()?.div(1_000_000.0)
 
@@ -891,6 +952,15 @@ class CorrectingDataCheckService {
     private data class SourceSelection(
         val filename: String,
         val rows: List<Map<String, String>>,
+    )
+
+    private data class ImageOrientationSummary(
+        val policy: String,
+        val rotationClockwiseDegrees: Int,
+        val rawWidth: Int?,
+        val rawHeight: Int?,
+        val normalizedWidth: Int?,
+        val normalizedHeight: Int?,
     )
 
     private data class ParsedSession(
@@ -927,6 +997,7 @@ class CorrectingDataCheckService {
         val timestampStartNs: Long?,
         val timestampEndNs: Long?,
         val intrinsicsModeCandidate: String,
+        val imageOrientation: ImageOrientationSummary,
         val intrinsicsChangedDuringRecording: Boolean,
         val legacySessionWithoutCalibration: Boolean,
         val possiblePreCalibrationImplementationData: Boolean,
@@ -946,7 +1017,8 @@ class CorrectingDataCheckService {
 
     companion object {
         private const val ARTIFACT_DERIVED_DIR = "trajectreview"
-        private const val ARTIFACT_IMAGES_DIR = "images"
+        private const val ARTIFACT_IMAGES_DIR = "image"
+        private const val LEGACY_ARTIFACT_IMAGES_DIR = "images"
         private const val ARTIFACT_INPUT_READINESS = "input_readiness.json"
         private const val ARTIFACT_SENSOR_QUALITY = "sensor_quality.json"
         private const val ARTIFACT_FRAME_POSE_INDEX = "frame_pose_index.csv"

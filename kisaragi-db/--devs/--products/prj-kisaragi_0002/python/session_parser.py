@@ -114,6 +114,13 @@ class SessionParser:
         path = self._find_first_existing(*filenames)
         return path.name if path is not None else None
 
+    def _first_existing_dir_name(self, *directory_names: str) -> str | None:
+        for directory_name in directory_names:
+            path = self.session_dir / directory_name
+            if path.exists():
+                return directory_name
+        return None
+
     def load_frame_rows(self) -> list[dict[str, Any]]:
         return self.load_csv_aliases("video_frame_timestamps.csv", "frames.csv")
 
@@ -201,11 +208,17 @@ class SessionParser:
         join_report = self.build_join_report()
         package_interface = self.build_session_package_interface()
         calibration = self._camera_calibration_summary(self.load_pose_rows())
+        image_orientation = self._image_orientation_summary(self.load_pose_rows())
         recording_config = self.manifest.get("recordingConfig", {})
         arcore_enabled = bool(recording_config.get("arCoreEnabled", self.manifest.get("arCoreEnabled", True)))
         arcore_interval_ms = int(recording_config.get("arCoreIntervalMs", self.manifest.get("arCoreIntervalMs", 33)))
         frame_record_every_n_updates = int(recording_config.get("frameRecordEveryNUpdates", self.manifest.get("frameRecordEveryNUpdates", 1)))
-        image_directory = "images" if (self.session_dir / "images").exists() else "trajectreview/images"
+        image_directory = self._first_existing_dir_name(
+            "trajectreview/image",
+            "trajectreview/images",
+            "image",
+            "images",
+        ) or "trajectreview/image"
 
         return {
             "sessionId": summary.session_id,
@@ -230,6 +243,7 @@ class SessionParser:
                 "lensDistortionCoverageRatio": calibration["lensDistortionCoverageRatio"],
             },
             "cameraCalibration": calibration,
+            "imageOrientation": image_orientation,
             "nearestDeltaNs": {
                 "imuNearestDeltaNs": join_report["imuNearestDeltaNs"],
                 "gnssNearestDeltaNs": join_report["gnssNearestDeltaNs"],
@@ -278,6 +292,7 @@ class SessionParser:
             "readyForSpaceReconstruction": not blockers,
             "blockers": blockers,
             "warnings": package["cameraCalibration"].get("warnings", []),
+            "imageOrientation": package["imageOrientation"],
             "requiredArtifacts": [
                 "session_package.json",
                 "input_readiness.json",
@@ -285,7 +300,7 @@ class SessionParser:
                 "frame_pose_index.csv",
                 "camera_calibration_summary.json",
                 "frame_record.jsonl",
-                "images",
+                "trajectreview/image",
             ],
             "availableSourceFiles": package["sourceFiles"],
             "recommendedNextAction": "空間再構成を開始" if not blockers else "入力条件を見直す",
@@ -483,9 +498,53 @@ class SessionParser:
                 "route-da3metric-large-10fps-static-intrinsics",
                 "route-da3metric-large-10fps-per-frame-intrinsics",
             ],
+            "imageOrientation": self._image_orientation_summary(pose_rows),
             "warnings": warnings,
             "blockers": blockers,
         }
+
+    def _image_orientation_summary(self, pose_rows: list[dict[str, Any]]) -> dict[str, Any]:
+        first_row = pose_rows[0] if pose_rows else {}
+        frame_record_policy = self.manifest.get("frameRecordPolicy", {})
+        return {
+            "policy": self._first_non_blank(
+                first_row.get("imageOrientation.policy"),
+                frame_record_policy.get("imageOrientationPolicy"),
+            ) or "raw",
+            "rotationClockwiseDegrees": int(
+                self._first_non_blank(
+                    first_row.get("imageOrientation.rotationClockwiseDegrees"),
+                    frame_record_policy.get("imageRotationClockwiseDegrees"),
+                    0,
+                )
+            ),
+            "rawWidth": self._optional_int(first_row.get("imageOrientation.rawWidth")),
+            "rawHeight": self._optional_int(first_row.get("imageOrientation.rawHeight")),
+            "normalizedWidth": self._optional_int(
+                self._first_non_blank(
+                    first_row.get("imageOrientation.normalizedWidth"),
+                    first_row.get("imageIntrinsics.width"),
+                    first_row.get("imageDimensions"),
+                )
+            ),
+            "normalizedHeight": self._optional_int(
+                self._first_non_blank(
+                    first_row.get("imageOrientation.normalizedHeight"),
+                    first_row.get("imageIntrinsics.height"),
+                )
+            ),
+        }
+
+    def _optional_int(self, value: Any) -> int | None:
+        if value in (None, "", "null", "None"):
+            return None
+        return int(float(value))
+
+    def _first_non_blank(self, *values: Any) -> Any:
+        for value in values:
+            if value not in (None, "", "null", "None"):
+                return value
+        return None
 
     def _row_has_any_value(self, row: dict[str, Any], *keys: str) -> bool:
         return any(row.get(key) not in (None, "", "null", "None") for key in keys)

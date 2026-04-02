@@ -10,7 +10,7 @@
 
 | 項目 | 状況 |
 | --- | --- |
-| `correcting` | `MRL-1` と `MRL-2` の実装と証跡はそろっている。長時間収録では screen off は抑止済みで、`shared-camera` 動画化の `OutOfMemoryError` と停止時 finalize hang は修正済みである。admin 実機では `3分` 収録で停止成功まで確認できたため、残りは `MRL-2S` の `10min` 実収録確認である。加えて、`DA3` / `3DGS` 向け canonical input を採択 frame record へ寄せる `MRL-2R` を新設し、recording runtime、popup、handoff script を同時に揃える。`2026-04-01` には ARCore 公式 `shared-camera` route を再確認し、`Session.resume()` を `onActive()` 側へ、`Session.update()` を `BLOCKING` 前提へ寄せる修正を入れた。実機再測定は次 batch で行う |
+| `correcting` | `MRL-1` と `MRL-2` の実装と証跡はそろっている。長時間収録では screen off は抑止済みで、`shared-camera` 動画化の `OutOfMemoryError` と停止時 finalize hang は修正済みである。admin 実機では `3分` 収録で停止成功まで確認できたため、残りは `MRL-2S` の `10min` 実収録確認である。加えて、`DA3` / `3DGS` 向け canonical input を採択 frame record へ寄せる `MRL-2R` を新設し、recording runtime、popup、handoff script を同時に揃える。静止画は左へ `90度` 倒れた raw 向きのまま渡さず、`correcting` 保存時に `90度右回転` の upright canonical image として保持し、`imageIntrinsics` と manifest も同じ向き基準へそろえる |
 | `modeling` | `MRL-3` から `MRL-9` は `p-done` である。`MRL-7` は `mRL-7.1` と `mRL-7.2` が `p-done` になり、multi-frame point cloud から gaussian short optimization まで到達した。`MRL-8` では runbook 本体の前段に Drive input candidate scan / widget select を追加し、selected input を bootstrap 本体と `MRL-7` one-block の両方へ handoff できる状態を閉じた。`MRL-9` は `DA3NESTED-GIANT-LARGE-1.1` を使う living route で `infer_gs=True`、`process_res = 1008`、`ref_view_strategy = middle`、`num_max_points = 1250000` を与え、`gs_ply`、`gs_video`、`scene.glb`、`debug_gs_readback` bundle を保存し、さらに `gs_ply/0000.ply` を `PlayCanvas Model Viewer` で開けるところまで進んだ。現在の主対象は `MRL-10` と `MRL-11` で、前者は `frame_record.jsonl + images` を正本にした record-native `Colab` route の canonical 化、後者は左に `90度` 倒れた view を `90度右回転` の upright 扱いへ正規化し、image / `K` / manifest の整合を壊さない orientation route の実装である |
 | `reviewing` | summary と stub 読込まではあるが、実 `ReviewArtifact` viewer と same-time highlight 操作は未実装である |
 
@@ -36,6 +36,7 @@
 - pose の正規値は `displayOrientedPose` ではなく `camera.pose` とする。
 - `frame_record.jsonl` は現行 `arcore_pose.jsonl` の後継として扱い、移行期間の alias 受理は許容する。
 - `video.mp4` は raw bundle に残し、重要な再確認入力として扱う。ただし `DA3` / `3DGS` 前段では、時系列一貫性を保つ canonical input は `frame_record` 系に置く。
+- `trajectreview/image/` の canonical 静止画は、左へ `90度` 倒れた raw 向きではなく、`90度右回転` の upright JPEG として保存し、`frame_record.jsonl` の `imageIntrinsics` と manifest の orientation policy を同時にそろえる。
 - `textureIntrinsics`、`lensDistortion`、`captureDiagnostics` は保持するが、主入力成立の必須条件には置かない。
 - `NotYetAvailableException` などで image を取得できない update は、主記録として採択しない。
 - JPEG は毎 update 全保存せず、採択 frame だけを recording 中に保存する。

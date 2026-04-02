@@ -991,6 +991,12 @@ class RecordingCoordinator(
                                     lensDistortionFailureReason = null,
                                     lensDistortion = lensDistortion,
                                     lensDistortionModel = if (lensDistortion != null) "android_lens_distortion" else null,
+                                    imageOrientationPolicy = poseFrame.imageOrientationPolicy,
+                                    imageRotationClockwiseDegrees = poseFrame.imageRotationClockwiseDegrees,
+                                    rawImageWidth = poseFrame.rawImageWidth,
+                                    rawImageHeight = poseFrame.rawImageHeight,
+                                    normalizedImageWidth = poseFrame.normalizedImageWidth,
+                                    normalizedImageHeight = poseFrame.normalizedImageHeight,
                                     imageFileName = poseFrame.imageFileName,
                                 ),
                             )
@@ -1435,6 +1441,14 @@ class RecordingCoordinator(
                 val imageIntrinsics = imageIntrinsicsResult.getOrNull()
                 val textureIntrinsics = textureIntrinsicsResult.getOrNull()
                 val lensDistortion = lensDistortionResult.getOrNull()
+                val normalizedImageIntrinsics =
+                    imageIntrinsics?.let {
+                        FrameRecordOrientationPolicy.normalizeImageIntrinsics(
+                            focalLength = it.focalLength.toList(),
+                            principalPoint = it.principalPoint.toList(),
+                            dimensions = it.imageDimensions.toList(),
+                        )
+                    }
                 val trackingFailureReason = runCatching { camera.trackingFailureReason.name }.getOrNull()
                 sessionManager.appendArCorePose(
                     recordingSession,
@@ -1450,9 +1464,9 @@ class RecordingCoordinator(
                         trackingFailureReason = trackingFailureReason,
                         translation = pose.translation.toList(),
                         rotationQuaternion = pose.rotationQuaternion.toList(),
-                        imageFocalLength = imageIntrinsics?.focalLength?.toList() ?: emptyList(),
-                        imagePrincipalPoint = imageIntrinsics?.principalPoint?.toList() ?: emptyList(),
-                        imageDimensions = imageIntrinsics?.imageDimensions?.toList() ?: emptyList(),
+                        imageFocalLength = normalizedImageIntrinsics?.focalLength ?: imageIntrinsics?.focalLength?.toList() ?: emptyList(),
+                        imagePrincipalPoint = normalizedImageIntrinsics?.principalPoint ?: imageIntrinsics?.principalPoint?.toList() ?: emptyList(),
+                        imageDimensions = normalizedImageIntrinsics?.dimensions ?: imageIntrinsics?.imageDimensions?.toList() ?: emptyList(),
                         textureFocalLength = textureIntrinsics?.focalLength?.toList() ?: emptyList(),
                         texturePrincipalPoint = textureIntrinsics?.principalPoint?.toList() ?: emptyList(),
                         textureDimensions = textureIntrinsics?.imageDimensions?.toList() ?: emptyList(),
@@ -1467,6 +1481,12 @@ class RecordingCoordinator(
                         lensDistortionFailureReason = lensDistortionResult.exceptionOrNull()?.javaClass?.simpleName,
                         lensDistortion = lensDistortion,
                         lensDistortionModel = if (lensDistortion != null) "android_lens_distortion" else null,
+                        imageOrientationPolicy = FrameRecordOrientationPolicy.POLICY_ID,
+                        imageRotationClockwiseDegrees = savedImage.rotationClockwiseDegrees,
+                        rawImageWidth = savedImage.rawWidth,
+                        rawImageHeight = savedImage.rawHeight,
+                        normalizedImageWidth = savedImage.width,
+                        normalizedImageHeight = savedImage.height,
                         imageFileName = savedImage.fileName,
                     ),
                 )
@@ -1694,6 +1714,12 @@ data class ArCorePoseSample(
     val lensDistortionFailureReason: String? = null,
     val lensDistortion: List<Float>? = null,
     val lensDistortionModel: String? = null,
+    val imageOrientationPolicy: String? = null,
+    val imageRotationClockwiseDegrees: Int = 0,
+    val rawImageWidth: Int? = null,
+    val rawImageHeight: Int? = null,
+    val normalizedImageWidth: Int? = null,
+    val normalizedImageHeight: Int? = null,
     val imageFileName: String? = null,
 )
 
@@ -1755,7 +1781,10 @@ class SessionManager(
                     "frameRecordPolicy",
                     JSONObject()
                         .put("recordUnit", "one_adopted_frame_update")
-                        .put("recordUnitReason", "DA3 / 3DGS 前段では image、pose、intrinsics、timestamp を同じ採択 frame の 1 record として扱い、後段で nearest-link や video 後抽出へ戻さずに時系列一貫性を保つ必要があるため"),
+                        .put("recordUnitReason", "DA3 / 3DGS 前段では image、pose、intrinsics、timestamp を同じ採択 frame の 1 record として扱い、後段で nearest-link や video 後抽出へ戻さずに時系列一貫性を保つ必要があるため")
+                        .put("imageOrientationPolicy", FrameRecordOrientationPolicy.POLICY_ID)
+                        .put("imageRotationClockwiseDegrees", FrameRecordOrientationPolicy.ROTATION_CLOCKWISE_DEGREES)
+                        .put("imageOrientationReason", "学習に使う静止画を portrait upright の canonical 入力へ正規化し、保存 image と record の imageIntrinsics を同じ向き基準で扱うため"),
                 )
                 .put("sessionAdapter", GuardedUpstreamTrialContract.sessionAdapterMetadataJson(session.adapterMetadata))
                 .put("guardedUpstreamTrial", GuardedUpstreamTrialContract.guardedUpstreamTrialJson(routeResolution))
@@ -1993,6 +2022,16 @@ class SessionManager(
                             .put("succeeded", sample.lensDistortionSucceeded)
                             .put("failureReason", sample.lensDistortionFailureReason ?: JSONObject.NULL),
                     ),
+            )
+            .put(
+                "imageOrientation",
+                JSONObject()
+                    .put("policy", sample.imageOrientationPolicy ?: JSONObject.NULL)
+                    .put("rotationClockwiseDegrees", sample.imageRotationClockwiseDegrees)
+                    .put("rawWidth", sample.rawImageWidth ?: JSONObject.NULL)
+                    .put("rawHeight", sample.rawImageHeight ?: JSONObject.NULL)
+                    .put("normalizedWidth", sample.normalizedImageWidth ?: sample.imageDimensions.getOrNull(0) ?: JSONObject.NULL)
+                    .put("normalizedHeight", sample.normalizedImageHeight ?: sample.imageDimensions.getOrNull(1) ?: JSONObject.NULL),
             )
             .put(
                 "lensDistortion",
