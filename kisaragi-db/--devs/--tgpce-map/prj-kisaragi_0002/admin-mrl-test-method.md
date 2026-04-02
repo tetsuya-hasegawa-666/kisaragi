@@ -44,10 +44,10 @@
 25. `転送Data選択` を押すと、`Data名称変更` と同系統の popup が出ることを確認する。最上段に `戻る`、下部に `OK` があり、保存済み data を button 一覧から複数選べることを確認する。
 26. 取得日時、長さ、`▲` は button 外の小テキストで読めることを確認する。`▲` は blocker または閾値超え warning がある data にだけ付くことを確認する。軽微な `coverage < 1.0` や一覧時点の `trajectreview/image/` 既保存だけでは `▲` が付かないことを確認する。
 27. 3 つ目の block の 1 行目が左右 2 分割で、左に `転送先を選択`、右に `転送実行` があることを確認する。
-28. `転送先を選択` を押すと、`Google Drive` folder URL を入力できる popup が出ることを確認する。初期値が `https://drive.google.com/drive/u/2/folders/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_` であることを確認する。
-29. popup で URL を編集して `OK` を押すと URL が保存されることを確認する。
-30. 同じ popup の `保存先fileを設定する` を押すと Android の標準保存画面が開くことを確認する。端末 storage が先に見える場合は、左上メニューなどから `Google Drive` を選べることを確認する。そこで選んだ zip 保存先 file が app の転送先設定になることを確認する。
-31. 続けて zip 保存先 file 名を選べることを確認する。転送先直下の小さい補助表示は出ず、下のコメントだけで `転送Data` と `転送先` の設定済み / 未設定が分かることを確認する。転送先 file は毎回選び直す前提であることを確認する。
+28. `転送先を選択` を押すと、URL 入力欄のない popup が出ることを確認する。右端 button が `保存先を選択する` であることを確認する。
+29. popup の `保存先を選択する` を押すと Android の標準保存画面が開くことを確認する。端末 storage が先に見える場合は、左上メニューなどから `Google Drive` を選べることを確認する。
+30. `Google Drive` の保存先 folder を開いた後、zip file 名を確認して保存できることを確認する。`SO-53B / Android 13` 実機では下部 action が `保存` であることを確認する。そこで確定した zip 保存先 file が app の転送先設定になることを確認する。
+31. app 側へ戻ると、転送先直下の小さい補助表示は出ず、下のコメントだけで `転送Data` と `転送先` の設定済み / 未設定が分かることを確認する。転送先 file は毎回選び直す前提であることを確認する。
 32. zip 保存先 file 名の既定値が、名称未指定なら `trajectreview-correcting-session-YYYYMMDD-HHMMSS.zip` 形式で入ることを確認する。data 名を使う時も `<data-name>-session-YYYYMMDD-HHMMSS.zip` の形で `session-*` suffix が付くことを確認する。
 33. `転送実行` は `転送Data` と `転送先` が設定済みなら活性になり、選択した `Google Drive` 保存場所に zip が保存され、ON にした group だけが zip 内に入ることを確認する。`frame画像群` を ON にした時は recording 中に保存済みの `trajectreview/image/` がそのまま含まれ、転送時追加抽出や `5fps floor` thinning が走らないことを確認する。転送完了後は次回のために再度 `転送先を選択` が必要になることを確認する。
 34. `転送実行` 中の comment と waiting ring は `転送実行` button の直下に出ることを確認する。`Data収録開始` の直下には出ないことを確認する。

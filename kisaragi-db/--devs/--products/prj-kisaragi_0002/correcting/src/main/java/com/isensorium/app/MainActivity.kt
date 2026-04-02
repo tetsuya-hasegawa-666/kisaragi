@@ -62,7 +62,7 @@ class MainActivity : AppCompatActivity() {
     private var saveDestinationSyncInProgress: Boolean = false
     private var saveDestinationStatusMessage: String? = null
     private var transferDestinationStatusMessage: String? = null
-    private var transferDestinationUri: Uri? = null
+    private var transferDestinationDocumentUri: Uri? = null
     private var captureModeSyncInProgress: Boolean = false
     private var frameRecordEveryNUpdatesState: Int = 1
     private var saveOnlyWhenTrackingState: Boolean = true
@@ -128,16 +128,17 @@ class MainActivity : AppCompatActivity() {
         }
 
     private val transferDestinationLauncher =
-        registerForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
-            if (uri == null) {
+        registerForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { documentUri ->
+            if (documentUri == null) {
                 renderTransferDestinationState("転送先の選択をキャンセルしました。")
                 return@registerForActivityResult
             }
             runCatching {
-                transferDestinationUri = uri
+                transferDestinationDocumentUri = documentUri
+                preferences.edit().putString(PREF_TRANSFER_DESTINATION_DOCUMENT_URI, documentUri.toString()).apply()
                 transferDestinationStatusMessage = null
-                renderTransferDestinationState("転送先を更新しました。")
-                renderTransferState("転送先を更新しました。")
+                renderTransferDestinationState("転送先 file を更新しました。")
+                renderTransferState("転送先 file を更新しました。")
             }.onFailure { error ->
                 renderTransferDestinationState("転送先の保持に失敗しました: ${error.message ?: error::class.java.simpleName}")
             }
@@ -153,6 +154,7 @@ class MainActivity : AppCompatActivity() {
         configureForegroundKeepAwake()
 
         recordingCoordinator = buildRecordingCoordinator()
+        restoreTransferUiState(savedInstanceState)
 
         binding.recordButton.setOnClickListener {
             if (recordingCoordinator.isRecording()) {
@@ -251,6 +253,22 @@ class MainActivity : AppCompatActivity() {
         renderBusyIndicator()
         updateBlockVisibility(recording = false)
         refreshStoredSessionsCacheAsync()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putStringArrayList(
+            STATE_SELECTED_TRANSFER_SESSION_IDS,
+            ArrayList(selectedTransferSessionIds),
+        )
+        outState.putStringArrayList(
+            STATE_SELECTED_TRANSFER_GROUPS,
+            ArrayList(selectedTransferGroupsState.map(TransferGroup::name)),
+        )
+        outState.putString(
+            STATE_TRANSFER_DESTINATION_DOCUMENT_URI,
+            transferDestinationDocumentUri?.toString(),
+        )
     }
 
     override fun onDestroy() {
@@ -600,7 +618,7 @@ class MainActivity : AppCompatActivity() {
         binding.transferButton.isEnabled =
             !transferInProgress &&
             transferSessions.isNotEmpty() &&
-            selectedTransferDestinationUri() != null
+            selectedTransferDestinationDocumentUri() != null
         renderSaveDestinationState(null)
         renderTransferDestinationState(null)
         refreshRecordButtonState()
@@ -777,7 +795,7 @@ class MainActivity : AppCompatActivity() {
             )
             return
         }
-        if (selectedTransferDestinationUri() == null) {
+        if (selectedTransferDestinationDocumentUri() == null) {
             renderTransferState("転送先を選択すると転送できます。")
             return
         }
@@ -806,16 +824,17 @@ class MainActivity : AppCompatActivity() {
                 renderBusyIndicator()
                 binding.transferButton.isEnabled =
                     selectedTransferSessions().isNotEmpty() &&
-                    selectedTransferDestinationUri() != null
+                    selectedTransferDestinationDocumentUri() != null
                 result.onSuccess {
-                    transferDestinationUri = null
+                    transferDestinationDocumentUri = null
+                    preferences.edit().remove(PREF_TRANSFER_DESTINATION_DOCUMENT_URI).apply()
                     renderTransferState(it)
                     renderTransferDestinationState(null)
                     Toast.makeText(this, "Google Drive 転送が完了しました", Toast.LENGTH_SHORT).show()
                 }.onFailure { error ->
                     renderTransferState(
                         "Google Drive 転送に失敗しました: ${error.message ?: error::class.java.simpleName}\n" +
-                            "対処: 転送先を選択し直し、転送するデータと送信データセットが選ばれていることを確認してください。",
+                            "対処: 転送先 file を選び直し、転送する data と送信Dataset が選ばれていることを確認してください。",
                     )
                     renderTransferDestinationState(null)
                     Toast.makeText(this, "Google Drive 転送に失敗しました", Toast.LENGTH_SHORT).show()
@@ -842,7 +861,7 @@ class MainActivity : AppCompatActivity() {
         binding.transferButton.isEnabled =
             !transferInProgress &&
             selectedSessions.isNotEmpty() &&
-            selectedTransferDestinationUri() != null
+            selectedTransferDestinationDocumentUri() != null
         binding.transferText.text =
             message ?: transferRequirementSummary(selectedSessions)
     }
@@ -874,6 +893,28 @@ class MainActivity : AppCompatActivity() {
         }
         refreshRecordButtonState()
         renderBusyIndicator()
+    }
+
+    private fun restoreTransferUiState(savedInstanceState: Bundle?) {
+        val restoredDocumentUri =
+            savedInstanceState?.getString(STATE_TRANSFER_DESTINATION_DOCUMENT_URI)
+                ?: preferences.getString(PREF_TRANSFER_DESTINATION_DOCUMENT_URI, null)
+        transferDestinationDocumentUri = restoredDocumentUri?.let(Uri::parse)
+
+        selectedTransferSessionIds.clear()
+        savedInstanceState
+            ?.getStringArrayList(STATE_SELECTED_TRANSFER_SESSION_IDS)
+            ?.let(selectedTransferSessionIds::addAll)
+
+        savedInstanceState
+            ?.getStringArrayList(STATE_SELECTED_TRANSFER_GROUPS)
+            ?.mapNotNull { name -> TransferGroup.entries.find { it.name == name } }
+            ?.let { restoredGroups ->
+                if (restoredGroups.isNotEmpty()) {
+                    selectedTransferGroupsState.clear()
+                    selectedTransferGroupsState.addAll(restoredGroups)
+                }
+            }
     }
 
     private fun renderTransferDestinationState(statusMessage: String?) {
@@ -983,43 +1024,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showTransferTargetDialog() {
-        val input = EditText(this)
-        input.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
-        input.setText(selectedTransferTargetUrl())
         AlertDialog.Builder(this)
             .setTitle("転送先を選択")
             .setMessage(
-                "アドレスを入力してください。\n" +
-                    "保存先を app へ設定する時は、下の「保存先fileを設定する」を押してください。\n" +
-                    "Android 標準の保存画面が開くので、左上メニューなどから Google Drive を選び、zip 保存先 file を指定してください。",
+                "Android 標準の保存画面を開きます。\n" +
+                    "Google Drive を使う時は、左上メニューなどから Google Drive を選び、保存先 folder を開いてください。\n" +
+                    "その後に zip file 名を確認して保存すると、その file が app の転送先になります。",
             )
-            .setView(input)
-            .setNeutralButton("保存先fileを設定する") { _, _ ->
-                val url = normalizeTransferTargetUrl(input.text?.toString().orEmpty())
-                saveTransferTargetUrl(url)
+            .setNegativeButton("キャンセル", null)
+            .setPositiveButton("保存先を選択する") { _, _ ->
                 transferDestinationLauncher.launch(defaultTransferArchiveName())
                 renderTransferState(
                     "Android の保存画面で zip 保存先 file を選択してください。" +
-                        "\nGoogle Drive を使う時は、左上メニューなどから Google Drive を選んでください。" +
-                        "\n選択が完了すると app に戻って転送先が設定されます。",
+                        "\nGoogle Drive を使う時は、左上メニューなどから Google Drive を選び、保存先 folder を開いてください。" +
+                        "\nfile 名を確認して保存すると app に戻って転送先が設定されます。",
                 )
             }
-            .setPositiveButton("OK") { _, _ ->
-                val url = normalizeTransferTargetUrl(input.text?.toString().orEmpty())
-                saveTransferTargetUrl(url)
-            }
-            .setNegativeButton("キャンセル", null)
             .show()
-    }
-
-    private fun normalizeTransferTargetUrl(value: String): String =
-        value.trim().ifBlank { DEFAULT_TARGET_DRIVE_FOLDER_URL }
-
-    private fun saveTransferTargetUrl(url: String) {
-        preferences.edit().putString(PREF_TRANSFER_TARGET_URL, url).apply()
-        transferDestinationStatusMessage = null
-        renderTransferDestinationState("転送先URLを更新しました。")
-        renderTransferState("転送先URLを更新しました。")
     }
 
     private fun showSamplingConditionsDialog() {
@@ -1800,7 +1821,7 @@ class MainActivity : AppCompatActivity() {
                 else -> "転送Data: 設定済み"
             }
         val destinationStatus =
-            if (selectedTransferDestinationUri() == null) {
+            if (selectedTransferDestinationDocumentUri() == null) {
                 "転送先: 未設定"
             } else {
                 "転送先: 設定済み"
@@ -1857,11 +1878,8 @@ class MainActivity : AppCompatActivity() {
     private fun selectedLocalSaveDestinationUri(): Uri? =
         preferences.getString(PREF_SAVE_DESTINATION_TREE_URI, null)?.let(Uri::parse)
 
-    private fun selectedTransferDestinationUri(): Uri? =
-        transferDestinationUri
-
-    private fun selectedTransferTargetUrl(): String =
-        preferences.getString(PREF_TRANSFER_TARGET_URL, DEFAULT_TARGET_DRIVE_FOLDER_URL)?.trim().orEmpty()
+    private fun selectedTransferDestinationDocumentUri(): Uri? =
+        transferDestinationDocumentUri
 
     private fun syncSessionToSelectedDestination(
         sessions: List<RecordingSession>,
@@ -1869,9 +1887,7 @@ class MainActivity : AppCompatActivity() {
         successMessage: String,
     ): String {
         require(isCorrectingApp) { "correcting app 以外では転送を使いません。" }
-        val destinationUri = selectedTransferDestinationUri() ?: run {
-            error("転送先を選択してください。")
-        }
+        val destinationUri = selectedTransferDestinationDocumentUri() ?: error("転送先を選択してください。")
         require(sessions.isNotEmpty()) { "転送する data を選択してください。" }
         try {
             contentResolver.openOutputStream(destinationUri, "wt")?.use { output ->
@@ -2190,11 +2206,12 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val PREF_GUARDED_ROUTE = "pref_guarded_route"
         private const val PREF_SAVE_DESTINATION_TREE_URI = "pref_save_destination_tree_uri"
-        private const val PREF_TRANSFER_DESTINATION_URI = "pref_transfer_destination_uri"
-        private const val PREF_TRANSFER_TARGET_URL = "pref_transfer_target_url"
+        private const val PREF_TRANSFER_DESTINATION_DOCUMENT_URI = "pref_transfer_destination_document_uri"
         private const val ROUTE_SWITCH_GUARD_MS = 800L
-        private const val DEFAULT_TARGET_DRIVE_FOLDER_URL = "https://drive.google.com/drive/u/2/folders/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_"
         private const val PROCESSING_WAKE_LOCK_TIMEOUT_MS = 15 * 60 * 1000L
+        private const val STATE_TRANSFER_DESTINATION_DOCUMENT_URI = "state_transfer_destination_document_uri"
+        private const val STATE_SELECTED_TRANSFER_SESSION_IDS = "state_selected_transfer_session_ids"
+        private const val STATE_SELECTED_TRANSFER_GROUPS = "state_selected_transfer_groups"
 
         private val requiredPermissions = arrayOf(
             Manifest.permission.CAMERA,

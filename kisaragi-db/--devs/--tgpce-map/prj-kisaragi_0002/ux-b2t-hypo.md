@@ -342,7 +342,7 @@
 | 区分 | 対象 `task_id` | 現在の見立て | 対応する `MRL` | 補足 |
 | --- | --- | --- | --- | --- |
 | `correcting` 基礎 | `tu1`-`tu7`, `td1`-`td8` | 契約実装、project 境界 scan、output routing 実行まで通っており、この範囲は `p-done` と読める | `MRL-1`, `MRL-2` | Python unittest、Android unit test、PowerShell script 実行で入口契約から成果物 routing まで固定した |
-| 転送導線 | `tu8`-`tu11` | 転送 close 導線は `現場撮影データ保存 -> data-check -> Google Drive転送 -> handoff bundle` で閉じる前提にそろっている | `MRL-2` | 事前設定は `転送先を選択 -> URL を確認または変更 -> 保存先fileを設定する -> Google Drive 上で保存先 file を選ぶ` を既定導線とする |
+| 転送導線 | `tu8`-`tu11` | 転送 close 導線は `現場撮影データ保存 -> data-check -> Google Drive転送 -> handoff bundle` で閉じる前提にそろっている | `MRL-2` | 事前設定は `転送先を選択 -> 保存先を選択する -> Google Drive 上で保存先 folder を開く -> zip file 名を確認して保存` を既定導線とする |
 | canonical frame redesign | `tu14c`-`tu14e`, `td1`, `td8a`-`td8c` | runtime、popup、transfer、parser、modeling preflight の実装と compile / unit test / install は通り、実機でも `frame_record.jsonl` と `trajectreview/image/` の 1:1 は確認した。ただし `採択数=1 -> 約30fps` は未達で、`SO-53B` 実測は `record_fps ≒ 7.67`、`video_fps ≒ 36.29`、`sharedCamera=closed_with_error` が残る | `MRL-2R` | `frame_record.jsonl`、record 単位 `trajectreview/image/`、`.jsonl` 拡張子維持、`camera.pose` 正規化を実装済み。次は `shared-camera` route の low cadence 原因と stop 時 error を切り分ける |
 | `modeling` 入口 | `td13`, `tu20`, `td12`, `td14`, `tu18`, `tu21`, `td23`, `td22` | bootstrap / install、実 bundle 読込、request preflight、directory intake、review 側の状態読込までそろった範囲は `p-done` と読める | `MRL-3`, `MRL-4` | `td9` 以降の `modeling` / `reviewing` task は基礎として有効だが、本機能 close には未達である |
 | single-frame 主空間 | `td16`-`td18`, `tu22`, `tu23` | `correcting` 実データを使った single-frame `3DGS` 系主空間モデル候補の smoke 生成と artifact 取得までを根拠に `p-done` と読める | `MRL-5` | `SpacePackage` と download 導線の最小契約は通っている |
