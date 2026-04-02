@@ -4,6 +4,8 @@
 - 更新は必ず `da3_colab_evid_runbook.md` と 2 file set で行う。
 - canonical input は `session_manifest.json`、`frame_record.jsonl`、`trajectreview/image` または `trajectreview/images` とする。
 - canonical route は `MRL-10 record-native DA3 route` とし、`proof route` と `production route` を分離する。
+- `MRL-10` の `MetricLarge route` は image-only 推論、`Giant route` は `DA3NESTED-GIANT-LARGE-1.1` と `debug_gs_readback` bundle を現行 living spec とする。
+- 左へ `90度` 倒れた render を `90度右回転` の upright 基準へ正規化する実装は `MRL-11` として後続化している。
 
 ## 実行順
 
@@ -576,46 +578,143 @@ print(json.dumps({
 from pathlib import Path
 import json
 import sys
+import shutil
 
 import numpy as np
 import pandas as pd
 import torch
+from plyfile import PlyData
 
 for name in list(sys.modules.keys()):
     if name.startswith("depth_anything_3"):
         del sys.modules[name]
+
+repo_root = Path("/content/Depth-Anything-3")
+src_root = repo_root / "src"
+if str(src_root) not in sys.path:
+    sys.path.insert(0, str(src_root))
 
 from depth_anything_3.api import DepthAnything3
 
 ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
 manifest_dir = Path(ctx["manifest_dir"])
 proof_giant_dir = Path(ctx["proof_giant_dir"])
+probe_root = Path(ctx["probe_root"])
 
 proof_df = pd.read_csv(manifest_dir / "da3_input_manifest_proof.csv")
 proof_images = proof_df["image_path"].tolist()
-proof_intrinsics = np.load(manifest_dir / "intrinsics_proof.npy")
-proof_extrinsics = np.load(manifest_dir / "extrinsics_w2c_proof.npy")
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = DepthAnything3(model_name="da3-giant").to(device)
+model = DepthAnything3.from_pretrained("depth-anything/DA3NESTED-GIANT-LARGE-1.1").to(device=device)
+
+PROCESS_RES = 1008
+REF_VIEW_STRATEGY = "middle"
+CONF_THRESH_PERCENTILE = 25.0
+NUM_MAX_POINTS = 1250000
+
 prediction = model.inference(
     image=proof_images,
-    intrinsics=proof_intrinsics,
-    extrinsics=proof_extrinsics,
     infer_gs=True,
-    process_res=504,
+    process_res=PROCESS_RES,
+    ref_view_strategy=REF_VIEW_STRATEGY,
     export_dir=str(proof_giant_dir),
     export_format="npz-glb-gs_ply-gs_video",
+    conf_thresh_percentile=CONF_THRESH_PERCENTILE,
+    num_max_points=NUM_MAX_POINTS,
 )
 
+proof_df.to_csv(proof_giant_dir / "proof_gs_input_frames.csv", index=False, encoding="utf-8")
+
+generated = []
+for p in sorted(proof_giant_dir.rglob("*")):
+    if p.is_file():
+        generated.append({
+            "relative_path": str(p.relative_to(proof_giant_dir)),
+            "size_bytes": int(p.stat().st_size),
+        })
+
+generated_df = pd.DataFrame(generated)
+generated_df.to_csv(proof_giant_dir / "generated_files_debug.csv", index=False, encoding="utf-8")
+
+gs_related = generated_df[
+    generated_df["relative_path"].str.contains(r"(?:^gs_|/gs_|\.glb$|\.ply$|proof_gs_input_frames\.csv)", regex=True)
+].copy()
+gs_related.to_csv(proof_giant_dir / "generated_gs_related_files_debug.csv", index=False, encoding="utf-8")
+
+gs_ply_path = proof_giant_dir / "gs_ply" / "0000.ply"
+debug_read_dir = proof_giant_dir / "debug_gs_readback"
+debug_read_dir.mkdir(parents=True, exist_ok=True)
+
+if gs_ply_path.exists():
+    with open(gs_ply_path, "rb") as f:
+        head = f.read(8192).decode("latin1", errors="ignore")
+    (debug_read_dir / "0000_header.txt").write_text(head, encoding="utf-8")
+
+    ply = PlyData.read(str(gs_ply_path))
+    v = ply["vertex"]
+    names = list(v.data.dtype.names)
+
+    rows = []
+    for name in names:
+        arr = np.asarray(v[name])
+        rec = {"property": name, "shape": str(arr.shape), "dtype": str(arr.dtype)}
+        if np.issubdtype(arr.dtype, np.number):
+            finite = np.isfinite(arr)
+            rec["finite_count"] = int(finite.sum())
+            rec["total_count"] = int(arr.size)
+            if finite.any():
+                af = arr[finite]
+                rec["min"] = float(af.min())
+                rec["max"] = float(af.max())
+                rec["mean"] = float(af.mean())
+        rows.append(rec)
+    pd.DataFrame(rows).to_csv(debug_read_dir / "0000_property_stats.csv", index=False, encoding="utf-8")
+
+    xyz = np.stack([np.asarray(v["x"]), np.asarray(v["y"]), np.asarray(v["z"])], axis=1)
+    xyz_mask = np.isfinite(xyz).all(axis=1)
+    with open(debug_read_dir / "0000_xyz_only.ply", "w", encoding="utf-8") as f:
+        f.write("ply\nformat ascii 1.0\n")
+        f.write(f"element vertex {int(xyz_mask.sum())}\n")
+        f.write("property float x\nproperty float y\nproperty float z\n")
+        f.write("end_header\n")
+        for p in xyz[xyz_mask]:
+            f.write(f"{p[0]} {p[1]} {p[2]}\n")
+
+    focus_cols = [n for n in names if any(k in n.lower() for k in ["scale", "opacity", "rot", "quaternion"])]
+    focus_rows = []
+    for name in focus_cols:
+        arr = np.asarray(v[name])
+        finite = np.isfinite(arr)
+        rec = {"property": name, "finite_count": int(finite.sum()), "total_count": int(arr.size)}
+        if finite.any():
+            af = arr[finite]
+            rec["min"] = float(af.min())
+            rec["max"] = float(af.max())
+            rec["mean"] = float(af.mean())
+        focus_rows.append(rec)
+    pd.DataFrame(focus_rows).to_csv(debug_read_dir / "0000_focus_stats.csv", index=False, encoding="utf-8")
+
 summary = {
-    "route": "Giant-proof-explicit-pose",
+    "route": "Giant-proof-da3-estimated-pose",
     "image_count": len(proof_images),
     "proof_giant_dir": str(proof_giant_dir),
     "prediction_type": str(type(prediction).__name__),
+    "camera_pose_source": "da3_estimated",
+    "model_id": "depth-anything/DA3NESTED-GIANT-LARGE-1.1",
+    "process_res": PROCESS_RES,
+    "ref_view_strategy": REF_VIEW_STRATEGY,
+    "conf_thresh_percentile": CONF_THRESH_PERCENTILE,
+    "num_max_points": NUM_MAX_POINTS,
+    "generated_file_count": int(len(generated_df)),
+    "generated_gs_related_file_count": int(len(gs_related)),
+    "generated_files_manifest": str(proof_giant_dir / "generated_files_debug.csv"),
+    "generated_gs_related_manifest": str(proof_giant_dir / "generated_gs_related_files_debug.csv"),
+    "debug_gs_readback_dir": str(debug_read_dir),
 }
 (proof_giant_dir / "export_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
 print(json.dumps(summary, indent=2, ensure_ascii=False))
+print("\n# gs_related_files")
+print(gs_related.to_string(index=False))
 ```
 
 ## MRL-10 Block 4
@@ -643,6 +742,17 @@ targets = [
     "manifests/k_resize_check.csv",
     "proof_metriclarge/export_summary.json",
     "prod_metriclarge/export_summary.json",
+    "proof_giant/export_summary.json",
+    "proof_giant/proof_gs_input_frames.csv",
+    "proof_giant/generated_files_debug.csv",
+    "proof_giant/generated_gs_related_files_debug.csv",
+    "proof_giant/gs_ply/0000.ply",
+    "proof_giant/gs_video/0000_extend.mp4",
+    "proof_giant/scene.glb",
+    "proof_giant/debug_gs_readback/0000_header.txt",
+    "proof_giant/debug_gs_readback/0000_property_stats.csv",
+    "proof_giant/debug_gs_readback/0000_focus_stats.csv",
+    "proof_giant/debug_gs_readback/0000_xyz_only.ply",
     "world_fusion_v01/world_points_multiframe.npy",
     "world_fusion_v01/world_points_multiframe.ply",
     "world_fusion_v01/world_points_multiframe_preview.png",

@@ -89,7 +89,10 @@
 
 - 空間生成の主経路は、採択 frame ごとの image、`camera.pose`、intrinsics を正にした `DA3Metric-Large` / `3DGS` 前処理入力とする。
 - remote modeling の canonical `Colab` route でも、主入力は `frame_record.jsonl` と対応 image 群を正とし、`frame_pose_index.csv` は診断用の二次資料として扱う。
-- `Colab` 側は `1 record = image + pose + intrinsics + timestamp` の構造を壊さずに読み、`DA3` へは `image[]`、`intrinsics[N,3,3]`、`extrinsics_w2c[N,4,4]` を明示入力する。
+- `Colab` 側は `1 record = image + pose + intrinsics + timestamp` の構造を壊さずに読み、`intrinsics[N,3,3]` と `extrinsics_w2c[N,4,4]` を canonical manifest として常に生成する。
+- `DA3Metric-Large` の現行 canonical route は image-only 推論とし、`frame_record` 由来の `intrinsics` / `extrinsics_w2c` は world projection、QC、比較証跡に使う。
+- `DA3 Giant` / `Giant Large` の現行 living route は `DA3NESTED-GIANT-LARGE-1.1` を使い、`da3_estimated pose` で `gs_ply` / `gs_video` を生成し、`debug_gs_readback` と bundle manifest を残す。
+- 画像向きは main contract の一部とし、raw 向きのまま silently 扱わない。回転正規化を行う時は image 回転、`width` / `height`、`K` 補正、manifest 記録を同時に行う。
 - `Colab` runbook は `proof route` と `production route` を分離し、軽量確認と本番 candidate を混在させない。
 - 通常の重い再構成 flow を主経路にしない。
 - route は最初から 1 本に固定せず、比較したうえで暫定採用 route を決める。
