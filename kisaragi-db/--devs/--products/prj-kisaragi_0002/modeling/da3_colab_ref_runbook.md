@@ -1,15 +1,44 @@
-# DA3 Colab Ref Runbook
+# DA3 Colab Evid Runbook
 
-- `da3_colab_evid_runbook.md` の貼り付け用 companion とする。
-- 更新は必ず `da3_colab_evid_runbook.md` と 2 file set で行う。
+## 文書の役割
+
+- `Colab` modeling の canonical runbook とする。
 - canonical input は `session_manifest.json`、`frame_record.jsonl`、`trajectreview/image` または `trajectreview/images` とする。
+- `frame_pose_index.csv` は診断用、`arcore_pose.jsonl` は fallback とする。
 - canonical route は `MRL-10 record-native DA3 route` とし、`proof route` と `production route` を分離する。
-- `MRL-10` の `MetricLarge route` は image-only 推論、`Giant route` は `DA3NESTED-GIANT-LARGE-1.1` と `debug_gs_readback` bundle を現行 living spec とする。
+- `1 record = image + pose + intrinsics + timestamp` の構造を `Colab` 側で壊さないことを最優先とする。
+
+## Route Policy
+
+- `proof route`
+  - QC 通過後の subset を使って短く壊れ方を見る。
+  - 既定では `baseline thinning` 後の先頭 `24` frame までを使う。
+- `production route`
+  - QC 通過した全 record を主対象にする。
+  - 固定枚数 cap は置かない。
+  - thinning は `skip reason` を残す時だけ許可する。
+- record-native canonical route では常に
+  - `image[]`
+  - `intrinsics[N,3,3]`
+  - `extrinsics_w2c[N,4,4]`
+  を manifest として生成する。
+- `DA3Metric-Large` は現行 upstream 制約により image-only 推論とし、`intrinsics` / `extrinsics_w2c` は world projection と評価証跡に使う。
+- `Giant` proof living route は `DA3NESTED-GIANT-LARGE-1.1`、`da3_estimated pose`、`debug_gs_readback` bundle を canonical とする。
+
+## Orientation Policy
+
 - canonical image は `correcting` 側で `90度右回転` 済みの upright JPEG を受け取る前提とする。
 - `Colab` 側は image pixel を再回転しない。
-- `Block 1` では実画像の `width` / `height` と `frame_record.jsonl` の `imageIntrinsics` を照合し、legacy session だけ `K` を `90度右回転` の式で補正する。
-- `correcting` input が `trajectreview-correcting-session-YYYYMMDD-HHMMSS.zip` の時、modeling bundle zip は `trajectreview-modeling-session-YYYYMMDD-HHMMSS_<model_slug>.zip` として `MyDrive/trajectreview/modeling` へ保存する。
-- binary `gs_ply` は text viewer で文字化けするため、runbook は `debug_gs_visible_copy/` に header、property stats、focus stats、`xyz_only.ply` を複製し、bundle zip に同梱する。
+- `Block 1` では、実画像の `width` / `height` と `frame_record.jsonl` の `imageIntrinsics` を照合し、すでに upright ならそのまま使う。
+- legacy session のように intrinsics だけ raw 向きで `width` / `height` が swap している時は、`90度右回転` の式で `fx` / `fy` / `cx` / `cy` を canonical upright 基準へ補正する。
+- 上記の判定結果は `input_frame_manifest.csv`、`k_resize_check.csv`、`orientation_summary.json` に残す。
+
+## Bundle Naming Policy
+
+- `correcting` 側の canonical zip 名は `trajectreview/correcting/trajectreview-correcting-session-YYYYMMDD-HHMMSS.zip` とする。
+- `modeling` 側の bundle zip 名は `trajectreview/modeling/trajectreview-modeling-session-YYYYMMDD-HHMMSS_<model_slug>.zip` とする。
+- `Colab` runbook では `selected input` の `session_id` が `trajectreview-correcting-session-*` なら、bundle 出力時に `trajectreview-modeling-session-*` へ置き換えて使う。
+- binary `gs_ply` は text viewer で文字化けするため、runbook は header、property stats、focus stats、`xyz_only.ply` を `debug_gs_visible_copy/` と bundle zip に同梱する。
 
 ## 実行順
 
@@ -20,7 +49,9 @@
 5. 必要時のみ `MRL-10 Block 3`
 6. 必要時のみ `MRL-10 Block 4`
 
-## 準備確認 1
+## 準備確認
+
+### 準備確認 1
 
 ```python
 import os
@@ -37,7 +68,7 @@ print("mydrive_exists", Path("/content/drive/MyDrive").exists())
 print("shortcut_root_exists", Path("/content/drive/.shortcut-targets-by-id").exists())
 ```
 
-## 準備確認 2
+### 準備確認 2
 
 ```python
 from pathlib import Path
@@ -95,7 +126,7 @@ for idx, item in enumerate(candidate_doc["candidates"]):
     print(f"[{idx}] {item['label']}: {item['path']}")
 ```
 
-## 準備確認 3
+### 準備確認 3
 
 ```python
 from pathlib import Path
@@ -130,7 +161,7 @@ button.on_click(on_click)
 display(dropdown, button, output)
 ```
 
-## 準備確認 4
+### 準備確認 4
 
 ```python
 from pathlib import Path
@@ -141,7 +172,9 @@ print("selected_path_exists", Path(selected_doc["path"]).exists(), selected_doc[
 print("results_root", selected_doc["results_root"])
 ```
 
-## install 1
+## install
+
+### install 1
 
 ```python
 from pathlib import Path
@@ -155,7 +188,7 @@ subprocess.run(["git", "clone", "https://github.com/ByteDance-Seed/Depth-Anythin
 print("repo_exists", repo_root.exists(), repo_root)
 ```
 
-## install 2
+### install 2
 
 ```python
 import subprocess
@@ -163,7 +196,7 @@ subprocess.run(["python", "-m", "pip", "install", "--quiet", "addict", "evo", "m
 print("dependency_install_ok")
 ```
 
-## install 3
+### install 3
 
 ```python
 import sys
@@ -183,7 +216,7 @@ print("gsplat_version", getattr(gsplat, "__version__", "unknown"))
 print("e3nn_version", getattr(e3nn, "__version__", "unknown"))
 ```
 
-## install 4
+### install 4
 
 ```python
 import inspect
@@ -192,7 +225,9 @@ from depth_anything_3.api import DepthAnything3
 print("inference_sig", inspect.signature(DepthAnything3.inference))
 ```
 
-## MRL-10 Block 1
+## MRL-10 record-native DA3 route
+
+### Block 1: 正規化 + QC + DA3 input pack
 
 ```python
 from pathlib import Path
@@ -285,7 +320,7 @@ Path("/content/runbook_session_context.json").write_text(json.dumps(context_doc,
 print(json.dumps(context_doc, indent=2, ensure_ascii=False))
 ```
 
-## MRL-10 Phase B
+### Phase B: QC と manifest 化
 
 ```python
 from pathlib import Path
@@ -585,7 +620,7 @@ summary = {
 print(json.dumps(summary, indent=2, ensure_ascii=False))
 ```
 
-## MRL-10 Block 2
+### Block 2: MetricLarge proof + production + world export
 
 ```python
 from pathlib import Path
@@ -635,6 +670,7 @@ assert depths is not None and len(depths) == len(prod_df), {
     "depth_count": None if depths is None else len(depths),
     "prod_selected_count": len(prod_df),
 }
+
 all_points = []
 per_frame = []
 stride = 24
@@ -708,6 +744,8 @@ world_summary = {
     "depth_source": "prod_prediction.depth",
     "world_projection_input_mode": "frame_record_intrinsics_and_pose",
     "canonical_orientation_policy": str(prod_df["canonical_orientation_policy"].iloc[0]),
+    "npy_path": str(world_dir / "world_points_multiframe.npy"),
+    "ply_path": str(world_dir / "world_points_multiframe.ply"),
 }
 (proof_metric_dir / "export_summary.json").write_text(json.dumps(proof_summary, indent=2, ensure_ascii=False), encoding="utf-8")
 (prod_metric_dir / "export_summary.json").write_text(json.dumps(prod_summary, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -717,21 +755,21 @@ print(json.dumps({
     "prod_image_count": prod_summary["image_count"],
     "processed_frames": world_summary["processed_frames"],
     "total_points": world_summary["total_points"],
+    "world_dir": str(world_dir),
 }, indent=2, ensure_ascii=False))
 ```
 
-## MRL-10 Block 3
+### Block 3: Continuous GS bootstrap prep
 
 ```python
 from pathlib import Path
+import gc
 import json
 import sys
-import shutil
 
 import numpy as np
 import pandas as pd
 import torch
-from plyfile import PlyData
 
 for name in list(sys.modules.keys()):
     if name.startswith("depth_anything_3"):
@@ -746,183 +784,483 @@ from depth_anything_3.api import DepthAnything3
 
 ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
 manifest_dir = Path(ctx["manifest_dir"])
-proof_giant_dir = Path(ctx["proof_giant_dir"])
+probe_root = Path(ctx["probe_root"])
+
+pipeline_root = probe_root / "continuous_gs_v03"
+global_pose_dir = pipeline_root / "global_pose_bootstrap"
+chunk_manifest_dir = pipeline_root / "manifests"
+chunk_runs_dir = pipeline_root / "chunk_runs"
+merged_dir = pipeline_root / "merged"
+
+for p in [pipeline_root, global_pose_dir, chunk_manifest_dir, chunk_runs_dir, merged_dir]:
+    p.mkdir(parents=True, exist_ok=True)
+
+MODEL_ID = "depth-anything/DA3NESTED-GIANT-LARGE-1.1"
+BUNDLE_MODEL_SLUG = "".join(ch.lower() for ch in MODEL_ID.split("/")[-1] if ch.isalnum()).replace("da3nested", "")
+PROCESS_RES = 504
+CHUNK_SIZE = 18
+STEP = 6
+ADOPT_SIZE = 6
+MAX_CHUNKS_TO_RUN = 3
+BOOTSTRAP_ONLY_TARGET_RANGE = True
+BOOTSTRAP_EXPORT_FORMAT = "mini_npz"
+
+config = {
+    "MODEL_ID": MODEL_ID,
+    "BUNDLE_MODEL_SLUG": BUNDLE_MODEL_SLUG,
+    "PROCESS_RES": PROCESS_RES,
+    "CHUNK_SIZE": CHUNK_SIZE,
+    "STEP": STEP,
+    "ADOPT_SIZE": ADOPT_SIZE,
+    "MAX_CHUNKS_TO_RUN": MAX_CHUNKS_TO_RUN,
+    "BOOTSTRAP_ONLY_TARGET_RANGE": BOOTSTRAP_ONLY_TARGET_RANGE,
+    "BOOTSTRAP_EXPORT_FORMAT": BOOTSTRAP_EXPORT_FORMAT,
+}
+(pipeline_root / "pipeline_config.json").write_text(json.dumps(config, indent=2, ensure_ascii=False), encoding="utf-8")
+
+prod_df = pd.read_csv(manifest_dir / "da3_input_manifest_prod.csv").reset_index(drop=True)
+
+chunks = []
+start = 0
+chunk_id = 0
+while start < len(prod_df):
+    end = min(start + CHUNK_SIZE, len(prod_df))
+    chunk_df = prod_df.iloc[start:end].copy().reset_index(drop=True)
+    if len(chunk_df) < 2:
+        break
+
+    adopt_end_local = min(ADOPT_SIZE, len(chunk_df))
+    chunk_name = f"chunk_{chunk_id:04d}_{start:05d}_{end-1:05d}"
+    chunk_df["chunk_local_index"] = range(len(chunk_df))
+    chunk_df["is_adopted_region"] = chunk_df["chunk_local_index"] < adopt_end_local
+
+    chunk_csv = chunk_manifest_dir / f"{chunk_name}.csv"
+    chunk_df.to_csv(chunk_csv, index=False, encoding="utf-8")
+
+    chunks.append({
+        "chunk_id": chunk_id,
+        "chunk_name": chunk_name,
+        "global_start": int(start),
+        "global_end": int(end - 1),
+        "frame_count": int(len(chunk_df)),
+        "adopt_local_start": 0,
+        "adopt_local_end": int(adopt_end_local - 1),
+        "chunk_csv": str(chunk_csv),
+    })
+
+    if end == len(prod_df):
+        break
+    start += STEP
+    chunk_id += 1
+
+all_chunks_df = pd.DataFrame(chunks)
+assert not all_chunks_df.empty, "no chunk generated"
+all_chunks_df.to_csv(chunk_manifest_dir / "chunk_index_all.csv", index=False, encoding="utf-8")
+
+target_chunks_df = all_chunks_df.copy() if MAX_CHUNKS_TO_RUN is None else all_chunks_df.head(int(MAX_CHUNKS_TO_RUN)).copy()
+assert not target_chunks_df.empty, "no target chunk generated"
+target_chunks_df.to_csv(chunk_manifest_dir / "chunk_index_target.csv", index=False, encoding="utf-8")
+
+bootstrap_df = (
+    prod_df.iloc[: int(target_chunks_df["global_end"].max()) + 1].copy().reset_index(drop=True)
+    if BOOTSTRAP_ONLY_TARGET_RANGE else prod_df.copy()
+)
+bootstrap_df.to_csv(global_pose_dir / "bootstrap_input_frames.csv", index=False, encoding="utf-8")
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+model = DepthAnything3.from_pretrained(MODEL_ID).to(device=device)
+
+prediction = model.inference(
+    image=bootstrap_df["image_path"].tolist(),
+    infer_gs=False,
+    process_res=PROCESS_RES,
+    export_dir=str(global_pose_dir),
+    export_format=BOOTSTRAP_EXPORT_FORMAT,
+)
+
+pred_intrinsics = getattr(prediction, "intrinsics", None)
+pred_extrinsics = getattr(prediction, "extrinsics", None)
+assert pred_intrinsics is not None, "bootstrap intrinsics missing"
+assert pred_extrinsics is not None, "bootstrap extrinsics missing"
+
+pred_intrinsics = np.asarray(pred_intrinsics).astype(np.float32)
+pred_extrinsics = np.asarray(pred_extrinsics).astype(np.float32)
+
+np.save(global_pose_dir / "pred_intrinsics.npy", pred_intrinsics)
+np.save(global_pose_dir / "pred_extrinsics.npy", pred_extrinsics)
+
+def to_4x4(ext):
+    ext = np.asarray(ext).astype(np.float32)
+    if ext.shape == (4, 4):
+        return ext
+    if ext.shape == (3, 4):
+        M = np.eye(4, dtype=np.float32)
+        M[:3, :] = ext
+        return M
+    raise ValueError(f"unexpected extrinsic shape: {ext.shape}")
+
+rows = []
+for i, row in enumerate(bootstrap_df.itertuples(index=False)):
+    w2c = to_4x4(pred_extrinsics[i])
+    c2w = np.linalg.inv(w2c)
+    center = c2w[:3, 3]
+    rows.append({
+        "bootstrap_index": i,
+        "record_index": int(row.record_index),
+        "image_file_name": row.image_file_name,
+        "image_path": row.image_path,
+        "cx_world": float(center[0]),
+        "cy_world": float(center[1]),
+        "cz_world": float(center[2]),
+    })
+
+camera_centers_df = pd.DataFrame(rows)
+camera_centers_df.to_csv(global_pose_dir / "camera_center_matrix.csv", index=False, encoding="utf-8")
+
+summary = {
+    "route": "continuous-gs-v03-bootstrap",
+    "bootstrap_mode": "pose_only_no_gs",
+    "bootstrap_export_format": BOOTSTRAP_EXPORT_FORMAT,
+    "target_chunk_count": len(target_chunks_df),
+    "bootstrap_frame_count": len(bootstrap_df),
+    "global_pose_dir": str(global_pose_dir),
+    "bundle_model_slug": BUNDLE_MODEL_SLUG,
+}
+(global_pose_dir / "export_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+
+del prediction
+del model
+gc.collect()
+if torch.cuda.is_available():
+    torch.cuda.empty_cache()
+
+print(json.dumps(summary, indent=2, ensure_ascii=False))
+print(target_chunks_df.to_string(index=False))
+```
+
+### Block 4: Continuous GS chunk run + merge + optional bundle
+
+```python
+from pathlib import Path
+import gc
+import json
+import sys
+import shutil
+
+import numpy as np
+import pandas as pd
+import torch
+from plyfile import PlyData, PlyElement
+
+ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
 probe_root = Path(ctx["probe_root"])
 results_root = Path(ctx["results_root"])
 modeling_session_id = ctx["modeling_session_id"]
 
-proof_df = pd.read_csv(manifest_dir / "da3_input_manifest_proof.csv")
-proof_images = proof_df["image_path"].tolist()
+pipeline_root = probe_root / "continuous_gs_v03"
+global_pose_dir = pipeline_root / "global_pose_bootstrap"
+chunk_manifest_dir = pipeline_root / "manifests"
+chunk_runs_dir = pipeline_root / "chunk_runs"
+merged_dir = pipeline_root / "merged"
 
+config = json.loads((pipeline_root / "pipeline_config.json").read_text(encoding="utf-8"))
+MODEL_ID = config["MODEL_ID"]
+PROCESS_RES = int(config["PROCESS_RES"])
+BUNDLE_MODEL_SLUG = config["BUNDLE_MODEL_SLUG"]
+
+RUN_CHUNK_NAMES = None
+SKIP_COMPLETED_CHUNKS = True
+MERGE_COMPLETED_CHUNKS = True
+MAKE_DRIVE_BUNDLE = True
+DOWNLOAD_LOCAL_BUNDLE = False
+CHUNK_EXPORT_FORMAT = "npz-glb-gs_ply-gs_video"
+
+target_chunks_df = pd.read_csv(chunk_manifest_dir / "chunk_index_target.csv")
+if RUN_CHUNK_NAMES:
+    target_chunks_df = target_chunks_df[target_chunks_df["chunk_name"].isin(RUN_CHUNK_NAMES)].copy()
+assert not target_chunks_df.empty, "no selected chunk"
+
+for name in list(sys.modules.keys()):
+    if name.startswith("depth_anything_3"):
+        del sys.modules[name]
+
+repo_root = Path("/content/Depth-Anything-3")
+src_root = repo_root / "src"
+if str(src_root) not in sys.path:
+    sys.path.insert(0, str(src_root))
+
+from depth_anything_3.api import DepthAnything3
+
+def to_4x4(ext):
+    ext = np.asarray(ext).astype(np.float32)
+    if ext.shape == (4, 4):
+        return ext
+    if ext.shape == (3, 4):
+        M = np.eye(4, dtype=np.float32)
+        M[:3, :] = ext
+        return M
+    raise ValueError(f"unexpected extrinsic shape: {ext.shape}")
+
+def camera_centers_from_extrinsics(extrinsics):
+    centers = []
+    for ext in extrinsics:
+        w2c = to_4x4(ext)
+        c2w = np.linalg.inv(w2c)
+        centers.append(c2w[:3, 3])
+    return np.stack(centers, axis=0)
+
+def umeyama_alignment(src, dst, estimate_scale=True):
+    src = np.asarray(src, dtype=np.float64)
+    dst = np.asarray(dst, dtype=np.float64)
+    src_mean = src.mean(axis=0)
+    dst_mean = dst.mean(axis=0)
+    src_c = src - src_mean
+    dst_c = dst - dst_mean
+    cov = (dst_c.T @ src_c) / src.shape[0]
+    U, D, Vt = np.linalg.svd(cov)
+    S = np.eye(3)
+    if np.linalg.det(U) * np.linalg.det(Vt) < 0:
+        S[-1, -1] = -1
+    R = U @ S @ Vt
+    if estimate_scale:
+        var_src = np.mean(np.sum(src_c ** 2, axis=1))
+        scale = np.trace(np.diag(D) @ S) / var_src
+    else:
+        scale = 1.0
+    t = dst_mean - scale * (R @ src_mean)
+    T = np.eye(4, dtype=np.float64)
+    T[:3, :3] = scale * R
+    T[:3, 3] = t
+    return T
+
+run_rows = []
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-MODEL_ID = "depth-anything/DA3NESTED-GIANT-LARGE-1.1"
-model = DepthAnything3.from_pretrained(MODEL_ID).to(device=device)
 
-PROCESS_RES = 504
-REF_VIEW_STRATEGY = "middle"
-CONF_THRESH_PERCENTILE = 25.0
-NUM_MAX_POINTS = 1250000
+for row in target_chunks_df.itertuples(index=False):
+    out_dir = chunk_runs_dir / row.chunk_name
+    pred_ext_path = out_dir / "pred_extrinsics.npy"
+    ply_path = out_dir / "gs_ply" / "0000.ply"
 
-prediction = model.inference(
-    image=proof_images,
-    infer_gs=True,
-    process_res=PROCESS_RES,
-    ref_view_strategy=REF_VIEW_STRATEGY,
-    export_dir=str(proof_giant_dir),
-    export_format="npz-glb-gs_ply-gs_video",
-    conf_thresh_percentile=CONF_THRESH_PERCENTILE,
-    num_max_points=NUM_MAX_POINTS,
-)
+    if SKIP_COMPLETED_CHUNKS and pred_ext_path.exists() and ply_path.exists():
+        chunk_df = pd.read_csv(row.chunk_csv)
+        run_rows.append({
+            "chunk_name": row.chunk_name,
+            "frame_count": len(chunk_df),
+            "status": "skipped_existing",
+            "ply_exists": True,
+            "glb_exists": (out_dir / "scene.glb").exists(),
+            "out_dir": str(out_dir),
+        })
+        continue
 
-proof_df.to_csv(proof_giant_dir / "proof_gs_input_frames.csv", index=False, encoding="utf-8")
+    if out_dir.exists():
+        shutil.rmtree(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-generated = []
-for p in sorted(proof_giant_dir.rglob("*")):
-    if p.is_file():
-        generated.append({
-            "relative_path": str(p.relative_to(proof_giant_dir)),
-            "size_bytes": int(p.stat().st_size),
+    chunk_df = pd.read_csv(row.chunk_csv)
+    model = DepthAnything3.from_pretrained(MODEL_ID).to(device=device)
+    prediction = model.inference(
+        image=chunk_df["image_path"].tolist(),
+        infer_gs=True,
+        process_res=PROCESS_RES,
+        export_dir=str(out_dir),
+        export_format=CHUNK_EXPORT_FORMAT,
+    )
+
+    pred_intrinsics = getattr(prediction, "intrinsics", None)
+    pred_extrinsics = getattr(prediction, "extrinsics", None)
+    assert pred_intrinsics is not None, f"intrinsics missing: {row.chunk_name}"
+    assert pred_extrinsics is not None, f"extrinsics missing: {row.chunk_name}"
+
+    np.save(out_dir / "pred_intrinsics.npy", np.asarray(pred_intrinsics).astype(np.float32))
+    np.save(out_dir / "pred_extrinsics.npy", np.asarray(pred_extrinsics).astype(np.float32))
+    chunk_df.to_csv(out_dir / "chunk_input_frames.csv", index=False, encoding="utf-8")
+
+    run_rows.append({
+        "chunk_name": row.chunk_name,
+        "frame_count": len(chunk_df),
+        "status": "ran",
+        "ply_exists": (out_dir / "gs_ply" / "0000.ply").exists(),
+        "glb_exists": (out_dir / "scene.glb").exists(),
+        "out_dir": str(out_dir),
+    })
+
+    del prediction
+    del model
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+run_df = pd.DataFrame(run_rows)
+run_summary_path = chunk_manifest_dir / "chunk_run_summary.csv"
+run_df.to_csv(run_summary_path, index=False, encoding="utf-8")
+
+merge_summary = {
+    "route": "continuous-gs-v03-merge",
+    "status": "skipped",
+    "reason": "MERGE_COMPLETED_CHUNKS is False",
+}
+
+if MERGE_COMPLETED_CHUNKS:
+    global_centers_df = pd.read_csv(global_pose_dir / "camera_center_matrix.csv")
+    X = global_centers_df[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32)
+    X0 = X - X.mean(axis=0, keepdims=True)
+    _, _, Vt = np.linalg.svd(X0, full_matrices=False)
+    axis = Vt[0]
+    axis = axis / np.linalg.norm(axis)
+    global_centers_df["proj"] = X @ axis
+
+    transform_rows = []
+    keep_rows = []
+    all_vertices = []
+    dtype_ref = None
+
+    for row in target_chunks_df.itertuples(index=False):
+        out_dir = chunk_runs_dir / row.chunk_name
+        ply_path = out_dir / "gs_ply" / "0000.ply"
+        pred_ext_path = out_dir / "pred_extrinsics.npy"
+        chunk_input_path = out_dir / "chunk_input_frames.csv"
+        if not (ply_path.exists() and pred_ext_path.exists() and chunk_input_path.exists()):
+            continue
+
+        chunk_df = pd.read_csv(chunk_input_path)
+        pred_extrinsics = np.load(pred_ext_path)
+        local_centers = camera_centers_from_extrinsics(pred_extrinsics)
+
+        merged = chunk_df.merge(
+            global_centers_df[["record_index", "cx_world", "cy_world", "cz_world", "proj"]],
+            on="record_index",
+            how="left",
+        )
+        assert not merged[["cx_world", "cy_world", "cz_world"]].isnull().any().any(), f"global center missing: {row.chunk_name}"
+
+        src = local_centers
+        dst = merged[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32)
+        T_c_to_w0 = umeyama_alignment(src, dst, estimate_scale=True)
+        T_path = chunk_manifest_dir / f"{row.chunk_name}_to_w0.npy"
+        np.save(T_path, T_c_to_w0.astype(np.float32))
+
+        transform_rows.append({
+            "chunk_name": row.chunk_name,
+            "frame_count": len(chunk_df),
+            "transform_path": str(T_path),
         })
 
-generated_df = pd.DataFrame(generated)
-generated_df.to_csv(proof_giant_dir / "generated_files_debug.csv", index=False, encoding="utf-8")
+        adopted_proj = merged.loc[merged["is_adopted_region"] == True, "proj"].to_numpy(dtype=np.float32)
+        if len(adopted_proj) == 0:
+            keep_rows.append({"chunk_name": row.chunk_name, "kept_vertices": 0, "left": None, "right": None})
+            continue
 
-gs_related = generated_df[
-    generated_df["relative_path"].str.contains(r"(?:^gs_|/gs_|\.glb$|\.ply$|proof_gs_input_frames\.csv)", regex=True)
-].copy()
-gs_related.to_csv(proof_giant_dir / "generated_gs_related_files_debug.csv", index=False, encoding="utf-8")
+        left = float(adopted_proj.min())
+        right = float(adopted_proj.max())
 
-gs_ply_path = proof_giant_dir / "gs_ply" / "0000.ply"
-debug_read_dir = proof_giant_dir / "debug_gs_readback"
-debug_visible_dir = proof_giant_dir / "debug_gs_visible_copy"
-debug_read_dir.mkdir(parents=True, exist_ok=True)
-debug_visible_dir.mkdir(parents=True, exist_ok=True)
+        ply = PlyData.read(str(ply_path))
+        df = pd.DataFrame(ply["vertex"].data)
+        xyz = df[["x", "y", "z"]].to_numpy(dtype=np.float32)
 
-if gs_ply_path.exists():
-    with open(gs_ply_path, "rb") as f:
-        head = f.read(8192).decode("latin1", errors="ignore")
-    (debug_read_dir / "0000_header.txt").write_text(head, encoding="utf-8")
-    shutil.copy2(debug_read_dir / "0000_header.txt", debug_visible_dir / "0000_header.txt")
+        A = T_c_to_w0[:3, :3].astype(np.float32)
+        t = T_c_to_w0[:3, 3].astype(np.float32)
+        xyz_w = (A @ xyz.T).T + t
+        proj_w = xyz_w @ axis
+        keep = (proj_w >= left) & (proj_w < right + 1e-6)
 
-    ply = PlyData.read(str(gs_ply_path))
-    v = ply["vertex"]
-    names = list(v.data.dtype.names)
+        df["x"] = xyz_w[:, 0]
+        df["y"] = xyz_w[:, 1]
+        df["z"] = xyz_w[:, 2]
+        df = df.loc[keep].copy()
 
-    rows = []
-    for name in names:
-        arr = np.asarray(v[name])
-        rec = {"property": name, "shape": str(arr.shape), "dtype": str(arr.dtype)}
-        if np.issubdtype(arr.dtype, np.number):
-            finite = np.isfinite(arr)
-            rec["finite_count"] = int(finite.sum())
-            rec["total_count"] = int(arr.size)
-            if finite.any():
-                af = arr[finite]
-                rec["min"] = float(af.min())
-                rec["max"] = float(af.max())
-                rec["mean"] = float(af.mean())
-        rows.append(rec)
-    pd.DataFrame(rows).to_csv(debug_read_dir / "0000_property_stats.csv", index=False, encoding="utf-8")
-    shutil.copy2(debug_read_dir / "0000_property_stats.csv", debug_visible_dir / "0000_property_stats.csv")
+        if len(df) == 0:
+            keep_rows.append({"chunk_name": row.chunk_name, "kept_vertices": 0, "left": left, "right": right})
+            continue
 
-    xyz = np.stack([np.asarray(v["x"]), np.asarray(v["y"]), np.asarray(v["z"])], axis=1)
-    xyz_mask = np.isfinite(xyz).all(axis=1)
-    with open(debug_read_dir / "0000_xyz_only.ply", "w", encoding="utf-8") as f:
-        f.write("ply\nformat ascii 1.0\n")
-        f.write(f"element vertex {int(xyz_mask.sum())}\n")
-        f.write("property float x\nproperty float y\nproperty float z\n")
-        f.write("end_header\n")
-        for p in xyz[xyz_mask]:
-            f.write(f"{p[0]} {p[1]} {p[2]}\n")
-    shutil.copy2(debug_read_dir / "0000_xyz_only.ply", debug_visible_dir / "0000_xyz_only.ply")
+        records = df.to_records(index=False)
+        if dtype_ref is None:
+            dtype_ref = records.dtype
+        else:
+            records = records.astype(dtype_ref, copy=False)
 
-    focus_cols = [n for n in names if any(k in n.lower() for k in ["scale", "opacity", "rot", "quaternion"])]
-    focus_rows = []
-    for name in focus_cols:
-        arr = np.asarray(v[name])
-        finite = np.isfinite(arr)
-        rec = {"property": name, "finite_count": int(finite.sum()), "total_count": int(arr.size)}
-        if finite.any():
-            af = arr[finite]
-            rec["min"] = float(af.min())
-            rec["max"] = float(af.max())
-            rec["mean"] = float(af.mean())
-        focus_rows.append(rec)
-    pd.DataFrame(focus_rows).to_csv(debug_read_dir / "0000_focus_stats.csv", index=False, encoding="utf-8")
-    shutil.copy2(debug_read_dir / "0000_focus_stats.csv", debug_visible_dir / "0000_focus_stats.csv")
+        all_vertices.append(records)
+        keep_rows.append({"chunk_name": row.chunk_name, "kept_vertices": int(len(records)), "left": left, "right": right})
 
-bundle_model_slug = "".join(ch.lower() for ch in MODEL_ID.split("/")[-1] if ch.isalnum()).replace("da3nested", "")
-drive_bundle_base = f"{modeling_session_id}_{bundle_model_slug}"
-drive_bundle_dir = results_root / drive_bundle_base
-drive_bundle_zip = results_root / f"{drive_bundle_base}.zip"
+    transform_df = pd.DataFrame(transform_rows)
+    transform_df.to_csv(chunk_manifest_dir / "chunk_global_transforms.csv", index=False, encoding="utf-8")
 
-if drive_bundle_dir.exists():
-    shutil.rmtree(drive_bundle_dir)
-drive_bundle_dir.mkdir(parents=True, exist_ok=True)
+    keep_df = pd.DataFrame(keep_rows)
+    keep_summary_path = merged_dir / "chunk_keep_summary.csv"
+    keep_df.to_csv(keep_summary_path, index=False, encoding="utf-8")
 
-bundle_file_count = 0
-for src in sorted(probe_root.rglob("*")):
-    if not src.is_file():
-        continue
-    dst = drive_bundle_dir / src.relative_to(probe_root)
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(src, dst)
-    bundle_file_count += 1
+    if all_vertices:
+        merged_vertices = np.concatenate(all_vertices, axis=0)
+        merged_path = merged_dir / "merged_gs.ply"
+        PlyData([PlyElement.describe(merged_vertices, "vertex")], text=False).write(str(merged_path))
+        merge_summary = {
+            "route": "continuous-gs-v03-merge",
+            "status": "ok",
+            "target_chunk_count": int(len(target_chunks_df)),
+            "merged_ply_path": str(merged_path),
+            "chunk_run_summary_path": str(run_summary_path),
+            "chunk_global_transforms_path": str(chunk_manifest_dir / "chunk_global_transforms.csv"),
+            "chunk_keep_summary_path": str(keep_summary_path),
+        }
+    else:
+        merge_summary = {
+            "route": "continuous-gs-v03-merge",
+            "status": "skipped",
+            "reason": "no kept vertices",
+            "chunk_run_summary_path": str(run_summary_path),
+            "chunk_global_transforms_path": str(chunk_manifest_dir / "chunk_global_transforms.csv"),
+            "chunk_keep_summary_path": str(keep_summary_path),
+        }
 
-if drive_bundle_zip.exists():
-    drive_bundle_zip.unlink()
-shutil.make_archive(str(drive_bundle_zip.with_suffix("")), "zip", root_dir=str(drive_bundle_dir))
+(merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+
+bundle_summary = {
+    "status": "skipped",
+    "reason": "MAKE_DRIVE_BUNDLE is False",
+}
+
+if MAKE_DRIVE_BUNDLE:
+    drive_bundle_base = f"{modeling_session_id}_{BUNDLE_MODEL_SLUG}_continuousgsv03"
+    drive_bundle_dir = results_root / drive_bundle_base
+    drive_bundle_zip = results_root / f"{drive_bundle_base}.zip"
+    local_bundle_zip = Path("/content") / f"{drive_bundle_base}.zip"
+
+    if drive_bundle_dir.exists():
+        shutil.rmtree(drive_bundle_dir)
+    if drive_bundle_zip.exists():
+        drive_bundle_zip.unlink()
+    if local_bundle_zip.exists():
+        local_bundle_zip.unlink()
+
+    shutil.copytree(pipeline_root, drive_bundle_dir)
+    shutil.make_archive(str(drive_bundle_zip.with_suffix("")), "zip", root_dir=str(drive_bundle_dir))
+
+    bundle_summary = {
+        "status": "ok",
+        "drive_bundle_dir": str(drive_bundle_dir),
+        "drive_bundle_zip": str(drive_bundle_zip),
+    }
+
+    if DOWNLOAD_LOCAL_BUNDLE:
+        from google.colab import files
+        shutil.copy2(drive_bundle_zip, local_bundle_zip)
+        bundle_summary["local_bundle_zip"] = str(local_bundle_zip)
+        files.download(str(local_bundle_zip))
 
 summary = {
-    "route": "Giant-proof-da3-estimated-pose",
-    "image_count": len(proof_images),
-    "proof_giant_dir": str(proof_giant_dir),
-    "prediction_type": str(type(prediction).__name__),
-    "camera_pose_source": "da3_estimated",
+    "route": "continuous-gs-v03-run",
     "model_id": MODEL_ID,
     "process_res": PROCESS_RES,
-    "ref_view_strategy": REF_VIEW_STRATEGY,
-    "conf_thresh_percentile": CONF_THRESH_PERCENTILE,
-    "num_max_points": NUM_MAX_POINTS,
-    "generated_file_count": int(len(generated_df)),
-    "generated_gs_related_file_count": int(len(gs_related)),
-    "generated_files_manifest": str(proof_giant_dir / "generated_files_debug.csv"),
-    "generated_gs_related_manifest": str(proof_giant_dir / "generated_gs_related_files_debug.csv"),
-    "debug_gs_readback_dir": str(debug_read_dir),
-    "debug_gs_visible_copy_dir": str(debug_visible_dir),
-    "drive_bundle_dir": str(drive_bundle_dir),
-    "drive_bundle_zip": str(drive_bundle_zip),
-    "drive_bundle_file_count": int(bundle_file_count),
-    "canonical_orientation_policy": str(proof_df["canonical_orientation_policy"].iloc[0]),
-    "intrinsics_case_counts": proof_df["intrinsics_case"].value_counts().to_dict(),
+    "selected_chunk_count": int(len(target_chunks_df)),
+    "chunk_run_summary_path": str(run_summary_path),
+    "merge_summary_path": str(merged_dir / "merge_summary.json"),
+    "bundle_summary": bundle_summary,
 }
-(proof_giant_dir / "export_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+
 print(json.dumps(summary, indent=2, ensure_ascii=False))
-print("\n# gs_related_files")
-print(gs_related.to_string(index=False))
-```
-
-## MRL-10 Block 4
-
-```python
-from pathlib import Path
-import json
-from google.colab import files
-import shutil
-
-ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
-results_root = Path(ctx["results_root"])
-modeling_session_id = ctx["modeling_session_id"]
-
-MODEL_ID = "depth-anything/DA3NESTED-GIANT-LARGE-1.1"
-bundle_model_slug = "".join(ch.lower() for ch in MODEL_ID.split("/")[-1] if ch.isalnum()).replace("da3nested", "")
-drive_bundle_base = f"{modeling_session_id}_{bundle_model_slug}"
-drive_bundle_zip = results_root / f"{drive_bundle_base}.zip"
-local_bundle_zip = Path("/content") / f"{drive_bundle_base}.zip"
-
-assert drive_bundle_zip.exists(), drive_bundle_zip
-shutil.copy2(drive_bundle_zip, local_bundle_zip)
-print("drive_bundle_zip", drive_bundle_zip)
-print("local_bundle_zip", local_bundle_zip)
-files.download(str(local_bundle_zip))
+print("\n# chunk_run_summary")
+print(run_df.to_string(index=False))
+if (merged_dir / "chunk_keep_summary.csv").exists():
+    print("\n# chunk_keep_summary")
+    print(pd.read_csv(merged_dir / "chunk_keep_summary.csv").to_string(index=False))
 ```
