@@ -909,8 +909,7 @@ PROCESS_RES = 504
 CHUNK_SIZE = 18
 STEP = 6
 ADOPT_SIZE = 6
-MAX_CHUNKS_TO_RUN = 3
-BOOTSTRAP_ONLY_TARGET_RANGE = True
+BOOTSTRAP_ONLY_TARGET_RANGE = False
 BOOTSTRAP_EXPORT_FORMAT = "mini_npz"
 
 config = {
@@ -920,7 +919,6 @@ config = {
     "CHUNK_SIZE": CHUNK_SIZE,
     "STEP": STEP,
     "ADOPT_SIZE": ADOPT_SIZE,
-    "MAX_CHUNKS_TO_RUN": MAX_CHUNKS_TO_RUN,
     "BOOTSTRAP_ONLY_TARGET_RANGE": BOOTSTRAP_ONLY_TARGET_RANGE,
     "BOOTSTRAP_EXPORT_FORMAT": BOOTSTRAP_EXPORT_FORMAT,
 }
@@ -965,12 +963,8 @@ all_chunks_df = pd.DataFrame(chunks)
 assert not all_chunks_df.empty, "no chunk generated"
 all_chunks_df.to_csv(chunk_manifest_dir / "chunk_index_all.csv", index=False, encoding="utf-8")
 
-target_chunks_df = all_chunks_df.copy() if MAX_CHUNKS_TO_RUN is None else all_chunks_df.head(int(MAX_CHUNKS_TO_RUN)).copy()
-assert not target_chunks_df.empty, "no target chunk generated"
-target_chunks_df.to_csv(chunk_manifest_dir / "chunk_index_target.csv", index=False, encoding="utf-8")
-
 bootstrap_df = (
-    prod_df.iloc[: int(target_chunks_df["global_end"].max()) + 1].copy().reset_index(drop=True)
+    prod_df.iloc[: int(all_chunks_df["global_end"].max()) + 1].copy().reset_index(drop=True)
     if BOOTSTRAP_ONLY_TARGET_RANGE else prod_df.copy()
 )
 bootstrap_df.to_csv(global_pose_dir / "bootstrap_input_frames.csv", index=False, encoding="utf-8")
@@ -1029,10 +1023,11 @@ summary = {
     "route": "continuous-gs-v03-bootstrap",
     "bootstrap_mode": "pose_only_no_gs",
     "bootstrap_export_format": BOOTSTRAP_EXPORT_FORMAT,
-    "target_chunk_count": len(target_chunks_df),
+    "all_chunk_count": len(all_chunks_df),
     "bootstrap_frame_count": len(bootstrap_df),
     "global_pose_dir": str(global_pose_dir),
     "bundle_model_slug": BUNDLE_MODEL_SLUG,
+    "chunk_index_all_path": str(chunk_manifest_dir / "chunk_index_all.csv"),
 }
 (global_pose_dir / "export_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
 
@@ -1043,7 +1038,7 @@ if torch.cuda.is_available():
     torch.cuda.empty_cache()
 
 print(json.dumps(summary, indent=2, ensure_ascii=False))
-print(target_chunks_df.to_string(index=False))
+print(all_chunks_df.to_string(index=False))
 ```
 
 ### Block 4: Continuous GS chunk run + merge + optional bundle
@@ -1077,17 +1072,28 @@ MODEL_ID = config["MODEL_ID"]
 PROCESS_RES = int(config["PROCESS_RES"])
 BUNDLE_MODEL_SLUG = config["BUNDLE_MODEL_SLUG"]
 
+RUN_CHUNK_BATCH_INDEX = 0
+RUN_CHUNK_BATCH_SIZE = 3
 RUN_CHUNK_NAMES = None
 SKIP_COMPLETED_CHUNKS = True
 MERGE_COMPLETED_CHUNKS = True
+MERGE_REQUIRE_ALL_CHUNKS = True
 MAKE_DRIVE_BUNDLE = True
 DOWNLOAD_LOCAL_BUNDLE = False
 CHUNK_EXPORT_FORMAT = "npz-glb-gs_ply-gs_video"
 
-target_chunks_df = pd.read_csv(chunk_manifest_dir / "chunk_index_target.csv")
+all_chunks_df = pd.read_csv(chunk_manifest_dir / "chunk_index_all.csv")
 if RUN_CHUNK_NAMES:
-    target_chunks_df = target_chunks_df[target_chunks_df["chunk_name"].isin(RUN_CHUNK_NAMES)].copy()
-assert not target_chunks_df.empty, "no selected chunk"
+    batch_chunks_df = all_chunks_df[all_chunks_df["chunk_name"].isin(RUN_CHUNK_NAMES)].copy()
+else:
+    batch_start = int(RUN_CHUNK_BATCH_INDEX) * int(RUN_CHUNK_BATCH_SIZE)
+    batch_end = batch_start + int(RUN_CHUNK_BATCH_SIZE)
+    batch_chunks_df = all_chunks_df.iloc[batch_start:batch_end].copy()
+assert not batch_chunks_df.empty, {
+    "run_chunk_batch_index": RUN_CHUNK_BATCH_INDEX,
+    "run_chunk_batch_size": RUN_CHUNK_BATCH_SIZE,
+    "all_chunk_count": len(all_chunks_df),
+}
 
 for name in list(sys.modules.keys()):
     if name.startswith("depth_anything_3"):
@@ -1145,7 +1151,7 @@ def umeyama_alignment(src, dst, estimate_scale=True):
 run_rows = []
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-for row in target_chunks_df.itertuples(index=False):
+for row in batch_chunks_df.itertuples(index=False):
     out_dir = chunk_runs_dir / row.chunk_name
     pred_ext_path = out_dir / "pred_extrinsics.npy"
     ply_path = out_dir / "gs_ply" / "0000.ply"
@@ -1202,6 +1208,10 @@ for row in target_chunks_df.itertuples(index=False):
 
 run_df = pd.DataFrame(run_rows)
 run_summary_path = chunk_manifest_dir / "chunk_run_summary.csv"
+if run_summary_path.exists():
+    prev_run_df = pd.read_csv(run_summary_path)
+    run_df = pd.concat([prev_run_df, run_df], ignore_index=True)
+    run_df = run_df.drop_duplicates(subset=["chunk_name"], keep="last")
 run_df.to_csv(run_summary_path, index=False, encoding="utf-8")
 
 merge_summary = {
@@ -1211,115 +1221,136 @@ merge_summary = {
 }
 
 if MERGE_COMPLETED_CHUNKS:
-    global_centers_df = pd.read_csv(global_pose_dir / "camera_center_matrix.csv")
-    X = global_centers_df[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32)
-    X0 = X - X.mean(axis=0, keepdims=True)
-    _, _, Vt = np.linalg.svd(X0, full_matrices=False)
-    axis = Vt[0]
-    axis = axis / np.linalg.norm(axis)
-    global_centers_df["proj"] = X @ axis
+    completed_chunk_names = sorted({
+        p.parent.name
+        for p in chunk_runs_dir.glob("*/gs_ply/0000.ply")
+    })
+    completed_chunks_df = all_chunks_df[all_chunks_df["chunk_name"].isin(completed_chunk_names)].copy()
 
-    transform_rows = []
-    keep_rows = []
-    all_vertices = []
-    dtype_ref = None
-
-    for row in target_chunks_df.itertuples(index=False):
-        out_dir = chunk_runs_dir / row.chunk_name
-        ply_path = out_dir / "gs_ply" / "0000.ply"
-        pred_ext_path = out_dir / "pred_extrinsics.npy"
-        chunk_input_path = out_dir / "chunk_input_frames.csv"
-        if not (ply_path.exists() and pred_ext_path.exists() and chunk_input_path.exists()):
-            continue
-
-        chunk_df = pd.read_csv(chunk_input_path)
-        pred_extrinsics = np.load(pred_ext_path)
-        local_centers = camera_centers_from_extrinsics(pred_extrinsics)
-
-        merged = chunk_df.merge(
-            global_centers_df[["record_index", "cx_world", "cy_world", "cz_world", "proj"]],
-            on="record_index",
-            how="left",
-        )
-        assert not merged[["cx_world", "cy_world", "cz_world"]].isnull().any().any(), f"global center missing: {row.chunk_name}"
-
-        src = local_centers
-        dst = merged[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32)
-        T_c_to_w0 = umeyama_alignment(src, dst, estimate_scale=True)
-        T_path = chunk_manifest_dir / f"{row.chunk_name}_to_w0.npy"
-        np.save(T_path, T_c_to_w0.astype(np.float32))
-
-        transform_rows.append({
-            "chunk_name": row.chunk_name,
-            "frame_count": len(chunk_df),
-            "transform_path": str(T_path),
-        })
-
-        adopted_proj = merged.loc[merged["is_adopted_region"] == True, "proj"].to_numpy(dtype=np.float32)
-        if len(adopted_proj) == 0:
-            keep_rows.append({"chunk_name": row.chunk_name, "kept_vertices": 0, "left": None, "right": None})
-            continue
-
-        left = float(adopted_proj.min())
-        right = float(adopted_proj.max())
-
-        ply = PlyData.read(str(ply_path))
-        df = pd.DataFrame(ply["vertex"].data)
-        xyz = df[["x", "y", "z"]].to_numpy(dtype=np.float32)
-
-        A = T_c_to_w0[:3, :3].astype(np.float32)
-        t = T_c_to_w0[:3, 3].astype(np.float32)
-        xyz_w = (A @ xyz.T).T + t
-        proj_w = xyz_w @ axis
-        keep = (proj_w >= left) & (proj_w < right + 1e-6)
-
-        df["x"] = xyz_w[:, 0]
-        df["y"] = xyz_w[:, 1]
-        df["z"] = xyz_w[:, 2]
-        df = df.loc[keep].copy()
-
-        if len(df) == 0:
-            keep_rows.append({"chunk_name": row.chunk_name, "kept_vertices": 0, "left": left, "right": right})
-            continue
-
-        records = df.to_records(index=False)
-        if dtype_ref is None:
-            dtype_ref = records.dtype
-        else:
-            records = records.astype(dtype_ref, copy=False)
-
-        all_vertices.append(records)
-        keep_rows.append({"chunk_name": row.chunk_name, "kept_vertices": int(len(records)), "left": left, "right": right})
-
-    transform_df = pd.DataFrame(transform_rows)
-    transform_df.to_csv(chunk_manifest_dir / "chunk_global_transforms.csv", index=False, encoding="utf-8")
-
-    keep_df = pd.DataFrame(keep_rows)
-    keep_summary_path = merged_dir / "chunk_keep_summary.csv"
-    keep_df.to_csv(keep_summary_path, index=False, encoding="utf-8")
-
-    if all_vertices:
-        merged_vertices = np.concatenate(all_vertices, axis=0)
-        merged_path = merged_dir / "merged_gs.ply"
-        PlyData([PlyElement.describe(merged_vertices, "vertex")], text=False).write(str(merged_path))
-        merge_summary = {
-            "route": "continuous-gs-v03-merge",
-            "status": "ok",
-            "target_chunk_count": int(len(target_chunks_df)),
-            "merged_ply_path": str(merged_path),
-            "chunk_run_summary_path": str(run_summary_path),
-            "chunk_global_transforms_path": str(chunk_manifest_dir / "chunk_global_transforms.csv"),
-            "chunk_keep_summary_path": str(keep_summary_path),
-        }
-    else:
+    if MERGE_REQUIRE_ALL_CHUNKS and len(completed_chunks_df) < len(all_chunks_df):
         merge_summary = {
             "route": "continuous-gs-v03-merge",
             "status": "skipped",
-            "reason": "no kept vertices",
+            "reason": "waiting_for_all_chunks",
+            "completed_chunk_count": int(len(completed_chunks_df)),
+            "all_chunk_count": int(len(all_chunks_df)),
+            "run_chunk_batch_index": int(RUN_CHUNK_BATCH_INDEX),
+            "run_chunk_batch_size": int(RUN_CHUNK_BATCH_SIZE),
             "chunk_run_summary_path": str(run_summary_path),
-            "chunk_global_transforms_path": str(chunk_manifest_dir / "chunk_global_transforms.csv"),
-            "chunk_keep_summary_path": str(keep_summary_path),
         }
+    else:
+        global_centers_df = pd.read_csv(global_pose_dir / "camera_center_matrix.csv")
+        X = global_centers_df[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32)
+        X0 = X - X.mean(axis=0, keepdims=True)
+        _, _, Vt = np.linalg.svd(X0, full_matrices=False)
+        axis = Vt[0]
+        axis = axis / np.linalg.norm(axis)
+        global_centers_df["proj"] = X @ axis
+
+        transform_rows = []
+        keep_rows = []
+        all_vertices = []
+        dtype_ref = None
+
+        for row in completed_chunks_df.itertuples(index=False):
+            out_dir = chunk_runs_dir / row.chunk_name
+            ply_path = out_dir / "gs_ply" / "0000.ply"
+            pred_ext_path = out_dir / "pred_extrinsics.npy"
+            chunk_input_path = out_dir / "chunk_input_frames.csv"
+            if not (ply_path.exists() and pred_ext_path.exists() and chunk_input_path.exists()):
+                continue
+
+            chunk_df = pd.read_csv(chunk_input_path)
+            pred_extrinsics = np.load(pred_ext_path)
+            local_centers = camera_centers_from_extrinsics(pred_extrinsics)
+
+            merged = chunk_df.merge(
+                global_centers_df[["record_index", "cx_world", "cy_world", "cz_world", "proj"]],
+                on="record_index",
+                how="left",
+            )
+            assert not merged[["cx_world", "cy_world", "cz_world"]].isnull().any().any(), f"global center missing: {row.chunk_name}"
+
+            src = local_centers
+            dst = merged[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32)
+            T_c_to_w0 = umeyama_alignment(src, dst, estimate_scale=True)
+            T_path = chunk_manifest_dir / f"{row.chunk_name}_to_w0.npy"
+            np.save(T_path, T_c_to_w0.astype(np.float32))
+
+            transform_rows.append({
+                "chunk_name": row.chunk_name,
+                "frame_count": len(chunk_df),
+                "transform_path": str(T_path),
+            })
+
+            adopted_proj = merged.loc[merged["is_adopted_region"] == True, "proj"].to_numpy(dtype=np.float32)
+            if len(adopted_proj) == 0:
+                keep_rows.append({"chunk_name": row.chunk_name, "kept_vertices": 0, "left": None, "right": None})
+                continue
+
+            left = float(adopted_proj.min())
+            right = float(adopted_proj.max())
+
+            ply = PlyData.read(str(ply_path))
+            df = pd.DataFrame(ply["vertex"].data)
+            xyz = df[["x", "y", "z"]].to_numpy(dtype=np.float32)
+
+            A = T_c_to_w0[:3, :3].astype(np.float32)
+            t = T_c_to_w0[:3, 3].astype(np.float32)
+            xyz_w = (A @ xyz.T).T + t
+            proj_w = xyz_w @ axis
+            keep = (proj_w >= left) & (proj_w < right + 1e-6)
+
+            df["x"] = xyz_w[:, 0]
+            df["y"] = xyz_w[:, 1]
+            df["z"] = xyz_w[:, 2]
+            df = df.loc[keep].copy()
+
+            if len(df) == 0:
+                keep_rows.append({"chunk_name": row.chunk_name, "kept_vertices": 0, "left": left, "right": right})
+                continue
+
+            records = df.to_records(index=False)
+            if dtype_ref is None:
+                dtype_ref = records.dtype
+            else:
+                records = records.astype(dtype_ref, copy=False)
+
+            all_vertices.append(records)
+            keep_rows.append({"chunk_name": row.chunk_name, "kept_vertices": int(len(records)), "left": left, "right": right})
+
+        transform_df = pd.DataFrame(transform_rows)
+        transform_df.to_csv(chunk_manifest_dir / "chunk_global_transforms.csv", index=False, encoding="utf-8")
+
+        keep_df = pd.DataFrame(keep_rows)
+        keep_summary_path = merged_dir / "chunk_keep_summary.csv"
+        keep_df.to_csv(keep_summary_path, index=False, encoding="utf-8")
+
+        if all_vertices:
+            merged_vertices = np.concatenate(all_vertices, axis=0)
+            merged_path = merged_dir / "merged_gs.ply"
+            PlyData([PlyElement.describe(merged_vertices, "vertex")], text=False).write(str(merged_path))
+            merge_summary = {
+                "route": "continuous-gs-v03-merge",
+                "status": "ok",
+                "completed_chunk_count": int(len(completed_chunks_df)),
+                "all_chunk_count": int(len(all_chunks_df)),
+                "merged_ply_path": str(merged_path),
+                "chunk_run_summary_path": str(run_summary_path),
+                "chunk_global_transforms_path": str(chunk_manifest_dir / "chunk_global_transforms.csv"),
+                "chunk_keep_summary_path": str(keep_summary_path),
+            }
+        else:
+            merge_summary = {
+                "route": "continuous-gs-v03-merge",
+                "status": "skipped",
+                "reason": "no kept vertices",
+                "completed_chunk_count": int(len(completed_chunks_df)),
+                "all_chunk_count": int(len(all_chunks_df)),
+                "chunk_run_summary_path": str(run_summary_path),
+                "chunk_global_transforms_path": str(chunk_manifest_dir / "chunk_global_transforms.csv"),
+                "chunk_keep_summary_path": str(keep_summary_path),
+            }
 
 (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
 
@@ -1360,7 +1391,10 @@ summary = {
     "route": "continuous-gs-v03-run",
     "model_id": MODEL_ID,
     "process_res": PROCESS_RES,
-    "selected_chunk_count": int(len(target_chunks_df)),
+    "all_chunk_count": int(len(all_chunks_df)),
+    "batch_chunk_count": int(len(batch_chunks_df)),
+    "run_chunk_batch_index": int(RUN_CHUNK_BATCH_INDEX),
+    "run_chunk_batch_size": int(RUN_CHUNK_BATCH_SIZE),
     "chunk_run_summary_path": str(run_summary_path),
     "merge_summary_path": str(merged_dir / "merge_summary.json"),
     "bundle_summary": bundle_summary,
