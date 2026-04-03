@@ -964,30 +964,16 @@ print(json.dumps({
 }, indent=2, ensure_ascii=False))
 ```
 
-### Block 3: Continuous GS bootstrap + batch plan
+### Block 3: Global camera matrix + batch plan
 
 ```python
 #12
 from pathlib import Path
-import gc
 import json
 import math
-import sys
 
 import numpy as np
 import pandas as pd
-import torch
-
-for name in list(sys.modules.keys()):
-    if name.startswith("depth_anything_3"):
-        del sys.modules[name]
-
-repo_root = Path("/content/Depth-Anything-3")
-src_root = repo_root / "src"
-if str(src_root) not in sys.path:
-    sys.path.insert(0, str(src_root))
-
-from depth_anything_3.api import DepthAnything3
 
 ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
 manifest_dir = Path(ctx["manifest_dir"])
@@ -1009,8 +995,6 @@ CHUNK_SIZE = 18
 STEP = 12
 ADOPT_SIZE = 12
 CHUNKS_PER_BATCH = 3
-BOOTSTRAP_EXPORT_FORMAT = "npz"
-BOOTSTRAP_INFER_GS = False
 
 config = {
     "MODEL_ID": MODEL_ID,
@@ -1020,13 +1004,29 @@ config = {
     "STEP": STEP,
     "ADOPT_SIZE": ADOPT_SIZE,
     "CHUNKS_PER_BATCH": CHUNKS_PER_BATCH,
-    "BOOTSTRAP_EXPORT_FORMAT": BOOTSTRAP_EXPORT_FORMAT,
-    "BOOTSTRAP_INFER_GS": BOOTSTRAP_INFER_GS,
+    "GLOBAL_CAMERA_SOURCE": "extrinsics_w2c_prod.npy",
 }
 (pipeline_root / "pipeline_config.json").write_text(json.dumps(config, indent=2, ensure_ascii=False), encoding="utf-8")
 
 prod_df = pd.read_csv(manifest_dir / "da3_input_manifest_prod.csv").reset_index(drop=True)
 assert len(prod_df) >= 2, {"prod_frame_count": len(prod_df)}
+prod_extrinsics_path = manifest_dir / "extrinsics_w2c_prod.npy"
+assert prod_extrinsics_path.exists(), prod_extrinsics_path
+prod_extrinsics = np.load(prod_extrinsics_path).astype(np.float32)
+assert prod_extrinsics.shape[0] == len(prod_df), {
+    "prod_extrinsics_shape": tuple(prod_extrinsics.shape),
+    "prod_frame_count": len(prod_df),
+}
+
+def to_4x4(ext):
+    ext = np.asarray(ext).astype(np.float32)
+    if ext.shape == (4, 4):
+        return ext
+    if ext.shape == (3, 4):
+        M = np.eye(4, dtype=np.float32)
+        M[:3, :] = ext
+        return M
+    raise ValueError(f"unexpected extrinsic shape: {ext.shape}")
 
 chunks = []
 start_pos = 0
@@ -1085,42 +1085,10 @@ batch_plan_df.to_csv(chunk_manifest_dir / "batch_plan.csv", index=False, encodin
 bootstrap_df = prod_df.copy()
 bootstrap_df.to_csv(global_pose_dir / "bootstrap_input_frames.csv", index=False, encoding="utf-8")
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = DepthAnything3.from_pretrained(MODEL_ID).to(device=device)
-
-prediction = model.inference(
-    image=bootstrap_df["image_path"].tolist(),
-    infer_gs=BOOTSTRAP_INFER_GS,
-    process_res=PROCESS_RES,
-    export_dir=str(global_pose_dir),
-    export_format=BOOTSTRAP_EXPORT_FORMAT,
-)
-
-pred_intrinsics = getattr(prediction, "intrinsics", None)
-pred_extrinsics = getattr(prediction, "extrinsics", None)
-assert pred_intrinsics is not None, "bootstrap intrinsics missing"
-assert pred_extrinsics is not None, "bootstrap extrinsics missing"
-
-pred_intrinsics = np.asarray(pred_intrinsics).astype(np.float32)
-pred_extrinsics = np.asarray(pred_extrinsics).astype(np.float32)
-
-np.save(global_pose_dir / "pred_intrinsics.npy", pred_intrinsics)
-np.save(global_pose_dir / "pred_extrinsics.npy", pred_extrinsics)
-
-def to_4x4(ext):
-    ext = np.asarray(ext).astype(np.float32)
-    if ext.shape == (4, 4):
-        return ext
-    if ext.shape == (3, 4):
-        M = np.eye(4, dtype=np.float32)
-        M[:3, :] = ext
-        return M
-    raise ValueError(f"unexpected extrinsic shape: {ext.shape}")
-
 rows = []
 pose_rows = []
 for i, row in enumerate(bootstrap_df.itertuples(index=False)):
-    w2c = to_4x4(pred_extrinsics[i])
+    w2c = to_4x4(prod_extrinsics[i])
     c2w = np.linalg.inv(w2c)
     center = c2w[:3, 3]
     rows.append({
@@ -1149,24 +1117,18 @@ camera_matrix_df = pd.DataFrame(pose_rows)
 camera_matrix_df.to_csv(global_pose_dir / "camera_matrix_full.csv", index=False, encoding="utf-8")
 
 summary = {
-    "route": "continuous-gs-v06-chunk18-overlap6-adopt12-bootstrap",
-    "bootstrap_mode": "pose_only_no_gs",
-    "bootstrap_export_format": BOOTSTRAP_EXPORT_FORMAT,
+    "route": "continuous-gs-v06-chunk18-overlap6-adopt12-global-camera-matrix",
+    "global_camera_source": "extrinsics_w2c_prod.npy",
     "bootstrap_frame_count": int(len(bootstrap_df)),
     "chunk_count": int(len(all_chunks_df)),
     "batch_count": int(batch_count),
     "global_pose_dir": str(global_pose_dir),
     "bundle_model_slug": BUNDLE_MODEL_SLUG,
+    "prod_extrinsics_path": str(prod_extrinsics_path),
     "chunk_index_all_path": str(chunk_manifest_dir / "chunk_index_all.csv"),
     "batch_plan_path": str(chunk_manifest_dir / "batch_plan.csv"),
 }
 (global_pose_dir / "export_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
-
-del prediction
-del model
-gc.collect()
-if torch.cuda.is_available():
-    torch.cuda.empty_cache()
 
 print(json.dumps(summary, indent=2, ensure_ascii=False))
 print("\n# batch_plan")
