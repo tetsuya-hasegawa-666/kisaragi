@@ -48,6 +48,8 @@
 4. `MRL-10 Block 2`
 5. 必要時のみ `MRL-10 Block 3`
 6. 必要時のみ `MRL-10 Block 4`
+7. 必要時のみ `MRL-10 Block 5` を `RUN_BATCH_INDEX` を変えながら繰り返す
+8. 最後に `MRL-10 Block 6`
 
 ## 準備確認
 
@@ -866,13 +868,14 @@ print(json.dumps({
 }, indent=2, ensure_ascii=False))
 ```
 
-### Block 3: Continuous GS bootstrap prep
+### Block 3: Continuous GS bootstrap + batch plan
 
 ```python
 #12
 from pathlib import Path
 import gc
 import json
+import math
 import sys
 
 import numpy as np
@@ -894,7 +897,7 @@ ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encodin
 manifest_dir = Path(ctx["manifest_dir"])
 probe_root = Path(ctx["probe_root"])
 
-pipeline_root = probe_root / "continuous_gs_v03"
+pipeline_root = probe_root / "continuous_gs_v05_chunk3_sequential"
 global_pose_dir = pipeline_root / "global_pose_bootstrap"
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
@@ -906,11 +909,12 @@ for p in [pipeline_root, global_pose_dir, chunk_manifest_dir, chunk_runs_dir, me
 MODEL_ID = "depth-anything/DA3NESTED-GIANT-LARGE-1.1"
 BUNDLE_MODEL_SLUG = "".join(ch.lower() for ch in MODEL_ID.split("/")[-1] if ch.isalnum()).replace("da3nested", "")
 PROCESS_RES = 504
-CHUNK_SIZE = 18
-STEP = 6
-ADOPT_SIZE = 6
-BOOTSTRAP_ONLY_TARGET_RANGE = False
-BOOTSTRAP_EXPORT_FORMAT = "mini_npz"
+CHUNK_SIZE = 3
+STEP = 3
+ADOPT_SIZE = 3
+CHUNKS_PER_BATCH = 3
+BOOTSTRAP_EXPORT_FORMAT = "npz"
+BOOTSTRAP_INFER_GS = False
 
 config = {
     "MODEL_ID": MODEL_ID,
@@ -919,54 +923,68 @@ config = {
     "CHUNK_SIZE": CHUNK_SIZE,
     "STEP": STEP,
     "ADOPT_SIZE": ADOPT_SIZE,
-    "BOOTSTRAP_ONLY_TARGET_RANGE": BOOTSTRAP_ONLY_TARGET_RANGE,
+    "CHUNKS_PER_BATCH": CHUNKS_PER_BATCH,
     "BOOTSTRAP_EXPORT_FORMAT": BOOTSTRAP_EXPORT_FORMAT,
+    "BOOTSTRAP_INFER_GS": BOOTSTRAP_INFER_GS,
 }
 (pipeline_root / "pipeline_config.json").write_text(json.dumps(config, indent=2, ensure_ascii=False), encoding="utf-8")
 
 prod_df = pd.read_csv(manifest_dir / "da3_input_manifest_prod.csv").reset_index(drop=True)
+assert len(prod_df) >= 2, {"prod_frame_count": len(prod_df)}
 
 chunks = []
-start = 0
+start_pos = 0
 chunk_id = 0
-while start < len(prod_df):
-    end = min(start + CHUNK_SIZE, len(prod_df))
-    chunk_df = prod_df.iloc[start:end].copy().reset_index(drop=True)
+while start_pos < len(prod_df):
+    end_pos = min(start_pos + CHUNK_SIZE, len(prod_df))
+    chunk_df = prod_df.iloc[start_pos:end_pos].copy().reset_index(drop=True)
     if len(chunk_df) < 2:
         break
 
-    adopt_end_local = min(ADOPT_SIZE, len(chunk_df))
-    chunk_name = f"chunk_{chunk_id:04d}_{start:05d}_{end-1:05d}"
+    chunk_name = f"chunk_{chunk_id:04d}_{start_pos:05d}_{end_pos-1:05d}"
     chunk_df["chunk_local_index"] = range(len(chunk_df))
-    chunk_df["is_adopted_region"] = chunk_df["chunk_local_index"] < adopt_end_local
+    chunk_df["is_adopted_region"] = chunk_df["chunk_local_index"] < min(ADOPT_SIZE, len(chunk_df))
 
     chunk_csv = chunk_manifest_dir / f"{chunk_name}.csv"
     chunk_df.to_csv(chunk_csv, index=False, encoding="utf-8")
 
     chunks.append({
-        "chunk_id": chunk_id,
+        "chunk_id": int(chunk_id),
         "chunk_name": chunk_name,
-        "global_start": int(start),
-        "global_end": int(end - 1),
+        "global_start": int(start_pos),
+        "global_end": int(end_pos - 1),
         "frame_count": int(len(chunk_df)),
         "adopt_local_start": 0,
-        "adopt_local_end": int(adopt_end_local - 1),
+        "adopt_local_end": int(min(ADOPT_SIZE, len(chunk_df)) - 1),
         "chunk_csv": str(chunk_csv),
     })
 
-    if end == len(prod_df):
+    if end_pos == len(prod_df):
         break
-    start += STEP
+    start_pos += STEP
     chunk_id += 1
 
 all_chunks_df = pd.DataFrame(chunks)
-assert not all_chunks_df.empty, "no chunk generated"
+assert len(all_chunks_df) >= 1, "no chunks generated"
 all_chunks_df.to_csv(chunk_manifest_dir / "chunk_index_all.csv", index=False, encoding="utf-8")
+all_chunks_df.to_csv(chunk_manifest_dir / "chunk_index_target.csv", index=False, encoding="utf-8")
 
-bootstrap_df = (
-    prod_df.iloc[: int(all_chunks_df["global_end"].max()) + 1].copy().reset_index(drop=True)
-    if BOOTSTRAP_ONLY_TARGET_RANGE else prod_df.copy()
-)
+batch_rows = []
+batch_count = math.ceil(len(all_chunks_df) / CHUNKS_PER_BATCH)
+for batch_index in range(batch_count):
+    s = batch_index * CHUNKS_PER_BATCH
+    e = min(s + CHUNKS_PER_BATCH, len(all_chunks_df))
+    batch_rows.append({
+        "batch_index": batch_index,
+        "chunk_from": s,
+        "chunk_to": e - 1,
+        "chunk_count": e - s,
+        "chunk_names": "|".join(all_chunks_df.iloc[s:e]["chunk_name"].tolist()),
+    })
+batch_plan_df = pd.DataFrame(batch_rows)
+batch_plan_df.to_csv(chunk_manifest_dir / "batch_plan.csv", index=False, encoding="utf-8")
+
+bootstrap_df = prod_df.copy()
 bootstrap_df.to_csv(global_pose_dir / "bootstrap_input_frames.csv", index=False, encoding="utf-8")
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -974,7 +992,7 @@ model = DepthAnything3.from_pretrained(MODEL_ID).to(device=device)
 
 prediction = model.inference(
     image=bootstrap_df["image_path"].tolist(),
-    infer_gs=False,
+    infer_gs=BOOTSTRAP_INFER_GS,
     process_res=PROCESS_RES,
     export_dir=str(global_pose_dir),
     export_format=BOOTSTRAP_EXPORT_FORMAT,
@@ -1002,6 +1020,7 @@ def to_4x4(ext):
     raise ValueError(f"unexpected extrinsic shape: {ext.shape}")
 
 rows = []
+pose_rows = []
 for i, row in enumerate(bootstrap_df.itertuples(index=False)):
     w2c = to_4x4(pred_extrinsics[i])
     c2w = np.linalg.inv(w2c)
@@ -1015,19 +1034,33 @@ for i, row in enumerate(bootstrap_df.itertuples(index=False)):
         "cy_world": float(center[1]),
         "cz_world": float(center[2]),
     })
+    pose_rows.append({
+        "bootstrap_index": i,
+        "record_index": int(row.record_index),
+        "image_file_name": row.image_file_name,
+        "m00": float(c2w[0, 0]), "m01": float(c2w[0, 1]), "m02": float(c2w[0, 2]), "m03": float(c2w[0, 3]),
+        "m10": float(c2w[1, 0]), "m11": float(c2w[1, 1]), "m12": float(c2w[1, 2]), "m13": float(c2w[1, 3]),
+        "m20": float(c2w[2, 0]), "m21": float(c2w[2, 1]), "m22": float(c2w[2, 2]), "m23": float(c2w[2, 3]),
+        "m30": float(c2w[3, 0]), "m31": float(c2w[3, 1]), "m32": float(c2w[3, 2]), "m33": float(c2w[3, 3]),
+    })
 
 camera_centers_df = pd.DataFrame(rows)
 camera_centers_df.to_csv(global_pose_dir / "camera_center_matrix.csv", index=False, encoding="utf-8")
 
+camera_matrix_df = pd.DataFrame(pose_rows)
+camera_matrix_df.to_csv(global_pose_dir / "camera_matrix_full.csv", index=False, encoding="utf-8")
+
 summary = {
-    "route": "continuous-gs-v03-bootstrap",
+    "route": "continuous-gs-v05-chunk3-sequential-bootstrap",
     "bootstrap_mode": "pose_only_no_gs",
     "bootstrap_export_format": BOOTSTRAP_EXPORT_FORMAT,
-    "all_chunk_count": len(all_chunks_df),
-    "bootstrap_frame_count": len(bootstrap_df),
+    "bootstrap_frame_count": int(len(bootstrap_df)),
+    "chunk_count": int(len(all_chunks_df)),
+    "batch_count": int(batch_count),
     "global_pose_dir": str(global_pose_dir),
     "bundle_model_slug": BUNDLE_MODEL_SLUG,
     "chunk_index_all_path": str(chunk_manifest_dir / "chunk_index_all.csv"),
+    "batch_plan_path": str(chunk_manifest_dir / "batch_plan.csv"),
 }
 (global_pose_dir / "export_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
 
@@ -1038,10 +1071,11 @@ if torch.cuda.is_available():
     torch.cuda.empty_cache()
 
 print(json.dumps(summary, indent=2, ensure_ascii=False))
-print(all_chunks_df.to_string(index=False))
+print("\n# batch_plan")
+print(batch_plan_df.to_string(index=False))
 ```
 
-### Block 4: Continuous GS chunk run + merge + optional bundle
+### Block 4: 3chunk sequential helper
 
 ```python
 #13
@@ -1054,14 +1088,13 @@ import shutil
 import numpy as np
 import pandas as pd
 import torch
+import trimesh
 from plyfile import PlyData, PlyElement
 
 ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
 probe_root = Path(ctx["probe_root"])
-results_root = Path(ctx["results_root"])
-modeling_session_id = ctx["modeling_session_id"]
 
-pipeline_root = probe_root / "continuous_gs_v03"
+pipeline_root = probe_root / "continuous_gs_v05_chunk3_sequential"
 global_pose_dir = pipeline_root / "global_pose_bootstrap"
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
@@ -1069,42 +1102,11 @@ merged_dir = pipeline_root / "merged"
 
 config = json.loads((pipeline_root / "pipeline_config.json").read_text(encoding="utf-8"))
 MODEL_ID = config["MODEL_ID"]
-PROCESS_RES = int(config["PROCESS_RES"])
-BUNDLE_MODEL_SLUG = config["BUNDLE_MODEL_SLUG"]
+PROCESS_RES = config["PROCESS_RES"]
+CHUNKS_PER_BATCH = config["CHUNKS_PER_BATCH"]
 
-RUN_CHUNK_BATCH_INDEX = 0
-RUN_CHUNK_BATCH_SIZE = 3
-RUN_CHUNK_NAMES = None
-SKIP_COMPLETED_CHUNKS = True
-MERGE_COMPLETED_CHUNKS = True
-MERGE_REQUIRE_ALL_CHUNKS = True
-MAKE_DRIVE_BUNDLE = True
-DOWNLOAD_LOCAL_BUNDLE = False
-CHUNK_EXPORT_FORMAT = "npz-glb-gs_ply-gs_video"
-
-all_chunks_df = pd.read_csv(chunk_manifest_dir / "chunk_index_all.csv")
-if RUN_CHUNK_NAMES:
-    batch_chunks_df = all_chunks_df[all_chunks_df["chunk_name"].isin(RUN_CHUNK_NAMES)].copy()
-else:
-    batch_start = int(RUN_CHUNK_BATCH_INDEX) * int(RUN_CHUNK_BATCH_SIZE)
-    batch_end = batch_start + int(RUN_CHUNK_BATCH_SIZE)
-    batch_chunks_df = all_chunks_df.iloc[batch_start:batch_end].copy()
-assert not batch_chunks_df.empty, {
-    "run_chunk_batch_index": RUN_CHUNK_BATCH_INDEX,
-    "run_chunk_batch_size": RUN_CHUNK_BATCH_SIZE,
-    "all_chunk_count": len(all_chunks_df),
-}
-
-for name in list(sys.modules.keys()):
-    if name.startswith("depth_anything_3"):
-        del sys.modules[name]
-
-repo_root = Path("/content/Depth-Anything-3")
-src_root = repo_root / "src"
-if str(src_root) not in sys.path:
-    sys.path.insert(0, str(src_root))
-
-from depth_anything_3.api import DepthAnything3
+target_chunks_df = pd.read_csv(chunk_manifest_dir / "chunk_index_target.csv")
+global_centers_df = pd.read_csv(global_pose_dir / "camera_center_matrix.csv")
 
 def to_4x4(ext):
     ext = np.asarray(ext).astype(np.float32)
@@ -1127,167 +1129,156 @@ def camera_centers_from_extrinsics(extrinsics):
 def umeyama_alignment(src, dst, estimate_scale=True):
     src = np.asarray(src, dtype=np.float64)
     dst = np.asarray(dst, dtype=np.float64)
+
     src_mean = src.mean(axis=0)
     dst_mean = dst.mean(axis=0)
     src_c = src - src_mean
     dst_c = dst - dst_mean
+
     cov = (dst_c.T @ src_c) / src.shape[0]
     U, D, Vt = np.linalg.svd(cov)
     S = np.eye(3)
     if np.linalg.det(U) * np.linalg.det(Vt) < 0:
         S[-1, -1] = -1
+
     R = U @ S @ Vt
     if estimate_scale:
         var_src = np.mean(np.sum(src_c ** 2, axis=1))
-        scale = np.trace(np.diag(D) @ S) / var_src
+        scale = np.trace(np.diag(D) @ S) / max(var_src, 1e-12)
     else:
         scale = 1.0
+
     t = dst_mean - scale * (R @ src_mean)
     T = np.eye(4, dtype=np.float64)
     T[:3, :3] = scale * R
     T[:3, 3] = t
-    return T
+    return T.astype(np.float32)
 
-run_rows = []
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+def load_scene_any(path: Path):
+    loaded = trimesh.load(str(path), force="scene")
+    if isinstance(loaded, trimesh.Scene):
+        return loaded
+    scene = trimesh.Scene()
+    if hasattr(loaded, "geometry"):
+        for name, geom in loaded.geometry.items():
+            scene.add_geometry(geom, node_name=name)
+    else:
+        scene.add_geometry(loaded)
+    return scene
 
-for row in batch_chunks_df.itertuples(index=False):
-    out_dir = chunk_runs_dir / row.chunk_name
-    pred_ext_path = out_dir / "pred_extrinsics.npy"
-    ply_path = out_dir / "gs_ply" / "0000.ply"
+def process_batch(run_batch_index: int):
+    batch_start = run_batch_index * CHUNKS_PER_BATCH
+    batch_end = min(batch_start + CHUNKS_PER_BATCH, len(target_chunks_df))
 
-    if SKIP_COMPLETED_CHUNKS and pred_ext_path.exists() and ply_path.exists():
+    if batch_start >= len(target_chunks_df):
+        print(json.dumps({
+            "status": "skip",
+            "reason": "batch_out_of_range",
+            "run_batch_index": int(run_batch_index),
+            "available_batch_count": int((len(target_chunks_df) + CHUNKS_PER_BATCH - 1) // CHUNKS_PER_BATCH),
+        }, indent=2, ensure_ascii=False))
+        return
+
+    batch_chunks_df = target_chunks_df.iloc[batch_start:batch_end].copy().reset_index(drop=True)
+    batch_name = f"batch_{run_batch_index:03d}"
+    batch_dir = chunk_runs_dir / batch_name
+    batch_dir.mkdir(parents=True, exist_ok=True)
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = DepthAnything3.from_pretrained(MODEL_ID).to(device=device)
+
+    X = global_centers_df[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32)
+    X0 = X - X.mean(axis=0, keepdims=True)
+    _, _, Vt = np.linalg.svd(X0, full_matrices=False)
+    axis = Vt[0]
+    axis = axis / np.linalg.norm(axis)
+
+    run_rows = []
+    transform_rows = []
+    keep_rows = []
+    batch_records = []
+    batch_scene = trimesh.Scene()
+
+    for row in batch_chunks_df.itertuples(index=False):
         chunk_df = pd.read_csv(row.chunk_csv)
-        run_rows.append({
+        images = chunk_df["image_path"].tolist()
+
+        out_dir = chunk_runs_dir / row.chunk_name
+        done_flag = out_dir / "_SUCCESS.json"
+
+        if done_flag.exists():
+            pred_extrinsics = np.load(out_dir / "pred_extrinsics.npy")
+            chunk_df = pd.read_csv(out_dir / "chunk_input_frames.csv")
+        else:
+            if out_dir.exists():
+                shutil.rmtree(out_dir)
+            out_dir.mkdir(parents=True, exist_ok=True)
+
+            prediction = model.inference(
+                image=images,
+                infer_gs=True,
+                process_res=PROCESS_RES,
+                export_dir=str(out_dir),
+                export_format="npz-glb-gs_ply-gs_video",
+            )
+
+            pred_intrinsics = getattr(prediction, "intrinsics", None)
+            pred_extrinsics = getattr(prediction, "extrinsics", None)
+
+            assert pred_intrinsics is not None, f"intrinsics missing: {row.chunk_name}"
+            assert pred_extrinsics is not None, f"extrinsics missing: {row.chunk_name}"
+
+            np.save(out_dir / "pred_intrinsics.npy", np.asarray(pred_intrinsics).astype(np.float32))
+            np.save(out_dir / "pred_extrinsics.npy", np.asarray(pred_extrinsics).astype(np.float32))
+            chunk_df.to_csv(out_dir / "chunk_input_frames.csv", index=False, encoding="utf-8")
+            done_flag.write_text(json.dumps({"chunk_name": row.chunk_name}, indent=2, ensure_ascii=False), encoding="utf-8")
+
+        pred_extrinsics = np.asarray(pred_extrinsics).astype(np.float32)
+        local_centers = camera_centers_from_extrinsics(pred_extrinsics)
+
+        merged = chunk_df.merge(
+            global_centers_df[["record_index", "cx_world", "cy_world", "cz_world"]],
+            on="record_index",
+            how="left",
+        )
+        assert len(merged) == len(chunk_df), {"chunk_name": row.chunk_name, "merged_len": len(merged), "chunk_len": len(chunk_df)}
+
+        src = local_centers
+        dst = merged[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32)
+        T_c_to_w0 = umeyama_alignment(src, dst, estimate_scale=True)
+
+        T_path = chunk_manifest_dir / f"{row.chunk_name}_to_w0.npy"
+        np.save(T_path, T_c_to_w0.astype(np.float32))
+
+        transform_rows.append({
             "chunk_name": row.chunk_name,
-            "frame_count": len(chunk_df),
-            "status": "skipped_existing",
-            "ply_exists": True,
-            "glb_exists": (out_dir / "scene.glb").exists(),
+            "frame_count": int(len(chunk_df)),
+            "transform_path": str(T_path),
+        })
+
+        ply_path = out_dir / "gs_ply" / "0000.ply"
+        glb_path = out_dir / "scene.glb"
+
+        run_rows.append({
+            "batch_name": batch_name,
+            "chunk_name": row.chunk_name,
+            "frame_count": int(len(chunk_df)),
+            "ply_exists": bool(ply_path.exists()),
+            "glb_exists": bool(glb_path.exists()),
             "out_dir": str(out_dir),
         })
-        continue
 
-    if out_dir.exists():
-        shutil.rmtree(out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
+        if ply_path.exists():
+            T = np.load(T_path).astype(np.float32)
+            A = T[:3, :3]
+            t = T[:3, 3]
 
-    chunk_df = pd.read_csv(row.chunk_csv)
-    model = DepthAnything3.from_pretrained(MODEL_ID).to(device=device)
-    prediction = model.inference(
-        image=chunk_df["image_path"].tolist(),
-        infer_gs=True,
-        process_res=PROCESS_RES,
-        export_dir=str(out_dir),
-        export_format=CHUNK_EXPORT_FORMAT,
-    )
-
-    pred_intrinsics = getattr(prediction, "intrinsics", None)
-    pred_extrinsics = getattr(prediction, "extrinsics", None)
-    assert pred_intrinsics is not None, f"intrinsics missing: {row.chunk_name}"
-    assert pred_extrinsics is not None, f"extrinsics missing: {row.chunk_name}"
-
-    np.save(out_dir / "pred_intrinsics.npy", np.asarray(pred_intrinsics).astype(np.float32))
-    np.save(out_dir / "pred_extrinsics.npy", np.asarray(pred_extrinsics).astype(np.float32))
-    chunk_df.to_csv(out_dir / "chunk_input_frames.csv", index=False, encoding="utf-8")
-
-    run_rows.append({
-        "chunk_name": row.chunk_name,
-        "frame_count": len(chunk_df),
-        "status": "ran",
-        "ply_exists": (out_dir / "gs_ply" / "0000.ply").exists(),
-        "glb_exists": (out_dir / "scene.glb").exists(),
-        "out_dir": str(out_dir),
-    })
-
-    del prediction
-    del model
-    gc.collect()
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-
-run_df = pd.DataFrame(run_rows)
-run_summary_path = chunk_manifest_dir / "chunk_run_summary.csv"
-if run_summary_path.exists():
-    prev_run_df = pd.read_csv(run_summary_path)
-    run_df = pd.concat([prev_run_df, run_df], ignore_index=True)
-    run_df = run_df.drop_duplicates(subset=["chunk_name"], keep="last")
-run_df.to_csv(run_summary_path, index=False, encoding="utf-8")
-
-merge_summary = {
-    "route": "continuous-gs-v03-merge",
-    "status": "skipped",
-    "reason": "MERGE_COMPLETED_CHUNKS is False",
-}
-
-if MERGE_COMPLETED_CHUNKS:
-    completed_chunk_names = sorted({
-        p.parent.name
-        for p in chunk_runs_dir.glob("*/gs_ply/0000.ply")
-    })
-    completed_chunks_df = all_chunks_df[all_chunks_df["chunk_name"].isin(completed_chunk_names)].copy()
-
-    if MERGE_REQUIRE_ALL_CHUNKS and len(completed_chunks_df) < len(all_chunks_df):
-        merge_summary = {
-            "route": "continuous-gs-v03-merge",
-            "status": "skipped",
-            "reason": "waiting_for_all_chunks",
-            "completed_chunk_count": int(len(completed_chunks_df)),
-            "all_chunk_count": int(len(all_chunks_df)),
-            "run_chunk_batch_index": int(RUN_CHUNK_BATCH_INDEX),
-            "run_chunk_batch_size": int(RUN_CHUNK_BATCH_SIZE),
-            "chunk_run_summary_path": str(run_summary_path),
-        }
-    else:
-        global_centers_df = pd.read_csv(global_pose_dir / "camera_center_matrix.csv")
-        X = global_centers_df[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32)
-        X0 = X - X.mean(axis=0, keepdims=True)
-        _, _, Vt = np.linalg.svd(X0, full_matrices=False)
-        axis = Vt[0]
-        axis = axis / np.linalg.norm(axis)
-        global_centers_df["proj"] = X @ axis
-
-        transform_rows = []
-        keep_rows = []
-        all_vertices = []
-        dtype_ref = None
-
-        for row in completed_chunks_df.itertuples(index=False):
-            out_dir = chunk_runs_dir / row.chunk_name
-            ply_path = out_dir / "gs_ply" / "0000.ply"
-            pred_ext_path = out_dir / "pred_extrinsics.npy"
-            chunk_input_path = out_dir / "chunk_input_frames.csv"
-            if not (ply_path.exists() and pred_ext_path.exists() and chunk_input_path.exists()):
-                continue
-
-            chunk_df = pd.read_csv(chunk_input_path)
-            pred_extrinsics = np.load(pred_ext_path)
-            local_centers = camera_centers_from_extrinsics(pred_extrinsics)
-
-            merged = chunk_df.merge(
-                global_centers_df[["record_index", "cx_world", "cy_world", "cz_world", "proj"]],
-                on="record_index",
-                how="left",
-            )
-            assert not merged[["cx_world", "cy_world", "cz_world"]].isnull().any().any(), f"global center missing: {row.chunk_name}"
-
-            src = local_centers
-            dst = merged[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32)
-            T_c_to_w0 = umeyama_alignment(src, dst, estimate_scale=True)
-            T_path = chunk_manifest_dir / f"{row.chunk_name}_to_w0.npy"
-            np.save(T_path, T_c_to_w0.astype(np.float32))
-
-            transform_rows.append({
-                "chunk_name": row.chunk_name,
-                "frame_count": len(chunk_df),
-                "transform_path": str(T_path),
-            })
-
-            adopted_proj = merged.loc[merged["is_adopted_region"] == True, "proj"].to_numpy(dtype=np.float32)
-            if len(adopted_proj) == 0:
-                keep_rows.append({"chunk_name": row.chunk_name, "kept_vertices": 0, "left": None, "right": None})
-                continue
-
+            adopted = chunk_df.loc[chunk_df["is_adopted_region"] == True].copy()
+            adopted_world = global_centers_df.loc[
+                global_centers_df["record_index"].isin(adopted["record_index"].tolist()),
+                ["cx_world", "cy_world", "cz_world"],
+            ].to_numpy(dtype=np.float32)
+            adopted_proj = adopted_world @ axis
             left = float(adopted_proj.min())
             right = float(adopted_proj.max())
 
@@ -1295,8 +1286,6 @@ if MERGE_COMPLETED_CHUNKS:
             df = pd.DataFrame(ply["vertex"].data)
             xyz = df[["x", "y", "z"]].to_numpy(dtype=np.float32)
 
-            A = T_c_to_w0[:3, :3].astype(np.float32)
-            t = T_c_to_w0[:3, 3].astype(np.float32)
             xyz_w = (A @ xyz.T).T + t
             proj_w = xyz_w @ axis
             keep = (proj_w >= left) & (proj_w < right + 1e-6)
@@ -1306,104 +1295,322 @@ if MERGE_COMPLETED_CHUNKS:
             df["z"] = xyz_w[:, 2]
             df = df.loc[keep].copy()
 
-            if len(df) == 0:
-                keep_rows.append({"chunk_name": row.chunk_name, "kept_vertices": 0, "left": left, "right": right})
-                continue
+            if len(df) > 0:
+                batch_records.append(df.to_records(index=False))
 
+            keep_rows.append({
+                "batch_name": batch_name,
+                "chunk_name": row.chunk_name,
+                "kept_vertices": int(len(df)),
+                "left": left,
+                "right": right,
+            })
+
+        if glb_path.exists():
+            scene = load_scene_any(glb_path)
+            T = np.load(T_path).astype(np.float32)
+            for gname, geom in scene.geometry.items():
+                geom2 = geom.copy()
+                if hasattr(geom2, "apply_transform"):
+                    geom2.apply_transform(T)
+                batch_scene.add_geometry(geom2, node_name=f"{row.chunk_name}_{gname}")
+
+    run_df = pd.DataFrame(run_rows)
+    run_df.to_csv(batch_dir / "chunk_run_summary.csv", index=False, encoding="utf-8")
+
+    transform_df = pd.DataFrame(transform_rows)
+    transform_df.to_csv(batch_dir / "chunk_global_transforms.csv", index=False, encoding="utf-8")
+
+    keep_df = pd.DataFrame(keep_rows)
+    keep_df.to_csv(batch_dir / "chunk_keep_summary.csv", index=False, encoding="utf-8")
+
+    batch_ply_path = batch_dir / f"{batch_name}_merged_gs.ply"
+    if batch_records:
+        batch_records_concat = np.concatenate(batch_records, axis=0)
+        PlyData([PlyElement.describe(batch_records_concat, "vertex")], text=False).write(str(batch_ply_path))
+
+    batch_glb_path = batch_dir / f"{batch_name}_merged_scene.glb"
+    if len(batch_scene.geometry) > 0:
+        batch_scene.export(str(batch_glb_path))
+
+    batch_summary = {
+        "status": "ok",
+        "batch_name": batch_name,
+        "run_batch_index": int(run_batch_index),
+        "chunk_count": int(len(batch_chunks_df)),
+        "chunk_names": batch_chunks_df["chunk_name"].tolist(),
+        "batch_ply_path": str(batch_ply_path) if batch_ply_path.exists() else None,
+        "batch_glb_path": str(batch_glb_path) if batch_glb_path.exists() else None,
+    }
+    (batch_dir / "batch_summary.json").write_text(json.dumps(batch_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    del model
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+    print(json.dumps(batch_summary, indent=2, ensure_ascii=False))
+```
+
+### Block 5: 3chunk sequential batch run
+
+```python
+#14
+RUN_BATCH_INDEX = 0
+process_batch(RUN_BATCH_INDEX)
+```
+
+### Block 6: Final rebuild merge + bundle
+
+```python
+#15
+from pathlib import Path
+import json
+import shutil
+
+import numpy as np
+import pandas as pd
+import trimesh
+from plyfile import PlyData, PlyElement
+
+ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
+probe_root = Path(ctx["probe_root"])
+results_root = Path(ctx["results_root"])
+modeling_session_id = ctx["modeling_session_id"]
+
+pipeline_root = probe_root / "continuous_gs_v05_chunk3_sequential"
+global_pose_dir = pipeline_root / "global_pose_bootstrap"
+chunk_manifest_dir = pipeline_root / "manifests"
+chunk_runs_dir = pipeline_root / "chunk_runs"
+merged_dir = pipeline_root / "merged"
+merged_dir.mkdir(parents=True, exist_ok=True)
+
+config = json.loads((pipeline_root / "pipeline_config.json").read_text(encoding="utf-8"))
+BUNDLE_MODEL_SLUG = config["BUNDLE_MODEL_SLUG"]
+REQUIRE_ALL_CHUNKS = True
+MAKE_DRIVE_BUNDLE = True
+DOWNLOAD_LOCAL_BUNDLE = False
+
+all_chunks_df = pd.read_csv(chunk_manifest_dir / "chunk_index_all.csv")
+completed_chunk_names = sorted({
+    p.parent.name
+    for p in chunk_runs_dir.glob("*/gs_ply/0000.ply")
+})
+completed_chunks_df = all_chunks_df[all_chunks_df["chunk_name"].isin(completed_chunk_names)].copy()
+
+batch_summaries = sorted(chunk_runs_dir.glob("batch_*/batch_summary.json"))
+summary_rows = [json.loads(p.read_text(encoding="utf-8")) for p in batch_summaries]
+(merged_dir / "all_batch_summary.json").write_text(json.dumps(summary_rows, indent=2, ensure_ascii=False), encoding="utf-8")
+
+if REQUIRE_ALL_CHUNKS and len(completed_chunks_df) < len(all_chunks_df):
+    merge_summary = {
+        "route": "continuous-gs-v05-chunk3-sequential-merge",
+        "status": "skipped",
+        "reason": "waiting_for_all_chunks",
+        "completed_chunk_count": int(len(completed_chunks_df)),
+        "all_chunk_count": int(len(all_chunks_df)),
+        "all_batch_summary_path": str(merged_dir / "all_batch_summary.json"),
+    }
+    (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
+else:
+    global_centers_df = pd.read_csv(global_pose_dir / "camera_center_matrix.csv")
+    X = global_centers_df[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32)
+    X0 = X - X.mean(axis=0, keepdims=True)
+    _, _, Vt = np.linalg.svd(X0, full_matrices=False)
+    axis = Vt[0]
+    axis = axis / np.linalg.norm(axis)
+    global_centers_df["proj"] = X @ axis
+
+    def load_scene_any(path: Path):
+        loaded = trimesh.load(str(path), force="scene")
+        if isinstance(loaded, trimesh.Scene):
+            return loaded
+        scene = trimesh.Scene()
+        if hasattr(loaded, "geometry"):
+            for name, geom in loaded.geometry.items():
+                scene.add_geometry(geom, node_name=name)
+        else:
+            scene.add_geometry(loaded)
+        return scene
+
+    def to_4x4(ext):
+        ext = np.asarray(ext).astype(np.float32)
+        if ext.shape == (4, 4):
+            return ext
+        if ext.shape == (3, 4):
+            M = np.eye(4, dtype=np.float32)
+            M[:3, :] = ext
+            return M
+        raise ValueError(f"unexpected extrinsic shape: {ext.shape}")
+
+    transform_rows = []
+    keep_rows = []
+    all_vertices = []
+    dtype_ref = None
+    master_scene = trimesh.Scene()
+
+    for row in completed_chunks_df.itertuples(index=False):
+        out_dir = chunk_runs_dir / row.chunk_name
+        ply_path = out_dir / "gs_ply" / "0000.ply"
+        pred_ext_path = out_dir / "pred_extrinsics.npy"
+        chunk_input_path = out_dir / "chunk_input_frames.csv"
+        glb_path = out_dir / "scene.glb"
+        if not (ply_path.exists() and pred_ext_path.exists() and chunk_input_path.exists()):
+            continue
+
+        chunk_df = pd.read_csv(chunk_input_path)
+        pred_extrinsics = np.load(pred_ext_path)
+
+        local_centers = []
+        for ext in pred_extrinsics:
+            w2c = to_4x4(ext)
+            c2w = np.linalg.inv(w2c)
+            local_centers.append(c2w[:3, 3])
+        local_centers = np.stack(local_centers, axis=0)
+
+        merged = chunk_df.merge(
+            global_centers_df[["record_index", "cx_world", "cy_world", "cz_world", "proj"]],
+            on="record_index",
+            how="left",
+        )
+        assert not merged[["cx_world", "cy_world", "cz_world"]].isnull().any().any(), f"global center missing: {row.chunk_name}"
+
+        src = np.asarray(local_centers, dtype=np.float64)
+        dst = merged[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32).astype(np.float64)
+        src_mean = src.mean(axis=0)
+        dst_mean = dst.mean(axis=0)
+        src_c = src - src_mean
+        dst_c = dst - dst_mean
+        cov = (dst_c.T @ src_c) / src.shape[0]
+        U, D, Vt2 = np.linalg.svd(cov)
+        S = np.eye(3)
+        if np.linalg.det(U) * np.linalg.det(Vt2) < 0:
+            S[-1, -1] = -1
+        R = U @ S @ Vt2
+        var_src = np.mean(np.sum(src_c ** 2, axis=1))
+        scale = np.trace(np.diag(D) @ S) / max(var_src, 1e-12)
+        t = dst_mean - scale * (R @ src_mean)
+        T_c_to_w0 = np.eye(4, dtype=np.float32)
+        T_c_to_w0[:3, :3] = (scale * R).astype(np.float32)
+        T_c_to_w0[:3, 3] = t.astype(np.float32)
+
+        T_path = chunk_manifest_dir / f"{row.chunk_name}_to_w0.npy"
+        np.save(T_path, T_c_to_w0)
+        transform_rows.append({
+            "chunk_name": row.chunk_name,
+            "frame_count": int(len(chunk_df)),
+            "transform_path": str(T_path),
+        })
+
+        adopted_proj = merged.loc[merged["is_adopted_region"] == True, "proj"].to_numpy(dtype=np.float32)
+        if len(adopted_proj) == 0:
+            keep_rows.append({"chunk_name": row.chunk_name, "kept_vertices": 0, "left": None, "right": None})
+            continue
+
+        left = float(adopted_proj.min())
+        right = float(adopted_proj.max())
+
+        ply = PlyData.read(str(ply_path))
+        df = pd.DataFrame(ply["vertex"].data)
+        xyz = df[["x", "y", "z"]].to_numpy(dtype=np.float32)
+
+        A = T_c_to_w0[:3, :3].astype(np.float32)
+        t32 = T_c_to_w0[:3, 3].astype(np.float32)
+        xyz_w = (A @ xyz.T).T + t32
+        proj_w = xyz_w @ axis
+        keep = (proj_w >= left) & (proj_w < right + 1e-6)
+
+        df["x"] = xyz_w[:, 0]
+        df["y"] = xyz_w[:, 1]
+        df["z"] = xyz_w[:, 2]
+        df = df.loc[keep].copy()
+
+        if len(df) > 0:
             records = df.to_records(index=False)
             if dtype_ref is None:
                 dtype_ref = records.dtype
             else:
                 records = records.astype(dtype_ref, copy=False)
-
             all_vertices.append(records)
-            keep_rows.append({"chunk_name": row.chunk_name, "kept_vertices": int(len(records)), "left": left, "right": right})
 
-        transform_df = pd.DataFrame(transform_rows)
-        transform_df.to_csv(chunk_manifest_dir / "chunk_global_transforms.csv", index=False, encoding="utf-8")
+        keep_rows.append({
+            "chunk_name": row.chunk_name,
+            "kept_vertices": int(len(df)),
+            "left": left,
+            "right": right,
+        })
 
-        keep_df = pd.DataFrame(keep_rows)
-        keep_summary_path = merged_dir / "chunk_keep_summary.csv"
-        keep_df.to_csv(keep_summary_path, index=False, encoding="utf-8")
+        if glb_path.exists():
+            scene = load_scene_any(glb_path)
+            for gname, geom in scene.geometry.items():
+                geom2 = geom.copy()
+                if hasattr(geom2, "apply_transform"):
+                    geom2.apply_transform(T_c_to_w0)
+                master_scene.add_geometry(geom2, node_name=f"{row.chunk_name}_{gname}")
 
-        if all_vertices:
-            merged_vertices = np.concatenate(all_vertices, axis=0)
-            merged_path = merged_dir / "merged_gs.ply"
-            PlyData([PlyElement.describe(merged_vertices, "vertex")], text=False).write(str(merged_path))
-            merge_summary = {
-                "route": "continuous-gs-v03-merge",
-                "status": "ok",
-                "completed_chunk_count": int(len(completed_chunks_df)),
-                "all_chunk_count": int(len(all_chunks_df)),
-                "merged_ply_path": str(merged_path),
-                "chunk_run_summary_path": str(run_summary_path),
-                "chunk_global_transforms_path": str(chunk_manifest_dir / "chunk_global_transforms.csv"),
-                "chunk_keep_summary_path": str(keep_summary_path),
-            }
-        else:
-            merge_summary = {
-                "route": "continuous-gs-v03-merge",
-                "status": "skipped",
-                "reason": "no kept vertices",
-                "completed_chunk_count": int(len(completed_chunks_df)),
-                "all_chunk_count": int(len(all_chunks_df)),
-                "chunk_run_summary_path": str(run_summary_path),
-                "chunk_global_transforms_path": str(chunk_manifest_dir / "chunk_global_transforms.csv"),
-                "chunk_keep_summary_path": str(keep_summary_path),
-            }
+    transform_df = pd.DataFrame(transform_rows)
+    transform_df.to_csv(chunk_manifest_dir / "chunk_global_transforms.csv", index=False, encoding="utf-8")
 
-(merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+    keep_df = pd.DataFrame(keep_rows)
+    keep_summary_path = merged_dir / "chunk_keep_summary.csv"
+    keep_df.to_csv(keep_summary_path, index=False, encoding="utf-8")
 
-bundle_summary = {
-    "status": "skipped",
-    "reason": "MAKE_DRIVE_BUNDLE is False",
-}
+    merged_ply_path = merged_dir / "merged_gs.ply"
+    if all_vertices:
+        merged_vertices = np.concatenate(all_vertices, axis=0)
+        PlyData([PlyElement.describe(merged_vertices, "vertex")], text=False).write(str(merged_ply_path))
 
-if MAKE_DRIVE_BUNDLE:
-    drive_bundle_base = f"{modeling_session_id}_{BUNDLE_MODEL_SLUG}_continuousgsv03"
-    drive_bundle_dir = results_root / drive_bundle_base
-    drive_bundle_zip = results_root / f"{drive_bundle_base}.zip"
-    local_bundle_zip = Path("/content") / f"{drive_bundle_base}.zip"
-
-    if drive_bundle_dir.exists():
-        shutil.rmtree(drive_bundle_dir)
-    if drive_bundle_zip.exists():
-        drive_bundle_zip.unlink()
-    if local_bundle_zip.exists():
-        local_bundle_zip.unlink()
-
-    shutil.copytree(pipeline_root, drive_bundle_dir)
-    shutil.make_archive(str(drive_bundle_zip.with_suffix("")), "zip", root_dir=str(drive_bundle_dir))
+    merged_glb_path = merged_dir / "merged_scene.glb"
+    if len(master_scene.geometry) > 0:
+        master_scene.export(str(merged_glb_path))
 
     bundle_summary = {
-        "status": "ok",
-        "drive_bundle_dir": str(drive_bundle_dir),
-        "drive_bundle_zip": str(drive_bundle_zip),
+        "status": "skipped",
+        "reason": "MAKE_DRIVE_BUNDLE is False",
     }
 
-    if DOWNLOAD_LOCAL_BUNDLE:
-        from google.colab import files
-        shutil.copy2(drive_bundle_zip, local_bundle_zip)
-        bundle_summary["local_bundle_zip"] = str(local_bundle_zip)
-        files.download(str(local_bundle_zip))
+    if MAKE_DRIVE_BUNDLE:
+        drive_bundle_base = f"{modeling_session_id}_{BUNDLE_MODEL_SLUG}_continuousgsv05chunk3seq"
+        drive_bundle_dir = results_root / drive_bundle_base
+        drive_bundle_zip = results_root / f"{drive_bundle_base}.zip"
+        local_bundle_zip = Path("/content") / f"{drive_bundle_base}.zip"
 
-summary = {
-    "route": "continuous-gs-v03-run",
-    "model_id": MODEL_ID,
-    "process_res": PROCESS_RES,
-    "all_chunk_count": int(len(all_chunks_df)),
-    "batch_chunk_count": int(len(batch_chunks_df)),
-    "run_chunk_batch_index": int(RUN_CHUNK_BATCH_INDEX),
-    "run_chunk_batch_size": int(RUN_CHUNK_BATCH_SIZE),
-    "chunk_run_summary_path": str(run_summary_path),
-    "merge_summary_path": str(merged_dir / "merge_summary.json"),
-    "bundle_summary": bundle_summary,
-}
+        if drive_bundle_dir.exists():
+            shutil.rmtree(drive_bundle_dir)
+        if drive_bundle_zip.exists():
+            drive_bundle_zip.unlink()
+        if local_bundle_zip.exists():
+            local_bundle_zip.unlink()
 
-print(json.dumps(summary, indent=2, ensure_ascii=False))
-print("\n# chunk_run_summary")
-print(run_df.to_string(index=False))
-if (merged_dir / "chunk_keep_summary.csv").exists():
-    print("\n# chunk_keep_summary")
-    print(pd.read_csv(merged_dir / "chunk_keep_summary.csv").to_string(index=False))
+        shutil.copytree(pipeline_root, drive_bundle_dir)
+        shutil.make_archive(str(drive_bundle_zip.with_suffix("")), "zip", root_dir=str(drive_bundle_dir))
+
+        bundle_summary = {
+            "status": "ok",
+            "drive_bundle_dir": str(drive_bundle_dir),
+            "drive_bundle_zip": str(drive_bundle_zip),
+        }
+
+        if DOWNLOAD_LOCAL_BUNDLE:
+            from google.colab import files
+            shutil.copy2(drive_bundle_zip, local_bundle_zip)
+            bundle_summary["local_bundle_zip"] = str(local_bundle_zip)
+            files.download(str(local_bundle_zip))
+
+    merge_summary = {
+        "route": "continuous-gs-v05-chunk3-sequential-merge",
+        "status": "ok" if all_vertices else "skipped",
+        "reason": None if all_vertices else "no kept vertices",
+        "completed_chunk_count": int(len(completed_chunks_df)),
+        "all_chunk_count": int(len(all_chunks_df)),
+        "merged_ply_path": str(merged_ply_path) if merged_ply_path.exists() else None,
+        "merged_glb_path": str(merged_glb_path) if merged_glb_path.exists() else None,
+        "chunk_global_transforms_path": str(chunk_manifest_dir / "chunk_global_transforms.csv"),
+        "chunk_keep_summary_path": str(keep_summary_path),
+        "all_batch_summary_path": str(merged_dir / "all_batch_summary.json"),
+        "bundle_summary": bundle_summary,
+    }
+    (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
 ```
