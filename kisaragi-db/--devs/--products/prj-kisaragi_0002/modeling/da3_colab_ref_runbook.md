@@ -81,11 +81,8 @@ scan_roots = [
     shortcut_root / "trajectreview",
     Path("/content/drive/MyDrive/trajectreview"),
 ]
-results_root_candidates = [
-    Path("/content/drive/MyDrive/trajectreview/modeling"),
-    shortcut_root / "trajectreview" / "modeling",
-]
-results_root = next((p for p in results_root_candidates if p.exists()), results_root_candidates[0])
+results_root = Path("/content/drive/MyDrive/trajectreview/modeling")
+results_root.mkdir(parents=True, exist_ok=True)
 candidate_doc_path = Path("/content/runbook_drive_candidates.json")
 
 def infer_session_id(path: Path) -> str:
@@ -117,6 +114,7 @@ for root in scan_roots:
 
 candidate_doc = {
     "results_root": str(results_root),
+    "results_root_visibility": "google_drive_mydrive_visible",
     "candidate_count": len(zip_map) + len(dir_map),
     "candidates": sorted(list(zip_map.values()) + list(dir_map.values()), key=lambda x: (x["session_id"], x["kind"], x["path"])),
 }
@@ -174,6 +172,7 @@ import json
 selected_doc = json.loads(Path("/content/runbook_selected_input.json").read_text(encoding="utf-8"))
 print("selected_path_exists", Path(selected_doc["path"]).exists(), selected_doc["path"])
 print("results_root", selected_doc["results_root"])
+print("results_root_visible_on_drive_ui", str(selected_doc["results_root"]).startswith("/content/drive/MyDrive/"))
 ```
 
 ## install
@@ -249,6 +248,8 @@ selected_path = Path(selected_doc["path"])
 selected_kind = selected_doc["kind"]
 session_id = selected_doc["session_id"]
 results_root = Path(selected_doc["results_root"])
+assert str(results_root).startswith("/content/drive/MyDrive/"), results_root
+results_root.mkdir(parents=True, exist_ok=True)
 
 extract_root = Path("/content/trajectreview_input")
 if extract_root.exists():
@@ -296,13 +297,15 @@ frame_record_path = next((p for p in frame_record_candidates if p.exists()), Non
 assert frame_record_path is not None, {"frame_record_candidates": [str(p) for p in frame_record_candidates]}
 
 frame_pose_index_path = session_root / "frame_pose_index.csv"
-probe_root = results_root / f"{session_id}_da3_record_route_v01"
+route_slug = "da3_record_route_v01"
+modeling_session_id = session_id.replace("trajectreview-correcting-session-", "trajectreview-modeling-session-", 1) if session_id.startswith("trajectreview-correcting-session-") else f"trajectreview-modeling-session-{session_id}"
+probe_root_name = f"{modeling_session_id}_{route_slug}"
+probe_root = results_root / probe_root_name
 proof_metric_dir = probe_root / "proof_metriclarge"
 prod_metric_dir = probe_root / "prod_metriclarge"
 proof_giant_dir = probe_root / "proof_giant"
 world_dir = probe_root / "world_fusion_v01"
 manifest_dir = probe_root / "manifests"
-modeling_session_id = session_id.replace("trajectreview-correcting-session-", "trajectreview-modeling-session-", 1) if session_id.startswith("trajectreview-correcting-session-") else f"trajectreview-modeling-session-{session_id}"
 
 for p in [probe_root, proof_metric_dir, prod_metric_dir, proof_giant_dir, world_dir, manifest_dir]:
     p.mkdir(parents=True, exist_ok=True)
@@ -313,6 +316,9 @@ context_doc = {
     "selected_kind": selected_kind,
     "selected_path": str(selected_path),
     "results_root": str(results_root),
+    "results_root_visibility": "google_drive_mydrive_visible",
+    "route_slug": route_slug,
+    "probe_root_name": probe_root_name,
     "session_outer": str(session_outer),
     "session_root": str(session_root),
     "images_dir": str(images_dir),
