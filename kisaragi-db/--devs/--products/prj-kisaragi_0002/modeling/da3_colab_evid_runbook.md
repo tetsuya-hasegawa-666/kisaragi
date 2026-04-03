@@ -1514,6 +1514,10 @@ DOWNLOAD_LOCAL_BUNDLE = True
 all_chunks_df = pd.read_csv(chunk_manifest_dir / "chunk_index_all.csv")
 completed_chunk_names = sorted({
     p.parent.name
+    for p in chunk_runs_dir.glob("*/_SUCCESS.json")
+})
+ply_ready_chunk_names = sorted({
+    p.parent.name
     for p in chunk_runs_dir.glob("*/gs_ply/0000.ply")
 })
 completed_chunks_df = all_chunks_df[all_chunks_df["chunk_name"].isin(completed_chunk_names)].copy()
@@ -1528,6 +1532,7 @@ if REQUIRE_ALL_CHUNKS and len(completed_chunks_df) < len(all_chunks_df):
         "status": "skipped",
         "reason": "waiting_for_all_chunks",
         "completed_chunk_count": int(len(completed_chunks_df)),
+        "ply_ready_chunk_count": int(len(ply_ready_chunk_names)),
         "all_chunk_count": int(len(all_chunks_df)),
         "all_batch_summary_path": str(merged_dir / "all_batch_summary.json"),
     }
