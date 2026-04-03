@@ -54,7 +54,7 @@
 
 1. [sharedlogs_da3-colab.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\sharedlogs_da3-colab.md) の最下部を読んで、最新の `# codex v**` と `# admin` を確認する。
 2. [ux-b2t-hypo.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\ux-b2t-hypo.md) で `MRL-2S` と後続 `MRL-**` の current_state を確認する。
-3. record-native route を blank runtime から進める時は [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_evid_runbook.md) の `準備確認 1-4` と `install 1-4` を共通で使う。
+3. record-native route を blank runtime から進める時は [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_evid_runbook.md) の `準備確認 1-4` と `install` を共通で使う。
 4. `MRL-10` を進める時は同 runbook の `MRL-10 Phase A` から `Phase D production` を順に実行し、`input_frame_manifest.csv`、`input_frame_qc.csv`、`pose_conversion_check.csv`、`k_resize_check.csv`、`orientation_summary.json`、`da3_input_manifest_*.csv` が出ることを先に確認する。
 5. `MRL-10` の giant production candidate は [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_evid_runbook.md) の `Block 3` で bootstrap、全体カメラ行列、全 chunk manifest、`batch_plan.csv` を作り、`Block 4` で helper を読み込む。その後 `Block 5` は `RUN_BATCH_INDEX` を変えながら `3chunk` ずつ繰り返し実行し、最後に `Block 6` が completed chunk 全体から `merged_gs.ply` と `merged_scene.glb` を再構築する。`PlayCanvas Model Viewer` 確認、top camera renderer、path overlay、request / status UX は後続 `MRL-**` として切り分ける。
 

@@ -43,7 +43,7 @@
 ## 実行順
 
 1. `準備確認 1-4`
-2. `install 1-4`
+2. `install`
 3. `MRL-10 Block 1`
 4. `MRL-10 Block 2`
 5. 必要時のみ `MRL-10 Block 3`
@@ -181,38 +181,24 @@ print("results_root_visible_on_drive_ui", str(selected_doc["results_root"]).star
 
 ## install
 
-### install 1
-
 ```python
 #5
 from pathlib import Path
+import inspect
 import shutil
 import subprocess
+import sys
 
 repo_root = Path("/content/Depth-Anything-3")
 if repo_root.exists():
     shutil.rmtree(repo_root)
 subprocess.run(["git", "clone", "https://github.com/ByteDance-Seed/Depth-Anything-3.git", str(repo_root)], check=True)
-print("repo_exists", repo_root.exists(), repo_root)
-```
 
-### install 2
+subprocess.run([
+    "python", "-m", "pip", "install", "--quiet",
+    "addict", "evo", "moviepy==1.0.3", "pygame", "pycolmap", "plyfile", "trimesh", "gsplat", "e3nn"
+], check=True)
 
-```python
-#6
-import subprocess
-subprocess.run(["python", "-m", "pip", "install", "--quiet", "addict", "evo", "moviepy==1.0.3", "pygame", "pycolmap", "plyfile", "trimesh", "gsplat", "e3nn"], check=True)
-print("dependency_install_ok")
-```
-
-### install 3
-
-```python
-#7
-import sys
-from pathlib import Path
-
-repo_root = Path("/content/Depth-Anything-3")
 src_root = repo_root / "src"
 if str(src_root) not in sys.path:
     sys.path.insert(0, str(src_root))
@@ -221,18 +207,11 @@ from depth_anything_3.api import DepthAnything3
 import gsplat
 import e3nn
 
+print("repo_exists", repo_root.exists(), repo_root)
+print("dependency_install_ok")
 print("depth_anything_3_import_ok", DepthAnything3)
 print("gsplat_version", getattr(gsplat, "__version__", "unknown"))
 print("e3nn_version", getattr(e3nn, "__version__", "unknown"))
-```
-
-### install 4
-
-```python
-#8
-import inspect
-from depth_anything_3.api import DepthAnything3
-
 print("inference_sig", inspect.signature(DepthAnything3.inference))
 ```
 
