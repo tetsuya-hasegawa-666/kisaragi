@@ -1526,7 +1526,36 @@ MAKE_LOCAL_VISIBLE_COPY = True
 MAKE_LOCAL_BUNDLE_ZIP = True
 DOWNLOAD_LOCAL_BUNDLE = True
 
-all_chunks_df = pd.read_csv(chunk_manifest_dir / "chunk_index_all.csv")
+chunk_index_all_path = chunk_manifest_dir / "chunk_index_all.csv"
+if chunk_index_all_path.exists():
+    all_chunks_df = pd.read_csv(chunk_index_all_path)
+else:
+    inferred_chunk_names = sorted({
+        p.parent.name
+        for p in chunk_runs_dir.glob("*/_SUCCESS.json")
+    } | {
+        p.parent.parent.name
+        for p in chunk_runs_dir.glob("*/gs_ply/0000.ply")
+    } | {
+        p.parent.parent.name
+        for p in chunk_runs_dir.glob("*/gs_video/0000_extend.mp4")
+    })
+    all_chunks_df = pd.DataFrame([
+        {
+            "chunk_id": i,
+            "chunk_name": name,
+            "global_start": None,
+            "global_end": None,
+            "frame_count": None,
+            "adopt_local_start": None,
+            "adopt_local_end": None,
+            "chunk_csv": None,
+        }
+        for i, name in enumerate(inferred_chunk_names)
+    ])
+    chunk_manifest_dir.mkdir(parents=True, exist_ok=True)
+    all_chunks_df.to_csv(chunk_index_all_path, index=False, encoding="utf-8")
+
 completed_chunk_names = sorted({
     p.parent.name
     for p in chunk_runs_dir.glob("*/_SUCCESS.json")
