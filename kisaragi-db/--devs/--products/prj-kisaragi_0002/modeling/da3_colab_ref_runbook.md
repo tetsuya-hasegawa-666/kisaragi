@@ -54,6 +54,7 @@
 ### 準備確認 1
 
 ```python
+#1
 import os
 from pathlib import Path
 import torch
@@ -71,6 +72,7 @@ print("shortcut_root_exists", Path("/content/drive/.shortcut-targets-by-id").exi
 ### 準備確認 2
 
 ```python
+#2
 from pathlib import Path
 import json
 
@@ -129,6 +131,7 @@ for idx, item in enumerate(candidate_doc["candidates"]):
 ### 準備確認 3
 
 ```python
+#3
 from pathlib import Path
 import json
 import ipywidgets as widgets
@@ -164,6 +167,7 @@ display(dropdown, button, output)
 ### 準備確認 4
 
 ```python
+#4
 from pathlib import Path
 import json
 
@@ -177,6 +181,7 @@ print("results_root", selected_doc["results_root"])
 ### install 1
 
 ```python
+#5
 from pathlib import Path
 import shutil
 import subprocess
@@ -191,6 +196,7 @@ print("repo_exists", repo_root.exists(), repo_root)
 ### install 2
 
 ```python
+#6
 import subprocess
 subprocess.run(["python", "-m", "pip", "install", "--quiet", "addict", "evo", "moviepy==1.0.3", "pygame", "pycolmap", "plyfile", "trimesh", "gsplat", "e3nn"], check=True)
 print("dependency_install_ok")
@@ -199,6 +205,7 @@ print("dependency_install_ok")
 ### install 3
 
 ```python
+#7
 import sys
 from pathlib import Path
 
@@ -219,6 +226,7 @@ print("e3nn_version", getattr(e3nn, "__version__", "unknown"))
 ### install 4
 
 ```python
+#8
 import inspect
 from depth_anything_3.api import DepthAnything3
 
@@ -230,7 +238,7 @@ print("inference_sig", inspect.signature(DepthAnything3.inference))
 ### Block 1: 正規化 + QC + DA3 input pack
 
 ```python
-#1
+#9
 from pathlib import Path
 import json
 import shutil
@@ -324,6 +332,7 @@ print(json.dumps(context_doc, indent=2, ensure_ascii=False))
 ### Phase B: QC と manifest 化
 
 ```python
+#10
 from pathlib import Path
 import csv
 import json
@@ -624,7 +633,7 @@ print(json.dumps(summary, indent=2, ensure_ascii=False))
 ### Block 2: MetricLarge proof + production + world export
 
 ```python
-#2
+#11
 from pathlib import Path
 import json
 import sys
@@ -854,7 +863,7 @@ print(json.dumps({
 ### Block 3: Continuous GS bootstrap prep
 
 ```python
-#3
+#12
 from pathlib import Path
 import gc
 import json
@@ -1034,7 +1043,7 @@ print(target_chunks_df.to_string(index=False))
 ### Block 4: Continuous GS chunk run + merge + optional bundle
 
 ```python
-#4
+#13
 from pathlib import Path
 import gc
 import json
