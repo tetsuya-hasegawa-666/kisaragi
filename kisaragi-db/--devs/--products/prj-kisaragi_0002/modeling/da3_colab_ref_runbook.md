@@ -51,6 +51,7 @@
 7. 必要時のみ `MRL-10 Block 5` を `RUN_BATCH_INDEX` を変えながら繰り返す
    - 例: `0`, `1`, `2`, `3` ...
    - 1 回の `Block 5` で `3chunk` だけ処理する
+   - ただし `1chunk = 18frame`、`chunk overlap = 6frame`、各 chunk の再構成責務は基本 `後半 12frame` とする
 8. 最後に `MRL-10 Block 6`
 
 ## 準備確認
@@ -878,7 +879,7 @@ ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encodin
 manifest_dir = Path(ctx["manifest_dir"])
 probe_root = Path(ctx["probe_root"])
 
-pipeline_root = probe_root / "continuous_gs_v05_chunk3_sequential"
+pipeline_root = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12"
 global_pose_dir = pipeline_root / "global_pose_bootstrap"
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
@@ -890,9 +891,9 @@ for p in [pipeline_root, global_pose_dir, chunk_manifest_dir, chunk_runs_dir, me
 MODEL_ID = "depth-anything/DA3NESTED-GIANT-LARGE-1.1"
 BUNDLE_MODEL_SLUG = "".join(ch.lower() for ch in MODEL_ID.split("/")[-1] if ch.isalnum()).replace("da3nested", "")
 PROCESS_RES = 504
-CHUNK_SIZE = 3
-STEP = 3
-ADOPT_SIZE = 3
+CHUNK_SIZE = 18
+STEP = 12
+ADOPT_SIZE = 12
 CHUNKS_PER_BATCH = 3
 BOOTSTRAP_EXPORT_FORMAT = "npz"
 BOOTSTRAP_INFER_GS = False
@@ -924,7 +925,9 @@ while start_pos < len(prod_df):
 
     chunk_name = f"chunk_{chunk_id:04d}_{start_pos:05d}_{end_pos-1:05d}"
     chunk_df["chunk_local_index"] = range(len(chunk_df))
-    chunk_df["is_adopted_region"] = chunk_df["chunk_local_index"] < min(ADOPT_SIZE, len(chunk_df))
+    adopt_local_start = max(0, len(chunk_df) - min(ADOPT_SIZE, len(chunk_df)))
+    adopt_local_end = len(chunk_df) - 1
+    chunk_df["is_adopted_region"] = chunk_df["chunk_local_index"] >= adopt_local_start
 
     chunk_csv = chunk_manifest_dir / f"{chunk_name}.csv"
     chunk_df.to_csv(chunk_csv, index=False, encoding="utf-8")
@@ -935,8 +938,8 @@ while start_pos < len(prod_df):
         "global_start": int(start_pos),
         "global_end": int(end_pos - 1),
         "frame_count": int(len(chunk_df)),
-        "adopt_local_start": 0,
-        "adopt_local_end": int(min(ADOPT_SIZE, len(chunk_df)) - 1),
+        "adopt_local_start": int(adopt_local_start),
+        "adopt_local_end": int(adopt_local_end),
         "chunk_csv": str(chunk_csv),
     })
 
@@ -1032,7 +1035,7 @@ camera_matrix_df = pd.DataFrame(pose_rows)
 camera_matrix_df.to_csv(global_pose_dir / "camera_matrix_full.csv", index=False, encoding="utf-8")
 
 summary = {
-    "route": "continuous-gs-v05-chunk3-sequential-bootstrap",
+    "route": "continuous-gs-v06-chunk18-overlap6-adopt12-bootstrap",
     "bootstrap_mode": "pose_only_no_gs",
     "bootstrap_export_format": BOOTSTRAP_EXPORT_FORMAT,
     "bootstrap_frame_count": int(len(bootstrap_df)),
@@ -1056,7 +1059,7 @@ print("\n# batch_plan")
 print(batch_plan_df.to_string(index=False))
 ```
 
-### Block 4: 3chunk sequential helper
+### Block 4: chunk helper for 18frame / overlap6 / adopt12
 
 ```python
 #13
@@ -1075,7 +1078,7 @@ from plyfile import PlyData, PlyElement
 ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
 probe_root = Path(ctx["probe_root"])
 
-pipeline_root = probe_root / "continuous_gs_v05_chunk3_sequential"
+pipeline_root = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12"
 global_pose_dir = pipeline_root / "global_pose_bootstrap"
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
@@ -1333,9 +1336,10 @@ def process_batch(run_batch_index: int):
     print(json.dumps(batch_summary, indent=2, ensure_ascii=False))
 ```
 
-### Block 5: 3chunk sequential batch run
+### Block 5: 3chunk batch run
 
 - この block は 1 回で `3chunk` だけ処理する。
+- 各 chunk は `18frame` を持ち、次 chunk と `6frame` 重なり、再構成責務は基本 `後半 12frame` である。
 - `RUN_BATCH_INDEX = 0` は先頭 `3chunk`、`RUN_BATCH_INDEX = 1` は次の `3chunk` を意味する。
 - `batch_plan.csv` を見ながら `0`, `1`, `2`, `3` ... と順に実行する。
 - 全 batch を回し終わるまでは `Block 6` を実行しない。
@@ -1382,7 +1386,7 @@ probe_root = Path(ctx["probe_root"])
 results_root = Path(ctx["results_root"])
 modeling_session_id = ctx["modeling_session_id"]
 
-pipeline_root = probe_root / "continuous_gs_v05_chunk3_sequential"
+pipeline_root = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12"
 global_pose_dir = pipeline_root / "global_pose_bootstrap"
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
@@ -1408,7 +1412,7 @@ summary_rows = [json.loads(p.read_text(encoding="utf-8")) for p in batch_summari
 
 if REQUIRE_ALL_CHUNKS and len(completed_chunks_df) < len(all_chunks_df):
     merge_summary = {
-        "route": "continuous-gs-v05-chunk3-sequential-merge",
+        "route": "continuous-gs-v06-chunk18-overlap6-adopt12-merge",
         "status": "skipped",
         "reason": "waiting_for_all_chunks",
         "completed_chunk_count": int(len(completed_chunks_df)),
@@ -1575,7 +1579,7 @@ else:
     }
 
     if MAKE_DRIVE_BUNDLE:
-        drive_bundle_base = f"{modeling_session_id}_{BUNDLE_MODEL_SLUG}_continuousgsv05chunk3seq"
+        drive_bundle_base = f"{modeling_session_id}_{BUNDLE_MODEL_SLUG}_continuousgsv06chunk18ov6ad12"
         drive_bundle_dir = results_root / drive_bundle_base
         drive_bundle_zip = results_root / f"{drive_bundle_base}.zip"
         local_bundle_zip = Path("/content") / f"{drive_bundle_base}.zip"
@@ -1603,7 +1607,7 @@ else:
             files.download(str(local_bundle_zip))
 
     merge_summary = {
-        "route": "continuous-gs-v05-chunk3-sequential-merge",
+        "route": "continuous-gs-v06-chunk18-overlap6-adopt12-merge",
         "status": "ok" if all_vertices else "skipped",
         "reason": None if all_vertices else "no kept vertices",
         "completed_chunk_count": int(len(completed_chunks_df)),
