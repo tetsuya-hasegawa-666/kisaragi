@@ -1501,7 +1501,9 @@ config = json.loads((pipeline_root / "pipeline_config.json").read_text(encoding=
 BUNDLE_MODEL_SLUG = config["BUNDLE_MODEL_SLUG"]
 REQUIRE_ALL_CHUNKS = True
 MAKE_DRIVE_BUNDLE = True
-DOWNLOAD_LOCAL_BUNDLE = False
+MAKE_LOCAL_VISIBLE_COPY = True
+MAKE_LOCAL_BUNDLE_ZIP = True
+DOWNLOAD_LOCAL_BUNDLE = True
 
 all_chunks_df = pd.read_csv(chunk_manifest_dir / "chunk_index_all.csv")
 completed_chunk_names = sorted({
@@ -1686,28 +1688,37 @@ else:
         drive_bundle_base = f"{modeling_session_id}_{BUNDLE_MODEL_SLUG}_continuousgsv06chunk18ov6ad12"
         drive_bundle_dir = results_root / drive_bundle_base
         drive_bundle_zip = results_root / f"{drive_bundle_base}.zip"
+        local_visible_dir = Path("/content") / drive_bundle_base
         local_bundle_zip = Path("/content") / f"{drive_bundle_base}.zip"
 
         if drive_bundle_dir.exists():
             shutil.rmtree(drive_bundle_dir)
         if drive_bundle_zip.exists():
             drive_bundle_zip.unlink()
+        if local_visible_dir.exists():
+            shutil.rmtree(local_visible_dir)
         if local_bundle_zip.exists():
             local_bundle_zip.unlink()
 
         shutil.copytree(pipeline_root, drive_bundle_dir)
         shutil.make_archive(str(drive_bundle_zip.with_suffix("")), "zip", root_dir=str(drive_bundle_dir))
+        if MAKE_LOCAL_VISIBLE_COPY:
+            shutil.copytree(drive_bundle_dir, local_visible_dir)
 
         bundle_summary = {
             "status": "ok",
             "drive_bundle_dir": str(drive_bundle_dir),
             "drive_bundle_zip": str(drive_bundle_zip),
+            "local_visible_dir": str(local_visible_dir) if MAKE_LOCAL_VISIBLE_COPY else None,
         }
+
+        if MAKE_LOCAL_BUNDLE_ZIP:
+            shutil.copy2(drive_bundle_zip, local_bundle_zip)
+            bundle_summary["local_bundle_zip"] = str(local_bundle_zip)
 
         if DOWNLOAD_LOCAL_BUNDLE:
             from google.colab import files
-            shutil.copy2(drive_bundle_zip, local_bundle_zip)
-            bundle_summary["local_bundle_zip"] = str(local_bundle_zip)
+            assert local_bundle_zip.exists(), local_bundle_zip
             files.download(str(local_bundle_zip))
 
     merge_summary = {
