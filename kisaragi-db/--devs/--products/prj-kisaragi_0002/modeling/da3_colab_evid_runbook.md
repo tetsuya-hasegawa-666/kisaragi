@@ -230,6 +230,7 @@ print("inference_sig", inspect.signature(DepthAnything3.inference))
 ### Block 1: 正規化 + QC + DA3 input pack
 
 ```python
+#1
 from pathlib import Path
 import json
 import shutil
@@ -623,30 +624,115 @@ print(json.dumps(summary, indent=2, ensure_ascii=False))
 ### Block 2: MetricLarge proof + production + world export
 
 ```python
+#2
 from pathlib import Path
 import json
+import sys
 
 import numpy as np
 import pandas as pd
 import torch
 from PIL import Image
-from depth_anything_3.api import DepthAnything3
-
-ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
+ctx_path = Path("/content/runbook_session_context.json")
+assert ctx_path.exists(), ctx_path
+ctx = json.loads(ctx_path.read_text(encoding="utf-8"))
 manifest_dir = Path(ctx["manifest_dir"])
 proof_metric_dir = Path(ctx["proof_metric_dir"])
 prod_metric_dir = Path(ctx["prod_metric_dir"])
 world_dir = Path(ctx["world_dir"])
 
-proof_df = pd.read_csv(manifest_dir / "da3_input_manifest_proof.csv")
-proof_images = proof_df["image_path"].tolist()
-proof_intrinsics = np.load(manifest_dir / "intrinsics_proof.npy")
-proof_extrinsics = np.load(manifest_dir / "extrinsics_w2c_proof.npy")
+repo_root = Path("/content/Depth-Anything-3")
+src_root = repo_root / "src"
+assert repo_root.exists(), repo_root
+assert src_root.exists(), src_root
+assert (src_root / "depth_anything_3" / "api.py").exists(), src_root / "depth_anything_3" / "api.py"
+if str(src_root) not in sys.path:
+    sys.path.insert(0, str(src_root))
+for name in list(sys.modules.keys()):
+    if name.startswith("depth_anything_3"):
+        del sys.modules[name]
 
-prod_df = pd.read_csv(manifest_dir / "da3_input_manifest_prod.csv")
+from depth_anything_3.api import DepthAnything3
+
+required_dirs = [manifest_dir, proof_metric_dir, prod_metric_dir, world_dir]
+for p in required_dirs:
+    p.mkdir(parents=True, exist_ok=True)
+
+required_files = {
+    "proof_manifest": manifest_dir / "da3_input_manifest_proof.csv",
+    "prod_manifest": manifest_dir / "da3_input_manifest_prod.csv",
+    "proof_intrinsics": manifest_dir / "intrinsics_proof.npy",
+    "proof_extrinsics": manifest_dir / "extrinsics_w2c_proof.npy",
+    "prod_intrinsics": manifest_dir / "intrinsics_prod.npy",
+    "prod_extrinsics": manifest_dir / "extrinsics_w2c_prod.npy",
+}
+for key, path in required_files.items():
+    assert path.exists(), {key: str(path)}
+
+proof_df = pd.read_csv(required_files["proof_manifest"])
+prod_df = pd.read_csv(required_files["prod_manifest"])
+assert not proof_df.empty, "proof manifest empty"
+assert not prod_df.empty, "prod manifest empty"
+
+required_columns = {
+    "image_path",
+    "image_file_name",
+    "canonical_orientation_policy",
+    "intrinsics_case",
+}
+assert required_columns.issubset(proof_df.columns), {
+    "missing_in_proof": sorted(required_columns - set(proof_df.columns))
+}
+assert required_columns.issubset(prod_df.columns), {
+    "missing_in_prod": sorted(required_columns - set(prod_df.columns))
+}
+
+proof_images = proof_df["image_path"].tolist()
 prod_images = prod_df["image_path"].tolist()
-prod_intrinsics = np.load(manifest_dir / "intrinsics_prod.npy")
-prod_extrinsics = np.load(manifest_dir / "extrinsics_w2c_prod.npy")
+assert len(proof_images) >= 2, {"proof_image_count": len(proof_images)}
+assert len(prod_images) >= 2, {"prod_image_count": len(prod_images)}
+
+for label, image_paths in [("proof", proof_images), ("prod", prod_images)]:
+    missing = [p for p in image_paths if not Path(p).exists()]
+    assert not missing, {f"{label}_missing_images_head": missing[:10], f"{label}_missing_count": len(missing)}
+
+proof_intrinsics = np.load(required_files["proof_intrinsics"])
+proof_extrinsics = np.load(required_files["proof_extrinsics"])
+prod_intrinsics = np.load(required_files["prod_intrinsics"])
+prod_extrinsics = np.load(required_files["prod_extrinsics"])
+
+assert proof_intrinsics.shape == (len(proof_df), 3, 3), {
+    "proof_intrinsics_shape": tuple(proof_intrinsics.shape),
+    "proof_count": len(proof_df),
+}
+assert proof_extrinsics.shape[0] == len(proof_df), {
+    "proof_extrinsics_shape": tuple(proof_extrinsics.shape),
+    "proof_count": len(proof_df),
+}
+assert prod_intrinsics.shape == (len(prod_df), 3, 3), {
+    "prod_intrinsics_shape": tuple(prod_intrinsics.shape),
+    "prod_count": len(prod_df),
+}
+assert prod_extrinsics.shape[0] == len(prod_df), {
+    "prod_extrinsics_shape": tuple(prod_extrinsics.shape),
+    "prod_count": len(prod_df),
+}
+
+preflight = {
+    "ctx_path": str(ctx_path),
+    "repo_root": str(repo_root),
+    "manifest_dir": str(manifest_dir),
+    "proof_metric_dir": str(proof_metric_dir),
+    "prod_metric_dir": str(prod_metric_dir),
+    "world_dir": str(world_dir),
+    "proof_image_count": len(proof_images),
+    "prod_image_count": len(prod_images),
+    "proof_intrinsics_shape": list(proof_intrinsics.shape),
+    "proof_extrinsics_shape": list(proof_extrinsics.shape),
+    "prod_intrinsics_shape": list(prod_intrinsics.shape),
+    "prod_extrinsics_shape": list(prod_extrinsics.shape),
+}
+(manifest_dir / "metriclarge_block2_preflight.json").write_text(json.dumps(preflight, indent=2, ensure_ascii=False), encoding="utf-8")
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = DepthAnything3.from_pretrained("depth-anything/DA3METRIC-LARGE").to(device=device)
@@ -670,9 +756,12 @@ assert depths is not None and len(depths) == len(prod_df), {
     "depth_count": None if depths is None else len(depths),
     "prod_selected_count": len(prod_df),
 }
+assert np.isfinite(prod_intrinsics).all(), "prod intrinsics has non-finite value"
+assert np.isfinite(prod_extrinsics).all(), "prod extrinsics has non-finite value"
 
 all_points = []
 per_frame = []
+skipped_frames = []
 stride = 24
 for idx, row in enumerate(prod_df.itertuples(index=False)):
     depth = np.asarray(depths[idx]).astype(np.float32)
@@ -684,6 +773,7 @@ for idx, row in enumerate(prod_df.itertuples(index=False)):
     z = depth[grid_y, grid_x]
     valid = np.isfinite(z) & (z > 0.0)
     if not np.any(valid):
+        skipped_frames.append({"image_file_name": row.image_file_name, "reason": "no_valid_depth"})
         continue
     px = grid_x[valid].astype(np.float32)
     py = grid_y[valid].astype(np.float32)
@@ -739,6 +829,7 @@ prod_summary = {
 world_summary = {
     "route": "MetricLarge-production-world",
     "processed_frames": len(per_frame),
+    "skipped_frames": skipped_frames,
     "total_points": int(len(merged)),
     "stride": stride,
     "depth_source": "prod_prediction.depth",
@@ -751,6 +842,7 @@ world_summary = {
 (prod_metric_dir / "export_summary.json").write_text(json.dumps(prod_summary, indent=2, ensure_ascii=False), encoding="utf-8")
 (world_dir / "export_summary.json").write_text(json.dumps(world_summary, indent=2, ensure_ascii=False), encoding="utf-8")
 print(json.dumps({
+    "preflight_path": str(manifest_dir / "metriclarge_block2_preflight.json"),
     "proof_image_count": proof_summary["image_count"],
     "prod_image_count": prod_summary["image_count"],
     "processed_frames": world_summary["processed_frames"],
@@ -762,6 +854,7 @@ print(json.dumps({
 ### Block 3: Continuous GS bootstrap prep
 
 ```python
+#3
 from pathlib import Path
 import gc
 import json
@@ -941,6 +1034,7 @@ print(target_chunks_df.to_string(index=False))
 ### Block 4: Continuous GS chunk run + merge + optional bundle
 
 ```python
+#4
 from pathlib import Path
 import gc
 import json
