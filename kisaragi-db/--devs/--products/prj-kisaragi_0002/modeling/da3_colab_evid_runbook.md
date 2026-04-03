@@ -1377,6 +1377,11 @@ def process_batch(run_batch_index: int):
             xyz_w = (A @ xyz.T).T + t
             proj_w = xyz_w @ axis
             keep = (proj_w >= left) & (proj_w < right + 1e-6)
+            is_terminal_chunk = int(row.global_end) >= int(target_chunks_df["global_end"].max())
+            terminal_chunk_fallback_used = False
+            if not np.any(keep) and is_terminal_chunk:
+                keep = np.ones(len(df), dtype=bool)
+                terminal_chunk_fallback_used = True
 
             df["x"] = xyz_w[:, 0]
             df["y"] = xyz_w[:, 1]
@@ -1392,6 +1397,7 @@ def process_batch(run_batch_index: int):
                 "kept_vertices": int(len(df)),
                 "left": left,
                 "right": right,
+                "terminal_chunk_fallback_used": terminal_chunk_fallback_used,
             })
 
         if glb_path.exists():
