@@ -1726,6 +1726,10 @@ else:
             from google.colab import files
             assert local_bundle_zip.exists(), local_bundle_zip
             files.download(str(local_bundle_zip))
+            bundle_summary["download_requested"] = True
+            bundle_summary["manual_download_hint"] = f"from google.colab import files; files.download(r'{local_bundle_zip}')"
+            print("# manual_download_hint")
+            print(bundle_summary["manual_download_hint"])
 
     merge_summary = {
         "route": "continuous-gs-v06-chunk18-overlap6-adopt12-merge",
