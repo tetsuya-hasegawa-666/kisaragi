@@ -1168,6 +1168,7 @@ CHUNKS_PER_BATCH = config["CHUNKS_PER_BATCH"]
 target_chunks_df = pd.read_csv(chunk_manifest_dir / "chunk_index_target.csv")
 batch_plan_df = pd.read_csv(chunk_manifest_dir / "batch_plan.csv")
 global_centers_df = pd.read_csv(global_pose_dir / "camera_center_matrix.csv")
+global_camera_matrix_df = pd.read_csv(global_pose_dir / "camera_matrix_full.csv")
 
 print("# batch_plan")
 print(batch_plan_df.to_string(index=False))
@@ -1190,33 +1191,73 @@ def camera_centers_from_extrinsics(extrinsics):
         centers.append(c2w[:3, 3])
     return np.stack(centers, axis=0)
 
-def umeyama_alignment(src, dst, estimate_scale=True):
-    src = np.asarray(src, dtype=np.float64)
-    dst = np.asarray(dst, dtype=np.float64)
+def c2w_rows_to_map(df: pd.DataFrame):
+    out = {}
+    cols = [f"m{i}{j}" for i in range(4) for j in range(4)]
+    for row in df.itertuples(index=False):
+        M = np.array([getattr(row, c) for c in cols], dtype=np.float32).reshape(4, 4)
+        out[int(row.record_index)] = M
+    return out
 
-    src_mean = src.mean(axis=0)
-    dst_mean = dst.mean(axis=0)
-    src_c = src - src_mean
-    dst_c = dst - dst_mean
+def c2w_list_from_extrinsics(extrinsics):
+    mats = []
+    for ext in extrinsics:
+        mats.append(np.linalg.inv(to_4x4(ext)).astype(np.float32))
+    return mats
 
-    cov = (dst_c.T @ src_c) / src.shape[0]
-    U, D, Vt = np.linalg.svd(cov)
-    S = np.eye(3)
+def estimate_pose_aware_similarity(local_c2w_list, global_c2w_list, estimate_scale=True):
+    assert len(local_c2w_list) == len(global_c2w_list) >= 2, {"local_len": len(local_c2w_list), "global_len": len(global_c2w_list)}
+
+    src_dirs = []
+    dst_dirs = []
+    src_centers = []
+    dst_centers = []
+    for local_c2w, global_c2w in zip(local_c2w_list, global_c2w_list):
+        src_dirs.extend([local_c2w[:3, 0], local_c2w[:3, 1], local_c2w[:3, 2]])
+        dst_dirs.extend([global_c2w[:3, 0], global_c2w[:3, 1], global_c2w[:3, 2]])
+        src_centers.append(local_c2w[:3, 3])
+        dst_centers.append(global_c2w[:3, 3])
+
+    src_dirs = np.asarray(src_dirs, dtype=np.float64)
+    dst_dirs = np.asarray(dst_dirs, dtype=np.float64)
+    src_centers = np.asarray(src_centers, dtype=np.float64)
+    dst_centers = np.asarray(dst_centers, dtype=np.float64)
+
+    H = dst_dirs.T @ src_dirs
+    U, _, Vt = np.linalg.svd(H)
+    S = np.eye(3, dtype=np.float64)
     if np.linalg.det(U) * np.linalg.det(Vt) < 0:
-        S[-1, -1] = -1
-
+        S[-1, -1] = -1.0
     R = U @ S @ Vt
+
+    src_mean = src_centers.mean(axis=0)
+    dst_mean = dst_centers.mean(axis=0)
+    src_c = src_centers - src_mean
+    dst_c = dst_centers - dst_mean
+    src_rot = (R @ src_c.T).T
+
     if estimate_scale:
-        var_src = np.mean(np.sum(src_c ** 2, axis=1))
-        scale = np.trace(np.diag(D) @ S) / max(var_src, 1e-12)
+        denom = float(np.sum(src_rot ** 2))
+        numer = float(np.sum(dst_c * src_rot))
+        scale = numer / max(denom, 1e-12)
     else:
         scale = 1.0
 
     t = dst_mean - scale * (R @ src_mean)
+    pred = (scale * (R @ src_centers.T)).T + t
+    center_rmse = float(np.sqrt(np.mean(np.sum((pred - dst_centers) ** 2, axis=1))))
+    rot_residual = float(np.mean(np.linalg.norm((R @ src_dirs.T).T - dst_dirs, axis=1)))
+
     T = np.eye(4, dtype=np.float64)
     T[:3, :3] = scale * R
     T[:3, 3] = t
-    return T.astype(np.float32)
+    diag = {
+        "scale": float(scale),
+        "rotation_det": float(np.linalg.det(R)),
+        "center_rmse": center_rmse,
+        "rotation_dir_residual": rot_residual,
+    }
+    return T.astype(np.float32), diag
 
 def load_scene_any(path: Path):
     loaded = trimesh.load(str(path), force="scene")
@@ -1229,6 +1270,8 @@ def load_scene_any(path: Path):
     else:
         scene.add_geometry(loaded)
     return scene
+
+global_camera_map = c2w_rows_to_map(global_camera_matrix_df)
 
 def show_batch_plan(run_batch_index: int):
     assert len(batch_plan_df) >= 1, "batch_plan.csv is empty"
@@ -1323,6 +1366,7 @@ def process_batch(run_batch_index: int):
 
         pred_extrinsics = np.asarray(pred_extrinsics).astype(np.float32)
         local_centers = camera_centers_from_extrinsics(pred_extrinsics)
+        local_c2w_list = c2w_list_from_extrinsics(pred_extrinsics)
 
         merged = chunk_df.merge(
             global_centers_df[["record_index", "cx_world", "cy_world", "cz_world"]],
@@ -1330,10 +1374,11 @@ def process_batch(run_batch_index: int):
             how="left",
         )
         assert len(merged) == len(chunk_df), {"chunk_name": row.chunk_name, "merged_len": len(merged), "chunk_len": len(chunk_df)}
+        global_c2w_list = [global_camera_map[int(record_index)] for record_index in merged["record_index"].tolist()]
 
         src = local_centers
         dst = merged[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32)
-        T_c_to_w0 = umeyama_alignment(src, dst, estimate_scale=True)
+        T_c_to_w0, align_diag = estimate_pose_aware_similarity(local_c2w_list, global_c2w_list, estimate_scale=True)
 
         T_path = chunk_manifest_dir / f"{row.chunk_name}_to_w0.npy"
         np.save(T_path, T_c_to_w0.astype(np.float32))
@@ -1342,6 +1387,10 @@ def process_batch(run_batch_index: int):
             "chunk_name": row.chunk_name,
             "frame_count": int(len(chunk_df)),
             "transform_path": str(T_path),
+            "scale": float(align_diag["scale"]),
+            "rotation_det": float(align_diag["rotation_det"]),
+            "center_rmse": float(align_diag["center_rmse"]),
+            "rotation_dir_residual": float(align_diag["rotation_dir_residual"]),
         })
 
         ply_path = out_dir / "gs_ply" / "0000.ply"
@@ -1584,6 +1633,7 @@ if REQUIRE_ALL_CHUNKS and len(completed_chunks_df) < len(all_chunks_df):
     print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
 else:
     global_centers_df = pd.read_csv(global_pose_dir / "camera_center_matrix.csv")
+    global_camera_matrix_df = pd.read_csv(global_pose_dir / "camera_matrix_full.csv")
     X = global_centers_df[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32)
     X0 = X - X.mean(axis=0, keepdims=True)
     _, _, Vt = np.linalg.svd(X0, full_matrices=False)
@@ -1613,6 +1663,76 @@ else:
             return M
         raise ValueError(f"unexpected extrinsic shape: {ext.shape}")
 
+    def c2w_rows_to_map(df: pd.DataFrame):
+        out = {}
+        cols = [f"m{i}{j}" for i in range(4) for j in range(4)]
+        for row in df.itertuples(index=False):
+            M = np.array([getattr(row, c) for c in cols], dtype=np.float32).reshape(4, 4)
+            out[int(row.record_index)] = M
+        return out
+
+    def c2w_list_from_extrinsics(extrinsics):
+        mats = []
+        for ext in extrinsics:
+            mats.append(np.linalg.inv(to_4x4(ext)).astype(np.float32))
+        return mats
+
+    def estimate_pose_aware_similarity(local_c2w_list, global_c2w_list, estimate_scale=True):
+        assert len(local_c2w_list) == len(global_c2w_list) >= 2, {"local_len": len(local_c2w_list), "global_len": len(global_c2w_list)}
+
+        src_dirs = []
+        dst_dirs = []
+        src_centers = []
+        dst_centers = []
+        for local_c2w, global_c2w in zip(local_c2w_list, global_c2w_list):
+            src_dirs.extend([local_c2w[:3, 0], local_c2w[:3, 1], local_c2w[:3, 2]])
+            dst_dirs.extend([global_c2w[:3, 0], global_c2w[:3, 1], global_c2w[:3, 2]])
+            src_centers.append(local_c2w[:3, 3])
+            dst_centers.append(global_c2w[:3, 3])
+
+        src_dirs = np.asarray(src_dirs, dtype=np.float64)
+        dst_dirs = np.asarray(dst_dirs, dtype=np.float64)
+        src_centers = np.asarray(src_centers, dtype=np.float64)
+        dst_centers = np.asarray(dst_centers, dtype=np.float64)
+
+        H = dst_dirs.T @ src_dirs
+        U, _, Vt = np.linalg.svd(H)
+        S = np.eye(3, dtype=np.float64)
+        if np.linalg.det(U) * np.linalg.det(Vt) < 0:
+            S[-1, -1] = -1.0
+        R = U @ S @ Vt
+
+        src_mean = src_centers.mean(axis=0)
+        dst_mean = dst_centers.mean(axis=0)
+        src_c = src_centers - src_mean
+        dst_c = dst_centers - dst_mean
+        src_rot = (R @ src_c.T).T
+
+        if estimate_scale:
+            denom = float(np.sum(src_rot ** 2))
+            numer = float(np.sum(dst_c * src_rot))
+            scale = numer / max(denom, 1e-12)
+        else:
+            scale = 1.0
+
+        t = dst_mean - scale * (R @ src_mean)
+        pred = (scale * (R @ src_centers.T)).T + t
+        center_rmse = float(np.sqrt(np.mean(np.sum((pred - dst_centers) ** 2, axis=1))))
+        rot_residual = float(np.mean(np.linalg.norm((R @ src_dirs.T).T - dst_dirs, axis=1)))
+
+        T = np.eye(4, dtype=np.float64)
+        T[:3, :3] = scale * R
+        T[:3, 3] = t
+        diag = {
+            "scale": float(scale),
+            "rotation_det": float(np.linalg.det(R)),
+            "center_rmse": center_rmse,
+            "rotation_dir_residual": rot_residual,
+        }
+        return T.astype(np.float32), diag
+
+    global_camera_map = c2w_rows_to_map(global_camera_matrix_df)
+
     transform_rows = []
     keep_rows = []
     all_vertices = []
@@ -1631,12 +1751,8 @@ else:
         chunk_df = pd.read_csv(chunk_input_path)
         pred_extrinsics = np.load(pred_ext_path)
 
-        local_centers = []
-        for ext in pred_extrinsics:
-            w2c = to_4x4(ext)
-            c2w = np.linalg.inv(w2c)
-            local_centers.append(c2w[:3, 3])
-        local_centers = np.stack(local_centers, axis=0)
+        local_c2w_list = c2w_list_from_extrinsics(pred_extrinsics)
+        local_centers = np.stack([m[:3, 3] for m in local_c2w_list], axis=0)
 
         merged = chunk_df.merge(
             global_centers_df[["record_index", "cx_world", "cy_world", "cz_world", "proj"]],
@@ -1644,25 +1760,9 @@ else:
             how="left",
         )
         assert not merged[["cx_world", "cy_world", "cz_world"]].isnull().any().any(), f"global center missing: {row.chunk_name}"
+        global_c2w_list = [global_camera_map[int(record_index)] for record_index in merged["record_index"].tolist()]
 
-        src = np.asarray(local_centers, dtype=np.float64)
-        dst = merged[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32).astype(np.float64)
-        src_mean = src.mean(axis=0)
-        dst_mean = dst.mean(axis=0)
-        src_c = src - src_mean
-        dst_c = dst - dst_mean
-        cov = (dst_c.T @ src_c) / src.shape[0]
-        U, D, Vt2 = np.linalg.svd(cov)
-        S = np.eye(3)
-        if np.linalg.det(U) * np.linalg.det(Vt2) < 0:
-            S[-1, -1] = -1
-        R = U @ S @ Vt2
-        var_src = np.mean(np.sum(src_c ** 2, axis=1))
-        scale = np.trace(np.diag(D) @ S) / max(var_src, 1e-12)
-        t = dst_mean - scale * (R @ src_mean)
-        T_c_to_w0 = np.eye(4, dtype=np.float32)
-        T_c_to_w0[:3, :3] = (scale * R).astype(np.float32)
-        T_c_to_w0[:3, 3] = t.astype(np.float32)
+        T_c_to_w0, align_diag = estimate_pose_aware_similarity(local_c2w_list, global_c2w_list, estimate_scale=True)
 
         T_path = chunk_manifest_dir / f"{row.chunk_name}_to_w0.npy"
         np.save(T_path, T_c_to_w0)
@@ -1670,6 +1770,10 @@ else:
             "chunk_name": row.chunk_name,
             "frame_count": int(len(chunk_df)),
             "transform_path": str(T_path),
+            "scale": float(align_diag["scale"]),
+            "rotation_det": float(align_diag["rotation_det"]),
+            "center_rmse": float(align_diag["center_rmse"]),
+            "rotation_dir_residual": float(align_diag["rotation_dir_residual"]),
         })
 
         adopted_proj = merged.loc[merged["is_adopted_region"] == True, "proj"].to_numpy(dtype=np.float32)
