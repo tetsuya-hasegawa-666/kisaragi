@@ -1166,7 +1166,11 @@ PROCESS_RES = config["PROCESS_RES"]
 CHUNKS_PER_BATCH = config["CHUNKS_PER_BATCH"]
 
 target_chunks_df = pd.read_csv(chunk_manifest_dir / "chunk_index_target.csv")
+batch_plan_df = pd.read_csv(chunk_manifest_dir / "batch_plan.csv")
 global_centers_df = pd.read_csv(global_pose_dir / "camera_center_matrix.csv")
+
+print("# batch_plan")
+print(batch_plan_df.to_string(index=False))
 
 def to_4x4(ext):
     ext = np.asarray(ext).astype(np.float32)
@@ -1226,9 +1230,33 @@ def load_scene_any(path: Path):
         scene.add_geometry(loaded)
     return scene
 
+def show_batch_plan(run_batch_index: int):
+    assert len(batch_plan_df) >= 1, "batch_plan.csv is empty"
+    if run_batch_index < 0 or run_batch_index >= len(batch_plan_df):
+        print(json.dumps({
+            "status": "skip",
+            "reason": "batch_out_of_range",
+            "run_batch_index": int(run_batch_index),
+            "available_batch_count": int(len(batch_plan_df)),
+        }, indent=2, ensure_ascii=False))
+        return
+
+    row = batch_plan_df.iloc[int(run_batch_index)]
+    chunk_names = str(row["chunk_names"]).split("|") if str(row["chunk_names"]).strip() else []
+    print("# selected_batch")
+    print(json.dumps({
+        "run_batch_index": int(run_batch_index),
+        "chunk_from": int(row["chunk_from"]),
+        "chunk_to": int(row["chunk_to"]),
+        "chunk_count": int(row["chunk_count"]),
+        "chunk_names": chunk_names,
+    }, indent=2, ensure_ascii=False))
+
 def process_batch(run_batch_index: int):
     batch_start = run_batch_index * CHUNKS_PER_BATCH
     batch_end = min(batch_start + CHUNKS_PER_BATCH, len(target_chunks_df))
+
+    show_batch_plan(run_batch_index)
 
     if batch_start >= len(target_chunks_df):
         print(json.dumps({
