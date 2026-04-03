@@ -80,52 +80,208 @@ print("shortcut_root_exists", Path("/content/drive/.shortcut-targets-by-id").exi
 #2
 from pathlib import Path
 import json
+import shutil
+import zipfile
 
-shortcut_root = Path("/content/drive/.shortcut-targets-by-id/1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_")
-scan_roots = [
-    shortcut_root / "trajectreview",
-    Path("/content/drive/MyDrive/trajectreview"),
+# ===== 固定定数 =====
+OAI_SHORTCUT_ID = "1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_"
+SHORTCUT_ROOT = Path(f"/content/drive/.shortcut-targets-by-id/{OAI_SHORTCUT_ID}")
+
+# 探索対象は raw correcting のみ
+RAW_SCAN_ROOTS = [
+    SHORTCUT_ROOT / "trajectreview" / "correcting",
+    Path("/content/drive/MyDrive/trajectreview/correcting"),
 ]
-results_root = Path("/content/drive/MyDrive/trajectreview/modeling")
-results_root.mkdir(parents=True, exist_ok=True)
-candidate_doc_path = Path("/content/runbook_drive_candidates.json")
+
+# 保存先は modeling
+RESULTS_ROOT_CANDIDATES = [
+    Path("/content/drive/MyDrive/trajectreview/modeling"),
+    SHORTCUT_ROOT / "trajectreview" / "modeling",
+]
+
+RESULTS_ROOT = next((p for p in RESULTS_ROOT_CANDIDATES if p.exists()), RESULTS_ROOT_CANDIDATES[0])
+RESULTS_ROOT.mkdir(parents=True, exist_ok=True)
+
+EXTRACT_ROOT = Path("/content/trajectreview_input")
+RUNBOOK_CANDIDATE_DOC = Path("/content/runbook_drive_candidates.json")
+RUNBOOK_SELECTED_DOC = Path("/content/runbook_selected_input.json")
+RUNBOOK_PATHS_DOC = Path("/content/runbook_paths.json")
 
 def infer_session_id(path: Path) -> str:
     return path.stem if path.suffix.lower() == ".zip" else path.name
 
-zip_map = {}
-dir_map = {}
-for root in scan_roots:
-    if not root.exists():
-        continue
-    for zip_path in sorted(root.rglob("*.zip")):
-        stat = zip_path.stat()
-        key = (infer_session_id(zip_path), stat.st_size)
-        zip_map[key] = {
-            "kind": "zip",
-            "session_id": infer_session_id(zip_path),
-            "label": f"{infer_session_id(zip_path)} [zip]",
-            "path": str(zip_path),
-            "size_bytes": stat.st_size,
-        }
-    for manifest_path in sorted(root.rglob("session_manifest.json")):
-        session_dir = manifest_path.parent
-        dir_map[infer_session_id(session_dir)] = {
-            "kind": "dir",
-            "session_id": infer_session_id(session_dir),
-            "label": f"{infer_session_id(session_dir)} [dir]",
-            "path": str(session_dir),
-        }
+def scan_candidates(scan_roots):
+    zip_map = {}
+    dir_map = {}
+
+    for root in scan_roots:
+        if not root.exists():
+            continue
+
+        for zip_path in sorted(root.rglob("*.zip")):
+            stat = zip_path.stat()
+            key = (infer_session_id(zip_path), stat.st_size)
+            zip_map[key] = {
+                "kind": "zip",
+                "session_id": infer_session_id(zip_path),
+                "label": f"{infer_session_id(zip_path)} [zip]",
+                "path": str(zip_path),
+                "size_bytes": stat.st_size,
+            }
+
+        for manifest_path in sorted(root.rglob("session_manifest.json")):
+            session_dir = manifest_path.parent
+            dir_map[infer_session_id(session_dir)] = {
+                "kind": "dir",
+                "session_id": infer_session_id(session_dir),
+                "label": f"{infer_session_id(session_dir)} [dir]",
+                "path": str(session_dir),
+            }
+
+    return sorted(
+        list(zip_map.values()) + list(dir_map.values()),
+        key=lambda x: (x["session_id"], x["kind"], x["path"]),
+    )
+
+def reset_extract_root():
+    if EXTRACT_ROOT.exists():
+        shutil.rmtree(EXTRACT_ROOT)
+    EXTRACT_ROOT.mkdir(parents=True, exist_ok=True)
+
+def extract_selected_input(selected_path: Path, selected_kind: str):
+    reset_extract_root()
+    if selected_kind == "zip":
+        with zipfile.ZipFile(selected_path, "r") as zf:
+            zf.extractall(EXTRACT_ROOT)
+    else:
+        shutil.copytree(selected_path, EXTRACT_ROOT / selected_path.name)
+
+def pick_best_raw_root(base: Path) -> Path:
+    manifest_hits = sorted(base.rglob("session_manifest.json"))
+    if manifest_hits:
+        root = manifest_hits[0].parent
+        if root.name != "trajectreview" and (root / "trajectreview").exists():
+            return root / "trajectreview"
+        return root
+
+    package_hits = sorted(base.rglob("session_package.json"))
+    if package_hits:
+        pkg_parent = package_hits[0].parent
+        root = pkg_parent.parent if pkg_parent.name == "trajectreview" else pkg_parent
+        if root.name != "trajectreview" and (root / "trajectreview").exists():
+            return root / "trajectreview"
+        return root
+
+    frame_hits = sorted(list(base.rglob("frame_record.jsonl")) + list(base.rglob("arcore_pose.jsonl")))
+    image_dir_hits = sorted([p for p in base.rglob("*") if p.is_dir() and p.name in {"images", "image"}])
+    candidate_roots = []
+
+    for p in frame_hits:
+        candidate_roots.append(p.parent)
+        if (p.parent / "trajectreview").exists():
+            candidate_roots.append(p.parent / "trajectreview")
+
+    for p in image_dir_hits:
+        candidate_roots.append(p.parent)
+        if (p.parent / "trajectreview").exists():
+            candidate_roots.append(p.parent / "trajectreview")
+
+    for c in candidate_roots:
+        if c.name == "trajectreview":
+            return c
+
+    if candidate_roots:
+        root = candidate_roots[0]
+        if root.name != "trajectreview" and (root / "trajectreview").exists():
+            return root / "trajectreview"
+        return root
+
+    dirs = [p for p in base.iterdir() if p.is_dir()]
+    if len(dirs) == 1:
+        only = dirs[0]
+        if (only / "trajectreview").exists():
+            return only / "trajectreview"
+        return only
+
+    raise AssertionError(f"raw session root not found under {base}")
+
+def resolve_and_validate_paths(selected_doc: dict):
+    selected_path = Path(selected_doc["path"])
+    selected_kind = selected_doc["kind"]
+    session_id = selected_doc["session_id"]
+
+    assert selected_path.exists(), f"selected input missing: {selected_path}"
+
+    extract_selected_input(selected_path, selected_kind)
+
+    session_root = pick_best_raw_root(EXTRACT_ROOT)
+    if session_root.name != "trajectreview" and (session_root / "trajectreview").exists():
+        session_root = session_root / "trajectreview"
+    session_outer = session_root.parent if session_root.name == "trajectreview" else session_root
+
+    image_dir_candidates = [
+        session_root / "images",
+        session_root / "image",
+        session_outer / "images",
+        session_outer / "image",
+        session_outer / "trajectreview" / "images",
+        session_outer / "trajectreview" / "image",
+    ]
+    images_dir = next((p for p in image_dir_candidates if p.exists()), None)
+    assert images_dir is not None, {"image_dir_candidates": [str(p) for p in image_dir_candidates]}
+
+    frame_record_candidates = [
+        session_outer / "frame_record.jsonl",
+        session_root / "frame_record.jsonl",
+        session_root / "arcore_pose.jsonl",
+        session_outer / "arcore_pose.jsonl",
+        session_outer / "trajectreview" / "frame_record.jsonl",
+        session_outer / "trajectreview" / "arcore_pose.jsonl",
+    ]
+    frame_record_path = next((p for p in frame_record_candidates if p.exists()), None)
+    assert frame_record_path is not None, {"frame_record_candidates": [str(p) for p in frame_record_candidates]}
+
+    probe_root = RESULTS_ROOT / f"{session_id}_da3_record_route_v01"
+    proof_metric_dir = probe_root / "proof_metriclarge"
+    prod_metric_dir = probe_root / "prod_metriclarge"
+    proof_giant_dir = probe_root / "proof_giant"
+    world_dir = probe_root / "world_fusion_v01"
+    manifest_dir = probe_root / "manifests"
+
+    for p in [probe_root, proof_metric_dir, prod_metric_dir, proof_giant_dir, world_dir, manifest_dir]:
+        p.mkdir(parents=True, exist_ok=True)
+
+    return {
+        "session_id": session_id,
+        "selected_kind": selected_kind,
+        "selected_path": str(selected_path),
+        "results_root": str(RESULTS_ROOT),
+        "results_root_visibility": "google_drive_mydrive_visible",
+        "extract_root": str(EXTRACT_ROOT),
+        "probe_root": str(probe_root),
+        "manifest_dir": str(manifest_dir),
+        "proof_metric_dir": str(proof_metric_dir),
+        "prod_metric_dir": str(prod_metric_dir),
+        "proof_giant_dir": str(proof_giant_dir),
+        "world_dir": str(world_dir),
+        "images_dir": str(images_dir),
+        "frame_record_path": str(frame_record_path),
+        "session_root": str(session_root),
+        "session_outer": str(session_outer),
+        "input_mode": "raw_session",
+    }
 
 candidate_doc = {
-    "results_root": str(results_root),
+    "results_root": str(RESULTS_ROOT),
     "results_root_visibility": "google_drive_mydrive_visible",
-    "candidate_count": len(zip_map) + len(dir_map),
-    "candidates": sorted(list(zip_map.values()) + list(dir_map.values()), key=lambda x: (x["session_id"], x["kind"], x["path"])),
+    "scan_roots": [str(p) for p in RAW_SCAN_ROOTS],
+    "candidate_count": 0,
+    "candidates": scan_candidates(RAW_SCAN_ROOTS),
 }
-candidate_doc_path.write_text(json.dumps(candidate_doc, indent=2, ensure_ascii=False), encoding="utf-8")
-print("candidate_doc_path", candidate_doc_path)
-print("results_root", results_root)
+candidate_doc["candidate_count"] = len(candidate_doc["candidates"])
+RUNBOOK_CANDIDATE_DOC.write_text(json.dumps(candidate_doc, indent=2, ensure_ascii=False), encoding="utf-8")
+print("RUNBOOK_CANDIDATE_DOC", RUNBOOK_CANDIDATE_DOC)
+print("RESULTS_ROOT", RESULTS_ROOT)
 print("candidate_count", candidate_doc["candidate_count"])
 for idx, item in enumerate(candidate_doc["candidates"]):
     print(f"[{idx}] {item['label']}: {item['path']}")
@@ -141,7 +297,7 @@ import ipywidgets as widgets
 from IPython.display import display
 
 candidate_doc = json.loads(Path("/content/runbook_drive_candidates.json").read_text(encoding="utf-8"))
-selected_doc_path = Path("/content/runbook_selected_input.json")
+selected_doc_path = RUNBOOK_SELECTED_DOC if "RUNBOOK_SELECTED_DOC" in globals() else Path("/content/runbook_selected_input.json")
 options = [(f"[{idx}] {item['label']}", idx) for idx, item in enumerate(candidate_doc["candidates"])]
 dropdown = widgets.Dropdown(options=options, description="input", layout=widgets.Layout(width="95%"))
 button = widgets.Button(description="selected input を保存", button_style="success")
@@ -174,10 +330,12 @@ display(dropdown, button, output)
 from pathlib import Path
 import json
 
-selected_doc = json.loads(Path("/content/runbook_selected_input.json").read_text(encoding="utf-8"))
-print("selected_path_exists", Path(selected_doc["path"]).exists(), selected_doc["path"])
-print("results_root", selected_doc["results_root"])
-print("results_root_visible_on_drive_ui", str(selected_doc["results_root"]).startswith("/content/drive/MyDrive/"))
+assert "resolve_and_validate_paths" in globals(), "#2 を先に実行して helper を定義してください"
+assert "RUNBOOK_PATHS_DOC" in globals(), "#2 を先に実行して RUNBOOK_PATHS_DOC を定義してください"
+selected_doc = json.loads(RUNBOOK_SELECTED_DOC.read_text(encoding="utf-8")) if "RUNBOOK_SELECTED_DOC" in globals() else json.loads(Path("/content/runbook_selected_input.json").read_text(encoding="utf-8"))
+paths = resolve_and_validate_paths(selected_doc)
+RUNBOOK_PATHS_DOC.write_text(json.dumps(paths, indent=2, ensure_ascii=False), encoding="utf-8")
+print(json.dumps(paths, indent=2, ensure_ascii=False))
 ```
 
 ## install
@@ -224,72 +382,28 @@ print("inference_sig", inspect.signature(DepthAnything3.inference))
 #9
 from pathlib import Path
 import json
-import shutil
-import zipfile
 
-selected_doc = json.loads(Path("/content/runbook_selected_input.json").read_text(encoding="utf-8"))
-selected_path = Path(selected_doc["path"])
-selected_kind = selected_doc["kind"]
-session_id = selected_doc["session_id"]
-results_root = Path(selected_doc["results_root"])
+paths = json.loads(Path("/content/runbook_paths.json").read_text(encoding="utf-8"))
+selected_path = Path(paths["selected_path"])
+selected_kind = paths["selected_kind"]
+session_id = paths["session_id"]
+results_root = Path(paths["results_root"])
 assert str(results_root).startswith("/content/drive/MyDrive/"), results_root
 results_root.mkdir(parents=True, exist_ok=True)
-
-extract_root = Path("/content/trajectreview_input")
-if extract_root.exists():
-    shutil.rmtree(extract_root)
-extract_root.mkdir(parents=True, exist_ok=True)
-
-if selected_kind == "zip":
-    with zipfile.ZipFile(selected_path, "r") as zf:
-        zf.extractall(extract_root)
-else:
-    shutil.copytree(selected_path, extract_root / selected_path.name)
-
-session_manifest_hits = sorted(extract_root.rglob("session_manifest.json"))
-if session_manifest_hits:
-    session_outer = session_manifest_hits[0].parent
-else:
-    pkg_hits = sorted(extract_root.rglob("session_package.json"))
-    assert pkg_hits, f"session_manifest.json or session_package.json not found under {extract_root}"
-    session_outer = pkg_hits[0].parent.parent if pkg_hits[0].parent.name == "trajectreview" else pkg_hits[0].parent
-
-session_root = session_outer / "trajectreview" if (session_outer / "trajectreview").exists() else session_outer
-
-image_dir_candidates = [
-    session_root / "images",
-    session_root / "image",
-    session_outer / "images",
-    session_outer / "image",
-]
-source_images_dir = next((p for p in image_dir_candidates if p.exists()), None)
-assert source_images_dir is not None, {"image_dir_candidates": [str(p) for p in image_dir_candidates]}
-
-images_dir = session_root / "images"
-if source_images_dir != images_dir:
-    if images_dir.exists():
-        shutil.rmtree(images_dir)
-    shutil.copytree(source_images_dir, images_dir)
-
-frame_record_candidates = [
-    session_outer / "frame_record.jsonl",
-    session_root / "frame_record.jsonl",
-    session_root / "arcore_pose.jsonl",
-    session_outer / "arcore_pose.jsonl",
-]
-frame_record_path = next((p for p in frame_record_candidates if p.exists()), None)
-assert frame_record_path is not None, {"frame_record_candidates": [str(p) for p in frame_record_candidates]}
-
+session_root = Path(paths["session_root"])
+session_outer = Path(paths["session_outer"])
+images_dir = Path(paths["images_dir"])
+frame_record_path = Path(paths["frame_record_path"])
 frame_pose_index_path = session_root / "frame_pose_index.csv"
 route_slug = "da3_record_route_v01"
 modeling_session_id = session_id.replace("trajectreview-correcting-session-", "trajectreview-modeling-session-", 1) if session_id.startswith("trajectreview-correcting-session-") else f"trajectreview-modeling-session-{session_id}"
 probe_root_name = f"{modeling_session_id}_{route_slug}"
-probe_root = results_root / probe_root_name
-proof_metric_dir = probe_root / "proof_metriclarge"
-prod_metric_dir = probe_root / "prod_metriclarge"
-proof_giant_dir = probe_root / "proof_giant"
-world_dir = probe_root / "world_fusion_v01"
-manifest_dir = probe_root / "manifests"
+probe_root = Path(paths["probe_root"])
+proof_metric_dir = Path(paths["proof_metric_dir"])
+prod_metric_dir = Path(paths["prod_metric_dir"])
+proof_giant_dir = Path(paths["proof_giant_dir"])
+world_dir = Path(paths["world_dir"])
+manifest_dir = Path(paths["manifest_dir"])
 
 for p in [probe_root, proof_metric_dir, prod_metric_dir, proof_giant_dir, world_dir, manifest_dir]:
     p.mkdir(parents=True, exist_ok=True)
