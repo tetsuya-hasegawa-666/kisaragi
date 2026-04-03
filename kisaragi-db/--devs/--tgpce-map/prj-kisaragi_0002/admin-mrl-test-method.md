@@ -78,6 +78,10 @@
 43. `drive.mount('/content/drive')` の cell を実行し、Google Drive への access 許可画面が出たら許可する。
 44. `session_root/` に、`colab_job_request.json` で要求された file と frame / image 入力を置く。迷った時は、先に file 名だけを Codex へ伝える。
 45. install cell と `DA3Metric-Large` 実行 cell は、1 つずつ順に実行する。失敗したら、その cell の見出しと error message をそのまま控える。
+46. `MRL-10` の giant route は `Block 3` を 1 回、`Block 4` を 1 回実行した後、`Block 5` を `RUN_BATCH_INDEX = 0`、`1`、`2`、`3` ... と変えながら繰り返す。`Block 5` の 1 回は `3chunk` だけを処理する。
+47. `Block 3` が出した `batch_plan.csv` を見て、何回 `Block 5` を回すかを決める。`batch_count = N` なら `RUN_BATCH_INDEX = 0` から `N-1` まで順に実行する。
+48. 全 batch を回し終わるまでは `Block 6` を実行しない。途中 batch の確認だけなら `batch_000`、`batch_001` などの `batch_summary.json` を見る。
+49. 全 batch 完了後に `Block 6` を 1 回だけ実行し、`merged_gs.ply`、`merged_scene.glb`、bundle zip を再構築する。
 
 ## Colab へ入る時の考え方
 

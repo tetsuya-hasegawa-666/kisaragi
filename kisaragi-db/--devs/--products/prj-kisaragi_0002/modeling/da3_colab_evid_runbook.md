@@ -49,6 +49,8 @@
 5. 必要時のみ `MRL-10 Block 3`
 6. 必要時のみ `MRL-10 Block 4`
 7. 必要時のみ `MRL-10 Block 5` を `RUN_BATCH_INDEX` を変えながら繰り返す
+   - 例: `0`, `1`, `2`, `3` ...
+   - 1 回の `Block 5` で `3chunk` だけ処理する
 8. 最後に `MRL-10 Block 6`
 
 ## 準備確認
@@ -1354,9 +1356,32 @@ def process_batch(run_batch_index: int):
 
 ### Block 5: 3chunk sequential batch run
 
+- この block は 1 回で `3chunk` だけ処理する。
+- `RUN_BATCH_INDEX = 0` は先頭 `3chunk`、`RUN_BATCH_INDEX = 1` は次の `3chunk` を意味する。
+- `batch_plan.csv` を見ながら `0`, `1`, `2`, `3` ... と順に実行する。
+- 全 batch を回し終わるまでは `Block 6` を実行しない。
+
 ```python
 #14
 RUN_BATCH_INDEX = 0
+process_batch(RUN_BATCH_INDEX)
+```
+
+```python
+#14-01
+RUN_BATCH_INDEX = 1
+process_batch(RUN_BATCH_INDEX)
+```
+
+```python
+#14-02
+RUN_BATCH_INDEX = 2
+process_batch(RUN_BATCH_INDEX)
+```
+
+```python
+#14-03
+RUN_BATCH_INDEX = 3
 process_batch(RUN_BATCH_INDEX)
 ```
 
