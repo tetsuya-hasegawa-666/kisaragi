@@ -1503,7 +1503,22 @@ chunk_runs_dir = pipeline_root / "chunk_runs"
 merged_dir = pipeline_root / "merged"
 merged_dir.mkdir(parents=True, exist_ok=True)
 
-config = json.loads((pipeline_root / "pipeline_config.json").read_text(encoding="utf-8"))
+config_path = pipeline_root / "pipeline_config.json"
+if config_path.exists():
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+else:
+    config = {
+        "MODEL_ID": "depth-anything/DA3NESTED-GIANT-LARGE-1.1",
+        "BUNDLE_MODEL_SLUG": "giantlarge11",
+        "PROCESS_RES": 504,
+        "CHUNK_SIZE": 18,
+        "STEP": 12,
+        "ADOPT_SIZE": 12,
+        "CHUNKS_PER_BATCH": 3,
+        "GLOBAL_CAMERA_SOURCE": "extrinsics_w2c_prod.npy",
+    }
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(json.dumps(config, indent=2, ensure_ascii=False), encoding="utf-8")
 BUNDLE_MODEL_SLUG = config["BUNDLE_MODEL_SLUG"]
 REQUIRE_ALL_CHUNKS = True
 MAKE_DRIVE_BUNDLE = True
