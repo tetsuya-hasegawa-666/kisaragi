@@ -395,7 +395,7 @@ print("inference_sig", inspect.signature(DepthAnything3.inference))
 ### Block 1: 正規化 + QC + DA3 input pack
 
 ```python
-#9
+#6
 from pathlib import Path
 import json
 
@@ -842,7 +842,7 @@ print(json.dumps(summary, indent=2, ensure_ascii=False))
 ### Block 2: MetricLarge proof + production + world export
 
 ```python
-#11
+#7
 from pathlib import Path
 import json
 import sys
@@ -1072,7 +1072,7 @@ print(json.dumps({
 ### Block 3: Global camera matrix + batch plan
 
 ```python
-#12
+#8
 from pathlib import Path
 import json
 import math
@@ -1248,7 +1248,7 @@ print(batch_plan_df.to_string(index=False))
 - 生成物は `vertex_assignment_summary.csv`、`owner_record_histogram.csv`、`chunk_assignment_summary.csv`、`merge_warning_summary.csv`、`chunk_transform_quality.csv` として `pipeline_root` 配下へ保存され、`Block 6` bundle に自動同梱される。
 
 ```python
-#13
+#9
 from pathlib import Path
 import gc
 import json
@@ -1705,25 +1705,25 @@ def process_batch(run_batch_index: int):
 - 全 batch を回し終わるまでは `Block 6` を実行しない。
 
 ```python
-#14
+#10
 RUN_BATCH_INDEX = 0
 process_batch(RUN_BATCH_INDEX)
 ```
 
 ```python
-#14-01
+#11
 RUN_BATCH_INDEX = 1
 process_batch(RUN_BATCH_INDEX)
 ```
 
 ```python
-#14-02
+#12
 RUN_BATCH_INDEX = 2
 process_batch(RUN_BATCH_INDEX)
 ```
 
 ```python
-#14-03
+#13
 RUN_BATCH_INDEX = 3
 process_batch(RUN_BATCH_INDEX)
 ```
@@ -1736,7 +1736,7 @@ process_batch(RUN_BATCH_INDEX)
 - したがって `vertex_assignment_summary.csv`、`chunk_assignment_summary.csv`、`owner_record_histogram.csv`、`merge_warning_summary.json`、`chunk_transform_quality.csv` を含む merge 証跡は Drive と local の両方で見られる。
 
 ```python
-#15
+#14
 from pathlib import Path
 import json
 import shutil
