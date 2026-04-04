@@ -227,8 +227,22 @@ def resolve_and_validate_paths(selected_doc: dict):
         session_outer / "trajectreview" / "images",
         session_outer / "trajectreview" / "image",
     ]
-    images_dir = next((p for p in image_dir_candidates if p.exists()), None)
-    assert images_dir is not None, {"image_dir_candidates": [str(p) for p in image_dir_candidates]}
+    valid_image_dirs = []
+    for p in image_dir_candidates:
+        if not p.exists():
+            continue
+        image_count = (
+            len(list(p.glob("*.jpg"))) +
+            len(list(p.glob("*.jpeg"))) +
+            len(list(p.glob("*.png"))) +
+            len(list(p.glob("*.JPG"))) +
+            len(list(p.glob("*.JPEG"))) +
+            len(list(p.glob("*.PNG")))
+        )
+        valid_image_dirs.append((p, image_count))
+    assert valid_image_dirs, {"image_dir_candidates": [str(p) for p in image_dir_candidates]}
+    valid_image_dirs = sorted(valid_image_dirs, key=lambda x: (-x[1], len(str(x[0]))))
+    images_dir = valid_image_dirs[0][0]
 
     frame_record_candidates = [
         session_outer / "frame_record.jsonl",
@@ -265,6 +279,8 @@ def resolve_and_validate_paths(selected_doc: dict):
         "proof_giant_dir": str(proof_giant_dir),
         "world_dir": str(world_dir),
         "images_dir": str(images_dir),
+        "images_dir_file_count": int(valid_image_dirs[0][1]),
+        "image_dir_candidates_ranked": [{"path": str(p), "image_count": int(c)} for p, c in valid_image_dirs],
         "frame_record_path": str(frame_record_path),
         "session_root": str(session_root),
         "session_outer": str(session_outer),
@@ -449,6 +465,7 @@ from PIL import Image
 ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
 images_dir = Path(ctx["images_dir"])
 frame_record_path = Path(ctx["frame_record_path"])
+frame_pose_index_path = Path(ctx["frame_pose_index_path"])
 manifest_dir = Path(ctx["manifest_dir"])
 
 CANONICAL_ORIENTATION_POLICY = "upright_rot90cw_from_correcting"
@@ -456,6 +473,66 @@ BLUR_THRESHOLD = 8.0
 
 with frame_record_path.open("r", encoding="utf-8") as f:
     frame_records = [json.loads(line) for line in f if line.strip()]
+
+frame_pose_df = pd.read_csv(frame_pose_index_path) if frame_pose_index_path.exists() else pd.DataFrame()
+image_name_by_record_index = {}
+if len(frame_pose_df) > 0:
+    image_name_col = next((c for c in ["image_file_name", "imageFileName", "frame_name"] if c in frame_pose_df.columns), None)
+    record_index_col = next((c for c in ["pose_record_index", "record_index"] if c in frame_pose_df.columns), None)
+    if image_name_col is not None and record_index_col is not None:
+        tmp = frame_pose_df[[record_index_col, image_name_col]].copy()
+        tmp = tmp.dropna()
+        tmp[image_name_col] = tmp[image_name_col].astype(str).str.strip()
+        tmp = tmp.loc[tmp[image_name_col] != ""]
+        image_name_by_record_index = {
+            int(getattr(row, record_index_col)): getattr(row, image_name_col)
+            for row in tmp.itertuples(index=False)
+        }
+    elif "frame_index" in frame_pose_df.columns:
+        sorted_image_names = sorted([
+            *[p.name for p in images_dir.glob("*.jpg")],
+            *[p.name for p in images_dir.glob("*.jpeg")],
+            *[p.name for p in images_dir.glob("*.png")],
+            *[p.name for p in images_dir.glob("*.JPG")],
+            *[p.name for p in images_dir.glob("*.JPEG")],
+            *[p.name for p in images_dir.glob("*.PNG")],
+        ])
+        record_index_col = next((c for c in ["pose_record_index", "record_index"] if c in frame_pose_df.columns), None)
+        if record_index_col is not None:
+            for row in frame_pose_df.itertuples(index=False):
+                frame_idx = int(getattr(row, "frame_index"))
+                if 0 <= frame_idx < len(sorted_image_names):
+                    image_name_by_record_index[int(getattr(row, record_index_col))] = sorted_image_names[frame_idx]
+
+def ranked_image_dirs(primary_dir: Path, frame_record_path: Path):
+    session_outer = frame_record_path.parent
+    session_root = session_outer / "trajectreview" if (session_outer / "trajectreview").exists() else session_outer
+    candidates = [
+        primary_dir,
+        session_root / "images",
+        session_root / "image",
+        session_outer / "images",
+        session_outer / "image",
+        session_outer / "trajectreview" / "images",
+        session_outer / "trajectreview" / "image",
+    ]
+    ranked = []
+    seen = set()
+    for p in candidates:
+        key = str(p)
+        if key in seen or not p.exists():
+            continue
+        seen.add(key)
+        image_count = (
+            len(list(p.glob("*.jpg"))) +
+            len(list(p.glob("*.jpeg"))) +
+            len(list(p.glob("*.png"))) +
+            len(list(p.glob("*.JPG"))) +
+            len(list(p.glob("*.JPEG"))) +
+            len(list(p.glob("*.PNG")))
+        )
+        ranked.append((p, image_count))
+    return sorted(ranked, key=lambda x: (-x[1], len(str(x[0]))))
 
 def lap_var(image_path: Path) -> float:
     img = iio.imread(image_path)
@@ -534,10 +611,16 @@ def normalize_intrinsics_to_upright(intr, actual_width: int, actual_height: int)
         "height_canonical": None,
     }
 
+image_dir_ranking = ranked_image_dirs(images_dir, frame_record_path)
+resolved_images_dir = image_dir_ranking[0][0]
 rows = []
 for rec in sorted(frame_records, key=lambda x: int(x.get("frameTimestampNs", 0))):
-    image_name = str(rec.get("imageFileName", "")).strip()
-    image_path = images_dir / image_name if image_name else None
+    image_name = str(rec.get("imageFileName", "") or "").strip()
+    if not image_name:
+        record_index = rec.get("recordIndex")
+        if record_index is not None:
+            image_name = str(image_name_by_record_index.get(int(record_index), "")).strip()
+    image_path = resolved_images_dir / image_name if image_name else None
     image_exists = bool(image_name) and image_path.exists()
     intr = rec.get("imageIntrinsics") or {}
     pose = rec.get("pose") or {}
@@ -565,6 +648,8 @@ for rec in sorted(frame_records, key=lambda x: int(x.get("frameTimestampNs", 0))
         "tracking_state": rec.get("trackingState"),
         "image_file_name": image_name,
         "image_path": str(image_path) if image_path else "",
+        "resolved_images_dir": str(resolved_images_dir),
+        "image_name_source": "frame_record" if str(rec.get("imageFileName", "") or "").strip() else "frame_pose_index_fallback",
         "image_exists": image_exists,
         "canonical_orientation_policy": CANONICAL_ORIENTATION_POLICY,
         "actual_width": actual_width,
@@ -729,6 +814,10 @@ summary = {
     "frame_record_count": int(len(manifest_df)),
     "qc_pass_count": int(len(adopt_df)),
     "qc_skip_count": int((~qc_df["qc_pass"]).sum()),
+    "resolved_images_dir": str(resolved_images_dir),
+    "resolved_images_dir_file_count": int(image_dir_ranking[0][1]),
+    "frame_pose_index_path": str(frame_pose_index_path),
+    "frame_pose_fallback_mapping_count": int(len(image_name_by_record_index)),
     "prod_selected_count": int(len(prod_selected)),
     "proof_selected_count": int(len(proof_selected)),
     "canonical_orientation_policy": CANONICAL_ORIENTATION_POLICY,
