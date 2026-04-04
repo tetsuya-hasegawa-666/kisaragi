@@ -88,7 +88,7 @@ import zipfile
 OAI_SHORTCUT_ID = "1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_"
 SHORTCUT_ROOT = Path(f"/content/drive/.shortcut-targets-by-id/{OAI_SHORTCUT_ID}")
 
-# 探索対象は raw correcting のみ
+# 探索対象は raw correcting と既存 modeling の両方
 RAW_SCAN_ROOTS = [
     SHORTCUT_ROOT / "trajectreview" / "correcting",
     Path("/content/drive/MyDrive/trajectreview/correcting"),
@@ -143,6 +143,27 @@ def scan_candidates(scan_roots):
         list(zip_map.values()) + list(dir_map.values()),
         key=lambda x: (x["session_id"], x["kind"], x["path"]),
     )
+
+def scan_modeling_candidates(results_root: Path):
+    rows = []
+    if not results_root.exists():
+        return rows
+    for p in sorted(results_root.iterdir(), key=lambda x: x.name):
+        if not p.is_dir():
+            continue
+        if not p.name.startswith("trajectreview-modeling-session-"):
+            continue
+        pipeline_root = p / "continuous_gs_v06_chunk18_overlap6_adopt12"
+        rows.append({
+            "kind": "modeling_dir",
+            "source_family": "modeling",
+            "session_id": p.name,
+            "label": f"{p.name} [modeling]",
+            "path": str(p),
+            "has_chunk_pipeline": bool(pipeline_root.exists()),
+            "has_chunk_runs": bool((pipeline_root / "chunk_runs").exists()),
+        })
+    return rows
 
 def reset_extract_root():
     if EXTRACT_ROOT.exists():
@@ -286,6 +307,7 @@ def resolve_and_validate_paths(selected_doc: dict):
     return {
         "session_id": session_id,
         "selected_kind": selected_kind,
+        "source_family": selected_doc.get("source_family", "correcting"),
         "selected_path": str(selected_path),
         "results_root": str(RESULTS_ROOT),
         "results_root_visibility": "google_drive_mydrive_visible",
@@ -310,12 +332,50 @@ def resolve_and_validate_paths(selected_doc: dict):
         "input_mode": "raw_session",
     }
 
+def resolve_modeling_probe_paths(selected_doc: dict):
+    selected_path = Path(selected_doc["path"])
+    assert selected_path.exists(), f"selected modeling directory missing: {selected_path}"
+    pipeline_root = selected_path / "continuous_gs_v06_chunk18_overlap6_adopt12"
+    required_paths = [
+        pipeline_root,
+        pipeline_root / "global_pose_bootstrap" / "camera_matrix_full.csv",
+        pipeline_root / "global_pose_bootstrap" / "camera_center_matrix.csv",
+        pipeline_root / "manifests" / "chunk_index_all.csv",
+        pipeline_root / "manifests" / "da3_input_manifest_prod.csv",
+        pipeline_root / "chunk_runs",
+    ]
+    for p in required_paths:
+        assert p.exists(), f"modeling probe_root missing required path: {p}"
+
+    return {
+        "session_id": selected_doc["session_id"],
+        "selected_kind": selected_doc["kind"],
+        "source_family": "modeling",
+        "selected_path": str(selected_path),
+        "results_root": str(RESULTS_ROOT),
+        "results_root_visibility": "google_drive_mydrive_visible",
+        "probe_root": str(selected_path),
+        "pipeline_root": str(pipeline_root),
+        "manifest_dir": str(selected_path / "manifests"),
+        "proof_metric_dir": str(selected_path / "proof_metriclarge"),
+        "prod_metric_dir": str(selected_path / "prod_metriclarge"),
+        "proof_giant_dir": str(selected_path / "proof_giant"),
+        "world_dir": str(selected_path / "world_fusion_v01"),
+        "final_outputs_dir": str(selected_path / "final_outputs"),
+        "final_outputs_merged_dir": str(selected_path / "final_outputs" / "merged"),
+        "final_outputs_diagnostics_dir": str(selected_path / "final_outputs" / "diagnostics"),
+        "final_outputs_manifests_dir": str(selected_path / "final_outputs" / "manifests"),
+        "final_outputs_chunk_evidence_dir": str(selected_path / "final_outputs" / "chunk_evidence"),
+        "chunk_runs_dir": str(pipeline_root / "chunk_runs"),
+        "input_mode": "existing_modeling_probe_root",
+    }
+
 candidate_doc = {
     "results_root": str(RESULTS_ROOT),
     "results_root_visibility": "google_drive_mydrive_visible",
-    "scan_roots": [str(p) for p in RAW_SCAN_ROOTS],
+    "scan_roots": [str(p) for p in RAW_SCAN_ROOTS] + [str(RESULTS_ROOT)],
     "candidate_count": 0,
-    "candidates": scan_candidates(RAW_SCAN_ROOTS),
+    "candidates": scan_candidates(RAW_SCAN_ROOTS) + scan_modeling_candidates(RESULTS_ROOT),
 }
 candidate_doc["candidate_count"] = len(candidate_doc["candidates"])
 RUNBOOK_CANDIDATE_DOC.write_text(json.dumps(candidate_doc, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -347,6 +407,7 @@ def on_click(_):
     selected_doc = {
         "selected_index": dropdown.value,
         "kind": selected["kind"],
+        "source_family": selected.get("source_family", "correcting" if selected["kind"] in {"zip", "dir"} else "modeling"),
         "session_id": selected["session_id"],
         "label": selected["label"],
         "path": selected["path"],
@@ -362,6 +423,9 @@ button.on_click(on_click)
 display(dropdown, button, output)
 ```
 
+- `#3` で `... [zip]` または `... [dir]` を選んだ時は `correcting` の raw input として扱う。
+- `#3` で `... [modeling]` を選んだ時は、既存 chunk ありの `probe_root` として扱う。
+
 ### #4 準備確認 4
 
 ```python
@@ -372,7 +436,10 @@ import json
 assert "resolve_and_validate_paths" in globals(), "#2 を先に実行して helper を定義してください"
 assert "RUNBOOK_PATHS_DOC" in globals(), "#2 を先に実行して RUNBOOK_PATHS_DOC を定義してください"
 selected_doc = json.loads(RUNBOOK_SELECTED_DOC.read_text(encoding="utf-8")) if "RUNBOOK_SELECTED_DOC" in globals() else json.loads(Path("/content/runbook_selected_input.json").read_text(encoding="utf-8"))
-paths = resolve_and_validate_paths(selected_doc)
+if selected_doc.get("source_family") == "modeling" or selected_doc.get("kind") == "modeling_dir":
+    paths = resolve_modeling_probe_paths(selected_doc)
+else:
+    paths = resolve_and_validate_paths(selected_doc)
 RUNBOOK_PATHS_DOC.write_text(json.dumps(paths, indent=2, ensure_ascii=False), encoding="utf-8")
 print(json.dumps(paths, indent=2, ensure_ascii=False))
 ```
@@ -418,7 +485,9 @@ print("inference_sig", inspect.signature(DepthAnything3.inference))
 ### 再利用方法
 
 - 既存 `probe_root` を再利用して merge 系だけをやり直す場合でも、runtime 初期化と path cache 生成のため `#1` から `#4` は必須とする。
-- 既存 data を使う最短順は `#1 -> #2 -> #3 -> #4 -> #6-1a -> #6-1b -> #10-5 -> #11` とする。
+- `#3` では `correcting` と `modeling` を明示的に選べる。`correcting` を選んだ時は raw input 扱い、`modeling` を選んだ時は既存 chunk ありの `probe_root` 扱いとする。
+- 既存 modeling data を使う最短順は `#1 -> #2 -> #3 -> #4 -> #6-1b -> #10-5 -> #11` とする。必要なら `#6-1a` で候補一覧を再表示してよい。
+- `correcting` を選んだ時は raw session 前提なので、通常どおり前段から全工程を進める。
 - cleanup が必要な時だけ `#12` と `#13` を続ける。
 
 ### #6-1 正規化 + context pack
@@ -530,11 +599,15 @@ candidates = sorted(
 )
 assert candidates, f"no modeling directories found under {results_root}"
 
+selected_modeling_path = Path(paths["selected_path"]) if paths.get("selected_kind") == "modeling_dir" else None
+selected_modeling_name = selected_modeling_path.name if selected_modeling_path is not None else ""
+
 rows = [
     {
         "index": i,
         "name": p.name,
         "path": str(p),
+        "selected_by_block3": bool(p.name == selected_modeling_name),
     }
     for i, p in enumerate(candidates)
 ]
@@ -570,6 +643,12 @@ else:
         ))
     ]
 assert candidates, f"no modeling directories found under {results_root}"
+
+selected_modeling_path = Path(paths["selected_path"]) if paths.get("selected_kind") == "modeling_dir" else None
+if selected_modeling_path is not None and selected_modeling_path.exists() and not SELECT_MODELING_NAME:
+    matched = [row for row in candidates if Path(row["path"]) == selected_modeling_path]
+    if matched:
+        SELECT_MODELING_INDEX = int(matched[0]["index"])
 
 if SELECT_MODELING_NAME:
     matched = [row for row in candidates if row["name"] == SELECT_MODELING_NAME]
