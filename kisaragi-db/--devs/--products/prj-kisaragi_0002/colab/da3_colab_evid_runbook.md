@@ -417,8 +417,8 @@ print("inference_sig", inspect.signature(DepthAnything3.inference))
 
 ### 再利用方法
 
-- 既存 `probe_root` を再利用して merge 系だけをやり直す場合でも、runtime 初期化のため `#1` は必須とする。
-- 既存 data を使う最短順は `#1 -> #6-1a -> #6-1b -> #10-5 -> #11` とする。
+- 既存 `probe_root` を再利用して merge 系だけをやり直す場合でも、runtime 初期化と path cache 生成のため `#1` から `#4` は必須とする。
+- 既存 data を使う最短順は `#1 -> #2 -> #3 -> #4 -> #6-1a -> #6-1b -> #10-5 -> #11` とする。
 - cleanup が必要な時だけ `#12` と `#13` を続ける。
 
 ### #6-1 正規化 + context pack
@@ -506,7 +506,7 @@ print(json.dumps(context_doc, indent=2, ensure_ascii=False))
 ### #6-1b 既存 probe_root 参照で再開
 
 - すでに Drive 上に `probe_root` があり、chunk 実行結果や manifest を再利用して `#10-5` または `#11` から再開したい時はこの cell を使う。
-- ただし再開時も `#1` は省略せず先に実行し、Drive mount と runtime 前提をそろえる。
+- ただし再開時も `#1` から `#4` は省略せず先に実行し、Drive mount、selected input、`runbook_paths.json` をそろえる。
 - `EXISTING_PROBE_ROOT` には `continuous_gs_v06_chunk18_overlap6_adopt12/` を含む既存 root を入れる。
 - この cell は既存 tree を読み、`runbook_session_context.json` だけを再生成する。未作成 route の `#6-1` と同じ親番の再開枝番とする。
 - canonical な top directory 名は modeling session 名そのもの、たとえば `trajectreview-modeling-session-20260403_gl11_c18ov6ad12` とする。
@@ -517,7 +517,9 @@ print(json.dumps(context_doc, indent=2, ensure_ascii=False))
 from pathlib import Path
 import json
 
-paths = json.loads(Path("/content/runbook_paths.json").read_text(encoding="utf-8"))
+RUNBOOK_PATHS_DOC = Path("/content/runbook_paths.json")
+assert RUNBOOK_PATHS_DOC.exists(), "再開でも #2 -> #3 -> #4 を先に実行して /content/runbook_paths.json を作成してください"
+paths = json.loads(RUNBOOK_PATHS_DOC.read_text(encoding="utf-8"))
 results_root = Path(paths["results_root"])
 assert str(results_root).startswith("/content/drive/MyDrive/"), results_root
 assert results_root.exists(), results_root
@@ -552,7 +554,9 @@ import json
 SELECT_MODELING_INDEX = 0
 SELECT_MODELING_NAME = ""
 
-paths = json.loads(Path("/content/runbook_paths.json").read_text(encoding="utf-8"))
+RUNBOOK_PATHS_DOC = Path("/content/runbook_paths.json")
+assert RUNBOOK_PATHS_DOC.exists(), "再開でも #2 -> #3 -> #4 を先に実行して /content/runbook_paths.json を作成してください"
+paths = json.loads(RUNBOOK_PATHS_DOC.read_text(encoding="utf-8"))
 results_root = Path(paths["results_root"])
 candidate_cache_path = Path("/content/runbook_existing_probe_roots.json")
 if candidate_cache_path.exists():
