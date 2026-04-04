@@ -10,8 +10,8 @@
 - 恒久 truth は [project-truth.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\project-truth.md)
 - plan / current / gate は [hi-ai-unified-blueprint.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\hi-ai-unified-blueprint.md)
 - record-native `Colab` 正本は [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_colab_evid_runbook.md)
-- record-native `Colab` の貼り付け参照版は [da3_colab_ref_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_colab_ref_runbook.md)
-- `MRL-10` は同 runbook pair の `MRL-10 record-native DA3 route` section を使う
+- record-native `Colab` の実行 notebook は [da3_colab_evid_runbook.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_colab_evid_runbook.ipynb)
+- `MRL-10` は同 runbook の `.md/.ipynb` pair の `MRL-10 record-native DA3 route` section を使う
 - notebook cell、error、admin 実行結果の往復 log は [sharedlogs_da3-colab.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\sharedlogs_da3-colab.md)
 - admin UX 手順は [admin-mrl-test-method.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\admin-mrl-test-method.md)
 - admin evidence は [admin-mrl-test-evidence.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\admin-mrl-test-evidence.md)
@@ -24,7 +24,7 @@
 - `MRL-3` から `MRL-6` は `modeling` phase の `p-done` であり、bootstrap / install、bundle 読込、single-frame `3DGS` smoke、evidence bundle 取得まで閉じている。
 - `MRL-7` は `multi-frame` densify と gaussian short optimization まで `p-done` である。
 - `MRL-8` は `p-done` であり、`DA3 Colab` runbook 本体の前段で Drive 上の任意 session zip / session folder を script だけで選び、selected input を bootstrap 本体と `MRL-7` one-block の両方へ渡せる状態を閉じた。
-- 現在の main target は `MRL-2S` と `MRL-10` であり、`correcting` の `10min` 実収録安定化と、`frame_record.jsonl + images` を正にした record-native `Colab` route を canonical 化し、`90度右回転` upright image 契約、legacy intrinsics 補正、`orientation_summary.json` を main runbook pair に固定することである。`Giant` の production candidate は一括 `infer_gs=True` ではなく、`continuous_gs_v06_chunk18_overlap6_adopt12` として `extrinsics_w2c_prod.npy` 由来の全体カメラ行列、batch plan 作成、`3chunk batch` 実行、final rebuild merge へ split する。各 chunk は `18frame`、chunk 間 overlap は `6frame`、各 chunk の再構成責務は基本 `後半 12frame` とする。加えて merge 崩れ対策として、local / global camera center だけでなく camera orientation も使う pose-aware alignment を維持し、その後段 keep を `owner_record_index` ベースへ置き換える `MRL-10 mRL-10.4` を進める。rollback point は branch `codex/mrl10-merge-baseline-20260404` にある。
+- 現在の main target は `MRL-2S` と `MRL-10` であり、`correcting` の `10min` 実収録安定化と、`frame_record.jsonl + images` を正にした record-native `Colab` route を canonical 化し、`90度右回転` upright image 契約、legacy intrinsics 補正、`orientation_summary.json` を main runbook の `.md/.ipynb` pair に固定することである。`Giant` の production candidate は一括 `infer_gs=True` ではなく、`continuous_gs_v06_chunk18_overlap6_adopt12` として `extrinsics_w2c_prod.npy` 由来の全体カメラ行列、batch plan 作成、`3chunk batch` 実行、final rebuild merge へ split する。各 chunk は `18frame`、chunk 間 overlap は `6frame`、各 chunk の再構成責務は基本 `後半 12frame` とする。加えて merge 崩れ対策として、local / global camera center だけでなく camera orientation も使う pose-aware alignment を維持し、その後段 keep を `owner_record_index` ベースへ置き換える `MRL-10 mRL-10.4` を進める。rollback point は branch `codex/mrl10-merge-baseline-20260404` にある。
 - `MRL-**` は細かく固定せず大まかな順番だけを置き、実測で見えた課題の大小に応じて `MRL` / `mRL` を切り直す。
 - ただし後続 `MRL` でも UX 到達品質は元の目標に沿わせる。特に modeling では、利用者が主空間の見え方、主カメラ経路、処理状態、次 action を迷わず把握できる方向を維持する。
 - 後続 `MRL-**` で最低限残る項目は、`multi-route` 比較、`selected_route.json` 固定、request 起点 UX、`job_status.json` と waiting ring、download URL を含む result 返却、`SpacePackage` / `TrajectoryPackage` / `ReviewArtifact` handoff、reviewing viewer 実装、`gs_ply` を使う top camera renderer である。
@@ -42,7 +42,7 @@
 ## 次回の主残件
 
 - `MRL-9` は `p-done` であり、`da3-giant` の `infer_gs=True` route で `gs_ply/0000.ply`、`gs_video/0000_extend.mp4`、`scene.glb`、`exports/npz/results.npz` を保存でき、`PlayCanvas Model Viewer` で開けるところまで確認済みである。
-- 次の main target は `MRL-10` であり、`frame_record.jsonl + images` を正にした input 正規化、QC、explicit `intrinsics` / `extrinsics_w2c` 入力、proof / production 分離、upright orientation 整合を main runbook pair へ固定することである。`Giant` は OOM 回避のため `continuous_gs_v06_chunk18_overlap6_adopt12` で `global camera matrix + batch plan -> 3chunk batch gs run の反復 -> final rebuild merge -> bundle` の順に進める。1 chunk は `18frame`、overlap は `6frame`、adopt 領域は基本 `後半 12frame` である。merge が天地反転、camera pose ずれ、往復経路の混線を起こした時は、center-only / PCA 帯 keep を疑い、`mRL-10.4` の `pose-aware alignment + owner_record merge` 実装へ戻る。
+- 次の main target は `MRL-10` であり、`frame_record.jsonl + images` を正にした input 正規化、QC、explicit `intrinsics` / `extrinsics_w2c` 入力、proof / production 分離、upright orientation 整合を main runbook の `.md/.ipynb` pair へ固定することである。`Giant` は OOM 回避のため `continuous_gs_v06_chunk18_overlap6_adopt12` で `global camera matrix + batch plan -> 3chunk batch gs run の反復 -> final rebuild merge -> bundle` の順に進める。1 chunk は `18frame`、overlap は `6frame`、adopt 領域は基本 `後半 12frame` である。merge が天地反転、camera pose ずれ、往復経路の混線を起こした時は、center-only / PCA 帯 keep を疑い、`mRL-10.4` の `pose-aware alignment + owner_record merge` 実装へ戻る。
 - `sampling` / `intrinsics` / `projection` の route 比較、`benchmark_summary.json`、`selected_route.json` の本機能 close は `MRL-**` 側の後続課題として未達。
 - request 元画面から `Google Drive` input directory / result directory を指定する UX は未実装。
 - remote 実行中の `waiting ring`、現在 stage、更新時刻表示は未実装。

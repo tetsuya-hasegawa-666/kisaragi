@@ -12,6 +12,20 @@
 
 ## 更新履歴
 
+### 2026-04-05 AGENTS.md `Colab` runbook の `md/ipynb` pair 必須化
+
+- 日時: `2026-04-05`
+- 文書名: `AGENTS.md`
+- 標題: `Colab` / notebook runbook の shared 管理単位を `evid/ref` から `.md/.ipynb` pair へ変更
+- 背景: `prj-kisaragi_0002` では `ref` runbook を実運用で使っておらず、正本 markdown と実行 notebook の pair を直接維持するほうが実態に合っていた。
+- 目的: runbook 正本と実行 notebook を 1 組として同期し、未使用の `ref` companion を shared rule から外す。
+- 対処方法: `協調原則` の notebook runbook rule を、`*_evid_runbook.md` / `*_ref_runbook.md` から `.md` / `.ipynb` の 2 file set 管理へ書き換えた。
+- 対応内容: `.md` を正本 runbook、`.ipynb` を情報を削らず cell 化した実行 companion と定義し、片側だけ更新する運用を禁止した。
+- 更新結果: 今後の `Colab` / notebook runbook は markdown 正本と notebook 実行 companion の pair だけを必須にする。
+- 新旧比較:
+  - 旧: notebook runbook は `evid` / `ref` の 2 本を shared rule として必須にしていた。
+  - 新: notebook runbook は `.md` / `.ipynb` の pair を shared rule として必須にした。
+
 ### 2026-04-05 AGENTS.md `current_state` と `BLK` / `MRL` 同時更新 rule 追加
 
 - 日時: `2026-04-05`

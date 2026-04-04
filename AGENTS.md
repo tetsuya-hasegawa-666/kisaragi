@@ -274,10 +274,10 @@ kisaragi-tree/
 - `最小 clean bootstrap runbook` は、`いま最短で再現できる候補` と `admin 実測で truly pass 済みの採用手順` を明確に分け、後者だけを `truly pass` と表現する。
 - `最小 clean bootstrap runbook` は、それ単体で再現可能でなければならず、evidence notebook、evidence log、chat、shared worklog を参照しないと再実行できない状態を許容しない。
 - evidence notebook や evidence log は証跡であり runbook ではない。runbook に必要な install、config、file 配置、実行順、確認条件は、evidence 側ではなく runbook 正本へ昇格してから使う。
-- `Colab`、remote notebook、shared notebook のように code block を admin が貼り付けて進める runbook は、shared rule として `*_evid_runbook.md` と `*_ref_runbook.md` の 2 本で管理する。
-- `*_evid_runbook.md` は正本 runbook とし、構築途中の判断、周辺情報、OK 条件、採用 route、補助説明を含めて保持する。
-- `*_ref_runbook.md` は参照専用 companion とし、admin が notebook へ貼り付けやすい最小 code block 列を主内容とする。evidence や判定根拠は持たせず、必要最小限の順序見出しだけを残す。
-- 上記 2 本は片方だけ更新してはならず、rename、追加、削除、内容更新は常に 2 file set で行う。
+- `Colab`、remote notebook、shared notebook のように code block を admin が貼り付けて進める runbook は、shared rule として `.md` と `.ipynb` の 2 file set で管理する。
+- `.md` は正本 runbook とし、構築途中の判断、周辺情報、OK 条件、採用 route、補助説明を含めて保持する。
+- `.ipynb` は `.md` と同内容を cell 構造へ移した実行 companion とし、情報を削らずに markdown cell と code cell へ写す。
+- 上記 2 file set は片方だけ更新してはならず、rename、追加、削除、内容更新は常に同じ task で同期する。
 - `Colab`、remote notebook、remote GPU job などの外部コンピューティング task では、最終的に出力すると決まっている file と、それを解釈する最低限の manifest / summary / transform 情報を、download や local zip より先に Drive などの永続 visible storage へ保存する。
 - 上記の task では、最終保存先 tree を runbook の早い block で先に作成し、runtime 切断、download timeout、local zip failure が起きても、確定出力が永続 visible storage 側で蒸発しない構成を必須とする。
 - cleanup script は、永続 visible storage 側へ保存済みの final output tree と、その tree を再解釈する最低限の付随情報を保持対象として明示し、それ以外の不可視中間生成物だけを削除候補へ載せる。

@@ -201,6 +201,7 @@ summary:
 
 - remote modeling の主経路は `Google Drive` と `Colab` を使う route とする。
 - `Colab` runtime の bootstrap は product 側 runbook を正本とし、record-native canonical input、明示 `K` / `pose` 入力、`proof` / `production` 分離を同じ contract で維持する。
+- `modeling` の Drive 正本 top directory 名は modeling session 名そのものを使い、`trajectreview-modeling-session-YYYYMMDD_<slug>` 形式を canonical とする。旧 `_*route*` suffix を top directory 名へ新規採用しない。
 
 ### route 比較
 

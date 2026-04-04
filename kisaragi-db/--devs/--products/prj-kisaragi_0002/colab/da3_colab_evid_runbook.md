@@ -256,7 +256,7 @@ def resolve_and_validate_paths(selected_doc: dict):
     frame_record_path = next((p for p in frame_record_candidates if p.exists()), None)
     assert frame_record_path is not None, {"frame_record_candidates": [str(p) for p in frame_record_candidates]}
 
-    probe_root = RESULTS_ROOT / f"{session_id}_da3_record_route_v01"
+    probe_root = RESULTS_ROOT / modeling_session_id
     proof_metric_dir = probe_root / "proof_metriclarge"
     prod_metric_dir = probe_root / "prod_metriclarge"
     proof_giant_dir = probe_root / "proof_giant"
@@ -436,8 +436,9 @@ frame_record_path = Path(paths["frame_record_path"])
 frame_pose_index_path = session_root / "frame_pose_index.csv"
 route_slug = "da3_record_route_v01"
 modeling_session_id = session_id.replace("trajectreview-correcting-session-", "trajectreview-modeling-session-", 1) if session_id.startswith("trajectreview-correcting-session-") else f"trajectreview-modeling-session-{session_id}"
-probe_root_name = f"{modeling_session_id}_{route_slug}"
+probe_root_name = modeling_session_id
 probe_root = Path(paths["probe_root"])
+merged_dir = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12" / "merged"
 proof_metric_dir = Path(paths["proof_metric_dir"])
 prod_metric_dir = Path(paths["prod_metric_dir"])
 proof_giant_dir = Path(paths["proof_giant_dir"])
@@ -484,11 +485,184 @@ context_doc = {
     "proof_giant_dir": str(proof_giant_dir),
     "world_dir": str(world_dir),
     "manifest_dir": str(manifest_dir),
+    "merged_dir": str(merged_dir),
     "final_outputs_dir": str(final_outputs_dir),
     "final_outputs_merged_dir": str(final_outputs_merged_dir),
     "final_outputs_diagnostics_dir": str(final_outputs_diagnostics_dir),
     "final_outputs_manifests_dir": str(final_outputs_manifests_dir),
     "final_outputs_chunk_evidence_dir": str(final_outputs_chunk_evidence_dir),
+    "add_suffix": "",
+}
+Path("/content/runbook_session_context.json").write_text(json.dumps(context_doc, indent=2, ensure_ascii=False), encoding="utf-8")
+print(json.dumps(context_doc, indent=2, ensure_ascii=False))
+```
+
+### #6-1b 既存 probe_root 参照で再開
+
+- すでに Drive 上に `probe_root` があり、chunk 実行結果や manifest を再利用して `#10-5` または `#11` から再開したい時はこの cell を使う。
+- `EXISTING_PROBE_ROOT` には `continuous_gs_v06_chunk18_overlap6_adopt12/` を含む既存 root を入れる。
+- この cell は既存 tree を読み、`runbook_session_context.json` だけを再生成する。未作成 route の `#6-1` と同じ親番の再開枝番とする。
+- canonical な top directory 名は modeling session 名そのもの、たとえば `trajectreview-modeling-session-20260403_gl11_c18ov6ad12` とする。
+- 既存 data を読んで追加生成する時の出力先は、既存物へ上書きせず `_add**` suffix を付けた directory / file へ分離する。連番は `01` から始め、未使用の最小番号を採る。
+
+```python
+#6-1a
+from pathlib import Path
+import json
+
+paths = json.loads(Path("/content/runbook_paths.json").read_text(encoding="utf-8"))
+results_root = Path(paths["results_root"])
+assert str(results_root).startswith("/content/drive/MyDrive/"), results_root
+assert results_root.exists(), results_root
+
+candidates = sorted(
+    [p for p in results_root.iterdir() if p.is_dir() and p.name.startswith("trajectreview-modeling-session-")],
+    key=lambda p: p.name,
+)
+assert candidates, f"no modeling directories found under {results_root}"
+
+rows = [
+    {
+        "index": i,
+        "name": p.name,
+        "path": str(p),
+    }
+    for i, p in enumerate(candidates)
+]
+Path("/content/runbook_existing_probe_roots.json").write_text(json.dumps(rows, indent=2, ensure_ascii=False), encoding="utf-8")
+print(json.dumps({
+    "results_root": str(results_root),
+    "candidate_count": len(rows),
+    "candidates": rows,
+}, indent=2, ensure_ascii=False))
+```
+
+```python
+#6-1b
+from pathlib import Path
+import json
+
+SELECT_MODELING_INDEX = 0
+SELECT_MODELING_NAME = ""
+
+paths = json.loads(Path("/content/runbook_paths.json").read_text(encoding="utf-8"))
+results_root = Path(paths["results_root"])
+candidate_cache_path = Path("/content/runbook_existing_probe_roots.json")
+if candidate_cache_path.exists():
+    candidates = json.loads(candidate_cache_path.read_text(encoding="utf-8"))
+else:
+    candidates = [
+        {"index": i, "name": p.name, "path": str(p)}
+        for i, p in enumerate(sorted(
+            [p for p in results_root.iterdir() if p.is_dir() and p.name.startswith("trajectreview-modeling-session-")],
+            key=lambda p: p.name,
+        ))
+    ]
+assert candidates, f"no modeling directories found under {results_root}"
+
+if SELECT_MODELING_NAME:
+    matched = [row for row in candidates if row["name"] == SELECT_MODELING_NAME]
+    assert matched, {"SELECT_MODELING_NAME": SELECT_MODELING_NAME, "candidates": candidates}
+    selected_row = matched[0]
+else:
+    matched = [row for row in candidates if int(row["index"]) == int(SELECT_MODELING_INDEX)]
+    assert matched, {"SELECT_MODELING_INDEX": SELECT_MODELING_INDEX, "candidates": candidates}
+    selected_row = matched[0]
+
+EXISTING_PROBE_ROOT = Path(selected_row["path"])
+assert str(EXISTING_PROBE_ROOT).startswith("/content/drive/MyDrive/"), EXISTING_PROBE_ROOT
+assert EXISTING_PROBE_ROOT.exists(), EXISTING_PROBE_ROOT
+
+def resolve_next_add_path(parent: Path, stem: str) -> tuple[Path, str]:
+    n = 1
+    while True:
+        suffix = f"_add{n:02d}"
+        candidate = parent / f"{stem}{suffix}"
+        if not candidate.exists():
+            return candidate, suffix
+        n += 1
+
+pipeline_root = EXISTING_PROBE_ROOT / "continuous_gs_v06_chunk18_overlap6_adopt12"
+global_pose_dir = pipeline_root / "global_pose_bootstrap"
+chunk_manifest_dir = pipeline_root / "manifests"
+chunk_runs_dir = pipeline_root / "chunk_runs"
+
+required_paths = [
+    pipeline_root,
+    global_pose_dir / "camera_matrix_full.csv",
+    global_pose_dir / "camera_center_matrix.csv",
+    chunk_manifest_dir / "chunk_index_all.csv",
+    chunk_manifest_dir / "da3_input_manifest_prod.csv",
+]
+for p in required_paths:
+    assert p.exists(), f"missing required path: {p}"
+
+selected_path = Path(paths["selected_path"])
+selected_kind = paths["selected_kind"]
+session_id = paths["session_id"]
+assert str(results_root).startswith("/content/drive/MyDrive/"), results_root
+session_root = Path(paths["session_root"])
+session_outer = Path(paths["session_outer"])
+images_dir = Path(paths["images_dir"])
+frame_record_path = Path(paths["frame_record_path"])
+frame_pose_index_path = session_root / "frame_pose_index.csv"
+route_slug = "da3_record_route_v01"
+modeling_session_id = EXISTING_PROBE_ROOT.name
+probe_root_name = EXISTING_PROBE_ROOT.name
+probe_root = EXISTING_PROBE_ROOT
+proof_metric_dir = probe_root / "proof_metriclarge"
+prod_metric_dir = probe_root / "prod_metriclarge"
+proof_giant_dir = probe_root / "proof_giant"
+world_dir = probe_root / "world_fusion_v01"
+manifest_dir = probe_root / "manifests"
+final_outputs_dir, add_suffix = resolve_next_add_path(probe_root, "final_outputs")
+final_outputs_merged_dir = final_outputs_dir / "merged"
+final_outputs_diagnostics_dir = final_outputs_dir / "diagnostics"
+final_outputs_manifests_dir = final_outputs_dir / "manifests"
+final_outputs_chunk_evidence_dir = final_outputs_dir / "chunk_evidence"
+merged_dir, merged_add_suffix = resolve_next_add_path(pipeline_root, "merged")
+assert add_suffix == merged_add_suffix, {"final_outputs_add_suffix": add_suffix, "merged_add_suffix": merged_add_suffix}
+
+for p in [
+    final_outputs_dir,
+    final_outputs_merged_dir,
+    final_outputs_diagnostics_dir,
+    final_outputs_manifests_dir,
+    final_outputs_chunk_evidence_dir,
+]:
+    p.mkdir(parents=True, exist_ok=True)
+
+context_doc = {
+    "session_id": session_id,
+    "modeling_session_id": modeling_session_id,
+    "selected_kind": selected_kind,
+    "selected_path": str(selected_path),
+    "results_root": str(results_root),
+    "results_root_visibility": "google_drive_mydrive_visible",
+    "route_slug": route_slug,
+    "probe_root_name": probe_root_name,
+    "session_outer": str(session_outer),
+    "session_root": str(session_root),
+    "images_dir": str(images_dir),
+    "frame_record_path": str(frame_record_path),
+    "frame_pose_index_path": str(frame_pose_index_path),
+    "probe_root": str(probe_root),
+    "proof_metric_dir": str(proof_metric_dir),
+    "prod_metric_dir": str(prod_metric_dir),
+    "proof_giant_dir": str(proof_giant_dir),
+    "world_dir": str(world_dir),
+    "manifest_dir": str(manifest_dir),
+    "final_outputs_dir": str(final_outputs_dir),
+    "final_outputs_merged_dir": str(final_outputs_merged_dir),
+    "final_outputs_diagnostics_dir": str(final_outputs_diagnostics_dir),
+    "final_outputs_manifests_dir": str(final_outputs_manifests_dir),
+    "final_outputs_chunk_evidence_dir": str(final_outputs_chunk_evidence_dir),
+    "merged_dir": str(merged_dir),
+    "add_suffix": add_suffix,
+    "resume_mode": "existing_probe_root",
+    "pipeline_root": str(pipeline_root),
+    "chunk_runs_dir": str(chunk_runs_dir),
+    "source_probe_root": str(EXISTING_PROBE_ROOT),
 }
 Path("/content/runbook_session_context.json").write_text(json.dumps(context_doc, indent=2, ensure_ascii=False), encoding="utf-8")
 print(json.dumps(context_doc, indent=2, ensure_ascii=False))
@@ -1341,6 +1515,17 @@ OWNER_W_INDEX = 0.02
 OWNER_RECORD_MARGIN = 6
 TRANSFORM_CENTER_RMSE_WARN = 0.25
 TRANSFORM_ROT_DIR_WARN = 0.25
+TRANSFORM_SCALE_MIN = 0.8
+TRANSFORM_SCALE_MAX = 1.3
+TRANSFORM_CENTER_RMSE_MAX = 0.05
+TRANSFORM_ROT_DIR_MAX = 0.05
+
+LOCAL_CAMERA_BASIS = np.eye(4, dtype=np.float32)
+LOCAL_CAMERA_BASIS[:3, :3] = np.array([
+    [0.0, 1.0, 0.0],
+    [1.0, 0.0, 0.0],
+    [0.0, 0.0, -1.0],
+], dtype=np.float32)
 
 print("# batch_plan")
 print(batch_plan_df.to_string(index=False))
@@ -1379,7 +1564,8 @@ def optical_axis_from_c2w(c2w: np.ndarray):
 def c2w_list_from_extrinsics(extrinsics):
     mats = []
     for ext in extrinsics:
-        mats.append(np.linalg.inv(to_4x4(ext)).astype(np.float32))
+        c2w = np.linalg.inv(to_4x4(ext)).astype(np.float32)
+        mats.append((c2w @ LOCAL_CAMERA_BASIS).astype(np.float32))
     return mats
 
 def estimate_pose_aware_similarity(local_c2w_list, global_c2w_list, estimate_scale=True):
@@ -1433,7 +1619,18 @@ def estimate_pose_aware_similarity(local_c2w_list, global_c2w_list, estimate_sca
         "rotation_det": float(np.linalg.det(R)),
         "center_rmse": center_rmse,
         "rotation_dir_residual": rot_residual,
+        "positive_similarity_ok": bool(scale > 0.0),
+        "scale_in_range_ok": bool(TRANSFORM_SCALE_MIN <= scale <= TRANSFORM_SCALE_MAX),
+        "center_rmse_ok": bool(center_rmse <= TRANSFORM_CENTER_RMSE_MAX),
+        "rotation_dir_ok": bool(rot_residual <= TRANSFORM_ROT_DIR_MAX),
     }
+    diag["hard_fail"] = bool(
+        (scale <= 0.0)
+        or (scale < TRANSFORM_SCALE_MIN)
+        or (scale > TRANSFORM_SCALE_MAX)
+        or (center_rmse > TRANSFORM_CENTER_RMSE_MAX)
+        or (rot_residual > TRANSFORM_ROT_DIR_MAX)
+    )
     return T.astype(np.float32), diag
 
 def load_scene_any(path: Path):
@@ -1642,11 +1839,22 @@ def process_batch(run_batch_index: int):
             "chunk_name": row.chunk_name,
             "frame_count": int(len(chunk_df)),
             "transform_path": str(T_path),
+            "local_camera_basis": "perm_yxz_sign_ppn",
             "scale": float(align_diag["scale"]),
             "rotation_det": float(align_diag["rotation_det"]),
             "center_rmse": float(align_diag["center_rmse"]),
             "rotation_dir_residual": float(align_diag["rotation_dir_residual"]),
+            "positive_similarity_ok": bool(align_diag["positive_similarity_ok"]),
+            "scale_in_range_ok": bool(align_diag["scale_in_range_ok"]),
+            "center_rmse_ok": bool(align_diag["center_rmse_ok"]),
+            "rotation_dir_ok": bool(align_diag["rotation_dir_ok"]),
+            "hard_fail": bool(align_diag["hard_fail"]),
         })
+        assert not align_diag["hard_fail"], {
+            "chunk_name": row.chunk_name,
+            "reason": "invalid_pose_similarity",
+            "align_diag": align_diag,
+        }
 
         ply_path = out_dir / "gs_ply" / "0000.ply"
         glb_path = out_dir / "scene.glb"
@@ -1802,10 +2010,185 @@ RUN_BATCH_INDEX = 3
 process_batch(RUN_BATCH_INDEX)
 ```
 
+### #10-5 Pre-merge pose gate
+
+- `#11 merge` の前に、全 chunk を対象に camera-only の pose validation を必ず実行する。
+- この cell は `pred_extrinsics.npy` を `w2c` とみなし、local camera basis を `perm_yxz_sign_ppn` へ固定したうえで、global `camera_matrix_full.csv` に対する positive similarity 制約を全 chunk で確認する。
+- gate 条件は `scale > 0`、`0.8 <= scale <= 1.3`、`center_rmse <= 0.05`、`rotation_dir_residual <= 0.05` とする。
+- 生成物は `merged` または `merged_add**` 配下の `premerge_pose_validation.csv` と `premerge_pose_validation.json`、および `final_outputs/diagnostics/` または `final_outputs_add**/diagnostics/` への copy とする。
+- `hard_fail` が 1 件でもあれば、この cell 自体を fail させ、`#11 merge` へ進まない。
+
+```python
+#10-5
+from pathlib import Path
+import json
+import numpy as np
+import pandas as pd
+import shutil
+
+ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
+probe_root = Path(ctx["probe_root"])
+final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
+
+pipeline_root = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12"
+global_pose_dir = pipeline_root / "global_pose_bootstrap"
+chunk_manifest_dir = pipeline_root / "manifests"
+chunk_runs_dir = pipeline_root / "chunk_runs"
+merged_dir = Path(ctx.get("merged_dir", str(pipeline_root / "merged")))
+merged_dir.mkdir(parents=True, exist_ok=True)
+final_outputs_diagnostics_dir.mkdir(parents=True, exist_ok=True)
+
+TRANSFORM_SCALE_MIN = 0.8
+TRANSFORM_SCALE_MAX = 1.3
+TRANSFORM_CENTER_RMSE_MAX = 0.05
+TRANSFORM_ROT_DIR_MAX = 0.05
+LOCAL_CAMERA_BASIS = np.eye(4, dtype=np.float32)
+LOCAL_CAMERA_BASIS[:3, :3] = np.array([
+    [0.0, 1.0, 0.0],
+    [1.0, 0.0, 0.0],
+    [0.0, 0.0, -1.0],
+], dtype=np.float32)
+
+def to_4x4(ext):
+    ext = np.asarray(ext).astype(np.float32)
+    if ext.shape == (4, 4):
+        return ext
+    if ext.shape == (3, 4):
+        M = np.eye(4, dtype=np.float32)
+        M[:3, :] = ext
+        return M
+    raise ValueError(f"unexpected extrinsic shape: {ext.shape}")
+
+def c2w_rows_to_map(df: pd.DataFrame):
+    out = {}
+    cols = [f"m{i}{j}" for i in range(4) for j in range(4)]
+    for row in df.itertuples(index=False):
+        M = np.array([getattr(row, c) for c in cols], dtype=np.float32).reshape(4, 4)
+        out[int(row.record_index)] = M
+    return out
+
+def c2w_list_from_extrinsics(extrinsics):
+    mats = []
+    for ext in extrinsics:
+        c2w = np.linalg.inv(to_4x4(ext)).astype(np.float32)
+        mats.append((c2w @ LOCAL_CAMERA_BASIS).astype(np.float32))
+    return mats
+
+def estimate_pose_aware_similarity(local_c2w_list, global_c2w_list, estimate_scale=True):
+    assert len(local_c2w_list) == len(global_c2w_list) >= 2
+    src_dirs, dst_dirs, src_centers, dst_centers = [], [], [], []
+    for local_c2w, global_c2w in zip(local_c2w_list, global_c2w_list):
+        src_dirs.extend([local_c2w[:3, 0], local_c2w[:3, 1], local_c2w[:3, 2]])
+        dst_dirs.extend([global_c2w[:3, 0], global_c2w[:3, 1], global_c2w[:3, 2]])
+        src_centers.append(local_c2w[:3, 3])
+        dst_centers.append(global_c2w[:3, 3])
+    src_dirs = np.asarray(src_dirs, dtype=np.float64)
+    dst_dirs = np.asarray(dst_dirs, dtype=np.float64)
+    src_centers = np.asarray(src_centers, dtype=np.float64)
+    dst_centers = np.asarray(dst_centers, dtype=np.float64)
+    H = dst_dirs.T @ src_dirs
+    U, _, Vt = np.linalg.svd(H)
+    S = np.eye(3, dtype=np.float64)
+    if np.linalg.det(U) * np.linalg.det(Vt) < 0:
+        S[-1, -1] = -1.0
+    R = U @ S @ Vt
+    src_mean = src_centers.mean(axis=0)
+    dst_mean = dst_centers.mean(axis=0)
+    src_c = src_centers - src_mean
+    dst_c = dst_centers - dst_mean
+    src_rot = (R @ src_c.T).T
+    if estimate_scale:
+        denom = float(np.sum(src_rot ** 2))
+        numer = float(np.sum(dst_c * src_rot))
+        scale = numer / max(denom, 1e-12)
+    else:
+        scale = 1.0
+    t = dst_mean - scale * (R @ src_mean)
+    pred = (scale * (R @ src_centers.T)).T + t
+    center_rmse = float(np.sqrt(np.mean(np.sum((pred - dst_centers) ** 2, axis=1))))
+    rot_residual = float(np.mean(np.linalg.norm((R @ src_dirs.T).T - dst_dirs, axis=1)))
+    return {
+        "scale": float(scale),
+        "rotation_det": float(np.linalg.det(R)),
+        "center_rmse": center_rmse,
+        "rotation_dir_residual": rot_residual,
+    }
+
+global_camera_matrix_df = pd.read_csv(global_pose_dir / "camera_matrix_full.csv")
+global_camera_map = c2w_rows_to_map(global_camera_matrix_df)
+all_chunks_df = pd.read_csv(chunk_manifest_dir / "chunk_index_all.csv")
+
+rows = []
+for row in all_chunks_df.itertuples(index=False):
+    chunk_dir = chunk_runs_dir / row.chunk_name
+    pred_path = chunk_dir / "pred_extrinsics.npy"
+    frames_path = chunk_dir / "chunk_input_frames.csv"
+    assert pred_path.exists(), f"pred_extrinsics missing: {row.chunk_name}"
+    assert frames_path.exists(), f"chunk_input_frames missing: {row.chunk_name}"
+    pred_extrinsics = np.load(pred_path)
+    chunk_frames_df = pd.read_csv(frames_path)
+    local_c2w_list = c2w_list_from_extrinsics(pred_extrinsics)
+    global_c2w_list = [global_camera_map[int(record_index)] for record_index in chunk_frames_df["record_index"].tolist()]
+    diag = estimate_pose_aware_similarity(local_c2w_list, global_c2w_list, estimate_scale=True)
+    scale = float(diag["scale"])
+    center_rmse = float(diag["center_rmse"])
+    rot = float(diag["rotation_dir_residual"])
+    hard_fail = bool(
+        (scale <= 0.0)
+        or (scale < TRANSFORM_SCALE_MIN)
+        or (scale > TRANSFORM_SCALE_MAX)
+        or (center_rmse > TRANSFORM_CENTER_RMSE_MAX)
+        or (rot > TRANSFORM_ROT_DIR_MAX)
+    )
+    rows.append({
+        "chunk_name": row.chunk_name,
+        "frame_count": int(len(chunk_frames_df)),
+        "local_camera_basis": "perm_yxz_sign_ppn",
+        "interpretation": "w2c",
+        "scale": scale,
+        "rotation_det": float(diag["rotation_det"]),
+        "center_rmse": center_rmse,
+        "rotation_dir_residual": rot,
+        "positive_similarity_ok": bool(scale > 0.0),
+        "scale_in_range_ok": bool(TRANSFORM_SCALE_MIN <= scale <= TRANSFORM_SCALE_MAX),
+        "center_rmse_ok": bool(center_rmse <= TRANSFORM_CENTER_RMSE_MAX),
+        "rotation_dir_ok": bool(rot <= TRANSFORM_ROT_DIR_MAX),
+        "hard_fail": hard_fail,
+    })
+
+validation_df = pd.DataFrame(rows).sort_values("chunk_name").reset_index(drop=True)
+validation_csv_path = merged_dir / "premerge_pose_validation.csv"
+validation_json_path = merged_dir / "premerge_pose_validation.json"
+validation_df.to_csv(validation_csv_path, index=False, encoding="utf-8")
+hard_fail_df = validation_df[validation_df["hard_fail"]].copy()
+summary = {
+    "status": "ok" if hard_fail_df.empty else "fail",
+    "route": "continuous-gs-v06-chunk18-overlap6-adopt12-premerge-pose-gate",
+    "local_camera_basis": "perm_yxz_sign_ppn",
+    "interpretation": "w2c",
+    "thresholds": {
+        "scale_min": TRANSFORM_SCALE_MIN,
+        "scale_max": TRANSFORM_SCALE_MAX,
+        "center_rmse_max": TRANSFORM_CENTER_RMSE_MAX,
+        "rotation_dir_max": TRANSFORM_ROT_DIR_MAX,
+    },
+    "tested_chunk_count": int(len(validation_df)),
+    "hard_fail_count": int(len(hard_fail_df)),
+    "csv_path": str(validation_csv_path),
+    "failed_chunks": hard_fail_df[["chunk_name", "scale", "center_rmse", "rotation_dir_residual"]].to_dict(orient="records"),
+}
+validation_json_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+shutil.copy2(validation_csv_path, final_outputs_diagnostics_dir / "premerge_pose_validation.csv")
+shutil.copy2(validation_json_path, final_outputs_diagnostics_dir / "premerge_pose_validation.json")
+print(json.dumps(summary, indent=2, ensure_ascii=False))
+assert hard_fail_df.empty, hard_fail_df[["chunk_name", "scale", "center_rmse", "rotation_dir_residual"]].to_dict(orient="records")
+```
+
 ### #11 Final rebuild merge + bundle
 
 - final merge でも `Block 4` と同じ owner_record 判定を使う。`PCA 1軸帯 keep` と terminal の `all keep fallback` は使わない。
 - `keep_zero_chunk` は warning ではなく hard error とし、owner-based merge が崩れた chunk を見逃さない。
+- `#11` の前に `#10-5 pre-merge pose gate` を必ず通し、`merged` または `merged_add**` 配下の `premerge_pose_validation.json` の `status == ok` を満たした時だけ merge を許可する。
 - `MAKE_DRIVE_BUNDLE = True` の時も、Drive 上で新しい複製 directory は作らない。Drive 正本は最初から `probe_root` 配下だけに集約し、bundle summary にはその root を `drive_visible_dir` として残す。
 - download 用 zip は `/content/...zip` にだけ作り、必要なら browser download を行う。したがって `vertex_assignment_summary.csv`、`chunk_assignment_summary.csv`、`owner_record_histogram.csv`、`merge_warning_summary.json`、`chunk_transform_quality.csv` は Drive 正本 `probe_root` と local zip の両方で見られる。
 - `probe_root/final_outputs/` は `#6-1` の時点で先に作り、`#11` で確定出力と最低限の付随情報を必ずここへ保存する。download や local zip が失敗しても Drive 側の最終 tree は残る。
@@ -1843,7 +2226,7 @@ pipeline_root = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12"
 global_pose_dir = pipeline_root / "global_pose_bootstrap"
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
-merged_dir = pipeline_root / "merged"
+merged_dir = Path(ctx.get("merged_dir", str(pipeline_root / "merged")))
 merged_dir.mkdir(parents=True, exist_ok=True)
 stage_11_2_dir = final_outputs_dir / "stage_11_2"
 stage_11_3_dir = final_outputs_dir / "stage_11_3"
@@ -1915,6 +2298,34 @@ completed_chunks_df = all_chunks_df[all_chunks_df["chunk_name"].isin(completed_c
 batch_summaries = sorted(chunk_runs_dir.glob("batch_*/batch_summary.json"))
 summary_rows = [json.loads(p.read_text(encoding="utf-8")) for p in batch_summaries]
 (merged_dir / "all_batch_summary.json").write_text(json.dumps(summary_rows, indent=2, ensure_ascii=False), encoding="utf-8")
+premerge_pose_validation_path = merged_dir / "premerge_pose_validation.json"
+
+if not premerge_pose_validation_path.exists():
+    merge_summary = {
+        "route": "continuous-gs-v06-chunk18-overlap6-adopt12-merge",
+        "status": "skipped",
+        "reason": "premerge_pose_validation_required",
+        "premerge_pose_validation_path": str(premerge_pose_validation_path),
+        "all_batch_summary_path": str(merged_dir / "all_batch_summary.json"),
+    }
+    (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
+    raise AssertionError("run #10-5 pre-merge pose gate before #11 merge")
+
+premerge_pose_validation = json.loads(premerge_pose_validation_path.read_text(encoding="utf-8"))
+if premerge_pose_validation.get("status") != "ok":
+    merge_summary = {
+        "route": "continuous-gs-v06-chunk18-overlap6-adopt12-merge",
+        "status": "skipped",
+        "reason": "premerge_pose_validation_failed",
+        "premerge_pose_validation_path": str(premerge_pose_validation_path),
+        "hard_fail_count": int(premerge_pose_validation.get("hard_fail_count", 0)),
+        "failed_chunks": premerge_pose_validation.get("failed_chunks", []),
+        "all_batch_summary_path": str(merged_dir / "all_batch_summary.json"),
+    }
+    (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
+    raise AssertionError(premerge_pose_validation)
 
 if REQUIRE_ALL_CHUNKS and len(completed_chunks_df) < len(all_chunks_df):
     merge_summary = {
@@ -1979,7 +2390,8 @@ else:
     def c2w_list_from_extrinsics(extrinsics):
         mats = []
         for ext in extrinsics:
-            mats.append(np.linalg.inv(to_4x4(ext)).astype(np.float32))
+            c2w = np.linalg.inv(to_4x4(ext)).astype(np.float32)
+            mats.append((c2w @ LOCAL_CAMERA_BASIS).astype(np.float32))
         return mats
 
     def estimate_pose_aware_similarity(local_c2w_list, global_c2w_list, estimate_scale=True):
@@ -2033,7 +2445,18 @@ else:
             "rotation_det": float(np.linalg.det(R)),
             "center_rmse": center_rmse,
             "rotation_dir_residual": rot_residual,
+            "positive_similarity_ok": bool(scale > 0.0),
+            "scale_in_range_ok": bool(TRANSFORM_SCALE_MIN <= scale <= TRANSFORM_SCALE_MAX),
+            "center_rmse_ok": bool(center_rmse <= TRANSFORM_CENTER_RMSE_MAX),
+            "rotation_dir_ok": bool(rot_residual <= TRANSFORM_ROT_DIR_MAX),
         }
+        diag["hard_fail"] = bool(
+            (scale <= 0.0)
+            or (scale < TRANSFORM_SCALE_MIN)
+            or (scale > TRANSFORM_SCALE_MAX)
+            or (center_rmse > TRANSFORM_CENTER_RMSE_MAX)
+            or (rot_residual > TRANSFORM_ROT_DIR_MAX)
+        )
         return T.astype(np.float32), diag
 
     global_camera_map = c2w_rows_to_map(global_camera_matrix_df)
@@ -2153,11 +2576,22 @@ else:
             "chunk_name": row.chunk_name,
             "frame_count": int(len(chunk_df)),
             "transform_path": str(T_path),
+            "local_camera_basis": "perm_yxz_sign_ppn",
             "scale": float(align_diag["scale"]),
             "rotation_det": float(align_diag["rotation_det"]),
             "center_rmse": float(align_diag["center_rmse"]),
             "rotation_dir_residual": float(align_diag["rotation_dir_residual"]),
+            "positive_similarity_ok": bool(align_diag["positive_similarity_ok"]),
+            "scale_in_range_ok": bool(align_diag["scale_in_range_ok"]),
+            "center_rmse_ok": bool(align_diag["center_rmse_ok"]),
+            "rotation_dir_ok": bool(align_diag["rotation_dir_ok"]),
+            "hard_fail": bool(align_diag["hard_fail"]),
         })
+        assert not align_diag["hard_fail"], {
+            "chunk_name": row.chunk_name,
+            "reason": "invalid_pose_similarity",
+            "align_diag": align_diag,
+        }
 
         adopted_record_set = set(chunk_df.loc[chunk_df["is_adopted_region"] == True, "record_index"].astype(int).tolist())
 
@@ -2441,7 +2875,7 @@ pipeline_root = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12"
 global_pose_dir = pipeline_root / "global_pose_bootstrap"
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
-merged_dir = pipeline_root / "merged"
+merged_dir = Path(ctx.get("merged_dir", str(pipeline_root / "merged")))
 merge_summary_path = merged_dir / "merge_summary.json"
 
 def path_size_bytes(path: Path) -> int:
@@ -2541,7 +2975,8 @@ import shutil
 ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
 probe_root = Path(ctx["probe_root"])
 final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
-merged_dir = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12" / "merged"
+pipeline_root = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12"
+merged_dir = Path(ctx.get("merged_dir", str(pipeline_root / "merged")))
 cleanup_plan_path = merged_dir / "cleanup_plan.json"
 assert cleanup_plan_path.exists(), cleanup_plan_path
 
