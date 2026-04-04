@@ -2256,7 +2256,10 @@ else:
 ### #12 Cleanup inventory
 
 - `#12` は `#1` から `#11` までの生成物を対象に、Drive 正本として保持するものと、merge 完了後に削除候補へ回せる不可視生成物を一覧化する。
-- `#12` 自体は削除しない。`cleanup_plan.json` を作って、admin が内容を見てから `#13` で適用する。
+- `#12` 自体は削除しない。`cleanup_plan.json` を作って、admin が内容を見てから `#13` で適用する
+- 全 block 対象の cleanup inventory
+- cleanup_plan.json を作る
+- 何を残し、何を消せるかを一覧表示
 
 ```python
 #12
@@ -2357,6 +2360,8 @@ print(json.dumps(cleanup_plan, indent=2, ensure_ascii=False))
 
 - `#13` は `#12` が作った `cleanup_plan.json` を読んで、yes の時だけ削除する。
 - `#13` は `probe_root` 配下の正本 directory を削除しない。削除するのは `delete_candidates` に載った不可視生成物だけである。
+- cleanup_plan.json を読んで
+- yes の時だけ削除実行
 
 ```python
 #13
