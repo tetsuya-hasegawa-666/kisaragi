@@ -6418,3 +6418,9 @@ Moviepy - video ready /content/drive/MyDrive/trajectreview/modeling/trajectrevie
 - `#11` は final merge 後に、`merged_gs.ply`、`merged_scene.glb`、chunk / owner / warning / batch の診断 CSV / JSON、`da3_input_manifest_prod.csv`、`camera_center_matrix.csv`、`camera_matrix_full.csv`、`chunk_index_all.csv`、`batch_plan.csv` を `final_outputs/` へ必ず複製し、`final_output_manifest.json` を出力する。
 - `#12` と `#13` は `final_outputs/` を明示的な保持対象にし、cleanup で削除するのは不可視の中間生成物だけに固定した。
 
+# codex v77
+
+- `final_outputs/` だけでは cleanup 後に owner 判定の根拠が追えないため、`#11` を追加修正した。
+- `final_outputs/chunk_evidence/<chunk_name>/` に、`vertex_assignment_summary.csv`、`chunk_input_frames.csv`、`pred_extrinsics.npy`、`pred_intrinsics.npy` を複製して残す。
+- これにより `chunk_runs/` を削除しても、各 chunk がどの frame 群を使い、どの owner 判定で keep されたかを Drive 側だけで再確認できる。
+

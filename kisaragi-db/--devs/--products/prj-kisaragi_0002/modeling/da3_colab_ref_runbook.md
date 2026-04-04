@@ -266,6 +266,7 @@ def resolve_and_validate_paths(selected_doc: dict):
     final_outputs_merged_dir = final_outputs_dir / "merged"
     final_outputs_diagnostics_dir = final_outputs_dir / "diagnostics"
     final_outputs_manifests_dir = final_outputs_dir / "manifests"
+    final_outputs_chunk_evidence_dir = final_outputs_dir / "chunk_evidence"
 
     for p in [
         probe_root,
@@ -278,6 +279,7 @@ def resolve_and_validate_paths(selected_doc: dict):
         final_outputs_merged_dir,
         final_outputs_diagnostics_dir,
         final_outputs_manifests_dir,
+        final_outputs_chunk_evidence_dir,
     ]:
         p.mkdir(parents=True, exist_ok=True)
 
@@ -298,6 +300,7 @@ def resolve_and_validate_paths(selected_doc: dict):
         "final_outputs_merged_dir": str(final_outputs_merged_dir),
         "final_outputs_diagnostics_dir": str(final_outputs_diagnostics_dir),
         "final_outputs_manifests_dir": str(final_outputs_manifests_dir),
+        "final_outputs_chunk_evidence_dir": str(final_outputs_chunk_evidence_dir),
         "images_dir": str(images_dir),
         "images_dir_file_count": int(valid_image_dirs[0][1]),
         "image_dir_candidates_ranked": [{"path": str(p), "image_count": int(c)} for p, c in valid_image_dirs],
@@ -444,6 +447,7 @@ final_outputs_dir = Path(paths["final_outputs_dir"])
 final_outputs_merged_dir = Path(paths["final_outputs_merged_dir"])
 final_outputs_diagnostics_dir = Path(paths["final_outputs_diagnostics_dir"])
 final_outputs_manifests_dir = Path(paths["final_outputs_manifests_dir"])
+final_outputs_chunk_evidence_dir = Path(paths["final_outputs_chunk_evidence_dir"])
 
 for p in [
     probe_root,
@@ -456,6 +460,7 @@ for p in [
     final_outputs_merged_dir,
     final_outputs_diagnostics_dir,
     final_outputs_manifests_dir,
+    final_outputs_chunk_evidence_dir,
 ]:
     p.mkdir(parents=True, exist_ok=True)
 
@@ -483,6 +488,7 @@ context_doc = {
     "final_outputs_merged_dir": str(final_outputs_merged_dir),
     "final_outputs_diagnostics_dir": str(final_outputs_diagnostics_dir),
     "final_outputs_manifests_dir": str(final_outputs_manifests_dir),
+    "final_outputs_chunk_evidence_dir": str(final_outputs_chunk_evidence_dir),
 }
 Path("/content/runbook_session_context.json").write_text(json.dumps(context_doc, indent=2, ensure_ascii=False), encoding="utf-8")
 print(json.dumps(context_doc, indent=2, ensure_ascii=False))
@@ -901,6 +907,7 @@ final_outputs_dir = Path(ctx["final_outputs_dir"])
 final_outputs_merged_dir = Path(ctx["final_outputs_merged_dir"])
 final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
 final_outputs_manifests_dir = Path(ctx["final_outputs_manifests_dir"])
+final_outputs_chunk_evidence_dir = Path(ctx["final_outputs_chunk_evidence_dir"])
 
 repo_root = Path("/content/Depth-Anything-3")
 src_root = repo_root / "src"
@@ -1802,6 +1809,7 @@ process_batch(RUN_BATCH_INDEX)
 - `MAKE_DRIVE_BUNDLE = True` の時も、Drive 上で新しい複製 directory は作らない。Drive 正本は最初から `probe_root` 配下だけに集約し、bundle summary にはその root を `drive_visible_dir` として残す。
 - download 用 zip は `/content/...zip` にだけ作り、必要なら browser download を行う。したがって `vertex_assignment_summary.csv`、`chunk_assignment_summary.csv`、`owner_record_histogram.csv`、`merge_warning_summary.json`、`chunk_transform_quality.csv` は Drive 正本 `probe_root` と local zip の両方で見られる。
 - `probe_root/final_outputs/` は `#6-1` の時点で先に作り、`#11` で確定出力と最低限の付随情報を必ずここへ保存する。download や local zip が失敗しても Drive 側の最終 tree は残る。
+- cleanup 後も merge 根拠を再確認できるよう、`final_outputs/chunk_evidence/<chunk_name>/` に `vertex_assignment_summary.csv`、`chunk_input_frames.csv`、`pred_extrinsics.npy`、`pred_intrinsics.npy` を残す。
 - cleanup は `#12 inventory` と `#13 apply` に分離する。`#12` は全 block を対象に「保持対象」と「削除候補」を一覧化し、`#13` はその一覧を読んで yes 入力時だけ削除する。
 
 ```python
@@ -1833,7 +1841,7 @@ chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
 merged_dir = pipeline_root / "merged"
 merged_dir.mkdir(parents=True, exist_ok=True)
-for p in [final_outputs_dir, final_outputs_merged_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir]:
+for p in [final_outputs_dir, final_outputs_merged_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir, final_outputs_chunk_evidence_dir]:
     p.mkdir(parents=True, exist_ok=True)
 
 config_path = pipeline_root / "pipeline_config.json"
@@ -2160,6 +2168,18 @@ else:
         assignment_df["kept"] = keep
         assignment_df.to_csv(out_dir / "vertex_assignment_summary.csv", index=False, encoding="utf-8")
 
+        chunk_evidence_dir = final_outputs_chunk_evidence_dir / row.chunk_name
+        chunk_evidence_dir.mkdir(parents=True, exist_ok=True)
+        chunk_evidence_copy_plan = [
+            (out_dir / "vertex_assignment_summary.csv", chunk_evidence_dir / "vertex_assignment_summary.csv"),
+            (out_dir / "chunk_input_frames.csv", chunk_evidence_dir / "chunk_input_frames.csv"),
+            (out_dir / "pred_extrinsics.npy", chunk_evidence_dir / "pred_extrinsics.npy"),
+            (out_dir / "pred_intrinsics.npy", chunk_evidence_dir / "pred_intrinsics.npy"),
+        ]
+        for src, dst in chunk_evidence_copy_plan:
+            if src.exists():
+                shutil.copy2(src, dst)
+
         owner_hist = assignment_df.groupby("owner_record_index", as_index=False).size().rename(columns={"size": "owner_vertex_count"})
         owner_hist["chunk_name"] = row.chunk_name
         owner_hist_rows.append(owner_hist)
@@ -2314,6 +2334,8 @@ else:
         "final_outputs_merged_dir": str(final_outputs_merged_dir),
         "final_outputs_diagnostics_dir": str(final_outputs_diagnostics_dir),
         "final_outputs_manifests_dir": str(final_outputs_manifests_dir),
+        "final_outputs_chunk_evidence_dir": str(final_outputs_chunk_evidence_dir),
+        "chunk_evidence_dirs": sorted([str(p) for p in final_outputs_chunk_evidence_dir.glob("*") if p.is_dir()]),
         "file_count": int(len(final_output_files)),
         "files": final_output_files,
     }
@@ -2398,6 +2420,7 @@ kept_groups = [
     {"block": "#6", "label": "final_outputs_merged_dir", "path": str(final_outputs_merged_dir)},
     {"block": "#6", "label": "final_outputs_diagnostics_dir", "path": str(final_outputs_diagnostics_dir)},
     {"block": "#6", "label": "final_outputs_manifests_dir", "path": str(final_outputs_manifests_dir)},
+    {"block": "#6", "label": "final_outputs_chunk_evidence_dir", "path": str(final_outputs_chunk_evidence_dir)},
     {"block": "#7", "label": "proof_metric_dir", "path": str(proof_metric_dir)},
     {"block": "#7", "label": "prod_metric_dir", "path": str(prod_metric_dir)},
     {"block": "#7", "label": "world_dir", "path": str(world_dir)},
