@@ -6378,3 +6378,11 @@ Moviepy - video ready /content/drive/MyDrive/trajectreview/modeling/trajectrevie
 # MRL-10 upright route res
 
 ```
+
+# codex v71
+
+- `MRL-10 mRL-10.4` の採用方針を `pose-aware alignment 維持 + owner_record ベース merge` に更新した。
+- `PCA 1軸 keep` と terminal `all keep fallback` は runbook 正本から外し、各 Gaussian を `top-k` frame に対する `distance + direction + blur_penalty + index_penalty` score で `owner_record_index` へ帰属させる。
+- keep 条件は `owner_record_index ∈ adopted_record_set(chunk)` に固定し、`keep_zero_chunk` は hard error とする。
+- 追加証跡は `vertex_assignment_summary.csv`、`owner_record_histogram.csv`、`chunk_assignment_summary.csv`、`merge_warning_summary.json`、`chunk_transform_quality.csv` とし、`Block 6` bundle で Drive visible dir / Drive zip / local visible dir / local zip に同梱する。
+- rollback point は branch `codex/mrl10-merge-baseline-20260404` を使う。

@@ -1137,6 +1137,11 @@ print(batch_plan_df.to_string(index=False))
 
 ### Block 4: chunk helper for 18frame / overlap6 / adopt12
 
+- この helper は `Block 3` の `camera_matrix_full.csv` と各 chunk の `pred_extrinsics.npy` を合わせて pose-aware alignment を解く。
+- chunk merge の keep 判定は `PCA 1軸帯` ではなく `owner_record_index` ベースで行う。
+- 各 vertex は global frame center 近傍 `top-k` に対し `distance + direction + blur_penalty + index_penalty` で owner を決め、owner が当該 chunk の `is_adopted_region=True` record に属する時だけ keep する。
+- 生成物は `vertex_assignment_summary.csv`、`owner_record_histogram.csv`、`chunk_assignment_summary.csv`、`merge_warning_summary.csv`、`chunk_transform_quality.csv` として `pipeline_root` 配下へ保存され、`Block 6` bundle に自動同梱される。
+
 ```python
 #13
 from pathlib import Path
@@ -1150,9 +1155,11 @@ import pandas as pd
 import torch
 import trimesh
 from plyfile import PlyData, PlyElement
+from scipy.spatial import cKDTree
 
 ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
 probe_root = Path(ctx["probe_root"])
+manifest_dir = Path(ctx["manifest_dir"])
 
 pipeline_root = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12"
 global_pose_dir = pipeline_root / "global_pose_bootstrap"
@@ -1169,6 +1176,15 @@ target_chunks_df = pd.read_csv(chunk_manifest_dir / "chunk_index_target.csv")
 batch_plan_df = pd.read_csv(chunk_manifest_dir / "batch_plan.csv")
 global_centers_df = pd.read_csv(global_pose_dir / "camera_center_matrix.csv")
 global_camera_matrix_df = pd.read_csv(global_pose_dir / "camera_matrix_full.csv")
+prod_manifest_df = pd.read_csv(manifest_dir / "da3_input_manifest_prod.csv")
+
+OWNER_TOPK = 6
+OWNER_W_DIST = 1.0
+OWNER_W_DIR = 0.35
+OWNER_W_BLUR = 0.25
+OWNER_W_INDEX = 0.02
+TRANSFORM_CENTER_RMSE_WARN = 0.25
+TRANSFORM_ROT_DIR_WARN = 0.25
 
 print("# batch_plan")
 print(batch_plan_df.to_string(index=False))
@@ -1198,6 +1214,11 @@ def c2w_rows_to_map(df: pd.DataFrame):
         M = np.array([getattr(row, c) for c in cols], dtype=np.float32).reshape(4, 4)
         out[int(row.record_index)] = M
     return out
+
+def optical_axis_from_c2w(c2w: np.ndarray):
+    axis = np.asarray(c2w[:3, 2], dtype=np.float32)
+    norm = float(np.linalg.norm(axis))
+    return axis / max(norm, 1e-12)
 
 def c2w_list_from_extrinsics(extrinsics):
     mats = []
@@ -1272,6 +1293,68 @@ def load_scene_any(path: Path):
     return scene
 
 global_camera_map = c2w_rows_to_map(global_camera_matrix_df)
+global_frame_meta_df = global_centers_df.merge(
+    prod_manifest_df[["record_index", "qc_blur_ok", "blur_score"]],
+    on="record_index",
+    how="left",
+)
+global_frame_meta_df["opt_x"] = global_frame_meta_df["record_index"].map(lambda x: float(optical_axis_from_c2w(global_camera_map[int(x)])[0]))
+global_frame_meta_df["opt_y"] = global_frame_meta_df["record_index"].map(lambda x: float(optical_axis_from_c2w(global_camera_map[int(x)])[1]))
+global_frame_meta_df["opt_z"] = global_frame_meta_df["record_index"].map(lambda x: float(optical_axis_from_c2w(global_camera_map[int(x)])[2]))
+global_frame_meta_df["qc_blur_ok"] = global_frame_meta_df["qc_blur_ok"].fillna(False).astype(bool)
+global_frame_meta_df["blur_score"] = global_frame_meta_df["blur_score"].fillna(0.0)
+global_frame_meta_df = global_frame_meta_df.sort_values("record_index").reset_index(drop=True)
+global_center_tree = cKDTree(global_frame_meta_df[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32))
+
+def assign_vertex_owners(xyz_w: np.ndarray, chunk_df: pd.DataFrame):
+    k = min(OWNER_TOPK, len(global_frame_meta_df))
+    dists, idxs = global_center_tree.query(xyz_w, k=k)
+    if k == 1:
+        dists = dists[:, None]
+        idxs = idxs[:, None]
+
+    candidate_meta = global_frame_meta_df.iloc[idxs.reshape(-1)].reset_index(drop=True)
+    candidate_centers = candidate_meta[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32).reshape(len(xyz_w), k, 3)
+    candidate_axes = candidate_meta[["opt_x", "opt_y", "opt_z"]].to_numpy(dtype=np.float32).reshape(len(xyz_w), k, 3)
+    candidate_blur_ok = candidate_meta["qc_blur_ok"].to_numpy(dtype=bool).reshape(len(xyz_w), k)
+    candidate_records = candidate_meta["record_index"].to_numpy(dtype=np.int64).reshape(len(xyz_w), k)
+
+    view_vec = xyz_w[:, None, :] - candidate_centers
+    view_norm = np.linalg.norm(view_vec, axis=2, keepdims=True)
+    view_dir = view_vec / np.maximum(view_norm, 1e-12)
+    dir_cos = np.sum(view_dir * candidate_axes, axis=2)
+    dir_term = 1.0 - np.clip(dir_cos, -1.0, 1.0)
+    blur_penalty = np.where(candidate_blur_ok, 0.0, 1.0)
+
+    chunk_record_center = float(chunk_df["record_index"].median())
+    chunk_record_span = float(max(chunk_df["record_index"].max() - chunk_df["record_index"].min(), 1))
+    index_penalty = np.minimum(np.abs(candidate_records - chunk_record_center) / chunk_record_span, 1.0)
+
+    score = (
+        OWNER_W_DIST * np.asarray(dists, dtype=np.float32)
+        + OWNER_W_DIR * dir_term.astype(np.float32)
+        + OWNER_W_BLUR * blur_penalty.astype(np.float32)
+        + OWNER_W_INDEX * index_penalty.astype(np.float32)
+    )
+
+    best_local = np.argmin(score, axis=1)
+    row_idx = np.arange(len(xyz_w))
+    owner_records = candidate_records[row_idx, best_local]
+    owner_scores = score[row_idx, best_local]
+    owner_dists = np.asarray(dists, dtype=np.float32)[row_idx, best_local]
+    owner_dir_cos = dir_cos[row_idx, best_local]
+    owner_blur_ok = candidate_blur_ok[row_idx, best_local]
+
+    assignment_df = pd.DataFrame({
+        "vertex_index": np.arange(len(xyz_w), dtype=np.int64),
+        "owner_record_index": owner_records.astype(np.int64),
+        "owner_chunk_name": chunk_df.attrs.get("chunk_name", ""),
+        "owner_score": owner_scores.astype(np.float32),
+        "owner_dist": owner_dists.astype(np.float32),
+        "owner_dir_cos": owner_dir_cos.astype(np.float32),
+        "owner_blur_ok": owner_blur_ok.astype(bool),
+    })
+    return assignment_df
 
 def show_batch_plan(run_batch_index: int):
     assert len(batch_plan_df) >= 1, "batch_plan.csv is empty"
@@ -1318,20 +1401,16 @@ def process_batch(run_batch_index: int):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = DepthAnything3.from_pretrained(MODEL_ID).to(device=device)
 
-    X = global_centers_df[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32)
-    X0 = X - X.mean(axis=0, keepdims=True)
-    _, _, Vt = np.linalg.svd(X0, full_matrices=False)
-    axis = Vt[0]
-    axis = axis / np.linalg.norm(axis)
-
     run_rows = []
     transform_rows = []
     keep_rows = []
+    warning_rows = []
     batch_records = []
     batch_scene = trimesh.Scene()
 
     for row in batch_chunks_df.itertuples(index=False):
         chunk_df = pd.read_csv(row.chunk_csv)
+        chunk_df.attrs["chunk_name"] = row.chunk_name
         images = chunk_df["image_path"].tolist()
 
         out_dir = chunk_runs_dir / row.chunk_name
@@ -1409,28 +1488,28 @@ def process_batch(run_batch_index: int):
             T = np.load(T_path).astype(np.float32)
             A = T[:3, :3]
             t = T[:3, 3]
-
-            adopted = chunk_df.loc[chunk_df["is_adopted_region"] == True].copy()
-            adopted_world = global_centers_df.loc[
-                global_centers_df["record_index"].isin(adopted["record_index"].tolist()),
-                ["cx_world", "cy_world", "cz_world"],
-            ].to_numpy(dtype=np.float32)
-            adopted_proj = adopted_world @ axis
-            left = float(adopted_proj.min())
-            right = float(adopted_proj.max())
+            adopted_record_set = set(chunk_df.loc[chunk_df["is_adopted_region"] == True, "record_index"].astype(int).tolist())
 
             ply = PlyData.read(str(ply_path))
             df = pd.DataFrame(ply["vertex"].data)
             xyz = df[["x", "y", "z"]].to_numpy(dtype=np.float32)
 
             xyz_w = (A @ xyz.T).T + t
-            proj_w = xyz_w @ axis
-            keep = (proj_w >= left) & (proj_w < right + 1e-6)
-            is_terminal_chunk = int(row.global_end) >= int(target_chunks_df["global_end"].max())
-            terminal_chunk_fallback_used = False
-            if not np.any(keep) and is_terminal_chunk:
-                keep = np.ones(len(df), dtype=bool)
-                terminal_chunk_fallback_used = True
+            assignment_df = assign_vertex_owners(xyz_w, chunk_df)
+            keep = assignment_df["owner_record_index"].isin(adopted_record_set).to_numpy(dtype=bool)
+            assignment_df["kept"] = keep
+            assignment_df.to_csv(out_dir / "vertex_assignment_summary.csv", index=False, encoding="utf-8")
+
+            owner_hist_df = assignment_df.groupby("owner_record_index", as_index=False).size().rename(columns={"size": "owner_vertex_count"})
+            owner_hist_df.to_csv(out_dir / "owner_record_histogram.csv", index=False, encoding="utf-8")
+
+            chunk_assignment_summary = assignment_df.groupby(["owner_record_index", "owner_blur_ok"], as_index=False).agg(
+                owner_vertex_count=("vertex_index", "count"),
+                owner_score_mean=("owner_score", "mean"),
+                owner_dist_mean=("owner_dist", "mean"),
+                owner_dir_cos_mean=("owner_dir_cos", "mean"),
+            )
+            chunk_assignment_summary.to_csv(out_dir / "chunk_assignment_summary.csv", index=False, encoding="utf-8")
 
             df["x"] = xyz_w[:, 0]
             df["y"] = xyz_w[:, 1]
@@ -1440,14 +1519,27 @@ def process_batch(run_batch_index: int):
             if len(df) > 0:
                 batch_records.append(df.to_records(index=False))
 
+            transform_warning = bool(
+                align_diag["center_rmse"] > TRANSFORM_CENTER_RMSE_WARN
+                or align_diag["rotation_dir_residual"] > TRANSFORM_ROT_DIR_WARN
+            )
+            keep_zero_chunk = int(len(df)) == 0
+            warning_rows.append({
+                "batch_name": batch_name,
+                "chunk_name": row.chunk_name,
+                "transform_warning": transform_warning,
+                "keep_zero_chunk": keep_zero_chunk,
+                "fallback_used": False,
+            })
             keep_rows.append({
                 "batch_name": batch_name,
                 "chunk_name": row.chunk_name,
                 "kept_vertices": int(len(df)),
-                "left": left,
-                "right": right,
-                "terminal_chunk_fallback_used": terminal_chunk_fallback_used,
+                "owner_record_unique_count": int(assignment_df["owner_record_index"].nunique()),
+                "owner_blur_ok_ratio": float(assignment_df["owner_blur_ok"].mean()),
+                "owner_score_mean": float(assignment_df["owner_score"].mean()),
             })
+            assert not keep_zero_chunk, {"chunk_name": row.chunk_name, "reason": "keep_zero_chunk"}
 
         if glb_path.exists():
             scene = load_scene_any(glb_path)
@@ -1466,6 +1558,10 @@ def process_batch(run_batch_index: int):
 
     keep_df = pd.DataFrame(keep_rows)
     keep_df.to_csv(batch_dir / "chunk_keep_summary.csv", index=False, encoding="utf-8")
+
+    warning_df = pd.DataFrame(warning_rows)
+    warning_df.to_csv(batch_dir / "merge_warning_summary.csv", index=False, encoding="utf-8")
+    transform_df.to_csv(batch_dir / "chunk_transform_quality.csv", index=False, encoding="utf-8")
 
     batch_ply_path = batch_dir / f"{batch_name}_merged_gs.ply"
     if batch_records:
@@ -1529,6 +1625,11 @@ process_batch(RUN_BATCH_INDEX)
 
 ### Block 6: Final rebuild merge + bundle
 
+- final merge でも `Block 4` と同じ owner_record 判定を使う。`PCA 1軸帯 keep` と terminal の `all keep fallback` は使わない。
+- `keep_zero_chunk` は warning ではなく hard error とし、owner-based merge が崩れた chunk を見逃さない。
+- `MAKE_DRIVE_BUNDLE = True` の時は `pipeline_root` 全体を `MyDrive/trajectreview/modeling/...` の visible dir と zip へ保存し、必要なら `/content/...zip` の local copy と browser download も作る。
+- したがって `vertex_assignment_summary.csv`、`chunk_assignment_summary.csv`、`owner_record_histogram.csv`、`merge_warning_summary.json`、`chunk_transform_quality.csv` を含む merge 証跡は Drive と local の両方で見られる。
+
 ```python
 #15
 from pathlib import Path
@@ -1539,11 +1640,13 @@ import numpy as np
 import pandas as pd
 import trimesh
 from plyfile import PlyData, PlyElement
+from scipy.spatial import cKDTree
 
 ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
 probe_root = Path(ctx["probe_root"])
 results_root = Path(ctx["results_root"])
 modeling_session_id = ctx["modeling_session_id"]
+manifest_dir = Path(ctx["manifest_dir"])
 
 pipeline_root = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12"
 global_pose_dir = pipeline_root / "global_pose_bootstrap"
@@ -1634,12 +1737,14 @@ if REQUIRE_ALL_CHUNKS and len(completed_chunks_df) < len(all_chunks_df):
 else:
     global_centers_df = pd.read_csv(global_pose_dir / "camera_center_matrix.csv")
     global_camera_matrix_df = pd.read_csv(global_pose_dir / "camera_matrix_full.csv")
-    X = global_centers_df[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32)
-    X0 = X - X.mean(axis=0, keepdims=True)
-    _, _, Vt = np.linalg.svd(X0, full_matrices=False)
-    axis = Vt[0]
-    axis = axis / np.linalg.norm(axis)
-    global_centers_df["proj"] = X @ axis
+    prod_manifest_df = pd.read_csv(manifest_dir / "da3_input_manifest_prod.csv")
+    OWNER_TOPK = 6
+    OWNER_W_DIST = 1.0
+    OWNER_W_DIR = 0.35
+    OWNER_W_BLUR = 0.25
+    OWNER_W_INDEX = 0.02
+    TRANSFORM_CENTER_RMSE_WARN = 0.25
+    TRANSFORM_ROT_DIR_WARN = 0.25
 
     def load_scene_any(path: Path):
         loaded = trimesh.load(str(path), force="scene")
@@ -1670,6 +1775,11 @@ else:
             M = np.array([getattr(row, c) for c in cols], dtype=np.float32).reshape(4, 4)
             out[int(row.record_index)] = M
         return out
+
+    def optical_axis_from_c2w(c2w: np.ndarray):
+        axis = np.asarray(c2w[:3, 2], dtype=np.float32)
+        norm = float(np.linalg.norm(axis))
+        return axis / max(norm, 1e-12)
 
     def c2w_list_from_extrinsics(extrinsics):
         mats = []
@@ -1732,12 +1842,69 @@ else:
         return T.astype(np.float32), diag
 
     global_camera_map = c2w_rows_to_map(global_camera_matrix_df)
+    global_frame_meta_df = global_centers_df.merge(
+        prod_manifest_df[["record_index", "qc_blur_ok", "blur_score"]],
+        on="record_index",
+        how="left",
+    )
+    global_frame_meta_df["opt_x"] = global_frame_meta_df["record_index"].map(lambda x: float(optical_axis_from_c2w(global_camera_map[int(x)])[0]))
+    global_frame_meta_df["opt_y"] = global_frame_meta_df["record_index"].map(lambda x: float(optical_axis_from_c2w(global_camera_map[int(x)])[1]))
+    global_frame_meta_df["opt_z"] = global_frame_meta_df["record_index"].map(lambda x: float(optical_axis_from_c2w(global_camera_map[int(x)])[2]))
+    global_frame_meta_df["qc_blur_ok"] = global_frame_meta_df["qc_blur_ok"].fillna(False).astype(bool)
+    global_frame_meta_df["blur_score"] = global_frame_meta_df["blur_score"].fillna(0.0)
+    global_frame_meta_df = global_frame_meta_df.sort_values("record_index").reset_index(drop=True)
+    global_center_tree = cKDTree(global_frame_meta_df[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32))
+
+    def assign_vertex_owners(xyz_w: np.ndarray, chunk_df: pd.DataFrame):
+        k = min(OWNER_TOPK, len(global_frame_meta_df))
+        dists, idxs = global_center_tree.query(xyz_w, k=k)
+        if k == 1:
+            dists = dists[:, None]
+            idxs = idxs[:, None]
+
+        candidate_meta = global_frame_meta_df.iloc[idxs.reshape(-1)].reset_index(drop=True)
+        candidate_centers = candidate_meta[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32).reshape(len(xyz_w), k, 3)
+        candidate_axes = candidate_meta[["opt_x", "opt_y", "opt_z"]].to_numpy(dtype=np.float32).reshape(len(xyz_w), k, 3)
+        candidate_blur_ok = candidate_meta["qc_blur_ok"].to_numpy(dtype=bool).reshape(len(xyz_w), k)
+        candidate_records = candidate_meta["record_index"].to_numpy(dtype=np.int64).reshape(len(xyz_w), k)
+
+        view_vec = xyz_w[:, None, :] - candidate_centers
+        view_norm = np.linalg.norm(view_vec, axis=2, keepdims=True)
+        view_dir = view_vec / np.maximum(view_norm, 1e-12)
+        dir_cos = np.sum(view_dir * candidate_axes, axis=2)
+        dir_term = 1.0 - np.clip(dir_cos, -1.0, 1.0)
+        blur_penalty = np.where(candidate_blur_ok, 0.0, 1.0)
+
+        chunk_record_center = float(chunk_df["record_index"].median())
+        chunk_record_span = float(max(chunk_df["record_index"].max() - chunk_df["record_index"].min(), 1))
+        index_penalty = np.minimum(np.abs(candidate_records - chunk_record_center) / chunk_record_span, 1.0)
+
+        score = (
+            OWNER_W_DIST * np.asarray(dists, dtype=np.float32)
+            + OWNER_W_DIR * dir_term.astype(np.float32)
+            + OWNER_W_BLUR * blur_penalty.astype(np.float32)
+            + OWNER_W_INDEX * index_penalty.astype(np.float32)
+        )
+
+        best_local = np.argmin(score, axis=1)
+        row_idx = np.arange(len(xyz_w))
+        return pd.DataFrame({
+            "vertex_index": np.arange(len(xyz_w), dtype=np.int64),
+            "owner_record_index": candidate_records[row_idx, best_local].astype(np.int64),
+            "owner_score": score[row_idx, best_local].astype(np.float32),
+            "owner_dist": np.asarray(dists, dtype=np.float32)[row_idx, best_local].astype(np.float32),
+            "owner_dir_cos": dir_cos[row_idx, best_local].astype(np.float32),
+            "owner_blur_ok": candidate_blur_ok[row_idx, best_local].astype(bool),
+        })
 
     transform_rows = []
     keep_rows = []
+    warning_rows = []
     all_vertices = []
     dtype_ref = None
     master_scene = trimesh.Scene()
+    owner_hist_rows = []
+    chunk_assign_rows = []
 
     for row in completed_chunks_df.itertuples(index=False):
         out_dir = chunk_runs_dir / row.chunk_name
@@ -1750,12 +1917,13 @@ else:
 
         chunk_df = pd.read_csv(chunk_input_path)
         pred_extrinsics = np.load(pred_ext_path)
+        chunk_df.attrs["chunk_name"] = row.chunk_name
 
         local_c2w_list = c2w_list_from_extrinsics(pred_extrinsics)
-        local_centers = np.stack([m[:3, 3] for m in local_c2w_list], axis=0)
+        local_centers = np.stack([m[:3, 3] for m in local_c2w_list], axis=0).astype(np.float32)
 
         merged = chunk_df.merge(
-            global_centers_df[["record_index", "cx_world", "cy_world", "cz_world", "proj"]],
+            global_centers_df[["record_index", "cx_world", "cy_world", "cz_world"]],
             on="record_index",
             how="left",
         )
@@ -1776,13 +1944,7 @@ else:
             "rotation_dir_residual": float(align_diag["rotation_dir_residual"]),
         })
 
-        adopted_proj = merged.loc[merged["is_adopted_region"] == True, "proj"].to_numpy(dtype=np.float32)
-        if len(adopted_proj) == 0:
-            keep_rows.append({"chunk_name": row.chunk_name, "kept_vertices": 0, "left": None, "right": None})
-            continue
-
-        left = float(adopted_proj.min())
-        right = float(adopted_proj.max())
+        adopted_record_set = set(chunk_df.loc[chunk_df["is_adopted_region"] == True, "record_index"].astype(int).tolist())
 
         ply = PlyData.read(str(ply_path))
         df = pd.DataFrame(ply["vertex"].data)
@@ -1791,8 +1953,24 @@ else:
         A = T_c_to_w0[:3, :3].astype(np.float32)
         t32 = T_c_to_w0[:3, 3].astype(np.float32)
         xyz_w = (A @ xyz.T).T + t32
-        proj_w = xyz_w @ axis
-        keep = (proj_w >= left) & (proj_w < right + 1e-6)
+        assignment_df = assign_vertex_owners(xyz_w, chunk_df)
+        assignment_df["chunk_name"] = row.chunk_name
+        keep = assignment_df["owner_record_index"].isin(adopted_record_set).to_numpy(dtype=bool)
+        assignment_df["kept"] = keep
+        assignment_df.to_csv(out_dir / "vertex_assignment_summary.csv", index=False, encoding="utf-8")
+
+        owner_hist = assignment_df.groupby("owner_record_index", as_index=False).size().rename(columns={"size": "owner_vertex_count"})
+        owner_hist["chunk_name"] = row.chunk_name
+        owner_hist_rows.append(owner_hist)
+
+        chunk_assign = assignment_df.groupby(["owner_record_index", "owner_blur_ok"], as_index=False).agg(
+            owner_vertex_count=("vertex_index", "count"),
+            owner_score_mean=("owner_score", "mean"),
+            owner_dist_mean=("owner_dist", "mean"),
+            owner_dir_cos_mean=("owner_dir_cos", "mean"),
+        )
+        chunk_assign["chunk_name"] = row.chunk_name
+        chunk_assign_rows.append(chunk_assign)
 
         df["x"] = xyz_w[:, 0]
         df["y"] = xyz_w[:, 1]
@@ -1807,12 +1985,25 @@ else:
                 records = records.astype(dtype_ref, copy=False)
             all_vertices.append(records)
 
+        transform_warning = bool(
+            align_diag["center_rmse"] > TRANSFORM_CENTER_RMSE_WARN
+            or align_diag["rotation_dir_residual"] > TRANSFORM_ROT_DIR_WARN
+        )
+        keep_zero_chunk = int(len(df)) == 0
+        warning_rows.append({
+            "chunk_name": row.chunk_name,
+            "transform_warning": transform_warning,
+            "keep_zero_chunk": keep_zero_chunk,
+            "fallback_used": False,
+        })
         keep_rows.append({
             "chunk_name": row.chunk_name,
             "kept_vertices": int(len(df)),
-            "left": left,
-            "right": right,
+            "owner_record_unique_count": int(assignment_df["owner_record_index"].nunique()),
+            "owner_blur_ok_ratio": float(assignment_df["owner_blur_ok"].mean()),
+            "owner_score_mean": float(assignment_df["owner_score"].mean()),
         })
+        assert not keep_zero_chunk, {"chunk_name": row.chunk_name, "reason": "keep_zero_chunk"}
 
         if glb_path.exists():
             scene = load_scene_any(glb_path)
@@ -1828,6 +2019,21 @@ else:
     keep_df = pd.DataFrame(keep_rows)
     keep_summary_path = merged_dir / "chunk_keep_summary.csv"
     keep_df.to_csv(keep_summary_path, index=False, encoding="utf-8")
+    transform_quality_path = merged_dir / "chunk_transform_quality.csv"
+    transform_df.to_csv(transform_quality_path, index=False, encoding="utf-8")
+
+    if owner_hist_rows:
+        pd.concat(owner_hist_rows, ignore_index=True).to_csv(merged_dir / "owner_record_histogram.csv", index=False, encoding="utf-8")
+    if chunk_assign_rows:
+        pd.concat(chunk_assign_rows, ignore_index=True).to_csv(merged_dir / "chunk_assignment_summary.csv", index=False, encoding="utf-8")
+
+    warning_summary = {
+        "transform_warning_count": int(sum(bool(x["transform_warning"]) for x in warning_rows)),
+        "keep_zero_chunk_count": int(sum(bool(x["keep_zero_chunk"]) for x in warning_rows)),
+        "fallback_used_count": 0,
+        "rows": warning_rows,
+    }
+    (merged_dir / "merge_warning_summary.json").write_text(json.dumps(warning_summary, indent=2, ensure_ascii=False), encoding="utf-8")
 
     merged_ply_path = merged_dir / "merged_gs.ply"
     if all_vertices:
@@ -1894,6 +2100,10 @@ else:
         "merged_glb_path": str(merged_glb_path) if merged_glb_path.exists() else None,
         "chunk_global_transforms_path": str(chunk_manifest_dir / "chunk_global_transforms.csv"),
         "chunk_keep_summary_path": str(keep_summary_path),
+        "chunk_transform_quality_path": str(transform_quality_path),
+        "owner_record_histogram_path": str(merged_dir / "owner_record_histogram.csv"),
+        "chunk_assignment_summary_path": str(merged_dir / "chunk_assignment_summary.csv"),
+        "merge_warning_summary_path": str(merged_dir / "merge_warning_summary.json"),
         "all_batch_summary_path": str(merged_dir / "all_batch_summary.json"),
         "bundle_summary": bundle_summary,
     }
