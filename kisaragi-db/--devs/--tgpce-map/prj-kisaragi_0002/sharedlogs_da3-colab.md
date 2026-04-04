@@ -6387,3 +6387,9 @@ Moviepy - video ready /content/drive/MyDrive/trajectreview/modeling/trajectrevie
 - 追加証跡は `vertex_assignment_summary.csv`、`owner_record_histogram.csv`、`chunk_assignment_summary.csv`、`merge_warning_summary.json`、`chunk_transform_quality.csv` とし、`Block 6` bundle で Drive visible dir / Drive zip / local visible dir / local zip に同梱する。
 - rollback point は branch `codex/mrl10-merge-baseline-20260404` を使う。
 
+# codex v72
+
+- `#10-1` で `chunk_0001_00012_00029` が `keep_zero_chunk` になった原因は、owner 候補 frame を chunk 外まで広げた結果、overlap chunk の vertex が前後 chunk の record へ吸われ、当該 chunk の adopted tail へ 1 点も残らなかったためである。
+- runbook の owner 推定は、候補 frame をまず当該 chunk の record 群だけに制限し、候補不足の時だけ `OWNER_RECORD_MARGIN` 付き局所近傍、最後に全体 fallback を使う形へ変更した。
+- 追加証跡として `owner_candidate_mode` を `vertex_assignment_summary.csv` と `chunk_keep_summary.csv` に残すようにした。これにより `chunk_only`、`chunk_with_margin`、`global_fallback` のどれで owner を決めたかを後から追える。
+

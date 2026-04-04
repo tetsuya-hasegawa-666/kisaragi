@@ -1288,6 +1288,7 @@ OWNER_W_DIST = 1.0
 OWNER_W_DIR = 0.35
 OWNER_W_BLUR = 0.25
 OWNER_W_INDEX = 0.02
+OWNER_RECORD_MARGIN = 6
 TRANSFORM_CENTER_RMSE_WARN = 0.25
 TRANSFORM_ROT_DIR_WARN = 0.25
 
@@ -1412,13 +1413,30 @@ global_frame_meta_df = global_frame_meta_df.sort_values("record_index").reset_in
 global_center_tree = cKDTree(global_frame_meta_df[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32))
 
 def assign_vertex_owners(xyz_w: np.ndarray, chunk_df: pd.DataFrame):
-    k = min(OWNER_TOPK, len(global_frame_meta_df))
-    dists, idxs = global_center_tree.query(xyz_w, k=k)
+    chunk_record_df = global_frame_meta_df.loc[
+        global_frame_meta_df["record_index"].isin(chunk_df["record_index"].astype(int).tolist())
+    ].copy()
+    record_min = int(chunk_df["record_index"].min())
+    record_max = int(chunk_df["record_index"].max())
+    candidate_mode = "chunk_only"
+    candidate_df = chunk_record_df
+    if len(candidate_df) < 2:
+        candidate_mode = "chunk_with_margin"
+        candidate_df = global_frame_meta_df.loc[
+            global_frame_meta_df["record_index"].between(record_min - OWNER_RECORD_MARGIN, record_max + OWNER_RECORD_MARGIN)
+        ].copy()
+    if len(candidate_df) < 2:
+        candidate_mode = "global_fallback"
+        candidate_df = global_frame_meta_df.copy()
+    candidate_tree = cKDTree(candidate_df[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32))
+
+    k = min(OWNER_TOPK, len(candidate_df))
+    dists, idxs = candidate_tree.query(xyz_w, k=k)
     if k == 1:
         dists = dists[:, None]
         idxs = idxs[:, None]
 
-    candidate_meta = global_frame_meta_df.iloc[idxs.reshape(-1)].reset_index(drop=True)
+    candidate_meta = candidate_df.iloc[idxs.reshape(-1)].reset_index(drop=True)
     candidate_centers = candidate_meta[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32).reshape(len(xyz_w), k, 3)
     candidate_axes = candidate_meta[["opt_x", "opt_y", "opt_z"]].to_numpy(dtype=np.float32).reshape(len(xyz_w), k, 3)
     candidate_blur_ok = candidate_meta["qc_blur_ok"].to_numpy(dtype=bool).reshape(len(xyz_w), k)
@@ -1454,6 +1472,9 @@ def assign_vertex_owners(xyz_w: np.ndarray, chunk_df: pd.DataFrame):
         "vertex_index": np.arange(len(xyz_w), dtype=np.int64),
         "owner_record_index": owner_records.astype(np.int64),
         "owner_chunk_name": chunk_df.attrs.get("chunk_name", ""),
+        "owner_candidate_mode": candidate_mode,
+        "owner_candidate_record_min": int(candidate_df["record_index"].min()),
+        "owner_candidate_record_max": int(candidate_df["record_index"].max()),
         "owner_score": owner_scores.astype(np.float32),
         "owner_dist": owner_dists.astype(np.float32),
         "owner_dir_cos": owner_dir_cos.astype(np.float32),
@@ -1641,6 +1662,9 @@ def process_batch(run_batch_index: int):
                 "chunk_name": row.chunk_name,
                 "kept_vertices": int(len(df)),
                 "owner_record_unique_count": int(assignment_df["owner_record_index"].nunique()),
+                "owner_candidate_mode": str(assignment_df["owner_candidate_mode"].iloc[0]),
+                "owner_record_min": int(assignment_df["owner_record_index"].min()),
+                "owner_record_max": int(assignment_df["owner_record_index"].max()),
                 "owner_blur_ok_ratio": float(assignment_df["owner_blur_ok"].mean()),
                 "owner_score_mean": float(assignment_df["owner_score"].mean()),
             })
@@ -1848,6 +1872,7 @@ else:
     OWNER_W_DIR = 0.35
     OWNER_W_BLUR = 0.25
     OWNER_W_INDEX = 0.02
+    OWNER_RECORD_MARGIN = 6
     TRANSFORM_CENTER_RMSE_WARN = 0.25
     TRANSFORM_ROT_DIR_WARN = 0.25
 
@@ -1961,13 +1986,30 @@ else:
     global_center_tree = cKDTree(global_frame_meta_df[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32))
 
     def assign_vertex_owners(xyz_w: np.ndarray, chunk_df: pd.DataFrame):
-        k = min(OWNER_TOPK, len(global_frame_meta_df))
-        dists, idxs = global_center_tree.query(xyz_w, k=k)
+        chunk_record_df = global_frame_meta_df.loc[
+            global_frame_meta_df["record_index"].isin(chunk_df["record_index"].astype(int).tolist())
+        ].copy()
+        record_min = int(chunk_df["record_index"].min())
+        record_max = int(chunk_df["record_index"].max())
+        candidate_mode = "chunk_only"
+        candidate_df = chunk_record_df
+        if len(candidate_df) < 2:
+            candidate_mode = "chunk_with_margin"
+            candidate_df = global_frame_meta_df.loc[
+                global_frame_meta_df["record_index"].between(record_min - OWNER_RECORD_MARGIN, record_max + OWNER_RECORD_MARGIN)
+            ].copy()
+        if len(candidate_df) < 2:
+            candidate_mode = "global_fallback"
+            candidate_df = global_frame_meta_df.copy()
+        candidate_tree = cKDTree(candidate_df[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32))
+
+        k = min(OWNER_TOPK, len(candidate_df))
+        dists, idxs = candidate_tree.query(xyz_w, k=k)
         if k == 1:
             dists = dists[:, None]
             idxs = idxs[:, None]
 
-        candidate_meta = global_frame_meta_df.iloc[idxs.reshape(-1)].reset_index(drop=True)
+        candidate_meta = candidate_df.iloc[idxs.reshape(-1)].reset_index(drop=True)
         candidate_centers = candidate_meta[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32).reshape(len(xyz_w), k, 3)
         candidate_axes = candidate_meta[["opt_x", "opt_y", "opt_z"]].to_numpy(dtype=np.float32).reshape(len(xyz_w), k, 3)
         candidate_blur_ok = candidate_meta["qc_blur_ok"].to_numpy(dtype=bool).reshape(len(xyz_w), k)
@@ -1996,6 +2038,9 @@ else:
         return pd.DataFrame({
             "vertex_index": np.arange(len(xyz_w), dtype=np.int64),
             "owner_record_index": candidate_records[row_idx, best_local].astype(np.int64),
+            "owner_candidate_mode": candidate_mode,
+            "owner_candidate_record_min": int(candidate_df["record_index"].min()),
+            "owner_candidate_record_max": int(candidate_df["record_index"].max()),
             "owner_score": score[row_idx, best_local].astype(np.float32),
             "owner_dist": np.asarray(dists, dtype=np.float32)[row_idx, best_local].astype(np.float32),
             "owner_dir_cos": dir_cos[row_idx, best_local].astype(np.float32),
@@ -2105,6 +2150,9 @@ else:
             "chunk_name": row.chunk_name,
             "kept_vertices": int(len(df)),
             "owner_record_unique_count": int(assignment_df["owner_record_index"].nunique()),
+            "owner_candidate_mode": str(assignment_df["owner_candidate_mode"].iloc[0]),
+            "owner_record_min": int(assignment_df["owner_record_index"].min()),
+            "owner_record_max": int(assignment_df["owner_record_index"].max()),
             "owner_blur_ok_ratio": float(assignment_df["owner_blur_ok"].mean()),
             "owner_score_mean": float(assignment_df["owner_score"].mean()),
         })
