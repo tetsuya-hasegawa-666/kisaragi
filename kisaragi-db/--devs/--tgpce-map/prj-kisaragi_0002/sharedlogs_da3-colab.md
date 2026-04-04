@@ -5,6 +5,7 @@
 - この file は `prj-kisaragi_0002` の `DA3Metric-Large` `Colab` 実装について、admin と Codex が notebook cell、script、error、観測結果を往復するための collaborative worklog とする。
 - この file は `project-truth.md`、`hi-ai-unified-blueprint.md`、admin evidence の代替ではない。
 - この file は project に対する truth / plan / evidence の正本ではないが、共同作業の保持情報としては authoritative な worklog とし、正本反映の根拠 log として保持する。
+- `Colab` script の canonical source は `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/` とし、`modeling/evidence/` は legacy evidence の保持先としてのみ扱う。
 
 ## 読み方
 
@@ -25,7 +26,7 @@
 2026-03-29 v24 cleanup for next use。
 
 - `Step 1` から `Step 5p` までの持続事項は、次の正本へ反映済みです。
-  - [da3_colab_clean_bootstrap_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_clean_bootstrap_runbook.md)
+  - [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_colab_evid_runbook.md)
   - [hi-ai-unified-blueprint.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\hi-ai-unified-blueprint.md)
   - [admin-mrl-test-evidence.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\admin-mrl-test-evidence.md)
   - [codex-mrl-test-evidence.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\codex-mrl-test-evidence.md)

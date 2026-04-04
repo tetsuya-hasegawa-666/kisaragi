@@ -19,10 +19,10 @@
   gate change: `active`
   issue: `correcting` 側の canonical image が `90度右回転` 済み upright JPEG に変わる前提が固まった一方、main runbook pair と計画文書はまだ `MRL-11` を別立てし、`Colab` 側で orientation をどう扱うかが一貫していなかった。さらに添付 notebook の `DA3NESTED-GIANT-LARGE-1.1` living spec と `debug_gs_readback` 系証跡も、main canonical route へ完全には吸収できていなかった
   cause: これまでの runbook は raw 向き由来の回転論点を `viewer 側の後処理` に寄せており、`frame_record.jsonl`、upright image、legacy intrinsics 補正、manifest 記録を 1 つの canonical contract に束ね切れていなかった
-  resolution: [da3_colab_evid_runbook.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_evid_runbook.md) と [da3_colab_ref_runbook.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_ref_runbook.md) を更新し、`correcting` から渡る `90度右回転` 済み upright image を canonical input として固定した。`MRL-10 Block 1` は image pixel を再回転せず、実画像寸法と `imageIntrinsics` の照合で legacy session だけ `K` を upright 基準へ補正し、`input_frame_manifest.csv`、`k_resize_check.csv`、`orientation_summary.json` に残す構成へ変更した。`MetricLarge` / `Giant` の summary も同じ orientation policy と `intrinsics_case_counts` を返すようそろえ、計画側では `MRL-11` を単独 gate にせず `MRL-10` へ吸収する方向へ整理した
+  resolution: [da3_colab_evid_runbook.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_colab_evid_runbook.md) と [da3_colab_ref_runbook.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_colab_ref_runbook.md) を更新し、`correcting` から渡る `90度右回転` 済み upright image を canonical input として固定した。`MRL-10 Block 1` は image pixel を再回転せず、実画像寸法と `imageIntrinsics` の照合で legacy session だけ `K` を upright 基準へ補正し、`input_frame_manifest.csv`、`k_resize_check.csv`、`orientation_summary.json` に残す構成へ変更した。`MetricLarge` / `Giant` の summary も同じ orientation policy と `intrinsics_case_counts` を返すようそろえ、計画側では `MRL-11` を単独 gate にせず `MRL-10` へ吸収する方向へ整理した
   recurrence prevention: image 向きの問題は `viewer` の見え方だけで処理せず、input image、`K`、manifest、export summary、downloader bundle を同じ task で同時更新する。`correcting` 側 contract が変わった時は runbook pair と `hi-ai-unified-blueprint.md` を同日中に更新し、別 `MRL` に残しっぱなしにしない
   remaining work: admin 実測で `MRL-10` を通し、`orientation_summary.json`、`k_resize_check.csv`、`proof_giant` export が upright 基準で整合することを確認して `p-done` / `i-pass` 判定へ進める。後続は top camera renderer と reviewing viewer 接続である
-  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_evid_runbook.md`
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_colab_evid_runbook.md`
 
 - record date: `2026-04-01`
   target MRL: `MRL-2R`
@@ -122,7 +122,7 @@
   resolution: `DA3Metric-Large` single-frame depth、world back-projection、point export、`gsplat` rasterization、`gs_model_smoke.json`、`space_quality_smoke.json`、`space_package_smoke.json`、contract 名 artifact 生成までを `Candidate Bootstrap v1` と `admin-mrl-test-evidence.md` へ反映し、`MRL-5` の candidate proof を「correcting 実 data から `3DGS` 系主空間モデル候補を再現できる」水準まで引き上げた
   recurrence prevention: Colab 往復で得た持続価値のある結果は、shared worklog のみへ残さず、runbook、admin evidence、必要なら closeout 記録へ同じ task で反映する
   remaining work: `admin-mrl-test-evidence.md` を根拠に `MRL-5 p-done` 判定を行うか判断し、後続 gate では `trajectreview-modeling` 正式統合と `multi-frame` / `multi-route` を別 MRL として進める
-  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_evid_runbook.md`
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_colab_evid_runbook.md`
 
 - record date: `2026-03-30`
   target MRL: `MRL-7`
@@ -155,7 +155,7 @@
   resolution: candidate scan を `session_id + size_bytes` と path rank で canonical 化し、widget で selected input を保存する前段を runbook 正本へ組み込んだ。admin は `[2] trajectreview-correcting-session-20260331-034831 [zip]` を選択し、`Step 8d` で `Step 2` から `Step 4.5`、`Step 8e` で `MRL-7 adopted one-block` を同じ input から end-to-end で実行できた
   recurrence prevention: Drive mount で同一実体が複数 path に見える時は `resolve()` だけに頼らず、session-level key と優先順位で canonical candidate list を作ってから widget UX を確定する
   remaining work: `MRL-8` で確立した selected input handoff を、後続 `job_status.json`、request UX、result download、viewer formalization へ接続する
-  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_evid_runbook.md`
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_colab_evid_runbook.md`
 
 - record date: `2026-03-26`
   target MRL: `旧番号時代の全 gate`
@@ -306,7 +306,7 @@
   resolution: `Step 9d` で repo docs / API を再探索し、`da3-giant` + `infer_gs=True` + `export_format=\"npz-glb-gs_ply-gs_video\"` を固定した。`e3nn` install を `DepthAnything3` import 前へ移し、module reload 後に `inference()` を再実行して `gs_ply/0000.ply`、`gs_video/0000_extend.mp4`、`scene.glb`、`exports/npz/results.npz` の生成に成功した
   recurrence prevention: `MRL-9` を統合済みの main runbook pair では、`e3nn` install を import 前に置く。Gaussian branch failure では dependency 追加後の stale import を疑い、module reload または fresh import 順を先に確認する
   remaining work: `mRL-9.2` として `gs_ply` を `SuperSplat` または `PlayCanvas Model Viewer` で開き、自由視点 scene として読めることを admin evidence 化する
-  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_evid_runbook.md`
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_colab_evid_runbook.md`
 - record date: `2026-03-31`
   target MRL: `MRL-9`
   target mRL: `mRL-9.2`
