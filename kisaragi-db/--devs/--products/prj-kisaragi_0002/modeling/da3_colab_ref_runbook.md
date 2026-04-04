@@ -602,15 +602,15 @@ qc_df["qc_image_ok"] = qc_df["image_exists"].fillna(False)
 qc_df["qc_orientation_ok"] = qc_df["intrinsics_case"].isin(["already_upright", "rot90cw_intrinsics_fixed"])
 qc_df["qc_intrinsics_ok"] = qc_df[["fx_canonical", "fy_canonical", "cx_canonical", "cy_canonical", "width_canonical", "height_canonical"]].notna().all(axis=1)
 qc_df["qc_pose_ok"] = qc_df[["tx", "ty", "tz", "qx", "qy", "qz", "qw"]].notna().all(axis=1)
-qc_df["qc_blur_ok"] = qc_df["blur_score"].fillna(0.0) >= BLUR_THRESHOLD
-qc_df["qc_pass"] = qc_df[["qc_tracking_ok", "qc_image_ok", "qc_orientation_ok", "qc_intrinsics_ok", "qc_pose_ok", "qc_blur_ok"]].all(axis=1)
+qc_df["blur_score"] = pd.to_numeric(qc_df["blur_score"], errors="coerce")
+qc_df["qc_blur_ok"] = qc_df["blur_score"].fillna(0.0).ge(BLUR_THRESHOLD).infer_objects(copy=False)
+qc_df["qc_pass"] = qc_df[["qc_tracking_ok", "qc_image_ok", "qc_orientation_ok", "qc_intrinsics_ok", "qc_pose_ok"]].all(axis=1)
 qc_df["skip_reason"] = ""
 qc_df.loc[~qc_df["qc_tracking_ok"], "skip_reason"] = "tracking_not_ok"
 qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_image_ok"], "skip_reason"] = "image_missing"
 qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_orientation_ok"], "skip_reason"] = "orientation_mismatch"
 qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_intrinsics_ok"], "skip_reason"] = "intrinsics_missing"
 qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_pose_ok"], "skip_reason"] = "pose_missing"
-qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_blur_ok"], "skip_reason"] = "blur_low"
 qc_df.to_csv(manifest_dir / "input_frame_qc.csv", index=False, encoding="utf-8", quoting=csv.QUOTE_MINIMAL)
 
 def quat_to_rot(qx, qy, qz, qw):
@@ -641,7 +641,20 @@ def build_K(row):
     ], dtype=np.float32)
 
 adopt_df = qc_df.loc[qc_df["qc_pass"]].copy().sort_values("frame_timestamp_ns").reset_index(drop=True)
-assert len(adopt_df) >= 2, {"qc_pass_count": len(adopt_df)}
+if len(adopt_df) < 2:
+    fail_counts = {
+        "frame_record_count": int(len(qc_df)),
+        "qc_pass_count": int(len(adopt_df)),
+        "tracking_not_ok": int((~qc_df["qc_tracking_ok"]).sum()),
+        "image_missing": int((~qc_df["qc_image_ok"]).sum()),
+        "orientation_mismatch": int((~qc_df["qc_orientation_ok"]).sum()),
+        "intrinsics_missing": int((~qc_df["qc_intrinsics_ok"]).sum()),
+        "pose_missing": int((~qc_df["qc_pose_ok"]).sum()),
+        "blur_low_diag_only": int((~qc_df["qc_blur_ok"]).sum()),
+        "skip_reason_counts": qc_df["skip_reason"].value_counts(dropna=False).to_dict(),
+    }
+    (manifest_dir / "qc_failure_summary.json").write_text(json.dumps(fail_counts, indent=2, ensure_ascii=False), encoding="utf-8")
+    raise AssertionError(fail_counts)
 
 adopted_rows = []
 last_t = None
@@ -651,11 +664,14 @@ for row in adopt_df.itertuples(index=False):
     R = quat_to_rot(float(row.qx), float(row.qy), float(row.qz), float(row.qw))
     baseline = None if last_t is None else float(np.linalg.norm(t - last_t))
     rot_delta = None if last_R is None else float(np.degrees(np.arccos(np.clip((np.trace(last_R.T @ R) - 1.0) / 2.0, -1.0, 1.0))))
-    adopt = last_t is None or (baseline >= 0.05) or (rot_delta is not None and rot_delta >= 3.0)
+    geometric_adopt = last_t is None or (baseline >= 0.05) or (rot_delta is not None and rot_delta >= 3.0)
+    blur_boost = bool(row.qc_blur_ok) if pd.notna(row.qc_blur_ok) else False
+    adopt = geometric_adopt or (last_t is None and blur_boost)
     adopted_rows.append({
         **row._asdict(),
         "baseline_from_prev_adopted_m": baseline,
         "rotation_from_prev_adopted_deg": rot_delta,
+        "geometric_adopt": geometric_adopt,
         "prod_adopted": adopt,
         "prod_skip_reason": "" if adopt else "baseline_small",
     })
