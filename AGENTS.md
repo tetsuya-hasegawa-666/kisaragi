@@ -103,7 +103,7 @@ kisaragi-tree/
   --tgpce-map/
     prj-kisaragi_****/
       project-truth.md
-      ux-b2t-hypo.md
+      hi-ai-unified-blueprint.md
       codex-mrl-test-evidence.md
       resume-startup-plan.md
       admin-mrl-test-method.md
@@ -137,7 +137,8 @@ kisaragi-tree/
 - project 計画や truth に shared rule が混入していた時も同様に整理し、shared rule は `AGENTS.md`、project 固有 truth は project 文書へ分離する。
 - `--tgpce-map/` を使う project では、project 固有の `truth`、`goal`、`plan`、`current`、`evidence-map` を同一 project directory に集約してよい。
 - `--tgpce-map/` を使う project でも、shared governance、shared directory rule、shared branch rule、shared 判定語、shared hygiene は `AGENTS.md` に残す。
-- `--tgpce-map/` を使う `prj-kisaragi_****` の正式名称は、統合計画書を `ux-b2t-hypo.md`、Codex 側 gate closeout を `codex-mrl-test-evidence.md`、admin 手順を `admin-mrl-test-method.md`、admin 証跡を `admin-mrl-test-evidence.md` とする。
+- `--tgpce-map/` を使う `prj-kisaragi_****` の正式名称は、統合計画書を `hi-ai-unified-blueprint.md`、Codex 側 gate closeout を `codex-mrl-test-evidence.md`、admin 手順を `admin-mrl-test-method.md`、admin 証跡を `admin-mrl-test-evidence.md` とする。
+- `hi-ai-unified-blueprint.md` は `Human Intelligence and Artifical Intelligence Unified Blueprint` を意味する正式名称とし、略す時は `HAUB` を使う。
 
 ## 共有 directory 統制
 - `--` で始まる top category directory は shared structure とし、Codex 判断で新設してはならない。
@@ -168,7 +169,7 @@ kisaragi-tree/
 - 到達段階は `MRL`、実行単位は `mRL` で管理する。
 - 機能の振る舞いではなく、その機能を使うための準備 UX、配布、install、bootstrap、実行環境整備は `INITL`、`mINITL` で管理する。
 - release 計画、truth、evidence-map は `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_****/` に置く。
-- 実装に着手する project は、原則として先に統合計画書を作成または更新する。`--tgpce-map/` 採用 project は `ux-b2t-hypo.md` を使う。
+- 実装に着手する project は、原則として先に統合計画書を作成または更新する。`--tgpce-map/` 採用 project は `hi-ai-unified-blueprint.md` を使う。
 - gate 状態語は `ready`、`active`、`p-done`、`i-pass` の 4 値を使う。
 - `ready` は未着手または開始待ち、`active` は実装・検証・評価の進行中、`p-done` は当該 phase 範囲で成立確認済み、`i-pass` は関連統合範囲まで成立確認済みを表す。
 - `aspass` は「現時点では合格相当」を表す補助語として会話や短い補足メモで使ってよいが、正本文書の状態語には使わず、`p-done` または `i-pass` へ正規化する。
@@ -179,7 +180,7 @@ kisaragi-tree/
 - UX 検証成果は同じ admin 証跡正本に集約する。
 
 ### plan 文書の標準 2 点セット
-- 統合計画書は、`current_state` 章、BDD 章、TDD 章を持つ。`--tgpce-map/` 採用 project は `ux-b2t-hypo.md` を使う。
+- 統合計画書は、`current_state` 章、BDD 章、TDD 章を持つ。`--tgpce-map/` 採用 project は `hi-ai-unified-blueprint.md` を使う。
 - 統合計画書の `current_state` 章の冒頭には `疑問点不整合一覧` を表で置き、列は少なくとも `id`、`論点`、`影響`、`現在の扱い`、`admin 状態`、`関連文書` を持つ。
 - `疑問点不整合一覧` の `admin 状態` は `big-open`、`small-open`、`close`、`no judge` を使う。
 - `big-open` は影響が大きい未解決、`small-open` は影響が小さい未解決、`close` は解決済み、`no judge` は問題かどうか未判定を表す。
@@ -413,3 +414,4 @@ kisaragi-tree/
 
 # 更新情報
 - `AGENTS.md` の更新履歴は `C:\Users\tetsuya\kisaragi\AGENTSmd-RH.md` を参照する。
+

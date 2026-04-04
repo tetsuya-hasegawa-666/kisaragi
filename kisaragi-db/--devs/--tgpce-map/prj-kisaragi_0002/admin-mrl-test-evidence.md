@@ -190,7 +190,7 @@
   - request 起点 modeling、waiting ring、remote result import、reviewing viewer は `MRL-3` 以降と後続 `MRL-**` に別置きした
 - evidence path:
   - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-method.md`
-  - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/ux-b2t-hypo.md`
+  - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/hi-ai-unified-blueprint.md`
   - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-evidence.md`
 
 ## 2026-03-29 modeling preflight close evidence
@@ -208,7 +208,7 @@
   - `Google Drive` directory bootstrap と unzip / 配置正規化は runbook の採用手順で実行実績がある
   - waiting ring、`job_status.json`、download URL は `mRL-3.3` と後続 `MRL-**` に残した
 - evidence path:
-  - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/ux-b2t-hypo.md`
+  - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/hi-ai-unified-blueprint.md`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_evid_runbook.md`
 
 ## 2026-03-29 `MRL-4` `3DGS` smoke candidate evidence
@@ -480,7 +480,7 @@
   - raw build cache、binary results、pycache は `kisaragi-db/--exsams/prj-kisaragi_0002/` に出力する
   - 要約 report と summary は `kisaragi-db/--devs/--testlogs/prj-kisaragi_0002/` に出力する
 - 主要 evidence:
-  - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/ux-b2t-hypo.md`
+  - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/hi-ai-unified-blueprint.md`
   - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_session_parser.py`
   - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_project_contracts.py`
   - `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/android-test/java/com/reviework/app/ReviewScreenControllerTest.kt`
@@ -669,3 +669,4 @@
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_evid_runbook.md`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_ref_runbook.md`
   - `/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/gs_ply/0000.ply`
+

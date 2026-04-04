@@ -1,4 +1,4 @@
-# ux-b2t-hypo
+# hi-ai-unified-blueprint (HAUB)
 
 ## current_state
 
@@ -109,3 +109,4 @@
 | `T13` | `b8` | phase-gated consultation response | code consultation が phase gate の内側に保たれる | `pass` | `--devs/--testcode/prj-kisaragi_0001/tests/code-workspace/codeWorkspaceController.test.ts` |
 | `T14` | `b9` | launch and build baseline | `npm test` と `npm run build` が継続して通る | `pass` | `--devs/--testlogs/prj-kisaragi_0001/reports/verification-summary.md` |
 | `T15` | `b1` | manifest path env override | launcher が指定した manifest path を優先できる | `pass` | `--devs/--testcode/prj-kisaragi_0001/tests/shared-core/liveProjectSnapshot.test.ts` |
+

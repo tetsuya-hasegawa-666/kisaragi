@@ -20,7 +20,7 @@
   issue: `correcting` 側の canonical image が `90度右回転` 済み upright JPEG に変わる前提が固まった一方、main runbook pair と計画文書はまだ `MRL-11` を別立てし、`Colab` 側で orientation をどう扱うかが一貫していなかった。さらに添付 notebook の `DA3NESTED-GIANT-LARGE-1.1` living spec と `debug_gs_readback` 系証跡も、main canonical route へ完全には吸収できていなかった
   cause: これまでの runbook は raw 向き由来の回転論点を `viewer 側の後処理` に寄せており、`frame_record.jsonl`、upright image、legacy intrinsics 補正、manifest 記録を 1 つの canonical contract に束ね切れていなかった
   resolution: [da3_colab_evid_runbook.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_evid_runbook.md) と [da3_colab_ref_runbook.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_ref_runbook.md) を更新し、`correcting` から渡る `90度右回転` 済み upright image を canonical input として固定した。`MRL-10 Block 1` は image pixel を再回転せず、実画像寸法と `imageIntrinsics` の照合で legacy session だけ `K` を upright 基準へ補正し、`input_frame_manifest.csv`、`k_resize_check.csv`、`orientation_summary.json` に残す構成へ変更した。`MetricLarge` / `Giant` の summary も同じ orientation policy と `intrinsics_case_counts` を返すようそろえ、計画側では `MRL-11` を単独 gate にせず `MRL-10` へ吸収する方向へ整理した
-  recurrence prevention: image 向きの問題は `viewer` の見え方だけで処理せず、input image、`K`、manifest、export summary、downloader bundle を同じ task で同時更新する。`correcting` 側 contract が変わった時は runbook pair と `ux-b2t-hypo.md` を同日中に更新し、別 `MRL` に残しっぱなしにしない
+  recurrence prevention: image 向きの問題は `viewer` の見え方だけで処理せず、input image、`K`、manifest、export summary、downloader bundle を同じ task で同時更新する。`correcting` 側 contract が変わった時は runbook pair と `hi-ai-unified-blueprint.md` を同日中に更新し、別 `MRL` に残しっぱなしにしない
   remaining work: admin 実測で `MRL-10` を通し、`orientation_summary.json`、`k_resize_check.csv`、`proof_giant` export が upright 基準で整合することを確認して `p-done` / `i-pass` 判定へ進める。後続は top camera renderer と reviewing viewer 接続である
   evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/da3_colab_evid_runbook.md`
 
@@ -109,7 +109,7 @@
   issue: `modeling` の bootstrap、preflight、single-frame smoke、evidence bundle 取得が別番号に分散していたため、どこまでを完了済みとみなすかが曖昧だった
   cause: `3DGS` 系 smoke artifact と local downloaded evidence が揃った後も、phase 単位の完了範囲と次段の焦点を更新し切れていなかった
   resolution: `MRL-3` を bootstrap / install、`MRL-4` を bundle 読込 / request preflight / directory intake、`MRL-5` を single-frame `3DGS` smoke、`MRL-6` を product 側 evidence bundle 取得として再整理し、ここまでを `p-done` へ更新した。`10s` 前後の整った実動画を使う `multi-frame` densify と `ぼんやり見える再現モデル` の確認は `MRL-7` へ移した
-  recurrence prevention: stage が切り替わる時は、evidence 追加だけで終わらせず、`ux-b2t-hypo.md` の gate 状態、次段の焦点、補助再開メモを同じ task で更新する
+  recurrence prevention: stage が切り替わる時は、evidence 追加だけで終わらせず、`hi-ai-unified-blueprint.md` の gate 状態、次段の焦点、補助再開メモを同じ task で更新する
   remaining work: `MRL-7` として `multi-frame` densify と `PLY` viewer での可視化確認へ進み、route 比較と `selected_route.json` 生成は後続の利用者向け `MRL-**` に紐づく補助 gate で扱う
   evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/da3_smoke_v05/`
 
@@ -129,7 +129,7 @@
   target mRL: `mRL-7.1`
   gate change: `p-done`
   issue: `MRL-7` は `TraceCore` multi-frame visible reconstruction を主 target にしていたが、shared log にしか進捗が無く、`active` の中身が正本から読めなかった
-  cause: fresh runtime からの再立ち上げ、window 探索、depth batch、world fusion、preview closeout を優先し、`admin-mrl-test-evidence.md` と `ux-b2t-hypo.md` への反映が後ろにずれていた
+  cause: fresh runtime からの再立ち上げ、window 探索、depth batch、world fusion、preview closeout を優先し、`admin-mrl-test-evidence.md` と `hi-ai-unified-blueprint.md` への反映が後ろにずれていた
   resolution: 実 session の最長連続 window 約 `3.95s` を正として sampled `12 frame` の depth batch を実行し、`11 frame` / `3696 points` の multi-frame world fusion、`world_points_multiframe_preview.png`、`mrl7_closeout_summary.json` を保存した。この範囲を `mRL-7.1` として切り出し `p-done` に上げ、`PLY` viewer 目視確認と人軌跡重畳を含む最小表示は `mRL-7.2` へ分離した
   recurrence prevention: `MRL-7` 以降の Colab 往復では、shared worklog の step 成功ごとに、どこまでをその `mRL` の成立範囲に含めるかを同日中に正本へ固定する
   remaining work: `mRL-7.2` として `PLY` viewer での目視確認、人軌跡重畳を含む `TraceCore` 最小表示、全体俯瞰 / 時系列 / 相対表示 / 滞留 / 交錯の価値確認を進める
@@ -163,10 +163,10 @@
   gate change: `reverted to active/planned`
   issue: admin `UX check 完了` 前でも、test、contract、build、local sample、局所 device 確認を根拠に `pass` を付けていた
   cause: `pass` の必須条件として admin `UX check` と batch check 運用を shared rule へ明文化していなかった
-  resolution: `AGENTS.md`、`ux-b2t-hypo.md`、関連 admin test 文書を更新し、`MRL` 記載順を運用順 `correcting -> modeling -> reviewing` に統一し、admin `UX check` 未完の gate を `active` / `planned` へ戻した
+  resolution: `AGENTS.md`、`hi-ai-unified-blueprint.md`、関連 admin test 文書を更新し、`MRL` 記載順を運用順 `correcting -> modeling -> reviewing` に統一し、admin `UX check` 未完の gate を `active` / `planned` へ戻した
   recurrence prevention: 以後の `pass` は admin `UX check 完了` が記録された gate のみに付与し、関連 gate は batch でまとめて確認範囲を記録する
   remaining work: admin 向け batch `UX check` の対象範囲、手順、結果記録を `admin-mrl-test-evidence.md` へ追加し、各 gate を再 closeout する
-  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/ux-b2t-hypo.md`
+  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/hi-ai-unified-blueprint.md`
 - record date: `2026-03-26`
   target MRL: `MRL-1`
   target mRL: `mRL-1.1`、`mRL-1.2`、`mRL-1.3`
@@ -183,10 +183,10 @@
   gate change: `reverted to active/planned`
   issue: `UX 確認`、`build / install`、`local sample`、summary 読込を本来機能完成に近い意味で扱い、app の完成度を過大に closeout していた
   cause: `UX-only` gate と本機能 gate を分離せず、multi-app 骨格と実 app 機能の境界を `MRL` 表へ十分に反映していなかった
-  resolution: `ux-b2t-hypo.md` と `project-truth.md` を再設計し、correcting、modeling、reviewing、統合 app の完成条件を本来機能基準へ引き直し、該当 gate を `active` / `planned` へ戻した
+  resolution: `hi-ai-unified-blueprint.md` と `project-truth.md` を再設計し、correcting、modeling、reviewing、統合 app の完成条件を本来機能基準へ引き直し、該当 gate を `active` / `planned` へ戻した
   recurrence prevention: mock、stub、sample、contract、build / install は補助 gate として別扱いにし、本機能 `pass` は実入出力と実生成物の end-to-end 証跡がある時だけ付与する
   remaining work: `correcting` の end-to-end、`Colab` handoff、remote result import、実 `ReviewArtifact` viewer、統合 app の end-to-end を実装する
-  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/ux-b2t-hypo.md`
+  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/hi-ai-unified-blueprint.md`
 - record date: `2026-03-25`
   target MRL: `none`
   target mRL: `none`
@@ -196,7 +196,7 @@
   resolution: `project-truth.md` と計画正本を更新し、再開基線を `prj-kisaragi_0002` 配下へ集約した
   recurrence prevention: 外部補助文書で採用した構想は、次の実装着手前に `project-truth` と BDD / TDD 正本へ同時反映する
   remaining work: 契約 closeout を実データ処理と viewer 実装へ接続する
-  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/ux-b2t-hypo.md`
+  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/hi-ai-unified-blueprint.md`
 - record date: `2026-03-25`
   target MRL: `MRL-1`
   target mRL: `mRL-1.1`、`mRL-1.4`
@@ -216,7 +216,7 @@
   resolution: `AGENTS.md` に状態語の意味を追加し、計画正本の gate を保守的に `active` / `planned` へ修正した
   recurrence prevention: `MRL` / `mRL` の closeout は、実装、検証、残作業の 3 点がそろった項目だけに限定する
   remaining work: 実データ接続、viewer 実装、生成物 routing を継続し、`active` と `planned` を順次 close する
-  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/ux-b2t-hypo.md`
+  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/hi-ai-unified-blueprint.md`
 - record date: `2026-03-25`
   target MRL: `MRL-1`
   target mRL: `mRL-1.2`、`mRL-1.3`
@@ -317,3 +317,4 @@
   recurrence prevention: `gs_ply` route を close する時は、export 成功だけでなく viewer 側の opening evidence も同じ日付で残す
   remaining work: top camera renderer、path overlay、request / status UX は後続 `MRL-**` へ送る
   evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-evidence.md`
+

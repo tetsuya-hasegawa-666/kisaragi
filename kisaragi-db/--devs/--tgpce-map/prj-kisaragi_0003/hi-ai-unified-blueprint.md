@@ -1,4 +1,4 @@
-# ux-b2t-hypo
+# hi-ai-unified-blueprint (HAUB)
 
 ## current_state
 
@@ -114,3 +114,4 @@
 | `T13` | `b5` | guided recovery | guided command が次の判断を含めて返す | `pass` | `kisaragi-db/--exsams/prj-kisaragi_0003/artifacts/20260321-054028-rr-20260321-054028-summary.json` |
 | `T14` | `b8` | capture save flow | Slack capture を evidence 配下に保存する導線がある | `pass` | `kisaragi-db/--exsams/prj-kisaragi_0003/captures/20260321-084541-rr-20260321-084541-slack-status.png` |
 | `T15` | `b4` | multi-session policy | 複数 session の役割分離が文書化されている | `pass` | `admin-mrl-test-method.md` |
+

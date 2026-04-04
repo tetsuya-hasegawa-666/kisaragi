@@ -8,7 +8,7 @@
 ## 次回の基準文書
 
 - 恒久 truth は [project-truth.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\project-truth.md)
-- plan / current / gate は [ux-b2t-hypo.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\ux-b2t-hypo.md)
+- plan / current / gate は [hi-ai-unified-blueprint.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\hi-ai-unified-blueprint.md)
 - record-native `Colab` 正本は [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_evid_runbook.md)
 - record-native `Colab` の貼り付け参照版は [da3_colab_ref_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_ref_runbook.md)
 - `MRL-10` は同 runbook pair の `MRL-10 record-native DA3 route` section を使う
@@ -53,7 +53,7 @@
 ## 次回の最初の 5 手
 
 1. [sharedlogs_da3-colab.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\sharedlogs_da3-colab.md) の最下部を読んで、最新の `# codex v**` と `# admin` を確認する。
-2. [ux-b2t-hypo.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\ux-b2t-hypo.md) で `MRL-2S` と後続 `MRL-**` の current_state を確認する。
+2. [hi-ai-unified-blueprint.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\hi-ai-unified-blueprint.md) で `MRL-2S` と後続 `MRL-**` の current_state を確認する。
 3. record-native route を blank runtime から進める時は [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_evid_runbook.md) の `準備確認 1-4` と `install` を共通で使う。
 4. `MRL-10` を進める時は同 runbook の `MRL-10 Phase A` から `Phase D production` を順に実行し、`input_frame_manifest.csv`、`input_frame_qc.csv`、`pose_conversion_check.csv`、`k_resize_check.csv`、`orientation_summary.json`、`da3_input_manifest_*.csv` が出ることを先に確認する。
 5. `MRL-10` の giant production candidate は [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_evid_runbook.md) の `Block 3` で `extrinsics_w2c_prod.npy` から全体カメラ行列、全 chunk manifest、`batch_plan.csv` を作り、`Block 4` で helper を読み込む。その後 `Block 5` は `RUN_BATCH_INDEX` を変えながら `3chunk` ずつ繰り返し実行する。各 chunk は `18frame`、chunk 間 overlap は `6frame`、各 chunk の再構成責務は基本 `後半 12frame` である。最後に `Block 6` が completed chunk 全体から `merged_gs.ply` と `merged_scene.glb` を再構築する。owner-based merge の証跡は `vertex_assignment_summary.csv`、`owner_record_histogram.csv`、`chunk_assignment_summary.csv`、`merge_warning_summary.json`、`chunk_transform_quality.csv` として Drive bundle / local bundle へ残る。`PlayCanvas Model Viewer` 確認、top camera renderer、path overlay、request / status UX は後続 `MRL-**` として切り分ける。
@@ -72,3 +72,4 @@
 - shared log だけを見て gate 判定を動かさない。
 - `COLMAP 4.0 + nerfstudio splatfacto` の旧 notebook を truth として再採用しない。
 - shared log の途中へ要約や code を差し込まない。
+

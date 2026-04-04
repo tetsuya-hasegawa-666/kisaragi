@@ -6,7 +6,7 @@
 
 ## 位置付け
 
-- この文書は `ux-b2t-hypo.md` と `ux-b2t-hypo.md` を補助する参考情報である。
+- この文書は `hi-ai-unified-blueprint.md` と `hi-ai-unified-blueprint.md` を補助する参考情報である。
 - release-line の附番は `2026-03-25` の今回修正開始を `MRL-1` の起点として読み替える。
 - `prj-kisaragi_0001` は `codev-viewer` の実装資産を基底に再構成した project として記録する。
 
@@ -50,3 +50,4 @@
 - `MRL-2` は compare lane selection と cross-profile preview baseline を実装した
 - `MRL-3` は `/api/dashboard/reveal` endpoint と contextmenu handoff を実装した
 - `MRL-4` は `npm run dashboard` と compare viewer shell を launch baseline として固定した
+

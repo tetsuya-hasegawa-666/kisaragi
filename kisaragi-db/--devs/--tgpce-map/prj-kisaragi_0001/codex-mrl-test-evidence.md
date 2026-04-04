@@ -12,7 +12,8 @@
   gate change: `migrated`
   issue: 旧 BDD / TDD / current を新文書ルールへ移行する必要があった
   cause: `--tgpce-map` 導入前の category 分散が残っていた
-  resolution: `project-truth.md`、`ux-b2t-hypo.md`、admin 文書へ統合した
+  resolution: `project-truth.md`、`hi-ai-unified-blueprint.md`、admin 文書へ統合した
   recurrence prevention: 以後の `0001` 文書更新は `--tgpce-map/prj-kisaragi_0001/` を正本にする
   remaining work: admin 実機確認が必要なら `admin-mrl-test-evidence.md` へ追記する
-  evidence path: `ux-b2t-hypo.md`
+  evidence path: `hi-ai-unified-blueprint.md`
+

@@ -9,7 +9,7 @@
 - 何を後段へ回すか
 - app / artifact / 外部境界をどう切るか
 
-現在状態、未完 gate、優先順位、細かい運用順は [ux-b2t-hypo.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/ux-b2t-hypo.md) に置く。
+現在状態、未完 gate、優先順位、細かい運用順は [hi-ai-unified-blueprint.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/hi-ai-unified-blueprint.md) に置く。
 
 ## 最終目的
 
@@ -234,3 +234,4 @@ summary:
 | `FieldProcess OS` | `10時間` 運用まで拡張した将来基盤 |
 
 - 開発上の前提は「いまは `TraceCore` を作る」で固定する。
+

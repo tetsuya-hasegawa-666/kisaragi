@@ -3,7 +3,7 @@
 ## 役割
 
 - この file は `prj-kisaragi_0002` の `DA3Metric-Large` `Colab` 実装について、admin と Codex が notebook cell、script、error、観測結果を往復するための collaborative worklog とする。
-- この file は `project-truth.md`、`ux-b2t-hypo.md`、admin evidence の代替ではない。
+- この file は `project-truth.md`、`hi-ai-unified-blueprint.md`、admin evidence の代替ではない。
 - この file は project に対する truth / plan / evidence の正本ではないが、共同作業の保持情報としては authoritative な worklog とし、正本反映の根拠 log として保持する。
 
 ## 読み方
@@ -18,7 +18,7 @@
 - 既存本文は原則として書き換えず、必ず最下部へ追記する。
 - `# codex` の追記は、必ず単調増加の通し番号 `v**` を付ける。
 - 長い code と error は code block のまま貼る。
-- shared rule 変更は `AGENTS.md`、project truth / plan / current 変更は `project-truth.md` と `ux-b2t-hypo.md`、gate 判定根拠は admin evidence へ別途反映する。
+- shared rule 変更は `AGENTS.md`、project truth / plan / current 変更は `project-truth.md` と `hi-ai-unified-blueprint.md`、gate 判定根拠は admin evidence へ別途反映する。
 
 # codex
 
@@ -26,7 +26,7 @@
 
 - `Step 1` から `Step 5p` までの持続事項は、次の正本へ反映済みです。
   - [da3_colab_clean_bootstrap_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\da3_colab_clean_bootstrap_runbook.md)
-  - [ux-b2t-hypo.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\ux-b2t-hypo.md)
+  - [hi-ai-unified-blueprint.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\hi-ai-unified-blueprint.md)
   - [admin-mrl-test-evidence.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\admin-mrl-test-evidence.md)
   - [codex-mrl-test-evidence.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\codex-mrl-test-evidence.md)
 - notebook 証跡と local downloaded artifact は product 側へ移設済みです。
@@ -6386,3 +6386,4 @@ Moviepy - video ready /content/drive/MyDrive/trajectreview/modeling/trajectrevie
 - keep 条件は `owner_record_index ∈ adopted_record_set(chunk)` に固定し、`keep_zero_chunk` は hard error とする。
 - 追加証跡は `vertex_assignment_summary.csv`、`owner_record_histogram.csv`、`chunk_assignment_summary.csv`、`merge_warning_summary.json`、`chunk_transform_quality.csv` とし、`Block 6` bundle で Drive visible dir / Drive zip / local visible dir / local zip に同梱する。
 - rollback point は branch `codex/mrl10-merge-baseline-20260404` を使う。
+

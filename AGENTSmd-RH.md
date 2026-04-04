@@ -585,3 +585,17 @@
 - 新旧比較:
   - 旧: shared worklog で通った install 修正が、task 中に runbook 正本へ反映されない余地があった。
   - 新: 一度通った bootstrap / install 修正は、その task 内で runbook 正本へ即時昇格する rule を shared 化した。
+
+### 2026-04-04 AGENTS.md 統合計画書名を HAUB へ改名
+
+- 日時: `2026-04-04`
+- 文書名: `AGENTS.md`
+- 標題: 統合計画書の正式名称を `hi-ai-unified-blueprint.md` に統一
+- 背景: `ux-b2t-hypo.md` は略称依存で意味が伝わりにくく、human / AI 協調の設計文書であることが file 名から読み取りにくかった。
+- 目的: `--tgpce-map/` 配下の統合計画書を意味の通る正式名称へ統一し、略称も `HAUB` で固定する。
+- 対処方法: shared rule、README、各 project の正本 file 名、関連 pointer を `hi-ai-unified-blueprint.md` 基準へ切り替えた。
+- 対応内容: `AGENTS.md` と `kisaragi-db/--devs/agents.md` の rule を更新し、`prj-kisaragi_0001`、`0002`、`0003` の統合計画書 file を rename して参照を追従させた。
+- 更新結果: 今後 `--tgpce-map/` 採用 project の統合計画書は `hi-ai-unified-blueprint.md` を正本とし、略称は `HAUB` で統一して扱う。
+- 新旧比較:
+  - 旧: 統合計画書の shared 名称は `ux-b2t-hypo.md` だった。
+  - 新: 統合計画書の shared 名称は `hi-ai-unified-blueprint.md`、略称は `HAUB` になった。

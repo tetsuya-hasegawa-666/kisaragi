@@ -22,7 +22,7 @@
 ## `prj-kisaragi_0002` の入口
 
 - project truth: [`project-truth.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/project-truth.md)
-- 統合計画書: [`ux-b2t-hypo.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/ux-b2t-hypo.md)
+- 統合計画書: [`hi-ai-unified-blueprint.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/hi-ai-unified-blueprint.md)
 - Codex gate 記録: [`codex-mrl-test-evidence.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/codex-mrl-test-evidence.md)
 - admin 手順: [`admin-mrl-test-method.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-method.md)
 - admin 証跡: [`admin-mrl-test-evidence.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-evidence.md)
@@ -30,7 +30,7 @@
 ## `prj-kisaragi_0001` の入口
 
 - project truth: [`project-truth.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0001/project-truth.md)
-- 統合計画書: [`ux-b2t-hypo.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0001/ux-b2t-hypo.md)
+- 統合計画書: [`hi-ai-unified-blueprint.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0001/hi-ai-unified-blueprint.md)
 - Codex gate 記録: [`codex-mrl-test-evidence.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0001/codex-mrl-test-evidence.md)
 - admin 手順: [`admin-mrl-test-method.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0001/admin-mrl-test-method.md)
 - admin 証跡: [`admin-mrl-test-evidence.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0001/admin-mrl-test-evidence.md)
@@ -39,7 +39,7 @@
 ## `prj-kisaragi_0003` の入口
 
 - project truth: [`project-truth.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0003/project-truth.md)
-- 統合計画書: [`ux-b2t-hypo.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0003/ux-b2t-hypo.md)
+- 統合計画書: [`hi-ai-unified-blueprint.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0003/hi-ai-unified-blueprint.md)
 - Codex gate 記録: [`codex-mrl-test-evidence.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0003/codex-mrl-test-evidence.md)
 - admin 手順: [`admin-mrl-test-method.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0003/admin-mrl-test-method.md)
 - admin 証跡: [`admin-mrl-test-evidence.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0003/admin-mrl-test-evidence.md)
@@ -48,5 +48,6 @@
 
 1. repository 全体の rule は [AGENTS.md](./AGENTS.md) を読む。
 2. project の狙いは `project-truth` を読む。
-3. 現在の実装計画と gate は `ux-b2t-hypo.md` と `codex-mrl-test-evidence.md` を読む。
+3. 現在の実装計画と gate は `hi-ai-unified-blueprint.md` と `codex-mrl-test-evidence.md` を読む。
 4. 人が試す手順は `admin-mrl-test-method.md` を読む。
+

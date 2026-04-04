@@ -49,7 +49,7 @@
   resolution: BDD、TDD、change protocol、current state、docs index を更新した
   recurrence prevention: project truth 変更時は `documentation-watchkeeper` 手順で関連文書を同時更新する
   remaining work: shell 到達の live validation
-  evidence path: `kisaragi-db/--devs/--state/prj-kisaragi_0003/ux-b2t-hypo.md`
+  evidence path: `kisaragi-db/--devs/--state/prj-kisaragi_0003/hi-ai-unified-blueprint.md`
 - record date: 2026-03-20
   target MRL: `MRL-1`
   target mRL: none
@@ -290,3 +290,4 @@
   recurrence prevention: lock / guided / capture の 3 点がそろってから guided operations を closeout する
   remaining work: add vision の次期計画化
   evidence path: `../../../test_field/remote-pwsh-test/captures/20260321-084541-rr-20260321-084541-slack-status.png`
+

@@ -4,7 +4,7 @@
 
 - all micro releases in this plan set are `completed`
 - release-line の附番は `2026-03-25` の今回修正開始を `MRL-1` / `mRL-1-1` の起点として読み替える
-- この文書は `ux-b2t-hypo.md` と `ux-b2t-hypo.md` を補助する参考情報である
+- この文書は `hi-ai-unified-blueprint.md` と `hi-ai-unified-blueprint.md` を補助する参考情報である
 - `prj-kisaragi_0001` は `codev-viewer` の実装資産を基底に再構成した project として記録する
 
 ## MRL-1 source profile foundation line
@@ -96,3 +96,4 @@
 - status: `completed`
 - 目標:
   - UI 方針を current state / history / evidence に反映し、実装 line を開始可能にする
+

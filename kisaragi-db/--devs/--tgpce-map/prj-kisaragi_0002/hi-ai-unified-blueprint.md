@@ -51,7 +51,7 @@
 5. `MRL-10` の orientation 整合を admin 実測で確認し、`input_frame_manifest.csv`、`k_resize_check.csv`、`orientation_summary.json`、`proof_giant` の export が同じ upright 基準でそろうことを閉じる
 6. `MRL-10` の chunk merge を `pose-aware alignment + owner_record merge` へ置き換え、`merged_gs.ply` と `merged_scene.glb` が天地反転せず、camera pose と scene が同じ global 向きで再構築され、往復経路でも frame 責務の混線を下げることを閉じる
 7. `MRL-10` の後で、`gs_ply` を top camera renderer と reviewing viewer へ接続する route、multi-view / 長時間 optimization、request / status / result download UX を整理する
-8. `reviewing` と admin `UX check` の後続 gate を整理し、`ux-b2t-hypo.md` と証跡文書の closeout 基準を揃える
+8. `reviewing` と admin `UX check` の後続 gate を整理し、`hi-ai-unified-blueprint.md` と証跡文書の closeout 基準を揃える
 
 
 ## BDD
@@ -321,7 +321,7 @@
 | `td19b` | `bd18a` | `gs_ply` external viewer 実装 | `gs_ply` を `SuperSplat`、`PlayCanvas Model Viewer`、または同等 viewer のいずれか 1 つで開ける。admin が `自由視点 scene として読める` と判断でき、同時に top camera 専用 renderer を別段で作る判断材料になる | p-done | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
 | `td20` | `bd18` | intrinsics route benchmark aggregation | 少なくとも 2 つの intrinsics / projection route の結果について、quality、runtime、resource usage、failure reason を同一比較表へ集約できる | ready | `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/` |
 | `td21` | `bd19` | selected route decision artifact | 暫定採用 route、不採用理由、research route、再評価条件を `selected_route.json` に保存できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/LocalModelingService.kt` |
-| `td23` | `bd20` | gate classification rule trace | `UX-only`、contract、sample、本機能の区別が `ux-b2t-hypo.md`、`admin-mrl-test-method.md`、`admin-mrl-test-evidence.md` で矛盾なく追える | ready | `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/` |
+| `td23` | `bd20` | gate classification rule trace | `UX-only`、contract、sample、本機能の区別が `hi-ai-unified-blueprint.md`、`admin-mrl-test-method.md`、`admin-mrl-test-evidence.md` で矛盾なく追える | ready | `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/` |
 
 ### 実行方針
 | 対象 `MRL` | phase | 主に扱う `task_id` | 狙い | 現在の進め方 |
@@ -425,3 +425,4 @@
 | `MRL-**` | `mRL-**.3` | request 元から input directory、result directory、route id を束ねて remote 実行 request を作り、waiting ring と `job_status.json` を読み続けられる | `su10`,`su12`,<br>`su13` | `bd16`,`bu14`,<br>`bu16`,`bu17` | `td15`,`tu18`,<br>`tu20`,`tu21` | `ready` | `ready` | `未収載` | `未収載` |
 | `MRL-**` | `mRL-**.4` | remote 完了後に download URL と result summary を返し、`SpacePackage`、`TrajectoryPackage`、`ReviewArtifact` handoff を後段へ渡せる | `sd10`,`su14`,<br>`su19` | `bu18`,`bu23`,<br>`bu24` | `tu22`,`tu28`,<br>`tu29` | `ready` | `ready` | `未収載` | `未収載` |
 | `MRL-**` | `mRL-**.5` | reviewing viewer で主空間、主カメラ経路、人物経路、same-time highlight、`attention point`、滞留や交錯の兆候を同じ review 文脈で扱える | `su18`,`su19` | `bu22`,`bu23`,<br>`bu24` | `tu26`,`tu27`,<br>`tu28`,`tu29` | `ready` | `ready` | `未収載` | `未収載` |
+
