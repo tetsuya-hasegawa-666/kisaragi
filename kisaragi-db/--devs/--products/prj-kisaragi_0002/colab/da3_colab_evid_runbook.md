@@ -336,13 +336,14 @@ def resolve_modeling_probe_paths(selected_doc: dict):
     selected_path = Path(selected_doc["path"])
     assert selected_path.exists(), f"selected modeling directory missing: {selected_path}"
     pipeline_root = selected_path / "continuous_gs_v06_chunk18_overlap6_adopt12"
+    manifest_dir = selected_path / "manifests"
     required_paths = [
         pipeline_root,
         pipeline_root / "global_pose_bootstrap" / "camera_matrix_full.csv",
         pipeline_root / "global_pose_bootstrap" / "camera_center_matrix.csv",
         pipeline_root / "manifests" / "chunk_index_all.csv",
-        pipeline_root / "manifests" / "da3_input_manifest_prod.csv",
         pipeline_root / "chunk_runs",
+        manifest_dir / "da3_input_manifest_prod.csv",
     ]
     for p in required_paths:
         assert p.exists(), f"modeling probe_root missing required path: {p}"
@@ -356,7 +357,7 @@ def resolve_modeling_probe_paths(selected_doc: dict):
         "results_root_visibility": "google_drive_mydrive_visible",
         "probe_root": str(selected_path),
         "pipeline_root": str(pipeline_root),
-        "manifest_dir": str(selected_path / "manifests"),
+        "manifest_dir": str(manifest_dir),
         "proof_metric_dir": str(selected_path / "proof_metriclarge"),
         "prod_metric_dir": str(selected_path / "prod_metriclarge"),
         "proof_giant_dir": str(selected_path / "proof_giant"),
