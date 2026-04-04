@@ -392,10 +392,10 @@ print("inference_sig", inspect.signature(DepthAnything3.inference))
 
 ## MRL-10 record-native DA3 route
 
-### #6 正規化 + context pack
+### #6-1 正規化 + context pack
 
 ```python
-#6
+#6-1
 from pathlib import Path
 import json
 
@@ -449,10 +449,10 @@ Path("/content/runbook_session_context.json").write_text(json.dumps(context_doc,
 print(json.dumps(context_doc, indent=2, ensure_ascii=False))
 ```
 
-### #6 QC と manifest 化
+### #6-2 QC と manifest 化
 
 ```python
-#10
+#6-2
 from pathlib import Path
 import csv
 import json
