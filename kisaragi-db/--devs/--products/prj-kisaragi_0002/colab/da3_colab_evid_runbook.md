@@ -1809,6 +1809,9 @@ process_batch(RUN_BATCH_INDEX)
 - `MAKE_DRIVE_BUNDLE = True` の時も、Drive 上で新しい複製 directory は作らない。Drive 正本は最初から `probe_root` 配下だけに集約し、bundle summary にはその root を `drive_visible_dir` として残す。
 - download 用 zip は `/content/...zip` にだけ作り、必要なら browser download を行う。したがって `vertex_assignment_summary.csv`、`chunk_assignment_summary.csv`、`owner_record_histogram.csv`、`merge_warning_summary.json`、`chunk_transform_quality.csv` は Drive 正本 `probe_root` と local zip の両方で見られる。
 - `probe_root/final_outputs/` は `#6-1` の時点で先に作り、`#11` で確定出力と最低限の付随情報を必ずここへ保存する。download や local zip が失敗しても Drive 側の最終 tree は残る。
+- `#11` は現状 1 cell でも、`#11-2 gs_ply merge` 相当の成果物を `probe_root/final_outputs/stage_11_2/` へ、`#11-3 glb merge` 相当の成果物を `probe_root/final_outputs/stage_11_3/` へ保存する。これにより runtime 切断後も Drive 側 artifact から途中再開できる。
+- `#11-2` 相当では `merged_gs.ply`、`chunk_global_transforms.csv`、`chunk_keep_summary.csv`、`chunk_transform_quality.csv`、`owner_record_histogram.csv`、`chunk_assignment_summary.csv`、`merge_warning_summary.json` を Drive 側へ保存する。
+- `#11-3` 相当では、上記に加えて `merged_scene.glb` と `merge_resume_state.json` を Drive 側へ保存し、後段はその resume state と stage artifact だけを読んで再開できる構成にする。
 - cleanup 後も merge 根拠を再確認できるよう、`final_outputs/chunk_evidence/<chunk_name>/` に `vertex_assignment_summary.csv`、`chunk_input_frames.csv`、`pred_extrinsics.npy`、`pred_intrinsics.npy` を残す。
 - cleanup は `#12 inventory` と `#13 apply` に分離する。`#12` は全 block を対象に「保持対象」と「削除候補」を一覧化し、`#13` はその一覧を読んで yes 入力時だけ削除する。
 
@@ -1834,6 +1837,7 @@ final_outputs_dir = Path(ctx["final_outputs_dir"])
 final_outputs_merged_dir = Path(ctx["final_outputs_merged_dir"])
 final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
 final_outputs_manifests_dir = Path(ctx["final_outputs_manifests_dir"])
+final_outputs_chunk_evidence_dir = Path(ctx["final_outputs_chunk_evidence_dir"])
 
 pipeline_root = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12"
 global_pose_dir = pipeline_root / "global_pose_bootstrap"
@@ -1841,7 +1845,9 @@ chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
 merged_dir = pipeline_root / "merged"
 merged_dir.mkdir(parents=True, exist_ok=True)
-for p in [final_outputs_dir, final_outputs_merged_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir, final_outputs_chunk_evidence_dir]:
+stage_11_2_dir = final_outputs_dir / "stage_11_2"
+stage_11_3_dir = final_outputs_dir / "stage_11_3"
+for p in [final_outputs_dir, final_outputs_merged_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir, final_outputs_chunk_evidence_dir, stage_11_2_dir, stage_11_3_dir]:
     p.mkdir(parents=True, exist_ok=True)
 
 config_path = pipeline_root / "pipeline_config.json"
@@ -2264,9 +2270,49 @@ else:
         merged_vertices = np.concatenate(all_vertices, axis=0)
         PlyData([PlyElement.describe(merged_vertices, "vertex")], text=False).write(str(merged_ply_path))
 
+    stage_11_2_copy_plan = [
+        (merged_ply_path, stage_11_2_dir / "merged_gs.ply"),
+        (chunk_manifest_dir / "chunk_global_transforms.csv", stage_11_2_dir / "chunk_global_transforms.csv"),
+        (keep_summary_path, stage_11_2_dir / "chunk_keep_summary.csv"),
+        (transform_quality_path, stage_11_2_dir / "chunk_transform_quality.csv"),
+        (merged_dir / "owner_record_histogram.csv", stage_11_2_dir / "owner_record_histogram.csv"),
+        (merged_dir / "chunk_assignment_summary.csv", stage_11_2_dir / "chunk_assignment_summary.csv"),
+        (merged_dir / "merge_warning_summary.json", stage_11_2_dir / "merge_warning_summary.json"),
+        (merged_dir / "all_batch_summary.json", stage_11_2_dir / "all_batch_summary.json"),
+    ]
+    stage_11_2_files = []
+    for src, dst in stage_11_2_copy_plan:
+        if src.exists():
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dst)
+            stage_11_2_files.append(str(dst))
+    merge_resume_state = {
+        "route": "continuous-gs-v06-chunk18-overlap6-adopt12-merge",
+        "stage": "11-2-complete",
+        "completed_chunk_count": int(len(completed_chunks_df)),
+        "all_chunk_count": int(len(all_chunks_df)),
+        "stage_11_2_dir": str(stage_11_2_dir),
+        "stage_11_2_files": stage_11_2_files,
+        "merged_ply_path": str(merged_ply_path) if merged_ply_path.exists() else None,
+    }
+    (final_outputs_diagnostics_dir / "merge_resume_state.json").write_text(json.dumps(merge_resume_state, indent=2, ensure_ascii=False), encoding="utf-8")
+
     merged_glb_path = merged_dir / "merged_scene.glb"
     if len(master_scene.geometry) > 0:
         master_scene.export(str(merged_glb_path))
+
+    for src in stage_11_2_dir.glob("*"):
+        if src.is_file():
+            shutil.copy2(src, stage_11_3_dir / src.name)
+    if merged_glb_path.exists():
+        shutil.copy2(merged_glb_path, stage_11_3_dir / "merged_scene.glb")
+    merge_resume_state.update({
+        "stage": "11-3-complete",
+        "stage_11_3_dir": str(stage_11_3_dir),
+        "merged_glb_path": str(merged_glb_path) if merged_glb_path.exists() else None,
+    })
+    (final_outputs_diagnostics_dir / "merge_resume_state.json").write_text(json.dumps(merge_resume_state, indent=2, ensure_ascii=False), encoding="utf-8")
+    shutil.copy2(final_outputs_diagnostics_dir / "merge_resume_state.json", stage_11_3_dir / "merge_resume_state.json")
 
     final_output_copy_plan = [
         (merged_ply_path, final_outputs_merged_dir / "merged_gs.ply"),
@@ -2335,6 +2381,8 @@ else:
         "final_outputs_diagnostics_dir": str(final_outputs_diagnostics_dir),
         "final_outputs_manifests_dir": str(final_outputs_manifests_dir),
         "final_outputs_chunk_evidence_dir": str(final_outputs_chunk_evidence_dir),
+        "stage_11_2_dir": str(stage_11_2_dir),
+        "stage_11_3_dir": str(stage_11_3_dir),
         "chunk_evidence_dirs": sorted([str(p) for p in final_outputs_chunk_evidence_dir.glob("*") if p.is_dir()]),
         "file_count": int(len(final_output_files)),
         "files": final_output_files,
