@@ -56,7 +56,7 @@
 
 ## 準備確認
 
-### 準備確認 1
+### #1 準備確認 1
 
 ```python
 #1
@@ -74,7 +74,7 @@ print("mydrive_exists", Path("/content/drive/MyDrive").exists())
 print("shortcut_root_exists", Path("/content/drive/.shortcut-targets-by-id").exists())
 ```
 
-### 準備確認 2
+### #2 準備確認 2
 
 ```python
 #2
@@ -303,7 +303,7 @@ for idx, item in enumerate(candidate_doc["candidates"]):
     print(f"[{idx}] {item['label']}: {item['path']}")
 ```
 
-### 準備確認 3
+### #3 準備確認 3
 
 ```python
 #3
@@ -339,7 +339,7 @@ button.on_click(on_click)
 display(dropdown, button, output)
 ```
 
-### 準備確認 4
+### #4 準備確認 4
 
 ```python
 #4
@@ -354,7 +354,7 @@ RUNBOOK_PATHS_DOC.write_text(json.dumps(paths, indent=2, ensure_ascii=False), en
 print(json.dumps(paths, indent=2, ensure_ascii=False))
 ```
 
-## install
+## #5 install
 
 ```python
 #5
@@ -392,7 +392,7 @@ print("inference_sig", inspect.signature(DepthAnything3.inference))
 
 ## MRL-10 record-native DA3 route
 
-### Block 1: 正規化 + QC + DA3 input pack
+### #6 正規化 + context pack
 
 ```python
 #6
@@ -449,7 +449,7 @@ Path("/content/runbook_session_context.json").write_text(json.dumps(context_doc,
 print(json.dumps(context_doc, indent=2, ensure_ascii=False))
 ```
 
-### Phase B: QC と manifest 化
+### #6 QC と manifest 化
 
 ```python
 #10
@@ -839,7 +839,7 @@ summary = {
 print(json.dumps(summary, indent=2, ensure_ascii=False))
 ```
 
-### Block 2: MetricLarge proof + production + world export
+### #7 MetricLarge proof + production + world export
 
 ```python
 #7
@@ -1069,7 +1069,7 @@ print(json.dumps({
 }, indent=2, ensure_ascii=False))
 ```
 
-### Block 3: Global camera matrix + batch plan
+### #8 Global camera matrix + batch plan
 
 ```python
 #8
@@ -1240,7 +1240,7 @@ print("\n# batch_plan")
 print(batch_plan_df.to_string(index=False))
 ```
 
-### Block 4: chunk helper for 18frame / overlap6 / adopt12
+### #9 chunk helper for 18frame / overlap6 / adopt12
 
 - この helper は `Block 3` の `camera_matrix_full.csv` と各 chunk の `pred_extrinsics.npy` を合わせて pose-aware alignment を解く。
 - chunk merge の keep 判定は `PCA 1軸帯` ではなく `owner_record_index` ベースで行う。
@@ -1696,7 +1696,7 @@ def process_batch(run_batch_index: int):
     print(json.dumps(batch_summary, indent=2, ensure_ascii=False))
 ```
 
-### Block 5: 3chunk batch run
+### #10-#13 3chunk batch run
 
 - この block は 1 回で `3chunk` だけ処理する。
 - 各 chunk は `18frame` を持ち、次 chunk と `6frame` 重なり、再構成責務は基本 `後半 12frame` である。
@@ -1728,7 +1728,7 @@ RUN_BATCH_INDEX = 3
 process_batch(RUN_BATCH_INDEX)
 ```
 
-### Block 6: Final rebuild merge + bundle
+### #14 Final rebuild merge + bundle
 
 - final merge でも `Block 4` と同じ owner_record 判定を使う。`PCA 1軸帯 keep` と terminal の `all keep fallback` は使わない。
 - `keep_zero_chunk` は warning ではなく hard error とし、owner-based merge が崩れた chunk を見逃さない。
