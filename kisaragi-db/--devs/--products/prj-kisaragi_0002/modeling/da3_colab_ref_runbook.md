@@ -1696,7 +1696,7 @@ def process_batch(run_batch_index: int):
     print(json.dumps(batch_summary, indent=2, ensure_ascii=False))
 ```
 
-### #10-#13 3chunk batch run
+### #10 batch run
 
 - この block は 1 回で `3chunk` だけ処理する。
 - 各 chunk は `18frame` を持ち、次 chunk と `6frame` 重なり、再構成責務は基本 `後半 12frame` である。
@@ -1705,30 +1705,30 @@ def process_batch(run_batch_index: int):
 - 全 batch を回し終わるまでは `Block 6` を実行しない。
 
 ```python
-#10
+#10-1
 RUN_BATCH_INDEX = 0
 process_batch(RUN_BATCH_INDEX)
 ```
 
 ```python
-#11
+#10-2
 RUN_BATCH_INDEX = 1
 process_batch(RUN_BATCH_INDEX)
 ```
 
 ```python
-#12
+#10-3
 RUN_BATCH_INDEX = 2
 process_batch(RUN_BATCH_INDEX)
 ```
 
 ```python
-#13
+#10-4
 RUN_BATCH_INDEX = 3
 process_batch(RUN_BATCH_INDEX)
 ```
 
-### #14 Final rebuild merge + bundle
+### #11 Final rebuild merge + bundle
 
 - final merge でも `Block 4` と同じ owner_record 判定を使う。`PCA 1軸帯 keep` と terminal の `all keep fallback` は使わない。
 - `keep_zero_chunk` は warning ではなく hard error とし、owner-based merge が崩れた chunk を見逃さない。
@@ -1736,7 +1736,7 @@ process_batch(RUN_BATCH_INDEX)
 - したがって `vertex_assignment_summary.csv`、`chunk_assignment_summary.csv`、`owner_record_histogram.csv`、`merge_warning_summary.json`、`chunk_transform_quality.csv` を含む merge 証跡は Drive と local の両方で見られる。
 
 ```python
-#14
+#11
 from pathlib import Path
 import json
 import shutil
