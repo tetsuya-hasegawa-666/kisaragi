@@ -415,6 +415,12 @@ print("inference_sig", inspect.signature(DepthAnything3.inference))
 
 ## MRL-10 record-native DA3 route
 
+### 再利用方法
+
+- 既存 `probe_root` を再利用して merge 系だけをやり直す場合でも、runtime 初期化のため `#1` は必須とする。
+- 既存 data を使う最短順は `#1 -> #6-1a -> #6-1b -> #10-5 -> #11` とする。
+- cleanup が必要な時だけ `#12` と `#13` を続ける。
+
 ### #6-1 正規化 + context pack
 
 ```python
@@ -500,6 +506,7 @@ print(json.dumps(context_doc, indent=2, ensure_ascii=False))
 ### #6-1b 既存 probe_root 参照で再開
 
 - すでに Drive 上に `probe_root` があり、chunk 実行結果や manifest を再利用して `#10-5` または `#11` から再開したい時はこの cell を使う。
+- ただし再開時も `#1` は省略せず先に実行し、Drive mount と runtime 前提をそろえる。
 - `EXISTING_PROBE_ROOT` には `continuous_gs_v06_chunk18_overlap6_adopt12/` を含む既存 root を入れる。
 - この cell は既存 tree を読み、`runbook_session_context.json` だけを再生成する。未作成 route の `#6-1` と同じ親番の再開枝番とする。
 - canonical な top directory 名は modeling session 名そのもの、たとえば `trajectreview-modeling-session-20260403_gl11_c18ov6ad12` とする。
