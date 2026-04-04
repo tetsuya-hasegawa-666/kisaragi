@@ -329,6 +329,11 @@ kisaragi-tree/
 - 非 text 資産の inventory 規則は、実装 code や chat だけに残さず正本文書へ反映する。
 - active task に必要な文書更新は、project 上の真実が変わった同じ task 単位で完了させる。
 - `疑問点不整合一覧` に `big-open` が 1 件以上ある project の文書を更新した時は、response で `big-open` の存在を必ず明示する。
+- notebook、evidence export、session dump などの永続管理する証跡 data を directory へ保存する時は、その同一 directory に `agents.md` を置き、対象 data が何の data であるか、何を保存しているか、どう扱うかを明記する。
+- 上記の rule は `*.ipynb` だけに限定せず、将来保存する同種の証跡 data 全体へ同様に適用する。
+- `--tgpce-map/` 採用 project で blocker、優先順位、gate 状態、次の一手が変わった時は、同じ task で `current_state`、`疑問点不整合一覧`、`MRL` / `mRL` 対応表、必要なら implementation step 表まで更新し、相互参照をずらしたままにしてはならない。
+- `BLK-**` を使う project では、各 blocker がどの `MRL` / `mRL` に影響するかを `current_state` 正本で追跡可能にし、gate 状態が変わった時は blocker 側と `MRL` 側の両方を同時更新する。
+- `MRL` / `mRL` を現状追従させるために必要な supporting 情報、たとえば `現在の扱い`、phase 実態、evidence の所在、close 条件が変わった時も、表の gate 値だけで済ませず同じ task で補足欄まで更新する。
 - shared worklog を使う task では、その file は project に対する truth / plan / evidence の正本ではないが、共同作業の保持情報としては authoritative な worklog として扱う。
 - shared worklog は、truth / current / plan / evidence へ反映する時の根拠 log として保持し、shared rule 変更は `AGENTS.md`、project truth / plan / gate 影響は project 正本文書、gate 判定根拠は admin 証跡正本へ必ず別途反映する。
 - shared worklog 自体を admin 証跡正本や evidence path の永続参照先にしてはならない。持続が必要な内容は、永続文書または永続 artifact 側へ転記後、その反映先を evidence path とする。

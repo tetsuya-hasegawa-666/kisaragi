@@ -12,6 +12,34 @@
 
 ## 更新履歴
 
+### 2026-04-05 AGENTS.md `current_state` と `BLK` / `MRL` 同時更新 rule 追加
+
+- 日時: `2026-04-05`
+- 文書名: `AGENTS.md`
+- 標題: `HAUB` の blocker、`current_state`、`MRL` / `mRL` を同じ task で同期する shared rule を追加
+- 背景: `prj-kisaragi_0002` で `BLK-**`、`current_state`、`MRL` 表、実装 step 表の進行度が別々に更新されると、どの blocker がどの gate に効いているかと、現時点の優先順位が読み取りにくくなった。
+- 目的: `--tgpce-map/` 採用 project では、blocker と gate 状態の対応関係、現状説明、close 条件を同じ task で同期し、文書間の時間差を減らす。
+- 対処方法: `文書規則` の `中核規則` に、`current_state`、`疑問点不整合一覧`、`MRL` / `mRL` 対応表、必要な implementation step 表を同時更新する条項と、`BLK-**` から関連 `MRL` / `mRL` を追える条項を追加した。
+- 対応内容: gate 値だけでなく、phase 実態、evidence の所在、close 条件のような supporting 情報も、状態変更時に同 task で更新する shared rule とした。
+- 更新結果: 今後は `HAUB` の blocker 表と `MRL` 表が相互参照可能なまま保たれ、現状追従性が上がる。
+- 新旧比較:
+  - 旧: blocker、`current_state`、`MRL` 表、実装 step 表を同時更新する shared rule は明文化されていなかった。
+  - 新: 状態変更時は関連表を同じ task で同期し、`BLK-**` と `MRL` / `mRL` の対応も正本で追跡する shared rule になった。
+
+### 2026-04-05 AGENTS.md 永続証跡 data directory の `agents.md` 必須化
+
+- 日時: `2026-04-05`
+- 文書名: `AGENTS.md`
+- 標題: 永続管理する証跡 data を置く directory に `agents.md` を必須化
+- 背景: `prj-kisaragi_0002` で admin 実行履歴 notebook を repository 内へ永続管理する要求が出た。今後 notebook 以外の証跡 data も同様に残りうるため、directory 単位で data の意味を明示する shared rule が必要になった。
+- 目的: 永続管理する証跡 data の置き場で、何の data か、何を保存しているか、どう扱うかを directory 自体で読めるようにする。
+- 対処方法: `文書規則` の `中核規則` に、notebook、evidence export、session dump などの永続証跡 data を保存する時は同一 directory の `agents.md` へ data 種別と扱いを明記する条項を追加した。
+- 対応内容: `*.ipynb` 専用ではなく、将来保存する同種の証跡 data 全体へ適用する shared rule として明文化した。
+- 更新結果: 今後は永続証跡 data が directory に置かれても、同じ場所の `agents.md` を読めば data の意味と扱いを把握できる。
+- 新旧比較:
+  - 旧: 永続証跡 data を置く時に、同一 directory の `agents.md` で data 種別を明示する shared ruleはなかった。
+  - 新: notebook を含む永続証跡 data directory には `agents.md` を置き、対象 data の内容と扱いを明記する shared rule になった。
+
 ### 2026-04-04 AGENTS.md 外部コンピューティングの durable final output rule 追加
 
 - 日時: `2026-04-04`
