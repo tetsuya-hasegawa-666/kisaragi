@@ -6405,3 +6405,9 @@ Moviepy - video ready /content/drive/MyDrive/trajectreview/modeling/trajectrevie
 - Drive 側の削除対象は `chunk_runs/` に限定し、`probe_root` 配下の final / proof / manifest / merged 証跡は保持する。
 - local 側の削除対象は `runbook_selected_input.json`、`runbook_paths.json`、`runbook_session_context.json`、`/content/trajectreview_input/`、local bundle zip である。
 
+# codex v75
+
+- cleanup は `#11` から分離し、`#12 inventory` と `#13 apply` に再構成した。
+- `#12` は `#1` から `#11` までの生成物を対象に、Drive 正本として残す group と削除候補を `cleanup_plan.json` に列挙する。
+- `#13` は `cleanup_plan.json` を再読込して yes の時だけ削除する。これにより merge 完了直後に長時間の cleanup prompt を挟まず、admin が内容確認後に別 block で削除できる。
+

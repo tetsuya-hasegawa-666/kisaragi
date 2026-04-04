@@ -1759,7 +1759,7 @@ process_batch(RUN_BATCH_INDEX)
 - `keep_zero_chunk` は warning ではなく hard error とし、owner-based merge が崩れた chunk を見逃さない。
 - `MAKE_DRIVE_BUNDLE = True` の時も、Drive 上で新しい複製 directory は作らない。Drive 正本は最初から `probe_root` 配下だけに集約し、bundle summary にはその root を `drive_visible_dir` として残す。
 - download 用 zip は `/content/...zip` にだけ作り、必要なら browser download を行う。したがって `vertex_assignment_summary.csv`、`chunk_assignment_summary.csv`、`owner_record_histogram.csv`、`merge_warning_summary.json`、`chunk_transform_quality.csv` は Drive 正本 `probe_root` と local zip の両方で見られる。
-- `#11` の最後で cleanup plan を表示し、yes を入れた時だけ、Drive 側では `chunk_runs/`、local 側では `runbook` tmp JSON、展開 input、local zip などの不可視生成物を削除できるようにする。
+- cleanup は `#12 inventory` と `#13 apply` に分離する。`#12` は全 block を対象に「保持対象」と「削除候補」を一覧化し、`#13` はその一覧を読んで yes 入力時だけ削除する。
 
 ```python
 #11
@@ -1808,7 +1808,6 @@ REQUIRE_ALL_CHUNKS = True
 MAKE_DRIVE_BUNDLE = True
 MAKE_LOCAL_BUNDLE_ZIP = True
 DOWNLOAD_LOCAL_BUNDLE = True
-PROMPT_DELETE_NONESSENTIAL = True
 
 chunk_index_all_path = chunk_manifest_dir / "chunk_index_all.csv"
 if chunk_index_all_path.exists():
@@ -2252,97 +2251,155 @@ else:
     (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
     print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
 
-    def path_size_bytes(path: Path) -> int:
-        if not path.exists():
-            return 0
-        if path.is_file():
-            return int(path.stat().st_size)
-        total = 0
-        for root, _, files in os.walk(path):
-            for name in files:
-                fp = Path(root) / name
-                try:
-                    total += int(fp.stat().st_size)
-                except FileNotFoundError:
-                    pass
-        return int(total)
+```
 
-    cleanup_candidates = []
-    if (chunk_runs_dir.exists()) and merge_summary["status"] == "ok":
-        cleanup_candidates.append({
-            "path": str(chunk_runs_dir),
-            "kind": "drive_dir",
-            "reason": "chunk intermediate gs outputs already merged into probe_root final outputs",
-            "size_bytes": path_size_bytes(chunk_runs_dir),
+### #12 Cleanup inventory
+
+- `#12` は `#1` から `#11` までの生成物を対象に、Drive 正本として保持するものと、merge 完了後に削除候補へ回せる不可視生成物を一覧化する。
+- `#12` 自体は削除しない。`cleanup_plan.json` を作って、admin が内容を見てから `#13` で適用する。
+
+```python
+#12
+from pathlib import Path
+import json
+import os
+
+ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
+probe_root = Path(ctx["probe_root"])
+results_root = Path(ctx["results_root"])
+manifest_dir = Path(ctx["manifest_dir"])
+proof_metric_dir = Path(ctx["proof_metric_dir"])
+prod_metric_dir = Path(ctx["prod_metric_dir"])
+proof_giant_dir = Path(ctx["proof_giant_dir"])
+world_dir = Path(ctx["world_dir"])
+
+pipeline_root = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12"
+global_pose_dir = pipeline_root / "global_pose_bootstrap"
+chunk_manifest_dir = pipeline_root / "manifests"
+chunk_runs_dir = pipeline_root / "chunk_runs"
+merged_dir = pipeline_root / "merged"
+merge_summary_path = merged_dir / "merge_summary.json"
+
+def path_size_bytes(path: Path) -> int:
+    if not path.exists():
+        return 0
+    if path.is_file():
+        return int(path.stat().st_size)
+    total = 0
+    for root, _, files in os.walk(path):
+        for name in files:
+            fp = Path(root) / name
+            try:
+                total += int(fp.stat().st_size)
+            except FileNotFoundError:
+                pass
+    return int(total)
+
+merge_summary = json.loads(merge_summary_path.read_text(encoding="utf-8")) if merge_summary_path.exists() else {}
+merge_ok = bool(merge_summary.get("status") == "ok")
+
+kept_groups = [
+    {"block": "#6", "label": "manifest_dir", "path": str(manifest_dir)},
+    {"block": "#7", "label": "proof_metric_dir", "path": str(proof_metric_dir)},
+    {"block": "#7", "label": "prod_metric_dir", "path": str(prod_metric_dir)},
+    {"block": "#7", "label": "world_dir", "path": str(world_dir)},
+    {"block": "#8", "label": "global_pose_dir", "path": str(global_pose_dir)},
+    {"block": "#8", "label": "chunk_manifest_dir", "path": str(chunk_manifest_dir)},
+    {"block": "#11", "label": "merged_dir", "path": str(merged_dir)},
+    {"block": "#11", "label": "proof_giant_dir", "path": str(proof_giant_dir)},
+]
+
+delete_candidates = []
+if chunk_runs_dir.exists() and merge_ok:
+    delete_candidates.append({
+        "block": "#10",
+        "path": str(chunk_runs_dir),
+        "kind": "drive_dir",
+        "reason": "chunk intermediate gs outputs already merged",
+        "size_bytes": path_size_bytes(chunk_runs_dir),
+    })
+
+local_tmp_candidates = [
+    ("#2", Path("/content/runbook_selected_input.json"), "local_tmp", "selected input pointer"),
+    ("#4", Path("/content/runbook_paths.json"), "local_tmp", "resolved path cache"),
+    ("#5", Path("/content/runbook_session_context.json"), "local_tmp", "session context cache"),
+    ("#5", Path("/content/trajectreview_input"), "local_tmp", "extracted input workspace"),
+]
+local_bundle_zip = merge_summary.get("bundle_summary", {}).get("local_bundle_zip")
+if local_bundle_zip:
+    local_tmp_candidates.append(("#11", Path(local_bundle_zip), "local_tmp", "download-only local bundle zip"))
+
+for block_no, p, kind, reason in local_tmp_candidates:
+    if p.exists():
+        delete_candidates.append({
+            "block": block_no,
+            "path": str(p),
+            "kind": kind,
+            "reason": reason,
+            "size_bytes": path_size_bytes(p),
         })
 
-    local_tmp_candidates = [
-        Path("/content/runbook_selected_input.json"),
-        Path("/content/runbook_paths.json"),
-        Path("/content/runbook_session_context.json"),
-        Path("/content/trajectreview_input"),
-    ]
-    if bundle_summary.get("local_bundle_zip"):
-        local_tmp_candidates.append(Path(bundle_summary["local_bundle_zip"]))
+cleanup_plan = {
+    "drive_visible_dir": str(probe_root),
+    "results_root": str(results_root),
+    "merge_status": merge_summary.get("status"),
+    "kept_groups": kept_groups,
+    "delete_candidate_count": int(len(delete_candidates)),
+    "delete_candidate_total_bytes": int(sum(x["size_bytes"] for x in delete_candidates)),
+    "delete_candidates": delete_candidates,
+}
+(merged_dir / "cleanup_plan.json").write_text(json.dumps(cleanup_plan, indent=2, ensure_ascii=False), encoding="utf-8")
+print("# cleanup_plan")
+print(json.dumps(cleanup_plan, indent=2, ensure_ascii=False))
+```
 
-    for p in local_tmp_candidates:
-        if p.exists():
-            cleanup_candidates.append({
-                "path": str(p),
-                "kind": "local_tmp",
-                "reason": "non-visible local intermediate after drive-visible final outputs are saved",
-                "size_bytes": path_size_bytes(p),
-            })
+### #13 Cleanup apply
 
-    cleanup_plan = {
-        "drive_visible_dir": str(probe_root),
-        "kept_drive_roots": [
-            str(manifest_dir),
-            str(proof_metric_dir),
-            str(proof_giant_dir),
-            str(world_dir),
-            str(global_pose_dir),
-            str(chunk_manifest_dir),
-            str(merged_dir),
-        ],
-        "delete_candidate_count": int(len(cleanup_candidates)),
-        "delete_candidate_total_bytes": int(sum(x["size_bytes"] for x in cleanup_candidates)),
-        "delete_candidates": cleanup_candidates,
+- `#13` は `#12` が作った `cleanup_plan.json` を読んで、yes の時だけ削除する。
+- `#13` は `probe_root` 配下の正本 directory を削除しない。削除するのは `delete_candidates` に載った不可視生成物だけである。
+
+```python
+#13
+from pathlib import Path
+import json
+import shutil
+
+ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
+probe_root = Path(ctx["probe_root"])
+merged_dir = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12" / "merged"
+cleanup_plan_path = merged_dir / "cleanup_plan.json"
+assert cleanup_plan_path.exists(), cleanup_plan_path
+
+cleanup_plan = json.loads(cleanup_plan_path.read_text(encoding="utf-8"))
+print("# cleanup_plan_reloaded")
+print(json.dumps(cleanup_plan, indent=2, ensure_ascii=False))
+
+answer = input("Delete cleanup_plan delete_candidates now? type yes to delete: ").strip().lower()
+
+deleted = []
+if answer == "yes":
+    for item in cleanup_plan["delete_candidates"]:
+        p = Path(item["path"])
+        if not p.exists():
+            continue
+        if p.is_dir():
+            shutil.rmtree(p)
+        else:
+            p.unlink()
+        deleted.append(item)
+    cleanup_result = {
+        "status": "ok",
+        "reason": "user_confirmed",
+        "deleted": deleted,
     }
-    (merged_dir / "cleanup_plan.json").write_text(json.dumps(cleanup_plan, indent=2, ensure_ascii=False), encoding="utf-8")
-    print("# cleanup_plan")
-    print(json.dumps(cleanup_plan, indent=2, ensure_ascii=False))
-
+else:
     cleanup_result = {
         "status": "skipped",
-        "reason": "prompt_disabled_or_user_declined",
+        "reason": "user_declined",
         "deleted": [],
     }
-    if PROMPT_DELETE_NONESSENTIAL and cleanup_candidates:
-        answer = input("Delete nonessential intermediate files now? type yes to delete: ").strip().lower()
-        if answer == "yes":
-            deleted = []
-            for item in cleanup_candidates:
-                p = Path(item["path"])
-                if not p.exists():
-                    continue
-                if p.is_dir():
-                    shutil.rmtree(p)
-                else:
-                    p.unlink()
-                deleted.append(item)
-            cleanup_result = {
-                "status": "ok",
-                "reason": "user_confirmed",
-                "deleted": deleted,
-            }
-        else:
-            cleanup_result = {
-                "status": "skipped",
-                "reason": "user_declined",
-                "deleted": [],
-            }
-    (merged_dir / "cleanup_result.json").write_text(json.dumps(cleanup_result, indent=2, ensure_ascii=False), encoding="utf-8")
-    print("# cleanup_result")
-    print(json.dumps(cleanup_result, indent=2, ensure_ascii=False))
+
+(merged_dir / "cleanup_result.json").write_text(json.dumps(cleanup_result, indent=2, ensure_ascii=False), encoding="utf-8")
+print("# cleanup_result")
+print(json.dumps(cleanup_result, indent=2, ensure_ascii=False))
 ```
