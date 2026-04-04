@@ -36,8 +36,9 @@
 ## Bundle Naming Policy
 
 - `correcting` 側の canonical zip 名は `trajectreview/correcting/trajectreview-correcting-session-YYYYMMDD-HHMMSS.zip` とする。
-- `modeling` 側の bundle zip 名は `trajectreview/modeling/trajectreview-modeling-session-YYYYMMDD-HHMMSS_<model_slug>.zip` とする。
-- `Colab` runbook では `selected input` の `session_id` が `trajectreview-correcting-session-*` なら、bundle 出力時に `trajectreview-modeling-session-*` へ置き換えて使う。
+- `modeling` 側の Drive 正本保存先は、`1 correcting session = 1 modeling directory` とし、`MyDrive/trajectreview/modeling/<modeling_session_id>_<route_slug>/` だけを使う。
+- `Colab` runbook では `selected input` の `session_id` が `trajectreview-correcting-session-*` なら、Drive 正本 directory 名に使う `modeling_session_id` を `trajectreview-modeling-session-*` へ置き換えて使う。
+- download 用 zip は Drive 上へ重複保存せず、必要時だけ `/content/<modeling_session_id>_<model_slug>_...zip` を作る。
 - binary `gs_ply` は text viewer で文字化けするため、runbook は header、property stats、focus stats、`xyz_only.ply` を `debug_gs_visible_copy/` と bundle zip に同梱する。
 
 ## 実行順
@@ -1756,14 +1757,16 @@ process_batch(RUN_BATCH_INDEX)
 
 - final merge でも `Block 4` と同じ owner_record 判定を使う。`PCA 1軸帯 keep` と terminal の `all keep fallback` は使わない。
 - `keep_zero_chunk` は warning ではなく hard error とし、owner-based merge が崩れた chunk を見逃さない。
-- `MAKE_DRIVE_BUNDLE = True` の時は `pipeline_root` 全体を `MyDrive/trajectreview/modeling/...` の visible dir と zip へ保存し、必要なら `/content/...zip` の local copy と browser download も作る。
-- したがって `vertex_assignment_summary.csv`、`chunk_assignment_summary.csv`、`owner_record_histogram.csv`、`merge_warning_summary.json`、`chunk_transform_quality.csv` を含む merge 証跡は Drive と local の両方で見られる。
+- `MAKE_DRIVE_BUNDLE = True` の時も、Drive 上で新しい複製 directory は作らない。Drive 正本は最初から `probe_root` 配下だけに集約し、bundle summary にはその root を `drive_visible_dir` として残す。
+- download 用 zip は `/content/...zip` にだけ作り、必要なら browser download を行う。したがって `vertex_assignment_summary.csv`、`chunk_assignment_summary.csv`、`owner_record_histogram.csv`、`merge_warning_summary.json`、`chunk_transform_quality.csv` は Drive 正本 `probe_root` と local zip の両方で見られる。
+- `#11` の最後で cleanup plan を表示し、yes を入れた時だけ、Drive 側では `chunk_runs/`、local 側では `runbook` tmp JSON、展開 input、local zip などの不可視生成物を削除できるようにする。
 
 ```python
 #11
 from pathlib import Path
 import json
 import shutil
+import os
 
 import numpy as np
 import pandas as pd
@@ -1803,9 +1806,9 @@ else:
 BUNDLE_MODEL_SLUG = config["BUNDLE_MODEL_SLUG"]
 REQUIRE_ALL_CHUNKS = True
 MAKE_DRIVE_BUNDLE = True
-MAKE_LOCAL_VISIBLE_COPY = True
 MAKE_LOCAL_BUNDLE_ZIP = True
 DOWNLOAD_LOCAL_BUNDLE = True
+PROMPT_DELETE_NONESSENTIAL = True
 
 chunk_index_all_path = chunk_manifest_dir / "chunk_index_all.csv"
 if chunk_index_all_path.exists():
@@ -2203,38 +2206,24 @@ else:
     }
 
     if MAKE_DRIVE_BUNDLE:
-        drive_bundle_base = f"{modeling_session_id}_{BUNDLE_MODEL_SLUG}_continuousgsv06chunk18ov6ad12"
-        drive_bundle_dir = results_root / drive_bundle_base
-        drive_bundle_zip = results_root / f"{drive_bundle_base}.zip"
-        local_visible_dir = Path("/content") / drive_bundle_base
-        local_bundle_zip = Path("/content") / f"{drive_bundle_base}.zip"
+        local_bundle_base = f"{modeling_session_id}_{BUNDLE_MODEL_SLUG}_continuousgsv06chunk18ov6ad12"
+        local_bundle_zip = Path("/content") / f"{local_bundle_base}.zip"
 
-        if drive_bundle_dir.exists():
-            shutil.rmtree(drive_bundle_dir)
-        if drive_bundle_zip.exists():
-            drive_bundle_zip.unlink()
-        if local_visible_dir.exists():
-            shutil.rmtree(local_visible_dir)
         if local_bundle_zip.exists():
             local_bundle_zip.unlink()
 
-        shutil.copytree(pipeline_root, drive_bundle_dir)
-        shutil.make_archive(str(drive_bundle_zip.with_suffix("")), "zip", root_dir=str(drive_bundle_dir))
-        if MAKE_LOCAL_VISIBLE_COPY:
-            shutil.copytree(drive_bundle_dir, local_visible_dir)
-
         bundle_summary = {
             "status": "ok",
-            "drive_bundle_dir": str(drive_bundle_dir),
-            "drive_bundle_zip": str(drive_bundle_zip),
-            "local_visible_dir": str(local_visible_dir) if MAKE_LOCAL_VISIBLE_COPY else None,
+            "drive_visible_dir": str(probe_root),
+            "drive_pipeline_root": str(pipeline_root),
+            "drive_results_root": str(results_root),
         }
 
         if MAKE_LOCAL_BUNDLE_ZIP:
-            shutil.copy2(drive_bundle_zip, local_bundle_zip)
+            shutil.make_archive(str(local_bundle_zip.with_suffix("")), "zip", root_dir=str(probe_root))
             bundle_summary["local_bundle_zip"] = str(local_bundle_zip)
 
-        if DOWNLOAD_LOCAL_BUNDLE:
+        if DOWNLOAD_LOCAL_BUNDLE and MAKE_LOCAL_BUNDLE_ZIP:
             from google.colab import files
             assert local_bundle_zip.exists(), local_bundle_zip
             files.download(str(local_bundle_zip))
@@ -2262,4 +2251,98 @@ else:
     }
     (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
     print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
+
+    def path_size_bytes(path: Path) -> int:
+        if not path.exists():
+            return 0
+        if path.is_file():
+            return int(path.stat().st_size)
+        total = 0
+        for root, _, files in os.walk(path):
+            for name in files:
+                fp = Path(root) / name
+                try:
+                    total += int(fp.stat().st_size)
+                except FileNotFoundError:
+                    pass
+        return int(total)
+
+    cleanup_candidates = []
+    if (chunk_runs_dir.exists()) and merge_summary["status"] == "ok":
+        cleanup_candidates.append({
+            "path": str(chunk_runs_dir),
+            "kind": "drive_dir",
+            "reason": "chunk intermediate gs outputs already merged into probe_root final outputs",
+            "size_bytes": path_size_bytes(chunk_runs_dir),
+        })
+
+    local_tmp_candidates = [
+        Path("/content/runbook_selected_input.json"),
+        Path("/content/runbook_paths.json"),
+        Path("/content/runbook_session_context.json"),
+        Path("/content/trajectreview_input"),
+    ]
+    if bundle_summary.get("local_bundle_zip"):
+        local_tmp_candidates.append(Path(bundle_summary["local_bundle_zip"]))
+
+    for p in local_tmp_candidates:
+        if p.exists():
+            cleanup_candidates.append({
+                "path": str(p),
+                "kind": "local_tmp",
+                "reason": "non-visible local intermediate after drive-visible final outputs are saved",
+                "size_bytes": path_size_bytes(p),
+            })
+
+    cleanup_plan = {
+        "drive_visible_dir": str(probe_root),
+        "kept_drive_roots": [
+            str(manifest_dir),
+            str(proof_metric_dir),
+            str(proof_giant_dir),
+            str(world_dir),
+            str(global_pose_dir),
+            str(chunk_manifest_dir),
+            str(merged_dir),
+        ],
+        "delete_candidate_count": int(len(cleanup_candidates)),
+        "delete_candidate_total_bytes": int(sum(x["size_bytes"] for x in cleanup_candidates)),
+        "delete_candidates": cleanup_candidates,
+    }
+    (merged_dir / "cleanup_plan.json").write_text(json.dumps(cleanup_plan, indent=2, ensure_ascii=False), encoding="utf-8")
+    print("# cleanup_plan")
+    print(json.dumps(cleanup_plan, indent=2, ensure_ascii=False))
+
+    cleanup_result = {
+        "status": "skipped",
+        "reason": "prompt_disabled_or_user_declined",
+        "deleted": [],
+    }
+    if PROMPT_DELETE_NONESSENTIAL and cleanup_candidates:
+        answer = input("Delete nonessential intermediate files now? type yes to delete: ").strip().lower()
+        if answer == "yes":
+            deleted = []
+            for item in cleanup_candidates:
+                p = Path(item["path"])
+                if not p.exists():
+                    continue
+                if p.is_dir():
+                    shutil.rmtree(p)
+                else:
+                    p.unlink()
+                deleted.append(item)
+            cleanup_result = {
+                "status": "ok",
+                "reason": "user_confirmed",
+                "deleted": deleted,
+            }
+        else:
+            cleanup_result = {
+                "status": "skipped",
+                "reason": "user_declined",
+                "deleted": [],
+            }
+    (merged_dir / "cleanup_result.json").write_text(json.dumps(cleanup_result, indent=2, ensure_ascii=False), encoding="utf-8")
+    print("# cleanup_result")
+    print(json.dumps(cleanup_result, indent=2, ensure_ascii=False))
 ```

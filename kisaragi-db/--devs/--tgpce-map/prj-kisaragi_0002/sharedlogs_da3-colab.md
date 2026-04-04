@@ -6393,3 +6393,15 @@ Moviepy - video ready /content/drive/MyDrive/trajectreview/modeling/trajectrevie
 - runbook の owner 推定は、候補 frame をまず当該 chunk の record 群だけに制限し、候補不足の時だけ `OWNER_RECORD_MARGIN` 付き局所近傍、最後に全体 fallback を使う形へ変更した。
 - 追加証跡として `owner_candidate_mode` を `vertex_assignment_summary.csv` と `chunk_keep_summary.csv` に残すようにした。これにより `chunk_only`、`chunk_with_margin`、`global_fallback` のどれで owner を決めたかを後から追える。
 
+# codex v73
+
+- Drive 容量圧迫を避けるため、`MRL-10` の保存 policy を `1 correcting session = 1 modeling directory` に固定した。
+- Drive 正本は `probe_root` だけとし、`pipeline_root` を別名 directory や zip に複製しない。download 用 zip は必要時だけ `/content/...zip` に作る。
+- `merge_summary.json` の `bundle_summary` は `drive_visible_dir = probe_root` を返し、Drive 側の確認先を 1 か所へ揃える。
+
+# codex v74
+
+- `#11` の最後に `cleanup_plan.json` と `cleanup_result.json` を追加し、final merge 完了後に yes/no で不可視生成物だけを削除できるようにした。
+- Drive 側の削除対象は `chunk_runs/` に限定し、`probe_root` 配下の final / proof / manifest / merged 証跡は保持する。
+- local 側の削除対象は `runbook_selected_input.json`、`runbook_paths.json`、`runbook_session_context.json`、`/content/trajectreview_input/`、local bundle zip である。
+
