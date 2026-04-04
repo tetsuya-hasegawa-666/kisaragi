@@ -12,6 +12,20 @@
 
 ## 更新履歴
 
+### 2026-04-04 AGENTS.md 外部コンピューティングの durable final output rule 追加
+
+- 日時: `2026-04-04`
+- 文書名: `AGENTS.md`
+- 標題: `Colab` など外部コンピューティング task の final output を永続 visible storage へ先保存する rule を追加
+- 背景: `prj-kisaragi_0002` の `Colab` 実行では、final merge 後の download や local zip が長時間化し、runtime 切断や timeout が起きると最後の確定出力が失われる危険が見えた。
+- 目的: 外部コンピューティング task では、確定出力とその最低限の付随情報を local 側より先に Drive などの永続 visible storage へ固定し、cleanup でもその tree を確実に保護する。
+- 対処方法: `協調原則` に、final output と manifest / summary / transform 情報の先保存、最終保存先 tree の早期作成、cleanup での final output tree 保持を shared rule として追加した。
+- 対応内容: `Colab`、remote notebook、remote GPU job を含む外部コンピューティング task で、download 成否に依存しない durable output 運用を shared governance へ昇格した。
+- 更新結果: 今後は final output が local download や zip の失敗で蒸発せず、cleanup でも永続 visible storage 側の canonical tree が保護される。
+- 新旧比較:
+  - 旧: final output の永続保存順と cleanup 保護対象は project ごとの運用に依存していた。
+  - 新: final output は永続 visible storage へ先保存し、cleanup はその tree と最低限の付随情報を保持する shared rule になった。
+
 ### 2026-04-02 AGENTS.md 100MB 超 artifact の手元管理 rule 追加
 
 - 日時: `2026-04-02`

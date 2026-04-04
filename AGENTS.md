@@ -278,6 +278,9 @@ kisaragi-tree/
 - `*_evid_runbook.md` は正本 runbook とし、構築途中の判断、周辺情報、OK 条件、採用 route、補助説明を含めて保持する。
 - `*_ref_runbook.md` は参照専用 companion とし、admin が notebook へ貼り付けやすい最小 code block 列を主内容とする。evidence や判定根拠は持たせず、必要最小限の順序見出しだけを残す。
 - 上記 2 本は片方だけ更新してはならず、rename、追加、削除、内容更新は常に 2 file set で行う。
+- `Colab`、remote notebook、remote GPU job などの外部コンピューティング task では、最終的に出力すると決まっている file と、それを解釈する最低限の manifest / summary / transform 情報を、download や local zip より先に Drive などの永続 visible storage へ保存する。
+- 上記の task では、最終保存先 tree を runbook の早い block で先に作成し、runtime 切断、download timeout、local zip failure が起きても、確定出力が永続 visible storage 側で蒸発しない構成を必須とする。
+- cleanup script は、永続 visible storage 側へ保存済みの final output tree と、その tree を再解釈する最低限の付随情報を保持対象として明示し、それ以外の不可視中間生成物だけを削除候補へ載せる。
 - 揮発 runtime task で 1 回の session で完了しなかった時は、原則として partial recovery の説明を積み増すより `最小 clean bootstrap runbook` を更新し、次回は先頭から再実行できる形へ収束させる。
 - product 系文書に未反映のまま shared worklog だけへ bootstrap 手順を積み続けることを禁止する。最短再現経路が見えた時点で、同じ task 内で product 系文書へ昇格させる。
 - shared worklog 上で bootstrap、install、config、実行順の修正が 1 回でも通った時は、その成功を待って同じ task 内で runbook 正本へ即時反映する。次の案内や次 command は、反映後の正本と矛盾してはならない。

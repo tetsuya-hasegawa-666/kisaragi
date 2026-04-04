@@ -6411,3 +6411,10 @@ Moviepy - video ready /content/drive/MyDrive/trajectreview/modeling/trajectrevie
 - `#12` は `#1` から `#11` までの生成物を対象に、Drive 正本として残す group と削除候補を `cleanup_plan.json` に列挙する。
 - `#13` は `cleanup_plan.json` を再読込して yes の時だけ削除する。これにより merge 完了直後に長時間の cleanup prompt を挟まず、admin が内容確認後に別 block で削除できる。
 
+# codex v76
+
+- 外部コンピューティング task の durable output rule を shared rule へ昇格し、`AGENTS.md` と `AGENTSmd-RH.md` に反映した。
+- `MRL-10` runbook は `#6-1` の時点で `probe_root/final_outputs/` を先に作るように変更した。
+- `#11` は final merge 後に、`merged_gs.ply`、`merged_scene.glb`、chunk / owner / warning / batch の診断 CSV / JSON、`da3_input_manifest_prod.csv`、`camera_center_matrix.csv`、`camera_matrix_full.csv`、`chunk_index_all.csv`、`batch_plan.csv` を `final_outputs/` へ必ず複製し、`final_output_manifest.json` を出力する。
+- `#12` と `#13` は `final_outputs/` を明示的な保持対象にし、cleanup で削除するのは不可視の中間生成物だけに固定した。
+

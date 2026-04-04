@@ -262,8 +262,23 @@ def resolve_and_validate_paths(selected_doc: dict):
     proof_giant_dir = probe_root / "proof_giant"
     world_dir = probe_root / "world_fusion_v01"
     manifest_dir = probe_root / "manifests"
+    final_outputs_dir = probe_root / "final_outputs"
+    final_outputs_merged_dir = final_outputs_dir / "merged"
+    final_outputs_diagnostics_dir = final_outputs_dir / "diagnostics"
+    final_outputs_manifests_dir = final_outputs_dir / "manifests"
 
-    for p in [probe_root, proof_metric_dir, prod_metric_dir, proof_giant_dir, world_dir, manifest_dir]:
+    for p in [
+        probe_root,
+        proof_metric_dir,
+        prod_metric_dir,
+        proof_giant_dir,
+        world_dir,
+        manifest_dir,
+        final_outputs_dir,
+        final_outputs_merged_dir,
+        final_outputs_diagnostics_dir,
+        final_outputs_manifests_dir,
+    ]:
         p.mkdir(parents=True, exist_ok=True)
 
     return {
@@ -279,6 +294,10 @@ def resolve_and_validate_paths(selected_doc: dict):
         "prod_metric_dir": str(prod_metric_dir),
         "proof_giant_dir": str(proof_giant_dir),
         "world_dir": str(world_dir),
+        "final_outputs_dir": str(final_outputs_dir),
+        "final_outputs_merged_dir": str(final_outputs_merged_dir),
+        "final_outputs_diagnostics_dir": str(final_outputs_diagnostics_dir),
+        "final_outputs_manifests_dir": str(final_outputs_manifests_dir),
         "images_dir": str(images_dir),
         "images_dir_file_count": int(valid_image_dirs[0][1]),
         "image_dir_candidates_ranked": [{"path": str(p), "image_count": int(c)} for p, c in valid_image_dirs],
@@ -421,8 +440,23 @@ prod_metric_dir = Path(paths["prod_metric_dir"])
 proof_giant_dir = Path(paths["proof_giant_dir"])
 world_dir = Path(paths["world_dir"])
 manifest_dir = Path(paths["manifest_dir"])
+final_outputs_dir = Path(paths["final_outputs_dir"])
+final_outputs_merged_dir = Path(paths["final_outputs_merged_dir"])
+final_outputs_diagnostics_dir = Path(paths["final_outputs_diagnostics_dir"])
+final_outputs_manifests_dir = Path(paths["final_outputs_manifests_dir"])
 
-for p in [probe_root, proof_metric_dir, prod_metric_dir, proof_giant_dir, world_dir, manifest_dir]:
+for p in [
+    probe_root,
+    proof_metric_dir,
+    prod_metric_dir,
+    proof_giant_dir,
+    world_dir,
+    manifest_dir,
+    final_outputs_dir,
+    final_outputs_merged_dir,
+    final_outputs_diagnostics_dir,
+    final_outputs_manifests_dir,
+]:
     p.mkdir(parents=True, exist_ok=True)
 
 context_doc = {
@@ -445,6 +479,10 @@ context_doc = {
     "proof_giant_dir": str(proof_giant_dir),
     "world_dir": str(world_dir),
     "manifest_dir": str(manifest_dir),
+    "final_outputs_dir": str(final_outputs_dir),
+    "final_outputs_merged_dir": str(final_outputs_merged_dir),
+    "final_outputs_diagnostics_dir": str(final_outputs_diagnostics_dir),
+    "final_outputs_manifests_dir": str(final_outputs_manifests_dir),
 }
 Path("/content/runbook_session_context.json").write_text(json.dumps(context_doc, indent=2, ensure_ascii=False), encoding="utf-8")
 print(json.dumps(context_doc, indent=2, ensure_ascii=False))
@@ -859,6 +897,10 @@ manifest_dir = Path(ctx["manifest_dir"])
 proof_metric_dir = Path(ctx["proof_metric_dir"])
 prod_metric_dir = Path(ctx["prod_metric_dir"])
 world_dir = Path(ctx["world_dir"])
+final_outputs_dir = Path(ctx["final_outputs_dir"])
+final_outputs_merged_dir = Path(ctx["final_outputs_merged_dir"])
+final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
+final_outputs_manifests_dir = Path(ctx["final_outputs_manifests_dir"])
 
 repo_root = Path("/content/Depth-Anything-3")
 src_root = repo_root / "src"
@@ -1759,6 +1801,7 @@ process_batch(RUN_BATCH_INDEX)
 - `keep_zero_chunk` は warning ではなく hard error とし、owner-based merge が崩れた chunk を見逃さない。
 - `MAKE_DRIVE_BUNDLE = True` の時も、Drive 上で新しい複製 directory は作らない。Drive 正本は最初から `probe_root` 配下だけに集約し、bundle summary にはその root を `drive_visible_dir` として残す。
 - download 用 zip は `/content/...zip` にだけ作り、必要なら browser download を行う。したがって `vertex_assignment_summary.csv`、`chunk_assignment_summary.csv`、`owner_record_histogram.csv`、`merge_warning_summary.json`、`chunk_transform_quality.csv` は Drive 正本 `probe_root` と local zip の両方で見られる。
+- `probe_root/final_outputs/` は `#6-1` の時点で先に作り、`#11` で確定出力と最低限の付随情報を必ずここへ保存する。download や local zip が失敗しても Drive 側の最終 tree は残る。
 - cleanup は `#12 inventory` と `#13 apply` に分離する。`#12` は全 block を対象に「保持対象」と「削除候補」を一覧化し、`#13` はその一覧を読んで yes 入力時だけ削除する。
 
 ```python
@@ -1779,6 +1822,10 @@ probe_root = Path(ctx["probe_root"])
 results_root = Path(ctx["results_root"])
 modeling_session_id = ctx["modeling_session_id"]
 manifest_dir = Path(ctx["manifest_dir"])
+final_outputs_dir = Path(ctx["final_outputs_dir"])
+final_outputs_merged_dir = Path(ctx["final_outputs_merged_dir"])
+final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
+final_outputs_manifests_dir = Path(ctx["final_outputs_manifests_dir"])
 
 pipeline_root = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12"
 global_pose_dir = pipeline_root / "global_pose_bootstrap"
@@ -1786,6 +1833,8 @@ chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
 merged_dir = pipeline_root / "merged"
 merged_dir.mkdir(parents=True, exist_ok=True)
+for p in [final_outputs_dir, final_outputs_merged_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir]:
+    p.mkdir(parents=True, exist_ok=True)
 
 config_path = pipeline_root / "pipeline_config.json"
 if config_path.exists():
@@ -2199,6 +2248,33 @@ else:
     if len(master_scene.geometry) > 0:
         master_scene.export(str(merged_glb_path))
 
+    final_output_copy_plan = [
+        (merged_ply_path, final_outputs_merged_dir / "merged_gs.ply"),
+        (merged_glb_path, final_outputs_merged_dir / "merged_scene.glb"),
+        (chunk_manifest_dir / "chunk_global_transforms.csv", final_outputs_diagnostics_dir / "chunk_global_transforms.csv"),
+        (keep_summary_path, final_outputs_diagnostics_dir / "chunk_keep_summary.csv"),
+        (transform_quality_path, final_outputs_diagnostics_dir / "chunk_transform_quality.csv"),
+        (merged_dir / "owner_record_histogram.csv", final_outputs_diagnostics_dir / "owner_record_histogram.csv"),
+        (merged_dir / "chunk_assignment_summary.csv", final_outputs_diagnostics_dir / "chunk_assignment_summary.csv"),
+        (merged_dir / "merge_warning_summary.json", final_outputs_diagnostics_dir / "merge_warning_summary.json"),
+        (merged_dir / "all_batch_summary.json", final_outputs_diagnostics_dir / "all_batch_summary.json"),
+        (manifest_dir / "da3_input_manifest_prod.csv", final_outputs_manifests_dir / "da3_input_manifest_prod.csv"),
+        (global_pose_dir / "camera_center_matrix.csv", final_outputs_manifests_dir / "camera_center_matrix.csv"),
+        (global_pose_dir / "camera_matrix_full.csv", final_outputs_manifests_dir / "camera_matrix_full.csv"),
+        (chunk_manifest_dir / "chunk_index_all.csv", final_outputs_manifests_dir / "chunk_index_all.csv"),
+        (chunk_manifest_dir / "batch_plan.csv", final_outputs_manifests_dir / "batch_plan.csv"),
+    ]
+    final_output_files = []
+    for src, dst in final_output_copy_plan:
+        if src.exists():
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dst)
+            final_output_files.append({
+                "label": dst.name,
+                "source_path": str(src),
+                "drive_path": str(dst),
+            })
+
     bundle_summary = {
         "status": "skipped",
         "reason": "MAKE_DRIVE_BUNDLE is False",
@@ -2231,6 +2307,18 @@ else:
             print("# manual_download_hint")
             print(bundle_summary["manual_download_hint"])
 
+    final_output_manifest = {
+        "status": "ok" if final_output_files else "partial",
+        "drive_visible_dir": str(probe_root),
+        "final_outputs_dir": str(final_outputs_dir),
+        "final_outputs_merged_dir": str(final_outputs_merged_dir),
+        "final_outputs_diagnostics_dir": str(final_outputs_diagnostics_dir),
+        "final_outputs_manifests_dir": str(final_outputs_manifests_dir),
+        "file_count": int(len(final_output_files)),
+        "files": final_output_files,
+    }
+    (final_outputs_dir / "final_output_manifest.json").write_text(json.dumps(final_output_manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+
     merge_summary = {
         "route": "continuous-gs-v06-chunk18-overlap6-adopt12-merge",
         "status": "ok" if all_vertices else "skipped",
@@ -2246,9 +2334,12 @@ else:
         "chunk_assignment_summary_path": str(merged_dir / "chunk_assignment_summary.csv"),
         "merge_warning_summary_path": str(merged_dir / "merge_warning_summary.json"),
         "all_batch_summary_path": str(merged_dir / "all_batch_summary.json"),
+        "final_outputs_dir": str(final_outputs_dir),
+        "final_output_manifest_path": str(final_outputs_dir / "final_output_manifest.json"),
         "bundle_summary": bundle_summary,
     }
     (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+    shutil.copy2(merged_dir / "merge_summary.json", final_outputs_diagnostics_dir / "merge_summary.json")
     print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
 
 ```
@@ -2303,6 +2394,10 @@ merge_ok = bool(merge_summary.get("status") == "ok")
 
 kept_groups = [
     {"block": "#6", "label": "manifest_dir", "path": str(manifest_dir)},
+    {"block": "#6", "label": "final_outputs_dir", "path": str(final_outputs_dir)},
+    {"block": "#6", "label": "final_outputs_merged_dir", "path": str(final_outputs_merged_dir)},
+    {"block": "#6", "label": "final_outputs_diagnostics_dir", "path": str(final_outputs_diagnostics_dir)},
+    {"block": "#6", "label": "final_outputs_manifests_dir", "path": str(final_outputs_manifests_dir)},
     {"block": "#7", "label": "proof_metric_dir", "path": str(proof_metric_dir)},
     {"block": "#7", "label": "prod_metric_dir", "path": str(prod_metric_dir)},
     {"block": "#7", "label": "world_dir", "path": str(world_dir)},
@@ -2344,6 +2439,7 @@ for block_no, p, kind, reason in local_tmp_candidates:
 
 cleanup_plan = {
     "drive_visible_dir": str(probe_root),
+    "drive_final_outputs_dir": str(final_outputs_dir),
     "results_root": str(results_root),
     "merge_status": merge_summary.get("status"),
     "kept_groups": kept_groups,
@@ -2352,6 +2448,8 @@ cleanup_plan = {
     "delete_candidates": delete_candidates,
 }
 (merged_dir / "cleanup_plan.json").write_text(json.dumps(cleanup_plan, indent=2, ensure_ascii=False), encoding="utf-8")
+Path(final_outputs_diagnostics_dir).mkdir(parents=True, exist_ok=True)
+(final_outputs_diagnostics_dir / "cleanup_plan.json").write_text(json.dumps(cleanup_plan, indent=2, ensure_ascii=False), encoding="utf-8")
 print("# cleanup_plan")
 print(json.dumps(cleanup_plan, indent=2, ensure_ascii=False))
 ```
@@ -2371,6 +2469,7 @@ import shutil
 
 ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
 probe_root = Path(ctx["probe_root"])
+final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
 merged_dir = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12" / "merged"
 cleanup_plan_path = merged_dir / "cleanup_plan.json"
 assert cleanup_plan_path.exists(), cleanup_plan_path
@@ -2405,6 +2504,8 @@ else:
     }
 
 (merged_dir / "cleanup_result.json").write_text(json.dumps(cleanup_result, indent=2, ensure_ascii=False), encoding="utf-8")
+Path(final_outputs_diagnostics_dir).mkdir(parents=True, exist_ok=True)
+(final_outputs_diagnostics_dir / "cleanup_result.json").write_text(json.dumps(cleanup_result, indent=2, ensure_ascii=False), encoding="utf-8")
 print("# cleanup_result")
 print(json.dumps(cleanup_result, indent=2, ensure_ascii=False))
 ```

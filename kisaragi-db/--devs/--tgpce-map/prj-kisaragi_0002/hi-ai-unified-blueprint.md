@@ -42,6 +42,7 @@
 - `NotYetAvailableException` などで image を取得できない update は、主記録として採択しない。
 - JPEG は毎 update 全保存せず、採択 frame だけを recording 中に保存する。
 - `modeling` の Drive 保存先は `1 correcting session = 1 modeling directory` を原則とし、main runbook pair は `probe_root` を唯一の Drive 正本 root として扱う。bundle download 用 zip は Drive 上へ複製保存せず、必要時だけ `/content/...zip` を作る。
+- `modeling` の final merge 後に確定出力として残す file と、その最低限の再解釈情報は `probe_root/final_outputs/` へ必ず保存する。少なくとも `merged_gs.ply`、`merged_scene.glb`、`chunk_global_transforms.csv`、`chunk_keep_summary.csv`、`chunk_transform_quality.csv`、`owner_record_histogram.csv`、`chunk_assignment_summary.csv`、`merge_warning_summary.json`、`all_batch_summary.json`、`da3_input_manifest_prod.csv`、`camera_center_matrix.csv`、`camera_matrix_full.csv`、`chunk_index_all.csv`、`batch_plan.csv`、`final_output_manifest.json` を Drive 側に固定してから local zip / download を行う。
 - final merge 後の cleanup は `#12 inventory` と `#13 apply` に分ける。`#12` は全 block を対象に保持対象と削除候補を列挙し、`#13` は yes/no を受けて Drive 側では `chunk_runs/`、local 側では runbook tmp JSON、展開 input、local zip などの不可視生成物だけを削除する。`probe_root` 配下の final / proof / manifest / merged 証跡は保持する。
 
 ### 次の一手
