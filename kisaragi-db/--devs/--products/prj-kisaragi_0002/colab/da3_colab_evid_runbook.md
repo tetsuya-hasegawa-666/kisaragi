@@ -581,7 +581,7 @@ print("inference_sig", inspect.signature(DepthAnything3.inference))
 
 - 既存 `probe_root` を再利用して merge 系だけをやり直す場合でも、runtime 初期化と path cache 生成のため `#1` から `#4` は必須とする。
 - `#3` では `correcting` と `modeling` を明示的に選べる。`correcting` を選んだ時は raw input 扱い、`modeling` を選んだ時は既存 chunk ありの `probe_root` 扱いとする。
-- 既存 modeling data を使う最短順は `#1 -> #2 -> #3 -> #4 -> #6-1b -> #10-5 -> #11` とする。必要なら `#6-1a` で候補一覧を再表示してよい。
+- 既存 modeling data を使う最短順は `#1 -> #2 -> #3 -> #4 -> #10-5 -> #11` とする。`#11` は merge 依存 package が未導入ならその場で補完する。必要なら `#6-1a` / `#6-1b` で候補一覧の再表示や手動切替を行う。
 - `correcting` を選んだ時は raw session 前提なので、通常どおり前段から全工程を進める。
 - cleanup が必要な時だけ `#12` と `#13` を続ける。
 
@@ -2374,6 +2374,7 @@ assert hard_fail_df.empty, hard_fail_df[["chunk_name", "scale", "center_rmse", "
 - final merge でも `Block 4` と同じ owner_record 判定を使う。`PCA 1軸帯 keep` と terminal の `all keep fallback` は使わない。
 - `keep_zero_chunk` は warning ではなく hard error とし、owner-based merge が崩れた chunk を見逃さない。
 - `#11` の前に `#10-5 pre-merge pose gate` を必ず通し、`merged` または `merged_add**` 配下の `premerge_pose_validation.json` の `status == ok` を満たした時だけ merge を許可する。
+- `#11` は `trimesh`、`plyfile`、`scipy` を merge 依存 package とし、未導入なら cell 冒頭で不足分だけ install してから継続する。
 - `MAKE_DRIVE_BUNDLE = True` の時も、Drive 上で新しい複製 directory は作らない。Drive 正本は最初から `probe_root` 配下だけに集約し、bundle summary にはその root を `drive_visible_dir` として残す。
 - download 用 zip は `/content/...zip` にだけ作り、必要なら browser download を行う。したがって `vertex_assignment_summary.csv`、`chunk_assignment_summary.csv`、`owner_record_histogram.csv`、`merge_warning_summary.json`、`chunk_transform_quality.csv` は Drive 正本 `probe_root` と local zip の両方で見られる。
 - `probe_root/final_outputs/` は `#6-1` の時点で先に作り、`#11` で確定出力と最低限の付随情報を必ずここへ保存する。download や local zip が失敗しても Drive 側の最終 tree は残る。
@@ -2389,9 +2390,29 @@ from pathlib import Path
 import json
 import shutil
 import os
+import subprocess
+import sys
 
 import numpy as np
 import pandas as pd
+
+missing_merge_deps = []
+for module_name, package_name in [
+    ("trimesh", "trimesh"),
+    ("plyfile", "plyfile"),
+    ("scipy", "scipy"),
+]:
+    try:
+        __import__(module_name)
+    except ModuleNotFoundError:
+        missing_merge_deps.append(package_name)
+
+if missing_merge_deps:
+    subprocess.run(
+        [sys.executable, "-m", "pip", "install", "--quiet", *missing_merge_deps],
+        check=True,
+    )
+
 import trimesh
 from plyfile import PlyData, PlyElement
 from scipy.spatial import cKDTree
