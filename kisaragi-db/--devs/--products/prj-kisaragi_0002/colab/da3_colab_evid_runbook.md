@@ -38,7 +38,7 @@
 - `correcting` 側の canonical zip 名は `trajectreview/correcting/trajectreview-correcting-session-YYYYMMDD-HHMMSS.zip` とする。
 - `modeling` 側の Drive 正本保存先は、`1 correcting session = 1 modeling directory` とし、`MyDrive/trajectreview/modeling/<modeling_session_id>_<route_slug>/` だけを使う。
 - `Colab` runbook では `selected input` の `session_id` が `trajectreview-correcting-session-*` なら、Drive 正本 directory 名に使う `modeling_session_id` を `trajectreview-modeling-session-*` へ置き換えて使う。
-- download 用 zip は Drive 上へ重複保存せず、必要時だけ `/content/<modeling_session_id>_<model_slug>_...zip` を作る。
+- download 用 zip は Drive 上へ重複保存せず、すべての Drive 保存完了後に必要時だけ `/content/<modeling_session_id>_<model_slug>_...zip` を別段で作る。
 - binary `gs_ply` は text viewer で文字化けするため、runbook は header、property stats、focus stats、`xyz_only.ply` を `debug_gs_visible_copy/` と bundle zip に同梱する。
 
 ## 実行順
@@ -54,6 +54,7 @@
    - 1 回の `Block 5` で `3chunk` だけ処理する
    - ただし `1chunk = 18frame`、`chunk overlap = 6frame`、各 chunk の再構成責務は基本 `後半 12frame` とする
 8. 最後に `MRL-10 Block 6`
+9. 必要時のみ `MRL-10 Block 6-1` で local bundle zip を作成して download する
 
 ## 準備確認
 
@@ -2418,8 +2419,8 @@ print(json.dumps(status_doc, indent=2, ensure_ascii=False))
 - `#11` の前に `#10-6 merge dependency preflight` を通し、`/content/runbook_merge_dependency_status.json` を作っておく。`#11` 自体にも不足 package の自己補完は残す。
 - `#11` は `trimesh`、`plyfile`、`scipy` を merge 依存 package とし、未導入なら cell 冒頭で不足分だけ install してから継続する。
 - `MAKE_DRIVE_BUNDLE = True` の時も、Drive 上で新しい複製 directory は作らない。Drive 正本は最初から `probe_root` 配下だけに集約し、bundle summary にはその root を `drive_visible_dir` として残す。
-- download 用 zip は `/content/...zip` にだけ作り、必要なら browser download を行う。したがって `vertex_assignment_summary.csv`、`chunk_assignment_summary.csv`、`owner_record_histogram.csv`、`merge_warning_summary.json`、`chunk_transform_quality.csv` は Drive 正本 `probe_root` と local zip の両方で見られる。
-- `probe_root/final_outputs/` は `#6-1` の時点で先に作り、`#11` で確定出力と最低限の付随情報を必ずここへ保存する。download や local zip が失敗しても Drive 側の最終 tree は残る。
+- `#11` は Drive 正本への保存完了をもって完了とする。local zip 作成と browser download は別段 `#11-1` に切り出し、merge 成否と混在させない。
+- `probe_root/final_outputs/` は `#6-1` の時点で先に作り、`#11` で確定出力と最低限の付随情報を必ずここへ保存する。local zip 作成や download を行わなくても Drive 側の最終 tree は残る。
 - `#11` は現状 1 cell でも、`#11-2 gs_ply merge` 相当の成果物を `probe_root/final_outputs/stage_11_2/` へ、`#11-3 glb merge` 相当の成果物を `probe_root/final_outputs/stage_11_3/` へ保存する。これにより runtime 切断後も Drive 側 artifact から途中再開できる。
 - `#11-2` 相当では `merged_gs.ply`、`chunk_global_transforms.csv`、`chunk_keep_summary.csv`、`chunk_transform_quality.csv`、`owner_record_histogram.csv`、`chunk_assignment_summary.csv`、`merge_warning_summary.json` を Drive 側へ保存する。
 - `#11-3` 相当では、上記に加えて `merged_scene.glb` と `merge_resume_state.json` を Drive 側へ保存し、後段はその resume state と stage artifact だけを読んで再開できる構成にする。
@@ -2504,8 +2505,6 @@ else:
 BUNDLE_MODEL_SLUG = config["BUNDLE_MODEL_SLUG"]
 REQUIRE_ALL_CHUNKS = True
 MAKE_DRIVE_BUNDLE = True
-MAKE_LOCAL_BUNDLE_ZIP = True
-DOWNLOAD_LOCAL_BUNDLE = True
 
 chunk_index_all_path = chunk_manifest_dir / "chunk_index_all.csv"
 if chunk_index_all_path.exists():
@@ -3028,36 +3027,19 @@ else:
             })
 
     bundle_summary = {
-        "status": "skipped",
-        "reason": "MAKE_DRIVE_BUNDLE is False",
+        "status": "drive_only",
+        "reason": "drive_outputs_ready_local_bundle_is_separate_stage",
     }
 
     if MAKE_DRIVE_BUNDLE:
-        local_bundle_base = f"{modeling_session_id}_{BUNDLE_MODEL_SLUG}_continuousgsv06chunk18ov6ad12"
-        local_bundle_zip = Path("/content") / f"{local_bundle_base}.zip"
-
-        if local_bundle_zip.exists():
-            local_bundle_zip.unlink()
-
         bundle_summary = {
-            "status": "ok",
+            "status": "drive_only",
             "drive_visible_dir": str(probe_root),
             "drive_pipeline_root": str(pipeline_root),
             "drive_results_root": str(results_root),
+            "local_bundle_stage": "#11-1",
+            "download_requested": False,
         }
-
-        if MAKE_LOCAL_BUNDLE_ZIP:
-            shutil.make_archive(str(local_bundle_zip.with_suffix("")), "zip", root_dir=str(probe_root))
-            bundle_summary["local_bundle_zip"] = str(local_bundle_zip)
-
-        if DOWNLOAD_LOCAL_BUNDLE and MAKE_LOCAL_BUNDLE_ZIP:
-            from google.colab import files
-            assert local_bundle_zip.exists(), local_bundle_zip
-            files.download(str(local_bundle_zip))
-            bundle_summary["download_requested"] = True
-            bundle_summary["manual_download_hint"] = f"from google.colab import files; files.download(r'{local_bundle_zip}')"
-            print("# manual_download_hint")
-            print(bundle_summary["manual_download_hint"])
 
     final_output_manifest = {
         "status": "ok" if final_output_files else "partial",
@@ -3098,6 +3080,54 @@ else:
     shutil.copy2(merged_dir / "merge_summary.json", final_outputs_diagnostics_dir / "merge_summary.json")
     print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
 
+```
+
+### #11-1 Optional local bundle zip + download
+
+- `#11` が `status == ok` で終わった後にだけ実行する任意 block とする。
+- ここでは Drive 正本を変更せず、`/content/...zip` を作って必要なら browser download を起動する。
+- local download は merge 完了条件ではない。download を行わなくても `#11` 完了時点で modeling の主処理は完了とみなす。
+
+```python
+#11-1
+from pathlib import Path
+import json
+import shutil
+
+merge_summary_path = Path("/content/runbook_session_context.json")
+ctx = json.loads(merge_summary_path.read_text(encoding="utf-8"))
+probe_root = Path(ctx["probe_root"])
+pipeline_root = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12"
+merged_dir = Path(ctx.get("merged_dir", str(pipeline_root / "merged")))
+pipeline_config_path = pipeline_root / "pipeline_config.json"
+bundle_model_slug = "bundle"
+if pipeline_config_path.exists():
+    pipeline_config = json.loads(pipeline_config_path.read_text(encoding="utf-8"))
+    bundle_model_slug = pipeline_config.get("BUNDLE_MODEL_SLUG", bundle_model_slug)
+merge_summary_doc_path = merged_dir / "merge_summary.json"
+assert merge_summary_doc_path.exists(), f"merge_summary not found: {merge_summary_doc_path}"
+merge_summary = json.loads(merge_summary_doc_path.read_text(encoding="utf-8"))
+assert merge_summary.get("status") == "ok", merge_summary
+
+local_bundle_base = f"{ctx['modeling_session_id']}_{bundle_model_slug}_continuousgsv06chunk18ov6ad12"
+local_bundle_zip = Path("/content") / f"{local_bundle_base}.zip"
+if local_bundle_zip.exists():
+    local_bundle_zip.unlink()
+shutil.make_archive(str(local_bundle_zip.with_suffix("")), "zip", root_dir=str(probe_root))
+
+bundle_download_summary = {
+    "status": "ok",
+    "route": "continuous-gs-v06-chunk18-overlap6-adopt12-local-bundle-download",
+    "local_bundle_zip": str(local_bundle_zip),
+    "manual_download_hint": f"from google.colab import files; files.download(r'{local_bundle_zip}')",
+}
+(merged_dir / "local_bundle_download_summary.json").write_text(
+    json.dumps(bundle_download_summary, indent=2, ensure_ascii=False),
+    encoding="utf-8",
+)
+print(json.dumps(bundle_download_summary, indent=2, ensure_ascii=False))
+print("# manual_download_hint")
+print(bundle_download_summary["manual_download_hint"])
 ```
 
 ### #12 Cleanup inventory
@@ -3180,7 +3210,12 @@ local_tmp_candidates = [
     ("#5", Path("/content/runbook_session_context.json"), "local_tmp", "session context cache"),
     ("#5", Path("/content/trajectreview_input"), "local_tmp", "extracted input workspace"),
 ]
-local_bundle_zip = merge_summary.get("bundle_summary", {}).get("local_bundle_zip")
+local_bundle_download_summary_path = merged_dir / "local_bundle_download_summary.json"
+local_bundle_zip = None
+if local_bundle_download_summary_path.exists():
+    local_bundle_zip = json.loads(local_bundle_download_summary_path.read_text(encoding="utf-8")).get("local_bundle_zip")
+if not local_bundle_zip:
+    local_bundle_zip = merge_summary.get("bundle_summary", {}).get("local_bundle_zip")
 if local_bundle_zip:
     local_tmp_candidates.append(("#11", Path(local_bundle_zip), "local_tmp", "download-only local bundle zip"))
 
