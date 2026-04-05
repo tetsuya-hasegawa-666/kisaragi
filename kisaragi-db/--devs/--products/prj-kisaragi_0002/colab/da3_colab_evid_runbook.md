@@ -581,7 +581,7 @@ print("inference_sig", inspect.signature(DepthAnything3.inference))
 
 - 既存 `probe_root` を再利用して merge 系だけをやり直す場合でも、runtime 初期化と path cache 生成のため `#1` から `#4` は必須とする。
 - `#3` では `correcting` と `modeling` を明示的に選べる。`correcting` を選んだ時は raw input 扱い、`modeling` を選んだ時は既存 chunk ありの `probe_root` 扱いとする。
-- 既存 modeling data を使う最短順は `#1 -> #2 -> #3 -> #4 -> #10-5 -> #11` とする。`#11` は merge 依存 package が未導入ならその場で補完する。必要なら `#6-1a` / `#6-1b` で候補一覧の再表示や手動切替を行う。
+- 既存 modeling data を使う最短順は `#1 -> #2 -> #3 -> #4 -> #10-5 -> #10-6 -> #11` とする。`#10-6` は merge 依存 package の preflight、`#11` は不足が残っていてもその場で補完する。必要なら `#6-1a` / `#6-1b` で候補一覧の再表示や手動切替を行う。
 - `correcting` を選んだ時は raw session 前提なので、通常どおり前段から全工程を進める。
 - cleanup が必要な時だけ `#12` と `#13` を続ける。
 
@@ -2369,11 +2369,53 @@ print(json.dumps(summary, indent=2, ensure_ascii=False))
 assert hard_fail_df.empty, hard_fail_df[["chunk_name", "scale", "center_rmse", "rotation_dir_residual"]].to_dict(orient="records")
 ```
 
+### #10-6 Merge dependency preflight
+
+- `#11 merge` の直前に、merge 依存 package の導入状態だけを独立確認する。
+- 既存 notebook が古く、`#11` に自己補完が入っていない runtime でも、この cell を先に実行すれば `trimesh` / `plyfile` / `scipy` 不足を解消できる。
+
+```python
+#10-6
+import importlib
+import json
+import subprocess
+import sys
+
+merge_deps = [
+    ("trimesh", "trimesh"),
+    ("plyfile", "plyfile"),
+    ("scipy", "scipy"),
+]
+missing_merge_deps = []
+for module_name, package_name in merge_deps:
+    try:
+        importlib.import_module(module_name)
+    except ModuleNotFoundError:
+        missing_merge_deps.append(package_name)
+
+if missing_merge_deps:
+    subprocess.run(
+        [sys.executable, "-m", "pip", "install", "--quiet", *missing_merge_deps],
+        check=True,
+    )
+
+status_doc = {
+    "status": "ok",
+    "route": "continuous-gs-v06-chunk18-overlap6-adopt12-merge-dependency-preflight",
+    "missing_before_install": missing_merge_deps,
+    "tested_modules": [module_name for module_name, _ in merge_deps],
+}
+with open("/content/runbook_merge_dependency_status.json", "w", encoding="utf-8") as f:
+    json.dump(status_doc, f, indent=2, ensure_ascii=False)
+print(json.dumps(status_doc, indent=2, ensure_ascii=False))
+```
+
 ### #11 Final rebuild merge + bundle
 
 - final merge でも `Block 4` と同じ owner_record 判定を使う。`PCA 1軸帯 keep` と terminal の `all keep fallback` は使わない。
 - `keep_zero_chunk` は warning ではなく hard error とし、owner-based merge が崩れた chunk を見逃さない。
 - `#11` の前に `#10-5 pre-merge pose gate` を必ず通し、`merged` または `merged_add**` 配下の `premerge_pose_validation.json` の `status == ok` を満たした時だけ merge を許可する。
+- `#11` の前に `#10-6 merge dependency preflight` を通し、`/content/runbook_merge_dependency_status.json` を作っておく。`#11` 自体にも不足 package の自己補完は残す。
 - `#11` は `trimesh`、`plyfile`、`scipy` を merge 依存 package とし、未導入なら cell 冒頭で不足分だけ install してから継続する。
 - `MAKE_DRIVE_BUNDLE = True` の時も、Drive 上で新しい複製 directory は作らない。Drive 正本は最初から `probe_root` 配下だけに集約し、bundle summary にはその root を `drive_visible_dir` として残す。
 - download 用 zip は `/content/...zip` にだけ作り、必要なら browser download を行う。したがって `vertex_assignment_summary.csv`、`chunk_assignment_summary.csv`、`owner_record_histogram.csv`、`merge_warning_summary.json`、`chunk_transform_quality.csv` は Drive 正本 `probe_root` と local zip の両方で見られる。
@@ -2416,6 +2458,10 @@ if missing_merge_deps:
 import trimesh
 from plyfile import PlyData, PlyElement
 from scipy.spatial import cKDTree
+
+merge_dependency_status_path = Path("/content/runbook_merge_dependency_status.json")
+if not merge_dependency_status_path.exists():
+    print("# warning: #10-6 merge dependency preflight was not run; continued by #11 self-heal path")
 
 ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
 probe_root = Path(ctx["probe_root"])
