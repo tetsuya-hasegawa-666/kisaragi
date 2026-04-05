@@ -481,6 +481,51 @@ import json
 
 assert "resolve_and_validate_paths" in globals(), "#2 を先に実行して helper を定義してください"
 assert "RUNBOOK_PATHS_DOC" in globals(), "#2 を先に実行して RUNBOOK_PATHS_DOC を定義してください"
+if "build_context_doc_from_paths" not in globals():
+    def build_context_doc_from_paths(paths: dict) -> dict:
+        probe_root = Path(paths["probe_root"])
+        session_root = Path(paths["session_root"]) if "session_root" in paths else probe_root
+        frame_pose_index_path = Path(paths["frame_pose_index_path"]) if "frame_pose_index_path" in paths else (session_root / "frame_pose_index.csv")
+        selected_path = Path(paths["selected_path"])
+        session_id = paths["session_id"]
+        selected_kind = paths["selected_kind"]
+        results_root = Path(paths["results_root"])
+        route_slug = "da3_record_route_v01"
+        modeling_session_id = session_id.replace("trajectreview-correcting-session-", "trajectreview-modeling-session-", 1) if session_id.startswith("trajectreview-correcting-session-") else session_id
+        if selected_kind == "modeling_dir":
+            modeling_session_id = probe_root.name
+        return {
+            "session_id": session_id,
+            "modeling_session_id": modeling_session_id,
+            "selected_kind": selected_kind,
+            "selected_path": str(selected_path),
+            "results_root": str(results_root),
+            "results_root_visibility": paths.get("results_root_visibility", "google_drive_mydrive_visible"),
+            "route_slug": route_slug,
+            "probe_root_name": probe_root.name,
+            "session_outer": str(Path(paths["session_outer"])) if "session_outer" in paths else str(probe_root),
+            "session_root": str(session_root),
+            "images_dir": str(Path(paths["images_dir"])) if "images_dir" in paths else "",
+            "frame_record_path": str(Path(paths["frame_record_path"])) if "frame_record_path" in paths else "",
+            "frame_pose_index_path": str(frame_pose_index_path),
+            "probe_root": str(probe_root),
+            "proof_metric_dir": str(Path(paths["proof_metric_dir"])),
+            "prod_metric_dir": str(Path(paths["prod_metric_dir"])),
+            "proof_giant_dir": str(Path(paths["proof_giant_dir"])),
+            "world_dir": str(Path(paths["world_dir"])),
+            "manifest_dir": str(Path(paths["manifest_dir"])),
+            "merged_dir": str(Path(paths["merged_dir"])) if "merged_dir" in paths else str(probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12" / "merged"),
+            "final_outputs_dir": str(Path(paths["final_outputs_dir"])),
+            "final_outputs_merged_dir": str(Path(paths["final_outputs_merged_dir"])),
+            "final_outputs_diagnostics_dir": str(Path(paths["final_outputs_diagnostics_dir"])),
+            "final_outputs_manifests_dir": str(Path(paths["final_outputs_manifests_dir"])),
+            "final_outputs_chunk_evidence_dir": str(Path(paths["final_outputs_chunk_evidence_dir"])),
+            "add_suffix": paths.get("add_suffix", ""),
+            "resume_mode": "existing_probe_root" if selected_kind == "modeling_dir" else "",
+            "pipeline_root": paths.get("pipeline_root", str(probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12")),
+            "chunk_runs_dir": paths.get("chunk_runs_dir", ""),
+            "input_mode": paths.get("input_mode", ""),
+        }
 selected_doc = json.loads(RUNBOOK_SELECTED_DOC.read_text(encoding="utf-8")) if "RUNBOOK_SELECTED_DOC" in globals() else json.loads(Path("/content/runbook_selected_input.json").read_text(encoding="utf-8"))
 if selected_doc.get("source_family") == "modeling" or selected_doc.get("kind") == "modeling_dir":
     paths = resolve_modeling_probe_paths(selected_doc)
