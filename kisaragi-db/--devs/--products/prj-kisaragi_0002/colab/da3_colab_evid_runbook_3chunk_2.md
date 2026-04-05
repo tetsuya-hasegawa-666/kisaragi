@@ -2247,6 +2247,74 @@ def up_direction_from_c2w(c2w: np.ndarray):
     norm = float(np.linalg.norm(axis))
     return axis / max(norm, 1e-12)
 
+def normalize_vec(vec: np.ndarray, fallback: np.ndarray):
+    vec = np.asarray(vec, dtype=np.float32)
+    norm = float(np.linalg.norm(vec))
+    if norm <= 1e-12:
+        fallback = np.asarray(fallback, dtype=np.float32)
+        fallback_norm = float(np.linalg.norm(fallback))
+        assert fallback_norm > 1e-12, "fallback vector must be non-zero"
+        return fallback / fallback_norm
+    return vec / norm
+
+def build_anchor_c2w(fallback_c2w: np.ndarray, rec) -> np.ndarray:
+    M = np.asarray(fallback_c2w, dtype=np.float32).copy()
+    center = np.array([float(rec.cx_world), float(rec.cy_world), float(rec.cz_world)], dtype=np.float32)
+    anchor_lens = normalize_vec(
+        np.array([float(rec.anchor_lens_x), float(rec.anchor_lens_y), float(rec.anchor_lens_z)], dtype=np.float32),
+        lens_direction_from_c2w(M),
+    )
+    anchor_up = normalize_vec(
+        np.array([float(rec.anchor_up_x), float(rec.anchor_up_y), float(rec.anchor_up_z)], dtype=np.float32),
+        up_direction_from_c2w(M),
+    )
+    z_col = normalize_vec(-anchor_lens, M[:3, 2])
+    x_seed = np.cross(-anchor_up, z_col)
+    x_col = normalize_vec(x_seed, M[:3, 0])
+    y_col = normalize_vec(np.cross(z_col, x_col), M[:3, 1])
+    if float(np.dot(y_col, -anchor_up)) < 0.0:
+        x_col = -x_col
+        y_col = -y_col
+    M[:3, 0] = x_col
+    M[:3, 1] = y_col
+    M[:3, 2] = z_col
+    M[:3, 3] = center
+    return M
+
+def normalize_vec(vec: np.ndarray, fallback: np.ndarray):
+    vec = np.asarray(vec, dtype=np.float32)
+    norm = float(np.linalg.norm(vec))
+    if norm <= 1e-12:
+        fallback = np.asarray(fallback, dtype=np.float32)
+        fallback_norm = float(np.linalg.norm(fallback))
+        assert fallback_norm > 1e-12, "fallback vector must be non-zero"
+        return fallback / fallback_norm
+    return vec / norm
+
+def build_anchor_c2w(fallback_c2w: np.ndarray, rec) -> np.ndarray:
+    M = np.asarray(fallback_c2w, dtype=np.float32).copy()
+    center = np.array([float(rec.cx_world), float(rec.cy_world), float(rec.cz_world)], dtype=np.float32)
+    anchor_lens = normalize_vec(
+        np.array([float(rec.anchor_lens_x), float(rec.anchor_lens_y), float(rec.anchor_lens_z)], dtype=np.float32),
+        lens_direction_from_c2w(M),
+    )
+    anchor_up = normalize_vec(
+        np.array([float(rec.anchor_up_x), float(rec.anchor_up_y), float(rec.anchor_up_z)], dtype=np.float32),
+        up_direction_from_c2w(M),
+    )
+    z_col = normalize_vec(-anchor_lens, M[:3, 2])
+    x_seed = np.cross(-anchor_up, z_col)
+    x_col = normalize_vec(x_seed, M[:3, 0])
+    y_col = normalize_vec(np.cross(z_col, x_col), M[:3, 1])
+    if float(np.dot(y_col, -anchor_up)) < 0.0:
+        x_col = -x_col
+        y_col = -y_col
+    M[:3, 0] = x_col
+    M[:3, 1] = y_col
+    M[:3, 2] = z_col
+    M[:3, 3] = center
+    return M
+
 def c2w_list_from_extrinsics(extrinsics):
     mats = []
     for ext in extrinsics:
@@ -2332,6 +2400,25 @@ def load_scene_any(path: Path):
     else:
         scene.add_geometry(loaded)
     return scene
+
+def iter_baked_scene_geometry(scene: trimesh.Scene):
+    dumped = None
+    if hasattr(scene, "dump"):
+        try:
+            dumped = scene.dump(concatenate=False)
+        except TypeError:
+            dumped = scene.dump()
+    if isinstance(dumped, (list, tuple)) and len(dumped) > 0:
+        for idx, geom in enumerate(dumped):
+            if geom is None:
+                continue
+            if hasattr(geom, "copy"):
+                geom = geom.copy()
+            yield f"dump_{idx:04d}", geom
+        return
+    for gname, geom in scene.geometry.items():
+        geom2 = geom.copy() if hasattr(geom, "copy") else geom
+        yield str(gname), geom2
 
 global_camera_map = c2w_rows_to_map(global_camera_matrix_df)
 global_frame_meta_df = global_anchor_df.merge(
@@ -2533,16 +2620,11 @@ def process_batch(run_batch_index: int):
             global_anchor_df,
             on=["record_index", "image_file_name", "image_path", "frame_timestamp_ns", "capture_timestamp_ns"],
             how="left",
+            validate="one_to_one",
         )
         assert len(merged) == len(chunk_df), {"chunk_name": row.chunk_name, "merged_len": len(merged), "chunk_len": len(chunk_df)}
         assert not merged[["cx_world", "cy_world", "cz_world", "anchor_lens_x", "anchor_lens_y", "anchor_lens_z", "anchor_up_x", "anchor_up_y", "anchor_up_z"]].isnull().any().any(), f"anchor merge missing: {row.chunk_name}"
-        global_c2w_list = []
-        for rec in merged.itertuples(index=False):
-            M = global_camera_map[int(rec.record_index)].copy()
-            M[:3, 3] = np.array([float(rec.cx_world), float(rec.cy_world), float(rec.cz_world)], dtype=np.float32)
-            M[:3, 1] = -np.array([float(rec.anchor_up_x), float(rec.anchor_up_y), float(rec.anchor_up_z)], dtype=np.float32)
-            M[:3, 2] = -np.array([float(rec.anchor_lens_x), float(rec.anchor_lens_y), float(rec.anchor_lens_z)], dtype=np.float32)
-            global_c2w_list.append(M)
+        global_c2w_list = [build_anchor_c2w(global_camera_map[int(rec.record_index)], rec) for rec in merged.itertuples(index=False)]
 
         src = local_centers
         dst = merged[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32)
@@ -2647,8 +2729,8 @@ def process_batch(run_batch_index: int):
         if glb_path.exists():
             scene = load_scene_any(glb_path)
             T = np.load(T_path).astype(np.float32)
-            for gname, geom in scene.geometry.items():
-                geom2 = geom.copy()
+            for gname, geom in iter_baked_scene_geometry(scene):
+                geom2 = geom.copy() if hasattr(geom, "copy") else geom
                 if hasattr(geom2, "apply_transform"):
                     geom2.apply_transform(T)
                 batch_scene.add_geometry(geom2, node_name=f"{row.chunk_name}_{gname}")
@@ -2893,16 +2975,11 @@ for row in target_chunks_df.itertuples(index=False):
         global_anchor_df,
         on=["record_index", "image_file_name", "image_path", "frame_timestamp_ns", "capture_timestamp_ns"],
         how="left",
+        validate="one_to_one",
     )
     assert len(merged_anchor_df) == len(chunk_frames_df), {"chunk_name": row.chunk_name, "merged_anchor_len": len(merged_anchor_df), "chunk_len": len(chunk_frames_df)}
     assert not merged_anchor_df[["cx_world", "cy_world", "cz_world", "anchor_lens_x", "anchor_lens_y", "anchor_lens_z", "anchor_up_x", "anchor_up_y", "anchor_up_z"]].isnull().any().any(), f"anchor merge missing: {row.chunk_name}"
-    global_c2w_list = []
-    for rec in merged_anchor_df.itertuples(index=False):
-        M = global_camera_map[int(rec.record_index)].copy()
-        M[:3, 3] = np.array([float(rec.cx_world), float(rec.cy_world), float(rec.cz_world)], dtype=np.float32)
-        M[:3, 1] = -np.array([float(rec.anchor_up_x), float(rec.anchor_up_y), float(rec.anchor_up_z)], dtype=np.float32)
-        M[:3, 2] = -np.array([float(rec.anchor_lens_x), float(rec.anchor_lens_y), float(rec.anchor_lens_z)], dtype=np.float32)
-        global_c2w_list.append(M)
+    global_c2w_list = [build_anchor_c2w(global_camera_map[int(rec.record_index)], rec) for rec in merged_anchor_df.itertuples(index=False)]
     diag = estimate_pose_aware_similarity(local_c2w_list, global_c2w_list, estimate_scale=True)
     scale = float(diag["scale"])
     center_rmse = float(diag["center_rmse"])
@@ -3237,6 +3314,25 @@ else:
             scene.add_geometry(loaded)
         return scene
 
+    def iter_baked_scene_geometry(scene: trimesh.Scene):
+        dumped = None
+        if hasattr(scene, "dump"):
+            try:
+                dumped = scene.dump(concatenate=False)
+            except TypeError:
+                dumped = scene.dump()
+        if isinstance(dumped, (list, tuple)) and len(dumped) > 0:
+            for idx, geom in enumerate(dumped):
+                if geom is None:
+                    continue
+                if hasattr(geom, "copy"):
+                    geom = geom.copy()
+                yield f"dump_{idx:04d}", geom
+            return
+        for gname, geom in scene.geometry.items():
+            geom2 = geom.copy() if hasattr(geom, "copy") else geom
+            yield str(gname), geom2
+
     def to_4x4(ext):
         ext = np.asarray(ext).astype(np.float32)
         if ext.shape == (4, 4):
@@ -3264,6 +3360,40 @@ else:
         axis = -np.asarray(c2w[:3, 1], dtype=np.float32)
         norm = float(np.linalg.norm(axis))
         return axis / max(norm, 1e-12)
+
+    def normalize_vec(vec: np.ndarray, fallback: np.ndarray):
+        vec = np.asarray(vec, dtype=np.float32)
+        norm = float(np.linalg.norm(vec))
+        if norm <= 1e-12:
+            fallback = np.asarray(fallback, dtype=np.float32)
+            fallback_norm = float(np.linalg.norm(fallback))
+            assert fallback_norm > 1e-12, "fallback vector must be non-zero"
+            return fallback / fallback_norm
+        return vec / norm
+
+    def build_anchor_c2w(fallback_c2w: np.ndarray, rec) -> np.ndarray:
+        M = np.asarray(fallback_c2w, dtype=np.float32).copy()
+        center = np.array([float(rec.cx_world), float(rec.cy_world), float(rec.cz_world)], dtype=np.float32)
+        anchor_lens = normalize_vec(
+            np.array([float(rec.anchor_lens_x), float(rec.anchor_lens_y), float(rec.anchor_lens_z)], dtype=np.float32),
+            lens_direction_from_c2w(M),
+        )
+        anchor_up = normalize_vec(
+            np.array([float(rec.anchor_up_x), float(rec.anchor_up_y), float(rec.anchor_up_z)], dtype=np.float32),
+            up_direction_from_c2w(M),
+        )
+        z_col = normalize_vec(-anchor_lens, M[:3, 2])
+        x_seed = np.cross(-anchor_up, z_col)
+        x_col = normalize_vec(x_seed, M[:3, 0])
+        y_col = normalize_vec(np.cross(z_col, x_col), M[:3, 1])
+        if float(np.dot(y_col, -anchor_up)) < 0.0:
+            x_col = -x_col
+            y_col = -y_col
+        M[:3, 0] = x_col
+        M[:3, 1] = y_col
+        M[:3, 2] = z_col
+        M[:3, 3] = center
+        return M
 
     def c2w_list_from_extrinsics(extrinsics):
         mats = []
@@ -3449,15 +3579,11 @@ else:
             global_anchor_df,
             on=["record_index", "image_file_name", "image_path", "frame_timestamp_ns", "capture_timestamp_ns"],
             how="left",
+            validate="one_to_one",
         )
+        assert len(merged) == len(chunk_df), {"chunk_name": row.chunk_name, "merged_len": len(merged), "chunk_len": len(chunk_df)}
         assert not merged[["cx_world", "cy_world", "cz_world", "anchor_lens_x", "anchor_lens_y", "anchor_lens_z", "anchor_up_x", "anchor_up_y", "anchor_up_z"]].isnull().any().any(), f"global anchor missing: {row.chunk_name}"
-        global_c2w_list = []
-        for rec in merged.itertuples(index=False):
-            M = global_camera_map[int(rec.record_index)].copy()
-            M[:3, 3] = np.array([float(rec.cx_world), float(rec.cy_world), float(rec.cz_world)], dtype=np.float32)
-            M[:3, 1] = -np.array([float(rec.anchor_up_x), float(rec.anchor_up_y), float(rec.anchor_up_z)], dtype=np.float32)
-            M[:3, 2] = -np.array([float(rec.anchor_lens_x), float(rec.anchor_lens_y), float(rec.anchor_lens_z)], dtype=np.float32)
-            global_c2w_list.append(M)
+        global_c2w_list = [build_anchor_c2w(global_camera_map[int(rec.record_index)], rec) for rec in merged.itertuples(index=False)]
 
         T_c_to_w0, align_diag = estimate_pose_aware_similarity(local_c2w_list, global_c2w_list, estimate_scale=True)
 
@@ -3562,8 +3688,8 @@ else:
 
         if glb_path.exists():
             scene = load_scene_any(glb_path)
-            for gname, geom in scene.geometry.items():
-                geom2 = geom.copy()
+            for gname, geom in iter_baked_scene_geometry(scene):
+                geom2 = geom.copy() if hasattr(geom, "copy") else geom
                 if hasattr(geom2, "apply_transform"):
                     geom2.apply_transform(T_c_to_w0)
                 master_scene.add_geometry(geom2, node_name=f"{row.chunk_name}_{gname}")
