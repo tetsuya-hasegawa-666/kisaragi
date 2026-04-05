@@ -5,7 +5,7 @@
 - この文書は `3chunk` 検証専用の派生 runbook とする。
 - 入力 source は `correcting` 側 zip / dir とし、fresh runtime から元 zip を読み直して新しい chunk を生成する。
 - 出力先は `modeling_3chunk_2` 側へ分離し、既存 `modeling` と既存 `modeling_3chunk` を上書きしない。
-- `MRL-10 record-native DA3 route` をベースにするが、既定では新しく生成した全 chunk のうち `No.7-9` の `3chunk` だけを処理する。
+- `MRL-10 record-native DA3 route` をベースにするが、既定では新しく生成した全 chunk のうち `No.6-11` を対象に変換 test を行う。
 - `1 record = image + pose + intrinsics + timestamp` の構造を使い、全体 camera 軌跡だけを anchor として使う。chunk 定義と chunk 実体は毎回この runbook で新規生成する。
 
 ## Route Policy
@@ -44,14 +44,14 @@
 ## 使い方
 
 - この runbook は「上から全部実行する notebook」ではない。fresh runtime の canonical route は `#1 -> #2 -> #3 -> #4 -> #5 -> #6-1 -> #6-2 -> #7 -> #8 -> #10-1 -> #10-5 -> #10-6 -> #11` とする。
-- この runbook では全体 camera 軌跡は全 frame から作るが、chunk 実行対象は新しく生成した chunk 群のうち `No.7-9` を既定 target とする。
+- この runbook では全体 camera 軌跡は全 frame から作るが、chunk 実行対象は新しく生成した chunk 群のうち `No.6-11` を既定 target とする。
 - `#3` では raw correcting source を 1 件選ぶ。既存 `modeling` の chunk 実体は参照せず、zip から新しく chunk を作る。
 
 ### 実行パターン
 
 1. 全体 camera 軌跡だけを見たい時
    - `#1 -> #2 -> #3 -> #4 -> #5 -> #6-1 -> #6-2 -> #7 -> #8`
-2. 3chunk 実行から merge まで進めたい時
+2. 変換 test 実行から merge まで進めたい時
    - `#1 -> #2 -> #3 -> #4 -> #5 -> #6-1 -> #6-2 -> #7 -> #8 -> #10-1 -> #10-5 -> #10-6 -> #11`
 3. 既存 `modeling_3chunk_2` 出力で merge だけやり直したい時
    - `#1 -> #2 -> #3 -> #4 -> #10-5 -> #10-6 -> #11`
@@ -63,12 +63,12 @@
 3. `MRL-10 Block 1`
 4. `MRL-10 Block 2`
 5. 必要時のみ `MRL-10 Block 2-1` で `MetricLarge` 由来の global camera 軌跡だけを確認する
-6. `MRL-10 Block 3` で全 chunk を生成し、既定では `No.7-9` を target に切り出す
+6. `MRL-10 Block 3` で全 chunk を生成し、既定では `No.6-11` を target に切り出す
 7. 必要時のみ `MRL-10 Block 3`
 8. 必要時のみ `MRL-10 Block 4`
-9. `MRL-10 Block 5` は target `3chunk` だけを 1 batch で処理する
+9. `MRL-10 Block 5` は target chunk window だけを 1 batch または複数 batch で処理する
    - この派生 runbook では `RUN_BATCH_INDEX = 0` だけを使う
-   - 対象は `#8` で切り出した `No.7-9` とする
+   - 対象は `#8` で切り出した `No.6-11` とする
    - `1chunk = 18frame`、`chunk overlap = 6frame`、各 chunk の再構成責務は基本 `後半 12frame` とする
 10. 最後に `MRL-10 Block 6`
 11. 必要時のみ `MRL-10 Block 6-1` で local bundle zip を作成して download する
@@ -1237,8 +1237,8 @@ prod_df = pd.read_csv(required_files["prod_manifest"])
 assert not proof_df.empty, "proof manifest empty"
 assert not prod_df.empty, "prod manifest empty"
 
-TARGET_CHUNK_WINDOW_START_1BASED = 7
-TARGET_CHUNK_WINDOW_COUNT = 3
+TARGET_CHUNK_WINDOW_START_1BASED = 6
+TARGET_CHUNK_WINDOW_COUNT = 6
 focus_ranges = []
 start_pos = 0
 chunk_id = 0
@@ -1488,6 +1488,7 @@ print(json.dumps({
 from pathlib import Path
 import json
 import math
+import hashlib
 
 import numpy as np
 import pandas as pd
@@ -1513,8 +1514,8 @@ STEP = 12
 ADOPT_SIZE = 12
 CHUNKS_PER_BATCH = 3
 USE_TARGET_CHUNK_WINDOW = True
-TARGET_CHUNK_WINDOW_START_1BASED = 7
-TARGET_CHUNK_WINDOW_COUNT = 3
+TARGET_CHUNK_WINDOW_START_1BASED = 6
+TARGET_CHUNK_WINDOW_COUNT = 6
 
 config = {
     "MODEL_ID": MODEL_ID,
@@ -1531,7 +1532,16 @@ config = {
     "CANONICAL_ANCHOR_MODE": "flip_xyz",
     "GRAVITY_DIRECTION": "-y",
 }
-(pipeline_root / "pipeline_config.json").write_text(json.dumps(config, indent=2, ensure_ascii=False), encoding="utf-8")
+
+def sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        while True:
+            chunk = f.read(1024 * 1024)
+            if not chunk:
+                break
+            h.update(chunk)
+    return h.hexdigest()
 
 prod_df = pd.read_csv(manifest_dir / "da3_input_manifest_prod.csv").reset_index(drop=True)
 assert len(prod_df) >= 2, {"prod_frame_count": len(prod_df)}
@@ -1542,6 +1552,14 @@ assert prod_extrinsics.shape[0] == len(prod_df), {
     "prod_extrinsics_shape": tuple(prod_extrinsics.shape),
     "prod_frame_count": len(prod_df),
 }
+assert prod_df["record_index"].notnull().all(), "record_index contains null"
+assert prod_df["record_index"].is_unique, "record_index must be unique in prod manifest"
+assert prod_df["frame_timestamp_ns"].notnull().all(), "frame_timestamp_ns contains null"
+assert prod_df["frame_timestamp_ns"].is_monotonic_increasing, "frame_timestamp_ns must be monotonic increasing"
+
+config["PROD_MANIFEST_SHA256"] = sha256_file(manifest_dir / "da3_input_manifest_prod.csv")
+config["PROD_EXTRINSICS_SHA256"] = sha256_file(prod_extrinsics_path)
+(pipeline_root / "pipeline_config.json").write_text(json.dumps(config, indent=2, ensure_ascii=False), encoding="utf-8")
 
 def to_4x4(ext):
     ext = np.asarray(ext).astype(np.float32)
@@ -1623,16 +1641,24 @@ bootstrap_df.to_csv(global_pose_dir / "bootstrap_input_frames.csv", index=False,
 
 rows = []
 pose_rows = []
-WORLD_ANCHOR_FLIP_XYZ = np.diag([-1.0, -1.0, -1.0, 1.0]).astype(np.float32)
+orientation_rows = []
+anchor_rows = []
 for i, row in enumerate(bootstrap_df.itertuples(index=False)):
     w2c = to_4x4(prod_extrinsics[i])
-    c2w = WORLD_ANCHOR_FLIP_XYZ @ np.linalg.inv(w2c)
+    c2w = np.linalg.inv(w2c)
     center = c2w[:3, 3]
+    right = c2w[:3, 0]
+    up = c2w[:3, 1]
+    forward = c2w[:3, 2]
+    anchor_lens = -forward
+    anchor_up = -up
     rows.append({
         "bootstrap_index": i,
         "record_index": int(row.record_index),
         "image_file_name": row.image_file_name,
         "image_path": row.image_path,
+        "frame_timestamp_ns": int(row.frame_timestamp_ns),
+        "capture_timestamp_ns": int(row.capture_timestamp_ns),
         "cx_world": float(center[0]),
         "cy_world": float(center[1]),
         "cz_world": float(center[2]),
@@ -1646,12 +1672,45 @@ for i, row in enumerate(bootstrap_df.itertuples(index=False)):
         "m20": float(c2w[2, 0]), "m21": float(c2w[2, 1]), "m22": float(c2w[2, 2]), "m23": float(c2w[2, 3]),
         "m30": float(c2w[3, 0]), "m31": float(c2w[3, 1]), "m32": float(c2w[3, 2]), "m33": float(c2w[3, 3]),
     })
+    orientation_rows.append({
+        "bootstrap_index": i,
+        "record_index": int(row.record_index),
+        "image_file_name": row.image_file_name,
+        "right_x": float(right[0]), "right_y": float(right[1]), "right_z": float(right[2]),
+        "up_x": float(up[0]), "up_y": float(up[1]), "up_z": float(up[2]),
+        "forward_x": float(forward[0]), "forward_y": float(forward[1]), "forward_z": float(forward[2]),
+    })
+    anchor_rows.append({
+        "bootstrap_index": i,
+        "record_index": int(row.record_index),
+        "image_file_name": row.image_file_name,
+        "image_path": row.image_path,
+        "frame_timestamp_ns": int(row.frame_timestamp_ns),
+        "capture_timestamp_ns": int(row.capture_timestamp_ns),
+        "cx_world": float(center[0]),
+        "cy_world": float(center[1]),
+        "cz_world": float(center[2]),
+        "anchor_lens_x": float(anchor_lens[0]), "anchor_lens_y": float(anchor_lens[1]), "anchor_lens_z": float(anchor_lens[2]),
+        "anchor_up_x": float(anchor_up[0]), "anchor_up_y": float(anchor_up[1]), "anchor_up_z": float(anchor_up[2]),
+        "matrix_right_x": float(right[0]), "matrix_right_y": float(right[1]), "matrix_right_z": float(right[2]),
+        "matrix_up_x": float(up[0]), "matrix_up_y": float(up[1]), "matrix_up_z": float(up[2]),
+        "matrix_forward_x": float(forward[0]), "matrix_forward_y": float(forward[1]), "matrix_forward_z": float(forward[2]),
+        "gravity_direction": "-y",
+        "anchor_mode": "flip_xyz_lens_up_only",
+    })
 
 camera_centers_df = pd.DataFrame(rows)
 camera_centers_df.to_csv(global_pose_dir / "camera_center_matrix.csv", index=False, encoding="utf-8")
 
 camera_matrix_df = pd.DataFrame(pose_rows)
 camera_matrix_df.to_csv(global_pose_dir / "camera_matrix_full.csv", index=False, encoding="utf-8")
+
+camera_orientation_df = pd.DataFrame(orientation_rows)
+camera_orientation_df.to_csv(global_pose_dir / "camera_orientation_full.csv", index=False, encoding="utf-8")
+
+camera_anchor_df = pd.DataFrame(anchor_rows)
+assert camera_anchor_df["record_index"].is_unique, "camera anchor record_index must be unique"
+camera_anchor_df.to_csv(global_pose_dir / "camera_anchor_full.csv", index=False, encoding="utf-8")
 
 summary = {
     "route": "continuous-gs-v06-chunk18-overlap6-adopt12-global-camera-matrix-3chunk2-target-window",
@@ -1661,6 +1720,7 @@ summary = {
     "target_chunk_count": int(len(target_chunks_df)),
     "batch_count": int(batch_count),
     "global_pose_dir": str(global_pose_dir),
+    "camera_anchor_full_path": str(global_pose_dir / "camera_anchor_full.csv"),
     "bundle_model_slug": BUNDLE_MODEL_SLUG,
     "prod_extrinsics_path": str(prod_extrinsics_path),
     "chunk_index_all_path": str(chunk_manifest_dir / "chunk_index_all.csv"),
@@ -1685,7 +1745,7 @@ print(batch_plan_df.to_string(index=False))
 - source はこの runbook で生成した `manifests/extrinsics_w2c_prod.npy` と `da3_input_manifest_prod.csv` とし、生成した可視化 CSV は `modeling_3chunk_2` 側へ保存する。
 - 向きは `camera_matrix_full.csv` に含まれるが、読みやすいように `right / up / forward` を展開した `camera_orientation_full.csv` も併せて出力する。
 - 指定した chunk 名から対象 frame 範囲を自動解釈し、対象 3 chunk 相当の focus CSV も併せて出す。
-- `modeling_3chunk_2` 側の canonical anchor は `flip_xyz` を正とし、`-y` が地面方向になる world basis へ正規化して保存する。
+- `modeling_3chunk_2` 側の canonical anchor は、位置は proper な全体 camera 軌跡を使い、姿勢は `flip_xyz` の見え方に合わせて `lens = -forward`、`up = -up` を anchor として扱う。
 
 ```python
 #8-1
@@ -1706,22 +1766,39 @@ pipeline_root = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12"
 global_pose_dir = pipeline_root / "global_pose_bootstrap"
 global_pose_dir.mkdir(parents=True, exist_ok=True)
 
-FOCUS_CHUNK_NAMES = [
-    "chunk_0005_00060_00077",
-    "chunk_0006_00072_00089",
-    "chunk_0007_00084_00101",
-]
-
+TARGET_CHUNK_WINDOW_START_1BASED = 6
+TARGET_CHUNK_WINDOW_COUNT = 6
 prod_manifest_path = source_manifest_dir / "da3_input_manifest_prod.csv"
 prod_extrinsics_path = source_manifest_dir / "extrinsics_w2c_prod.npy"
 assert prod_manifest_path.exists(), prod_manifest_path
 assert prod_extrinsics_path.exists(), prod_extrinsics_path
-
 prod_df = pd.read_csv(prod_manifest_path).reset_index(drop=True)
 prod_extrinsics = np.load(prod_extrinsics_path).astype(np.float32)
 assert prod_extrinsics.shape[0] == len(prod_df), {
     "prod_extrinsics_shape": tuple(prod_extrinsics.shape),
     "prod_frame_count": len(prod_df),
+}
+assert prod_df["record_index"].notnull().all(), "record_index contains null"
+assert prod_df["record_index"].is_unique, "record_index must be unique in prod manifest"
+assert prod_df["frame_timestamp_ns"].notnull().all(), "frame_timestamp_ns contains null"
+assert prod_df["frame_timestamp_ns"].is_monotonic_increasing, "frame_timestamp_ns must be monotonic increasing"
+FOCUS_CHUNK_NAMES = []
+start_pos = 0
+chunk_id = 0
+while start_pos < len(prod_df):
+    end_pos = min(start_pos + 18, len(prod_df))
+    if end_pos - start_pos < 2:
+        break
+    if chunk_id + 1 >= TARGET_CHUNK_WINDOW_START_1BASED and len(FOCUS_CHUNK_NAMES) < TARGET_CHUNK_WINDOW_COUNT:
+        FOCUS_CHUNK_NAMES.append(f"chunk_{chunk_id:04d}_{start_pos:05d}_{end_pos-1:05d}")
+    if end_pos == len(prod_df):
+        break
+    start_pos += 12
+    chunk_id += 1
+assert len(FOCUS_CHUNK_NAMES) == TARGET_CHUNK_WINDOW_COUNT, {
+    "target_chunk_window_start_1based": TARGET_CHUNK_WINDOW_START_1BASED,
+    "target_chunk_window_count": TARGET_CHUNK_WINDOW_COUNT,
+    "available_chunk_count": chunk_id + 1,
 }
 
 def to_4x4(ext):
@@ -1757,6 +1834,7 @@ assert 0 <= focus_global_start <= focus_global_end < len(prod_df), {
 center_rows = []
 matrix_rows = []
 orientation_rows = []
+anchor_rows = []
 for i, row in enumerate(prod_df.itertuples(index=False)):
     w2c = to_4x4(prod_extrinsics[i])
     c2w = np.linalg.inv(w2c)
@@ -1764,12 +1842,16 @@ for i, row in enumerate(prod_df.itertuples(index=False)):
     right = c2w[:3, 0]
     up = c2w[:3, 1]
     forward = c2w[:3, 2]
+    anchor_lens = -forward
+    anchor_up = -up
     record_index = int(getattr(row, "record_index", i))
     center_rows.append({
         "bootstrap_index": i,
         "record_index": record_index,
         "image_file_name": row.image_file_name,
         "image_path": row.image_path,
+        "frame_timestamp_ns": int(getattr(row, "frame_timestamp_ns")),
+        "capture_timestamp_ns": int(getattr(row, "capture_timestamp_ns")),
         "cx_world": float(center[0]),
         "cy_world": float(center[1]),
         "cz_world": float(center[2]),
@@ -1791,25 +1873,49 @@ for i, row in enumerate(prod_df.itertuples(index=False)):
         "up_x": float(up[0]), "up_y": float(up[1]), "up_z": float(up[2]),
         "forward_x": float(forward[0]), "forward_y": float(forward[1]), "forward_z": float(forward[2]),
     })
+    anchor_rows.append({
+        "bootstrap_index": i,
+        "record_index": record_index,
+        "image_file_name": row.image_file_name,
+        "image_path": row.image_path,
+        "frame_timestamp_ns": int(getattr(row, "frame_timestamp_ns")),
+        "capture_timestamp_ns": int(getattr(row, "capture_timestamp_ns")),
+        "cx_world": float(center[0]),
+        "cy_world": float(center[1]),
+        "cz_world": float(center[2]),
+        "anchor_lens_x": float(anchor_lens[0]), "anchor_lens_y": float(anchor_lens[1]), "anchor_lens_z": float(anchor_lens[2]),
+        "anchor_up_x": float(anchor_up[0]), "anchor_up_y": float(anchor_up[1]), "anchor_up_z": float(anchor_up[2]),
+        "matrix_right_x": float(right[0]), "matrix_right_y": float(right[1]), "matrix_right_z": float(right[2]),
+        "matrix_up_x": float(up[0]), "matrix_up_y": float(up[1]), "matrix_up_z": float(up[2]),
+        "matrix_forward_x": float(forward[0]), "matrix_forward_y": float(forward[1]), "matrix_forward_z": float(forward[2]),
+        "gravity_direction": "-y",
+        "anchor_mode": "flip_xyz_lens_up_only",
+    })
 
 camera_centers_df = pd.DataFrame(center_rows)
 camera_matrix_df = pd.DataFrame(matrix_rows)
 camera_orientation_df = pd.DataFrame(orientation_rows)
+camera_anchor_df = pd.DataFrame(anchor_rows)
+assert camera_anchor_df["record_index"].is_unique, "camera anchor record_index must be unique"
 camera_centers_df.to_csv(global_pose_dir / "camera_center_matrix.csv", index=False, encoding="utf-8")
 camera_matrix_df.to_csv(global_pose_dir / "camera_matrix_full.csv", index=False, encoding="utf-8")
 camera_orientation_df.to_csv(global_pose_dir / "camera_orientation_full.csv", index=False, encoding="utf-8")
+camera_anchor_df.to_csv(global_pose_dir / "camera_anchor_full.csv", index=False, encoding="utf-8")
 
 focus_mask = (camera_matrix_df["bootstrap_index"] >= focus_global_start) & (camera_matrix_df["bootstrap_index"] <= focus_global_end)
 focus_camera_matrix_df = camera_matrix_df.loc[focus_mask].copy()
 focus_camera_centers_df = camera_centers_df.loc[focus_mask].copy()
 focus_camera_orientation_df = camera_orientation_df.loc[focus_mask].copy()
+focus_camera_anchor_df = camera_anchor_df.loc[focus_mask].copy()
 focus_camera_matrix_path = global_pose_dir / f"camera_matrix_focus_{focus_global_start:05d}_{focus_global_end:05d}.csv"
 focus_camera_centers_path = global_pose_dir / f"camera_center_focus_{focus_global_start:05d}_{focus_global_end:05d}.csv"
 focus_camera_orientation_path = global_pose_dir / f"camera_orientation_focus_{focus_global_start:05d}_{focus_global_end:05d}.csv"
+focus_camera_anchor_path = global_pose_dir / f"camera_anchor_focus_{focus_global_start:05d}_{focus_global_end:05d}.csv"
 focus_ranges_path = global_pose_dir / f"focus_chunk_windows_{focus_global_start:05d}_{focus_global_end:05d}.csv"
 focus_camera_matrix_df.to_csv(focus_camera_matrix_path, index=False, encoding="utf-8")
 focus_camera_centers_df.to_csv(focus_camera_centers_path, index=False, encoding="utf-8")
 focus_camera_orientation_df.to_csv(focus_camera_orientation_path, index=False, encoding="utf-8")
+focus_camera_anchor_df.to_csv(focus_camera_anchor_path, index=False, encoding="utf-8")
 pd.DataFrame(focus_ranges).to_csv(focus_ranges_path, index=False, encoding="utf-8")
 
 summary = {
@@ -1820,6 +1926,7 @@ summary = {
     "full_camera_matrix_path": str(global_pose_dir / "camera_matrix_full.csv"),
     "full_camera_centers_path": str(global_pose_dir / "camera_center_matrix.csv"),
     "full_camera_orientation_path": str(global_pose_dir / "camera_orientation_full.csv"),
+    "full_camera_anchor_path": str(global_pose_dir / "camera_anchor_full.csv"),
     "focus_global_start": int(focus_global_start),
     "focus_global_end": int(focus_global_end),
     "focus_chunk_count": int(len(focus_ranges)),
@@ -1827,6 +1934,7 @@ summary = {
     "focus_camera_matrix_path": str(focus_camera_matrix_path),
     "focus_camera_centers_path": str(focus_camera_centers_path),
     "focus_camera_orientation_path": str(focus_camera_orientation_path),
+    "focus_camera_anchor_path": str(focus_camera_anchor_path),
     "focus_ranges_path": str(focus_ranges_path),
 }
 (global_pose_dir / "metriclarge_camera_trajectory_only_summary.json").write_text(
@@ -1845,7 +1953,7 @@ print(pd.DataFrame(focus_ranges).to_string(index=False))
 - source は `selected_path/continuous_gs_v06_chunk18_overlap6_adopt12/global_pose_bootstrap/` の `camera_matrix_full.csv` / `camera_center_matrix.csv` とする。
 - 対象 `3chunk` に対応する focus 範囲も source 側 `chunk_index_all.csv` から切り出して出力する。
 - source に orientation CSV が無い時は `camera_matrix_full.csv` から復元して `camera_orientation_*` を出力する。
-- この block を通すと、target `modeling_3chunk_2` 側の canonical `camera_matrix_full.csv` / `camera_center_matrix.csv` / `camera_orientation_full.csv` は source anchor を `flip_xyz`・`-y ground` の world basis へ正規化したものに更新され、後段 block がそのまま使う。
+- この block を通すと、target `modeling_3chunk_2` 側の canonical `camera_anchor_full.csv` は、位置は proper な全体軌跡、姿勢は `flip_xyz` の見え方に合わせた lens/up anchor preview として更新される。
 
 ```python
 #8-1b
@@ -1883,11 +1991,11 @@ assert source_camera_matrix_path.exists(), source_camera_matrix_path
 assert source_camera_centers_path.exists(), source_camera_centers_path
 assert source_chunk_index_all_path.exists(), source_chunk_index_all_path
 
-FOCUS_CHUNK_NAMES = [
-    "chunk_0005_00060_00077",
-    "chunk_0006_00072_00089",
-    "chunk_0007_00084_00101",
-]
+config_path = pipeline_root / "pipeline_config.json"
+assert config_path.exists(), config_path
+config = json.loads(config_path.read_text(encoding="utf-8"))
+target_start_1based = int(config.get("TARGET_CHUNK_WINDOW_START_1BASED", 6))
+target_count = int(config.get("TARGET_CHUNK_WINDOW_COUNT", 6))
 
 camera_matrix_df = pd.read_csv(source_camera_matrix_path)
 camera_centers_df = pd.read_csv(source_camera_centers_path)
@@ -1928,12 +2036,44 @@ else:
         })
     camera_orientation_df = pd.DataFrame(orientation_rows)
 
-focus_rows = chunk_index_all_df.loc[chunk_index_all_df["chunk_name"].isin(FOCUS_CHUNK_NAMES)].copy()
-assert len(focus_rows) == len(FOCUS_CHUNK_NAMES), {
-    "found_focus_chunk_names": sorted(focus_rows["chunk_name"].tolist()),
-    "expected_focus_chunk_names": FOCUS_CHUNK_NAMES,
+camera_orientation_df = camera_orientation_df.copy()
+camera_anchor_df = camera_centers_df.merge(
+    camera_orientation_df,
+    on=["bootstrap_index", "record_index", "image_file_name"],
+    how="inner",
+)
+assert len(camera_anchor_df) == len(camera_centers_df), {
+    "camera_anchor_len": len(camera_anchor_df),
+    "camera_centers_len": len(camera_centers_df),
 }
-focus_rows = focus_rows.sort_values("chunk_name").reset_index(drop=True)
+camera_anchor_df["anchor_lens_x"] = -camera_anchor_df["forward_x"].astype(float)
+camera_anchor_df["anchor_lens_y"] = -camera_anchor_df["forward_y"].astype(float)
+camera_anchor_df["anchor_lens_z"] = -camera_anchor_df["forward_z"].astype(float)
+camera_anchor_df["anchor_up_x"] = -camera_anchor_df["up_x"].astype(float)
+camera_anchor_df["anchor_up_y"] = -camera_anchor_df["up_y"].astype(float)
+camera_anchor_df["anchor_up_z"] = -camera_anchor_df["up_z"].astype(float)
+camera_anchor_df["matrix_right_x"] = camera_anchor_df["right_x"].astype(float)
+camera_anchor_df["matrix_right_y"] = camera_anchor_df["right_y"].astype(float)
+camera_anchor_df["matrix_right_z"] = camera_anchor_df["right_z"].astype(float)
+camera_anchor_df["matrix_up_x"] = camera_anchor_df["up_x"].astype(float)
+camera_anchor_df["matrix_up_y"] = camera_anchor_df["up_y"].astype(float)
+camera_anchor_df["matrix_up_z"] = camera_anchor_df["up_z"].astype(float)
+camera_anchor_df["matrix_forward_x"] = camera_anchor_df["forward_x"].astype(float)
+camera_anchor_df["matrix_forward_y"] = camera_anchor_df["forward_y"].astype(float)
+camera_anchor_df["matrix_forward_z"] = camera_anchor_df["forward_z"].astype(float)
+camera_anchor_df["gravity_direction"] = "-y"
+camera_anchor_df["anchor_mode"] = "flip_xyz_lens_up_only"
+assert camera_anchor_df["record_index"].is_unique, "camera anchor record_index must be unique"
+
+focus_start_0 = max(0, target_start_1based - 1)
+focus_end_0 = min(focus_start_0 + target_count, len(chunk_index_all_df))
+focus_rows = chunk_index_all_df.iloc[focus_start_0:focus_end_0].copy().reset_index(drop=True)
+assert len(focus_rows) == target_count, {
+    "target_start_1based": target_start_1based,
+    "target_count": target_count,
+    "available_chunk_count": len(chunk_index_all_df),
+}
+FOCUS_CHUNK_NAMES = focus_rows["chunk_name"].tolist()
 focus_global_start = int(focus_rows["global_start"].min())
 focus_global_end = int(focus_rows["global_end"].max())
 
@@ -1949,6 +2089,7 @@ assert len(focus_camera_matrix_df) == len(focus_camera_centers_df), {
 full_camera_matrix_out = target_global_pose_dir / "camera_matrix_full_from_modeling_source.csv"
 full_camera_centers_out = target_global_pose_dir / "camera_center_matrix_from_modeling_source.csv"
 full_camera_orientation_out = target_global_pose_dir / "camera_orientation_full_from_modeling_source.csv"
+full_camera_anchor_out = target_global_pose_dir / "camera_anchor_full_from_modeling_source.csv"
 focus_camera_matrix_out = target_global_pose_dir / f"camera_matrix_focus_from_modeling_source_{focus_global_start:05d}_{focus_global_end:05d}.csv"
 focus_camera_centers_out = target_global_pose_dir / f"camera_center_focus_from_modeling_source_{focus_global_start:05d}_{focus_global_end:05d}.csv"
 focus_camera_orientation_out = target_global_pose_dir / f"camera_orientation_focus_from_modeling_source_{focus_global_start:05d}_{focus_global_end:05d}.csv"
@@ -1957,6 +2098,7 @@ focus_ranges_out = target_global_pose_dir / f"focus_chunk_windows_from_modeling_
 camera_matrix_df.to_csv(full_camera_matrix_out, index=False, encoding="utf-8")
 camera_centers_df.to_csv(full_camera_centers_out, index=False, encoding="utf-8")
 camera_orientation_df.to_csv(full_camera_orientation_out, index=False, encoding="utf-8")
+camera_anchor_df.to_csv(full_camera_anchor_out, index=False, encoding="utf-8")
 focus_camera_matrix_df.to_csv(focus_camera_matrix_out, index=False, encoding="utf-8")
 focus_camera_centers_df.to_csv(focus_camera_centers_out, index=False, encoding="utf-8")
 focus_camera_orientation_df.to_csv(focus_camera_orientation_out, index=False, encoding="utf-8")
@@ -1966,9 +2108,10 @@ focus_rows.to_csv(focus_ranges_out, index=False, encoding="utf-8")
 camera_matrix_df.to_csv(target_global_pose_dir / "camera_matrix_full.csv", index=False, encoding="utf-8")
 camera_centers_df.to_csv(target_global_pose_dir / "camera_center_matrix.csv", index=False, encoding="utf-8")
 camera_orientation_df.to_csv(target_global_pose_dir / "camera_orientation_full.csv", index=False, encoding="utf-8")
+camera_anchor_df.to_csv(target_global_pose_dir / "camera_anchor_full.csv", index=False, encoding="utf-8")
 
 summary = {
-    "route": "selected-modeling-source-full-camera-trajectory",
+    "route": "canonical-full-camera-trajectory-preview",
     "source_probe_root": str(source_root),
     "target_probe_root": str(probe_root),
     "camera_source": "selected_modeling/global_pose_bootstrap",
@@ -1979,6 +2122,7 @@ summary = {
     "full_camera_matrix_output_path": str(full_camera_matrix_out),
     "full_camera_centers_output_path": str(full_camera_centers_out),
     "full_camera_orientation_output_path": str(full_camera_orientation_out),
+    "full_camera_anchor_output_path": str(full_camera_anchor_out),
     "focus_global_start": int(focus_global_start),
     "focus_global_end": int(focus_global_end),
     "focus_chunk_count": int(len(focus_rows)),
@@ -2001,7 +2145,7 @@ print(focus_rows[["chunk_name", "global_start", "global_end"]].to_string(index=F
 ### #9 chunk helper for 18frame / overlap6 / adopt12
 
 - この helper は `Block 3` の `camera_matrix_full.csv` と各 chunk の `pred_extrinsics.npy` を合わせて pose-aware alignment を解く。
-- global anchor は `camera_center_matrix*` の center と、`flip_xyz` で確定した「補正後レンズ方向」を使う。ここでは `lens = -c2w[:3,2]` を lens anchor として扱う。
+- global anchor は `camera_anchor_full.csv` を正本として使う。位置は proper な全体軌跡を保ち、姿勢だけ `lens = -c2w[:3,2]`、`up = -c2w[:3,1]` を anchor として扱う。
 - chunk merge の keep 判定は `PCA 1軸帯` ではなく `owner_record_index` ベースで行う。
 - 各 vertex は global frame center 近傍 `top-k` に対し `distance + direction + blur_penalty + index_penalty` で owner を決め、owner が当該 chunk の `is_adopted_region=True` record に属する時だけ keep する。
 - 生成物は `vertex_assignment_summary.csv`、`owner_record_histogram.csv`、`chunk_assignment_summary.csv`、`merge_warning_summary.csv`、`chunk_transform_quality.csv` として `pipeline_root` 配下へ保存され、`Block 6` bundle に自動同梱される。
@@ -2040,7 +2184,9 @@ target_chunks_df = pd.read_csv(chunk_manifest_dir / "chunk_index_target.csv")
 batch_plan_df = pd.read_csv(chunk_manifest_dir / "batch_plan.csv")
 global_centers_df = pd.read_csv(global_pose_dir / "camera_center_matrix.csv")
 global_camera_matrix_df = pd.read_csv(global_pose_dir / "camera_matrix_full.csv")
+global_anchor_df = pd.read_csv(global_pose_dir / "camera_anchor_full.csv")
 prod_manifest_df = pd.read_csv(manifest_dir / "da3_input_manifest_prod.csv")
+assert global_anchor_df["record_index"].is_unique, "global anchor record_index must be unique"
 
 OWNER_TOPK = 6
 OWNER_W_DIST = 1.0
@@ -2092,12 +2238,12 @@ def c2w_rows_to_map(df: pd.DataFrame):
     return out
 
 def lens_direction_from_c2w(c2w: np.ndarray):
-    axis = np.asarray(c2w[:3, 2], dtype=np.float32)
+    axis = -np.asarray(c2w[:3, 2], dtype=np.float32)
     norm = float(np.linalg.norm(axis))
     return axis / max(norm, 1e-12)
 
 def up_direction_from_c2w(c2w: np.ndarray):
-    axis = np.asarray(c2w[:3, 1], dtype=np.float32)
+    axis = -np.asarray(c2w[:3, 1], dtype=np.float32)
     norm = float(np.linalg.norm(axis))
     return axis / max(norm, 1e-12)
 
@@ -2188,14 +2334,14 @@ def load_scene_any(path: Path):
     return scene
 
 global_camera_map = c2w_rows_to_map(global_camera_matrix_df)
-global_frame_meta_df = global_centers_df.merge(
+global_frame_meta_df = global_anchor_df.merge(
     prod_manifest_df[["record_index", "qc_blur_ok", "blur_score"]],
     on="record_index",
     how="left",
 )
-global_frame_meta_df["lens_x"] = global_frame_meta_df["record_index"].map(lambda x: float(lens_direction_from_c2w(global_camera_map[int(x)])[0]))
-global_frame_meta_df["lens_y"] = global_frame_meta_df["record_index"].map(lambda x: float(lens_direction_from_c2w(global_camera_map[int(x)])[1]))
-global_frame_meta_df["lens_z"] = global_frame_meta_df["record_index"].map(lambda x: float(lens_direction_from_c2w(global_camera_map[int(x)])[2]))
+global_frame_meta_df["lens_x"] = global_frame_meta_df["anchor_lens_x"].astype(float)
+global_frame_meta_df["lens_y"] = global_frame_meta_df["anchor_lens_y"].astype(float)
+global_frame_meta_df["lens_z"] = global_frame_meta_df["anchor_lens_z"].astype(float)
 global_frame_meta_df["qc_blur_ok"] = global_frame_meta_df["qc_blur_ok"].fillna(False).astype(bool)
 global_frame_meta_df["blur_score"] = global_frame_meta_df["blur_score"].fillna(0.0)
 global_frame_meta_df = global_frame_meta_df.sort_values("record_index").reset_index(drop=True)
@@ -2326,6 +2472,7 @@ def process_batch(run_batch_index: int):
     for row in batch_chunks_df.itertuples(index=False):
         chunk_df = pd.read_csv(row.chunk_csv)
         chunk_df.attrs["chunk_name"] = row.chunk_name
+        assert chunk_df["record_index"].is_unique, f"duplicate record_index in chunk csv: {row.chunk_name}"
         images = chunk_df["image_path"].tolist()
 
         out_dir = chunk_runs_dir / row.chunk_name
@@ -2344,11 +2491,14 @@ def process_batch(run_batch_index: int):
                 and previous_config.get("USE_TARGET_CHUNK_WINDOW") == config.get("USE_TARGET_CHUNK_WINDOW")
                 and previous_config.get("TARGET_CHUNK_WINDOW_START_1BASED") == config.get("TARGET_CHUNK_WINDOW_START_1BASED")
                 and previous_config.get("TARGET_CHUNK_WINDOW_COUNT") == config.get("TARGET_CHUNK_WINDOW_COUNT")
+                and previous_config.get("PROD_MANIFEST_SHA256") == config.get("PROD_MANIFEST_SHA256")
+                and previous_config.get("PROD_EXTRINSICS_SHA256") == config.get("PROD_EXTRINSICS_SHA256")
             )
 
         if can_reuse:
             pred_extrinsics = np.load(out_dir / "pred_extrinsics.npy")
             chunk_df = pd.read_csv(out_dir / "chunk_input_frames.csv")
+            assert chunk_df["record_index"].is_unique, f"duplicate record_index in chunk_input_frames: {row.chunk_name}"
         else:
             if out_dir.exists():
                 shutil.rmtree(out_dir)
@@ -2375,16 +2525,24 @@ def process_batch(run_batch_index: int):
             config_snapshot_path.write_text(json.dumps(config, indent=2, ensure_ascii=False), encoding="utf-8")
 
         pred_extrinsics = np.asarray(pred_extrinsics).astype(np.float32)
+        assert pred_extrinsics.shape[0] == len(chunk_df), {"chunk_name": row.chunk_name, "pred_len": int(pred_extrinsics.shape[0]), "chunk_len": int(len(chunk_df))}
         local_centers = camera_centers_from_extrinsics(pred_extrinsics)
         local_c2w_list = c2w_list_from_extrinsics(pred_extrinsics)
 
         merged = chunk_df.merge(
-            global_centers_df[["record_index", "cx_world", "cy_world", "cz_world"]],
-            on="record_index",
+            global_anchor_df,
+            on=["record_index", "image_file_name", "image_path", "frame_timestamp_ns", "capture_timestamp_ns"],
             how="left",
         )
         assert len(merged) == len(chunk_df), {"chunk_name": row.chunk_name, "merged_len": len(merged), "chunk_len": len(chunk_df)}
-        global_c2w_list = [global_camera_map[int(record_index)] for record_index in merged["record_index"].tolist()]
+        assert not merged[["cx_world", "cy_world", "cz_world", "anchor_lens_x", "anchor_lens_y", "anchor_lens_z", "anchor_up_x", "anchor_up_y", "anchor_up_z"]].isnull().any().any(), f"anchor merge missing: {row.chunk_name}"
+        global_c2w_list = []
+        for rec in merged.itertuples(index=False):
+            M = global_camera_map[int(rec.record_index)].copy()
+            M[:3, 3] = np.array([float(rec.cx_world), float(rec.cy_world), float(rec.cz_world)], dtype=np.float32)
+            M[:3, 1] = -np.array([float(rec.anchor_up_x), float(rec.anchor_up_y), float(rec.anchor_up_z)], dtype=np.float32)
+            M[:3, 2] = -np.array([float(rec.anchor_lens_x), float(rec.anchor_lens_y), float(rec.anchor_lens_z)], dtype=np.float32)
+            global_c2w_list.append(M)
 
         src = local_centers
         dst = merged[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32)
@@ -2538,15 +2696,22 @@ def process_batch(run_batch_index: int):
 
 ### #10 batch run
 
-- この派生 runbook では `chunk_index_target.csv` に入れた `3chunk` だけを処理する。
-- global camera matrix と world 系は全 frame / 全体情報を使うが、chunk 実行対象だけを `3chunk` に限定する。
-- `batch_plan.csv` は 1 行だけになり、`RUN_BATCH_INDEX = 0` だけを実行すればよい。
+- この派生 runbook では `chunk_index_target.csv` に入れた target chunk window だけを処理する。
+- global camera matrix と world 系は全 frame / 全体情報を使うが、chunk 実行対象だけを target window に限定する。
+- 既定の `No.6-11` と `CHUNKS_PER_BATCH = 3` の組み合わせでは `batch_plan.csv` は 2 行になる。
+- 既定では `RUN_ALL_TARGET_BATCHES = True` で target batch をすべて順に実行する。
 - `#10-2` 以降は残していても、この派生 runbook では使わない。
 
 ```python
 #10-1
+RUN_ALL_TARGET_BATCHES = True
 RUN_BATCH_INDEX = 0
-process_batch(RUN_BATCH_INDEX)
+
+if RUN_ALL_TARGET_BATCHES:
+    for _batch_index in range(len(batch_plan_df)):
+        process_batch(int(_batch_index))
+else:
+    process_batch(int(RUN_BATCH_INDEX))
 ```
 
 ```python
@@ -2567,7 +2732,7 @@ print("unused in 3chunk runbook; run only #10-1")
 ### #10-5 Pre-merge pose gate
 
 - `#11 merge` の前に、`chunk_index_target.csv` に入れた対象 `3chunk` に対して camera-only の pose validation を必ず実行する。
-- この cell は `pred_extrinsics.npy` を `w2c` とみなし、local camera basis を `perm_yxz_sign_ppn` へ固定したうえで、global center と補正後 lens direction に対する positive similarity 制約を対象 `3chunk` で確認する。
+- この cell は `pred_extrinsics.npy` を `w2c` とみなし、local camera basis を `perm_yxz_sign_ppn` へ固定したうえで、global center と補正後 lens / up anchor に対する positive similarity 制約を対象 window で確認する。
 - gate 条件は `scale > 0`、`0.8 <= scale <= 1.3`、`center_rmse <= 0.05`、`rotation_dir_residual <= 0.05` とする。
 - 生成物は `merged` または `merged_add**` 配下の `premerge_pose_validation.csv` と `premerge_pose_validation.json`、および `final_outputs/diagnostics/` または `final_outputs_add**/diagnostics/` への copy とする。
 - `hard_fail` が 1 件でもあれば、この cell 自体を fail させ、`#11 merge` へ進まない。
@@ -2629,12 +2794,12 @@ def c2w_list_from_extrinsics(extrinsics):
     return mats
 
 def lens_direction_from_c2w(c2w: np.ndarray):
-    axis = np.asarray(c2w[:3, 2], dtype=np.float32)
+    axis = -np.asarray(c2w[:3, 2], dtype=np.float32)
     norm = float(np.linalg.norm(axis))
     return axis / max(norm, 1e-12)
 
 def up_direction_from_c2w(c2w: np.ndarray):
-    axis = np.asarray(c2w[:3, 1], dtype=np.float32)
+    axis = -np.asarray(c2w[:3, 1], dtype=np.float32)
     norm = float(np.linalg.norm(axis))
     return axis / max(norm, 1e-12)
 
@@ -2707,7 +2872,9 @@ def estimate_pose_aware_similarity(local_c2w_list, global_c2w_list, estimate_sca
     }
 
 global_camera_matrix_df = pd.read_csv(global_pose_dir / "camera_matrix_full.csv")
+global_anchor_df = pd.read_csv(global_pose_dir / "camera_anchor_full.csv")
 global_camera_map = c2w_rows_to_map(global_camera_matrix_df)
+assert global_anchor_df["record_index"].is_unique, "global anchor record_index must be unique"
 target_chunks_df = ensure_target_chunk_manifest()
 
 rows = []
@@ -2719,8 +2886,23 @@ for row in target_chunks_df.itertuples(index=False):
     assert frames_path.exists(), f"chunk_input_frames missing: {row.chunk_name}"
     pred_extrinsics = np.load(pred_path)
     chunk_frames_df = pd.read_csv(frames_path)
+    assert chunk_frames_df["record_index"].is_unique, f"duplicate record_index in chunk_input_frames: {row.chunk_name}"
+    assert pred_extrinsics.shape[0] == len(chunk_frames_df), {"chunk_name": row.chunk_name, "pred_len": int(pred_extrinsics.shape[0]), "chunk_len": int(len(chunk_frames_df))}
     local_c2w_list = c2w_list_from_extrinsics(pred_extrinsics)
-    global_c2w_list = [global_camera_map[int(record_index)] for record_index in chunk_frames_df["record_index"].tolist()]
+    merged_anchor_df = chunk_frames_df.merge(
+        global_anchor_df,
+        on=["record_index", "image_file_name", "image_path", "frame_timestamp_ns", "capture_timestamp_ns"],
+        how="left",
+    )
+    assert len(merged_anchor_df) == len(chunk_frames_df), {"chunk_name": row.chunk_name, "merged_anchor_len": len(merged_anchor_df), "chunk_len": len(chunk_frames_df)}
+    assert not merged_anchor_df[["cx_world", "cy_world", "cz_world", "anchor_lens_x", "anchor_lens_y", "anchor_lens_z", "anchor_up_x", "anchor_up_y", "anchor_up_z"]].isnull().any().any(), f"anchor merge missing: {row.chunk_name}"
+    global_c2w_list = []
+    for rec in merged_anchor_df.itertuples(index=False):
+        M = global_camera_map[int(rec.record_index)].copy()
+        M[:3, 3] = np.array([float(rec.cx_world), float(rec.cy_world), float(rec.cz_world)], dtype=np.float32)
+        M[:3, 1] = -np.array([float(rec.anchor_up_x), float(rec.anchor_up_y), float(rec.anchor_up_z)], dtype=np.float32)
+        M[:3, 2] = -np.array([float(rec.anchor_lens_x), float(rec.anchor_lens_y), float(rec.anchor_lens_z)], dtype=np.float32)
+        global_c2w_list.append(M)
     diag = estimate_pose_aware_similarity(local_c2w_list, global_c2w_list, estimate_scale=True)
     scale = float(diag["scale"])
     center_rmse = float(diag["center_rmse"])
@@ -3029,9 +3211,11 @@ if REQUIRE_ALL_CHUNKS and len(completed_chunks_df) < len(target_chunks_df):
 else:
     global_centers_df = pd.read_csv(global_pose_dir / "camera_center_matrix.csv")
     global_camera_matrix_df = pd.read_csv(global_pose_dir / "camera_matrix_full.csv")
+    global_anchor_df = pd.read_csv(global_pose_dir / "camera_anchor_full.csv")
     prod_manifest_path = manifest_dir / "da3_input_manifest_prod.csv"
     assert prod_manifest_path.exists(), prod_manifest_path
     prod_manifest_df = pd.read_csv(prod_manifest_path)
+    assert global_anchor_df["record_index"].is_unique, "global anchor record_index must be unique"
     OWNER_TOPK = 6
     OWNER_W_DIST = 1.0
     OWNER_W_DIR = 0.35
@@ -3072,12 +3256,12 @@ else:
         return out
 
     def lens_direction_from_c2w(c2w: np.ndarray):
-        axis = np.asarray(c2w[:3, 2], dtype=np.float32)
+        axis = -np.asarray(c2w[:3, 2], dtype=np.float32)
         norm = float(np.linalg.norm(axis))
         return axis / max(norm, 1e-12)
 
     def up_direction_from_c2w(c2w: np.ndarray):
-        axis = np.asarray(c2w[:3, 1], dtype=np.float32)
+        axis = -np.asarray(c2w[:3, 1], dtype=np.float32)
         norm = float(np.linalg.norm(axis))
         return axis / max(norm, 1e-12)
 
@@ -3156,14 +3340,14 @@ else:
         return T.astype(np.float32), diag
 
     global_camera_map = c2w_rows_to_map(global_camera_matrix_df)
-    global_frame_meta_df = global_centers_df.merge(
+    global_frame_meta_df = global_anchor_df.merge(
         prod_manifest_df[["record_index", "qc_blur_ok", "blur_score"]],
         on="record_index",
         how="left",
     )
-    global_frame_meta_df["lens_x"] = global_frame_meta_df["record_index"].map(lambda x: float(lens_direction_from_c2w(global_camera_map[int(x)])[0]))
-    global_frame_meta_df["lens_y"] = global_frame_meta_df["record_index"].map(lambda x: float(lens_direction_from_c2w(global_camera_map[int(x)])[1]))
-    global_frame_meta_df["lens_z"] = global_frame_meta_df["record_index"].map(lambda x: float(lens_direction_from_c2w(global_camera_map[int(x)])[2]))
+    global_frame_meta_df["lens_x"] = global_frame_meta_df["anchor_lens_x"].astype(float)
+    global_frame_meta_df["lens_y"] = global_frame_meta_df["anchor_lens_y"].astype(float)
+    global_frame_meta_df["lens_z"] = global_frame_meta_df["anchor_lens_z"].astype(float)
     global_frame_meta_df["qc_blur_ok"] = global_frame_meta_df["qc_blur_ok"].fillna(False).astype(bool)
     global_frame_meta_df["blur_score"] = global_frame_meta_df["blur_score"].fillna(0.0)
     global_frame_meta_df = global_frame_meta_df.sort_values("record_index").reset_index(drop=True)
@@ -3255,17 +3439,25 @@ else:
         chunk_df = pd.read_csv(chunk_input_path)
         pred_extrinsics = np.load(pred_ext_path)
         chunk_df.attrs["chunk_name"] = row.chunk_name
+        assert chunk_df["record_index"].is_unique, f"duplicate record_index in chunk_input_frames: {row.chunk_name}"
+        assert pred_extrinsics.shape[0] == len(chunk_df), {"chunk_name": row.chunk_name, "pred_len": int(pred_extrinsics.shape[0]), "chunk_len": int(len(chunk_df))}
 
         local_c2w_list = c2w_list_from_extrinsics(pred_extrinsics)
         local_centers = np.stack([m[:3, 3] for m in local_c2w_list], axis=0).astype(np.float32)
 
         merged = chunk_df.merge(
-            global_centers_df[["record_index", "cx_world", "cy_world", "cz_world"]],
-            on="record_index",
+            global_anchor_df,
+            on=["record_index", "image_file_name", "image_path", "frame_timestamp_ns", "capture_timestamp_ns"],
             how="left",
         )
-        assert not merged[["cx_world", "cy_world", "cz_world"]].isnull().any().any(), f"global center missing: {row.chunk_name}"
-        global_c2w_list = [global_camera_map[int(record_index)] for record_index in merged["record_index"].tolist()]
+        assert not merged[["cx_world", "cy_world", "cz_world", "anchor_lens_x", "anchor_lens_y", "anchor_lens_z", "anchor_up_x", "anchor_up_y", "anchor_up_z"]].isnull().any().any(), f"global anchor missing: {row.chunk_name}"
+        global_c2w_list = []
+        for rec in merged.itertuples(index=False):
+            M = global_camera_map[int(rec.record_index)].copy()
+            M[:3, 3] = np.array([float(rec.cx_world), float(rec.cy_world), float(rec.cz_world)], dtype=np.float32)
+            M[:3, 1] = -np.array([float(rec.anchor_up_x), float(rec.anchor_up_y), float(rec.anchor_up_z)], dtype=np.float32)
+            M[:3, 2] = -np.array([float(rec.anchor_lens_x), float(rec.anchor_lens_y), float(rec.anchor_lens_z)], dtype=np.float32)
+            global_c2w_list.append(M)
 
         T_c_to_w0, align_diag = estimate_pose_aware_similarity(local_c2w_list, global_c2w_list, estimate_scale=True)
 
@@ -3460,6 +3652,7 @@ else:
         (prod_manifest_path, final_outputs_manifests_dir / "da3_input_manifest_prod.csv"),
         (global_pose_dir / "camera_center_matrix.csv", final_outputs_manifests_dir / "camera_center_matrix.csv"),
         (global_pose_dir / "camera_matrix_full.csv", final_outputs_manifests_dir / "camera_matrix_full.csv"),
+        (global_pose_dir / "camera_anchor_full.csv", final_outputs_manifests_dir / "camera_anchor_full.csv"),
         (chunk_manifest_dir / "chunk_index_all.csv", final_outputs_manifests_dir / "chunk_index_all.csv"),
         (chunk_manifest_dir / "batch_plan.csv", final_outputs_manifests_dir / "batch_plan.csv"),
     ]
