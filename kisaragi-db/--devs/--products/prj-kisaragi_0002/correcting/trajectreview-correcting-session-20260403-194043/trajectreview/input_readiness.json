@@ -1,0 +1,18 @@
+{
+  "sessionId": "session-20260403-194043",
+  "requiredInputs": {
+    "session_manifest": true,
+    "video": true,
+    "frames": true,
+    "imu": true,
+    "bt": true
+  },
+  "optionalInputs": {
+    "poses": true,
+    "gnss": true,
+    "video_events": true
+  },
+  "missingRequiredInputs": [],
+  "readyForDiagnose": true,
+  "nextAction": "data-check を確認する"
+}

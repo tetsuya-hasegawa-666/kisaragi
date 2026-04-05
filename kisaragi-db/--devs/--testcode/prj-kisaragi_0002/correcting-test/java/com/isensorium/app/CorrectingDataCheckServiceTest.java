@@ -5,7 +5,11 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.File;
+import java.util.List;
+import java.util.Set;
 import java.nio.file.Files;
+
+import kotlin.Pair;
 
 public class CorrectingDataCheckServiceTest {
 
@@ -37,6 +41,37 @@ public class CorrectingDataCheckServiceTest {
         Assert.assertTrue(result.getRecommendedCorrections().stream().anyMatch(it -> it.contains("BLE")));
         Assert.assertTrue(result.getRecommendedCorrections().stream().anyMatch(it -> it.contains("ARCore pose coverage")));
         Assert.assertEquals("session-20260326-120000", result.getSessionId());
+    }
+
+    @Test
+    public void selectTransferImageFrameIndexesKeepsAtLeastFiveFpsWhenSourceIsDense() {
+        List<Pair<Integer, Long>> frameTimes =
+            List.of(
+                new Pair<>(0, 0L),
+                new Pair<>(1, 100_000_000L),
+                new Pair<>(2, 200_000_000L),
+                new Pair<>(3, 300_000_000L),
+                new Pair<>(4, 400_000_000L),
+                new Pair<>(5, 500_000_000L)
+            );
+
+        Set<Integer> selected = CorrectingDataCheckService.selectTransferImageFrameIndexes(frameTimes);
+
+        Assert.assertEquals(Set.of(0, 2, 4, 5), selected);
+    }
+
+    @Test
+    public void selectTransferImageFrameIndexesKeepsAllFramesWhenSourceIsAlreadySparse() {
+        List<Pair<Integer, Long>> frameTimes =
+            List.of(
+                new Pair<>(0, 0L),
+                new Pair<>(1, 300_000_000L),
+                new Pair<>(2, 600_000_000L)
+            );
+
+        Set<Integer> selected = CorrectingDataCheckService.selectTransferImageFrameIndexes(frameTimes);
+
+        Assert.assertEquals(Set.of(0, 1, 2), selected);
     }
 
     private File createSessionDir(boolean includeBt, boolean includePose) throws Exception {

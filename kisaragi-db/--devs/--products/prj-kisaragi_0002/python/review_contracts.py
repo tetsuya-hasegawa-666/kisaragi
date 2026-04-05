@@ -33,7 +33,7 @@ def build_stage_handoff_contracts() -> list[StageHandoffContract]:
                 "sensor_quality.json",
                 "frame_pose_index.csv",
                 "camera_calibration_summary.json",
-                "images/",
+                "trajectreview/image/",
                 "frame_record.jsonl",
                 "member_identity_map.json",
                 "session_package.json",
@@ -58,7 +58,7 @@ def build_stage_handoff_contracts() -> list[StageHandoffContract]:
                 "frame_pose_index.csv",
                 "camera_calibration_summary.json",
                 "frame_record.jsonl",
-                "images/",
+                "trajectreview/image/",
             ],
             output_contracts=[
                 "SpacePackage",

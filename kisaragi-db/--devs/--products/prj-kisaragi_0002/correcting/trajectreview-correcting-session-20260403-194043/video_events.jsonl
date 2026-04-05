@@ -1,0 +1,2 @@
+{"type":"replacement_runtime_recording_start","eventTimeMillis":1775212844569,"elapsedRealtimeNanos":1468036710463053,"bytesRecorded":0,"durationNanos":0}
+{"type":"replacement_runtime_recording_finalize","eventTimeMillis":1775212890300,"elapsedRealtimeNanos":1468082441038192,"bytesRecorded":7330320,"durationNanos":46838083784}

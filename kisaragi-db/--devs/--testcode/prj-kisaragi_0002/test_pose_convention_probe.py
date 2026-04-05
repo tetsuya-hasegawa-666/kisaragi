@@ -10,6 +10,13 @@ from typing import Iterable
 
 import numpy as np
 
+FIXED_INTERPRETATION = "w2c"
+FIXED_AXIS_VARIANT = "perm_yxz_sign_ppn"
+TRANSFORM_SCALE_MIN = 0.8
+TRANSFORM_SCALE_MAX = 1.3
+TRANSFORM_CENTER_RMSE_MAX = 0.05
+TRANSFORM_ROT_DIR_MAX = 0.05
+
 
 def to_4x4(ext: np.ndarray) -> np.ndarray:
     ext = np.asarray(ext, dtype=np.float64)
@@ -239,6 +246,25 @@ def build_probe_result(interpretation: str, axis_variant: str, diag: dict[str, f
     )
 
 
+def evaluate_constraint(diag: dict[str, float]) -> dict[str, bool]:
+    scale = float(diag["scale"])
+    center_rmse = float(diag["center_rmse"])
+    rot = float(diag["rotation_dir_residual"])
+    return {
+        "positive_similarity_ok": scale > 0.0,
+        "scale_in_range_ok": TRANSFORM_SCALE_MIN <= scale <= TRANSFORM_SCALE_MAX,
+        "center_rmse_ok": center_rmse <= TRANSFORM_CENTER_RMSE_MAX,
+        "rotation_dir_ok": rot <= TRANSFORM_ROT_DIR_MAX,
+        "hard_fail": (
+            (scale <= 0.0)
+            or (scale < TRANSFORM_SCALE_MIN)
+            or (scale > TRANSFORM_SCALE_MAX)
+            or (center_rmse > TRANSFORM_CENTER_RMSE_MAX)
+            or (rot > TRANSFORM_ROT_DIR_MAX)
+        ),
+    }
+
+
 def write_chunk_markdown(path: Path, chunk_name: str, chunk_summary: dict, top_rows: list[ProbeResult]) -> None:
     lines = [
         f"# {chunk_name} pose star table",
@@ -256,8 +282,10 @@ def write_chunk_markdown(path: Path, chunk_name: str, chunk_summary: dict, top_r
         "## 判定メモ",
         "",
         f"- current runbook 相当: `{chunk_summary['current_runbook_candidate']['interpretation']} / {chunk_summary['current_runbook_candidate']['axis_variant']}`",
+        f"- fixed convention candidate: `{chunk_summary['fixed_candidate']['interpretation']} / {chunk_summary['fixed_candidate']['axis_variant']}`",
         f"- best balanced: `{chunk_summary['best_balanced_rot_lt_0_2']['interpretation']} / {chunk_summary['best_balanced_rot_lt_0_2']['axis_variant']}`" if chunk_summary["best_balanced_rot_lt_0_2"] else "- best balanced: なし",
         f"- best by rotation: `{chunk_summary['best_by_rotation']['interpretation']} / {chunk_summary['best_by_rotation']['axis_variant']}`",
+        f"- fixed convention hard fail: `{chunk_summary['fixed_constraint']['hard_fail']}`",
         "",
         "## 星取表",
         "",
@@ -320,6 +348,12 @@ def main() -> None:
         balanced_pool = [row for row in results if row.positive_scale and row.rotation_dir_residual < 0.2]
         best_balanced = min(balanced_pool, key=lambda r: (-r.total_star, r.center_rmse, r.rotation_dir_residual)) if balanced_pool else None
         current_runbook_candidate = next(row for row in results if row.interpretation == "w2c" and row.axis_variant == "perm_xyz_sign_ppp")
+        fixed_candidate = next(row for row in results if row.interpretation == FIXED_INTERPRETATION and row.axis_variant == FIXED_AXIS_VARIANT)
+        fixed_constraint = evaluate_constraint({
+            "scale": fixed_candidate.scale,
+            "center_rmse": fixed_candidate.center_rmse,
+            "rotation_dir_residual": fixed_candidate.rotation_dir_residual,
+        })
 
         summary = {
             "chunk_name": chunk_name,
@@ -333,6 +367,8 @@ def main() -> None:
             "best_by_rotation": asdict(best_rotation),
             "best_balanced_rot_lt_0_2": asdict(best_balanced) if best_balanced else None,
             "current_runbook_candidate": asdict(current_runbook_candidate),
+            "fixed_candidate": asdict(fixed_candidate),
+            "fixed_constraint": fixed_constraint,
             "all_candidates_csv": str(output_dir / f"{chunk_name}_pose_candidates.csv"),
             "summary_json": str(output_dir / f"{chunk_name}_pose_summary.json"),
             "transform_json": str(output_dir / f"{chunk_name}_pose_transforms.json"),
@@ -366,13 +402,17 @@ def main() -> None:
             "runbook_scale": current_runbook_candidate.scale,
             "runbook_center_rmse": current_runbook_candidate.center_rmse,
             "runbook_rotation_dir_residual": current_runbook_candidate.rotation_dir_residual,
+            "fixed_scale": fixed_candidate.scale,
+            "fixed_center_rmse": fixed_candidate.center_rmse,
+            "fixed_rotation_dir_residual": fixed_candidate.rotation_dir_residual,
+            "fixed_hard_fail": fixed_constraint["hard_fail"],
         })
 
     aggregate_rows.sort(key=lambda r: r["chunk_name"])
     write_csv_rows(
         output_dir / "all_chunks_pose_probe_summary.csv",
         aggregate_rows,
-        ["chunk_name", "frame_count", "chosen_interpretation", "chosen_axis_variant", "chosen_basis_meaning", "chosen_scale", "chosen_center_rmse", "chosen_rotation_dir_residual", "runbook_scale", "runbook_center_rmse", "runbook_rotation_dir_residual"],
+        ["chunk_name", "frame_count", "chosen_interpretation", "chosen_axis_variant", "chosen_basis_meaning", "chosen_scale", "chosen_center_rmse", "chosen_rotation_dir_residual", "runbook_scale", "runbook_center_rmse", "runbook_rotation_dir_residual", "fixed_scale", "fixed_center_rmse", "fixed_rotation_dir_residual", "fixed_hard_fail"],
     )
 
     trend_rows = sorted(
@@ -409,6 +449,46 @@ def main() -> None:
             f"| `{row['chunk_name']}` | `{row['chosen_interpretation']} / {row['chosen_axis_variant']}` | `{row['chosen_basis_meaning']}` | {row['chosen_scale']:.6f} | {row['chosen_center_rmse']:.6f} | {row['chosen_rotation_dir_residual']:.6f} | {row['runbook_scale']:.6f} | {row['runbook_center_rmse']:.6f} | {row['runbook_rotation_dir_residual']:.6f} |"
         )
     (output_dir / "all_chunks_pose_probe.md").write_text("\n".join(trend_lines) + "\n", encoding="utf-8")
+
+    constraint_rows = []
+    for row in aggregate_rows:
+        constraint_rows.append({
+            "chunk_name": row["chunk_name"],
+            "fixed_scale": row["fixed_scale"],
+            "fixed_center_rmse": row["fixed_center_rmse"],
+            "fixed_rotation_dir_residual": row["fixed_rotation_dir_residual"],
+            "fixed_hard_fail": row["fixed_hard_fail"],
+        })
+    write_csv_rows(
+        output_dir / "all_chunks_pose_constraints.csv",
+        constraint_rows,
+        ["chunk_name", "fixed_scale", "fixed_center_rmse", "fixed_rotation_dir_residual", "fixed_hard_fail"],
+    )
+
+    scale_values = [float(row["fixed_scale"]) for row in aggregate_rows]
+    center_values = [float(row["fixed_center_rmse"]) for row in aggregate_rows]
+    rot_values = [float(row["fixed_rotation_dir_residual"]) for row in aggregate_rows]
+    hard_fail_count = sum(bool(row["fixed_hard_fail"]) for row in aggregate_rows)
+    constraint_summary = {
+        "fixed_convention": f"{FIXED_INTERPRETATION}:{FIXED_AXIS_VARIANT}",
+        "thresholds": {
+            "scale_min": TRANSFORM_SCALE_MIN,
+            "scale_max": TRANSFORM_SCALE_MAX,
+            "center_rmse_max": TRANSFORM_CENTER_RMSE_MAX,
+            "rotation_dir_max": TRANSFORM_ROT_DIR_MAX,
+        },
+        "observed": {
+            "scale_min": min(scale_values),
+            "scale_max": max(scale_values),
+            "center_rmse_min": min(center_values),
+            "center_rmse_max": max(center_values),
+            "rotation_dir_min": min(rot_values),
+            "rotation_dir_max": max(rot_values),
+        },
+        "hard_fail_count": hard_fail_count,
+        "tested_chunks": len(aggregate_rows),
+    }
+    (output_dir / "all_chunks_pose_constraints.json").write_text(json.dumps(constraint_summary, indent=2, ensure_ascii=False), encoding="utf-8")
 
     print(json.dumps({
         "tested_chunks": len(aggregate_rows),

@@ -53,7 +53,7 @@ object GuardedUpstreamTrialContract {
         "gnss.csv",
         "ble_scan.jsonl",
         "frame_record.jsonl",
-        "images",
+        "trajectreview/image",
         "video_frame_timestamps.csv",
         "video_events.jsonl",
     )

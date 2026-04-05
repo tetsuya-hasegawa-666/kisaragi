@@ -1,0 +1,166 @@
+{
+  "sessionId": "session-20260403-194043",
+  "status": "finalized",
+  "deviceModel": "SO-53B",
+  "recordingRoot": "\/storage\/emulated\/0\/Android\/data\/com.reviework.correcting\/files\/Documents\/sessions\/session-20260403-194043",
+  "timebase": {
+    "sessionStartWallTimeMs": 1775212843461,
+    "sessionStartElapsedRealtimeNanos": 1468035602956179
+  },
+  "recordingMode": "standard_handheld",
+  "recordingModeLabel": "通常計測",
+  "recordingConfig": {
+    "videoFrameLogIntervalMs": 100,
+    "imuIntervalMs": 20,
+    "gnssIntervalMs": 1000,
+    "bleIntervalMs": 2000,
+    "arCoreIntervalMs": 33,
+    "bleEnabled": true,
+    "arCoreEnabled": true,
+    "frameRecordEveryNUpdates": 1,
+    "saveOnlyWhenTracking": true,
+    "recordingMode": "standard_handheld"
+  },
+  "modeBehavior": {
+    "displayLabel": "通常計測",
+    "optionalSensorPolicy": "operator_selected",
+    "videoFrameLogIntervalMs": 100,
+    "bleIntervalMs": 2000,
+    "arCoreIntervalMs": 33,
+    "frameRecordEveryNUpdates": 1,
+    "saveOnlyWhenTracking": true
+  },
+  "frameRecordPolicy": {
+    "recordUnit": "one_adopted_frame_update",
+    "recordUnitReason": "DA3 \/ 3DGS 前段では image、pose、intrinsics、timestamp を同じ採択 frame の 1 record として扱い、後段で nearest-link や video 後抽出へ戻さずに時系列一貫性を保つ必要があるため",
+    "imageOrientationPolicy": "rotate_right_90_upright",
+    "imageRotationClockwiseDegrees": 90,
+    "imageOrientationReason": "学習に使う静止画を portrait upright の canonical 入力へ正規化し、保存 image と record の imageIntrinsics を同じ向き基準で扱うため"
+  },
+  "sessionAdapter": {
+    "adapterSeamId": "shared-camera-session-adapter",
+    "adapterPlanVersion": "shared-camera-session-adapter\/v1",
+    "requestedRoute": "corecamera_shared_camera_trial",
+    "activeRoute": "corecamera_shared_camera_trial",
+    "cutoverGateStatus": "READY_FOR_RUNTIME_WIRING",
+    "rollbackAnchorTag": "rollback-isensorium-pre-upstream-trial-2026-03-15-001",
+    "rollbackAnchorCommit": "c5656973ee190e2bb1e99d3cd806f813d4b7ce7a",
+    "preservedOperations": [
+      "startSession",
+      "stopSession",
+      "findLatestSession"
+    ]
+  },
+  "guardedUpstreamTrial": {
+    "status": "PREPARED",
+    "requestedRoute": "corecamera_shared_camera_trial",
+    "activeRoute": "corecamera_shared_camera_trial",
+    "cutoverGateStatus": "READY_FOR_RUNTIME_WIRING",
+    "upstreamTrialPackageVersion": "upstream-trial-package\/v1",
+    "upstreamTrialPackageStatus": "READY",
+    "adapterSeamId": "shared-camera-session-adapter",
+    "requiredArtifacts": [
+      "session_manifest.json",
+      "video.mp4",
+      "imu.csv",
+      "gnss.csv",
+      "ble_scan.jsonl",
+      "frame_record.jsonl",
+      "trajectreview\/image",
+      "video_frame_timestamps.csv",
+      "video_events.jsonl"
+    ],
+    "preservedOperations": [
+      "startSession",
+      "stopSession",
+      "findLatestSession"
+    ],
+    "evidenceProject": "coreCamera",
+    "evidencePlanSet": "2026-03-14-001",
+    "evidenceSessionId": "session-20260315-044922",
+    "rollbackAnchorTag": "rollback-isensorium-pre-upstream-trial-2026-03-15-001",
+    "rollbackAnchorCommit": "c5656973ee190e2bb1e99d3cd806f813d4b7ce7a",
+    "guardRule": "keep the frozen CameraX + ARCore path as the default runtime route until explicit replacement wiring is validated inside iSensorium",
+    "replacementRuntimeEnabled": true
+  },
+  "streams": [
+    {
+      "name": "video",
+      "file": "video.mp4",
+      "frameTimestampsFile": "video_frame_timestamps.csv"
+    },
+    {
+      "name": "imu",
+      "file": "imu.csv"
+    },
+    {
+      "name": "gnss",
+      "file": "gnss.csv"
+    },
+    {
+      "name": "ble",
+      "file": "ble_scan.jsonl"
+    },
+    {
+      "name": "frame_record",
+      "file": "frame_record.jsonl",
+      "imagesDir": "trajectreview\/image"
+    }
+  ],
+  "collectorStatus": {
+    "camera2": "closed",
+    "sharedCamera": "closed",
+    "video": "captured",
+    "pose": "stopped",
+    "gnss": "active",
+    "ble": "active",
+    "arcore": "stopped"
+  },
+  "imuSampleCount": 3181,
+  "gnssSampleCount": 5,
+  "bleSampleCount": 18,
+  "arCoreSampleCount": 1170,
+  "files": [
+    {
+      "name": "session_manifest.json",
+      "sizeBytes": 5035
+    },
+    {
+      "name": "video.mp4",
+      "sizeBytes": 7330320
+    },
+    {
+      "name": "imu.csv",
+      "sizeBytes": 348291
+    },
+    {
+      "name": "gnss.csv",
+      "sizeBytes": 656
+    },
+    {
+      "name": "ble_scan.jsonl",
+      "sizeBytes": 3383
+    },
+    {
+      "name": "frame_record.jsonl",
+      "sizeBytes": 1345923
+    },
+    {
+      "name": "video_frame_timestamps.csv",
+      "sizeBytes": 145919
+    },
+    {
+      "name": "video_events.jsonl",
+      "sizeBytes": 329
+    }
+  ],
+  "frameRecordDiagnostics": {
+    "loopCount": 1196,
+    "uniqueFrameCount": 1183,
+    "adoptedUpdateCount": 1183,
+    "skippedNotTrackingCount": 13,
+    "skippedImageUnavailableCount": 0,
+    "skippedQueueFullCount": 0,
+    "savedRecordCount": 1169
+  }
+}

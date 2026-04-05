@@ -57,7 +57,7 @@ def build_notebook_document(job_request: dict[str, Any], selected_route: dict[st
             "elif job_request_path.exists():\n"
             "    job_request = json.loads(job_request_path.read_text(encoding='utf-8'))\n"
             "    route_id = job_request.get('defaultRouteId', route_id)\n"
-            "images_source = session_root / 'images'\n"
+            "images_source = session_root / 'trajectreview' / 'image'\n"
             "required = [\n"
             "    session_root / 'video.mp4',\n"
             "    session_root / 'session_package.json',\n"
@@ -89,7 +89,7 @@ def build_notebook_document(job_request: dict[str, Any], selected_route: dict[st
         code_cell(
             "from pathlib import Path\n"
             "work_root = Path(CONFIG['work_root'])\n"
-            "images_dir = work_root / 'images'\n"
+            "images_dir = work_root / 'image'\n"
             "da3_export_dir = work_root / 'da3_output'\n"
             "export_dir = Path(CONFIG['result_root']) / session_id / route_id\n"
             "for directory in [work_root, images_dir, da3_export_dir, export_dir]:\n"
