@@ -9,8 +9,8 @@
 
 - 恒久 truth は [project-truth.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\project-truth.md)
 - plan / current / gate は [hi-ai-unified-blueprint.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\hi-ai-unified-blueprint.md)
-- record-native `Colab` 正本は [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_colab_evid_runbook.md)
-- record-native `Colab` の実行 notebook は [da3_colab_evid_runbook.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_colab_evid_runbook.ipynb)
+- record-native `Colab` 正本は [da3_ngl_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook.md)
+- record-native `Colab` の実行 notebook は [da3_ngl_runbook.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook.ipynb)
 - `MRL-10` は同 runbook の `.md/.ipynb` pair の `MRL-10 record-native DA3 route` section を使う
 - notebook cell、error、admin 実行結果の往復 log は [sharedlogs_da3-colab.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\sharedlogs_da3-colab.md)
 - admin UX 手順は [admin-mrl-test-method.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\admin-mrl-test-method.md)
@@ -31,10 +31,10 @@
 
 ## 到達済み
 
-- [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_colab_evid_runbook.md) は `Adopted Bootstrap v1` を持つ。
+- [da3_ngl_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook.md) は `Adopted Bootstrap v1` を持つ。
 - `Google Drive` shortcut 配下の zip から `session_root` を正規化できる。
 - `Depth-Anything-3` repo clone、必要 dependency install、`depth_anything_3.api` import が通る。
-- `T4` 上で `DA3METRIC-LARGE` の `1 frame` 推論が通り、`summary.json`、`depth_preview.png`、`depth_raw.npy` を保存できる。
+- `T4` 上で `DA3NESTED-GIANT-LARGE-1.1` の `1 frame` 推論が通り、`summary.json`、`depth_preview.png`、`depth_raw.npy` を保存できる。
 - `conf`、`intrinsics`、`extrinsics` が `None` でも bootstrap pass として扱う。
 - `correcting` 実 data を使い、world back-projection、point export、`gsplat` rasterization、`gs_model` / `space_quality` / `SpacePackage` smoke artifact 生成、local download evidence 化まで通過した。
 - この結果は `MRL-3` から `MRL-6` の `p-done` 根拠として正本へ反映済みである。
@@ -54,9 +54,9 @@
 
 1. [sharedlogs_da3-colab.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\sharedlogs_da3-colab.md) の最下部を読んで、最新の `# codex v**` と `# admin` を確認する。
 2. [hi-ai-unified-blueprint.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\hi-ai-unified-blueprint.md) で `MRL-2S` と後続 `MRL-**` の current_state を確認する。
-3. record-native route を blank runtime から進める時は [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_colab_evid_runbook.md) の `準備確認 1-4` と `install` を共通で使う。
-4. `MRL-10` を進める時は同 runbook の `MRL-10 Phase A` から `Phase D production` を順に実行し、`input_frame_manifest.csv`、`input_frame_qc.csv`、`pose_conversion_check.csv`、`k_resize_check.csv`、`orientation_summary.json`、`da3_input_manifest_*.csv` が出ることを先に確認する。
-5. `MRL-10` の giant production candidate は [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_colab_evid_runbook.md) の `Block 3` で `extrinsics_w2c_prod.npy` から全体カメラ行列、全 chunk manifest、`batch_plan.csv` を作り、`Block 4` で helper を読み込む。その後 `Block 5` は `RUN_BATCH_INDEX` を変えながら `3chunk` ずつ繰り返し実行する。各 chunk は `18frame`、chunk 間 overlap は `6frame`、各 chunk の再構成責務は基本 `後半 12frame` である。最後に `Block 6` が completed chunk 全体から `merged_gs.ply` と `merged_scene.glb` を再構築する。owner-based merge の証跡は `vertex_assignment_summary.csv`、`owner_record_histogram.csv`、`chunk_assignment_summary.csv`、`merge_warning_summary.json`、`chunk_transform_quality.csv` として Drive bundle / local bundle へ残る。`PlayCanvas Model Viewer` 確認、top camera renderer、path overlay、request / status UX は後続 `MRL-**` として切り分ける。
+3. record-native route を blank runtime から進める時は [da3_ngl_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook.md) の `#1` から `#6` までを順に実行し、mount、config、input 選択、tree 作成、install、helper を固める。
+4. `MRL-10` を進める時は同 runbook の `#7` から `#10` を順に実行し、full anchor、anchor QC、record manifest、chunk plan、precheck が通ることを先に確認する。
+5. giant production candidate は同 runbook の `#11`、`#12`、`#13`、`#14` を順に実行し、reset / preflight、chunk 実行、residual / continuity gate、final merge を進める。chunk 条件は `#2 Config` の設定値だけで決まり、merge 証跡は `chunk_global_transforms.csv`、`chunk_keep_summary.csv`、`chunk_assignment_summary.csv`、`merge_warning_summary.json`、`chunk_transform_quality.csv` として残る。
 
 ## 引き継ぎ上の重要判断
 

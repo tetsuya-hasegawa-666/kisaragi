@@ -70,19 +70,19 @@
 
 ### PC + Colab block
 
-38. `Colab` runbook の正本は [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_colab_evid_runbook.md) とし、admin が Colab でそのまま実行する notebook は [da3_colab_evid_runbook.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_colab_evid_runbook.ipynb) を使う。canonical route は `MRL-10 sequence-anchor record-native DA3 route` であり、`frame_record.jsonl + images` を正に読み、`intrinsics[N,3,3]` と `extrinsics_w2c[N,4,4]` を canonical manifest として生成する。画像は `correcting` 側で `90度右回転` 済みの upright JPEG を受け取る前提で、`Colab` は pixel を再回転しない。legacy session の intrinsics だけ raw 向きだった時は `Block 1` が `k_resize_check.csv` と `orientation_summary.json` に補正結果を残す。camera pose / trajectory の事前推定も `depth-anything/DA3NESTED-GIANT-LARGE-1.1` の official API / CLI 基準で full sequence anchor、anchor QC、adjacent continuity precheck、batch/chunk gate、final merge を行う。
+38. `Colab` runbook の正本は [da3_ngl_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook.md) とし、admin が Colab でそのまま実行する notebook は [da3_ngl_runbook.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook.ipynb) を使う。canonical route は `MRL-10 sequence-anchor record-native DA3 route` であり、`frame_record.jsonl + images` を正に読み、`intrinsics[N,3,3]` と `extrinsics_w2c[N,4,4]` を canonical manifest として生成する。画像は `correcting` 側で `90度右回転` 済みの upright JPEG を受け取り、`Colab` は pixel を再回転しない。camera pose / trajectory の事前推定も `depth-anything/DA3NESTED-GIANT-LARGE-1.1` の official API / CLI 基準で full sequence anchor、anchor QC、adjacent continuity precheck、batch/chunk gate、final merge を行う。
 39. PC browser で [Google Colab](https://colab.research.google.com/) を開き、Google account で sign in する。
-40. `ファイル` -> `ノートブックをアップロード` を選び、[da3_colab_evid_runbook.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_colab_evid_runbook.ipynb) を開く。menu 名が違う時は `Upload notebook` 相当を探す。
+40. `ファイル` -> `ノートブックをアップロード` を選び、[da3_ngl_runbook.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook.ipynb) を開く。menu 名が違う時は `Upload notebook` 相当を探す。
 41. `ランタイム` -> `ランタイムのタイプを変更` で `GPU` を選ぶ。候補に `T4`、`L4`、`A100` などが見えた時は、その表示を記録する。
-42. notebook の `CONFIG` cell を開き、`session_root` と `result_root` を今回使う値へ置き換える。値の意味はこの文書の `CONFIG に入れる値` を参照する。
+42. notebook の `#2 Config` cell を開き、chunk 条件、保存 policy、target window、入力自動選択条件を今回使う値へ置き換える。
 43. `drive.mount('/content/drive')` の cell を実行し、Google Drive への access 許可画面が出たら許可する。
-44. `session_root/` に、`colab_job_request.json` で要求された file と frame / image 入力を置く。迷った時は、先に file 名だけを Codex へ伝える。
+44. `Google Drive` 上の `correcting` zip に `frame_record.jsonl`、`trajectreview/image/`、`camera_calibration_summary.json`、`sensor_quality.json`、`space_handoff_manifest.json` が含まれていることを確認する。迷った時は zip 内の file 名だけを Codex へ伝える。
 45. install cell と `DA3NESTED-GIANT-LARGE-1.1` 実行 cell は、1 つずつ順に実行する。失敗したら、その cell の見出しと error message をそのまま控える。
-46. `MRL-10` の giant route は `Block 3` を 1 回、`Block 4` を 1 回実行した後、`Block 5` を `RUN_BATCH_INDEX = 0`、`1`、`2`、`3` ... と変えながら繰り返す。`Block 5` の 1 回は `3chunk` だけを処理する。各 chunk は `18frame`、chunk 間 overlap は `6frame`、再構成責務は基本 `後半 12frame` である。
-47. `Block 3` が出した `batch_plan.csv` を見て、何回 `Block 5` を回すかを決める。`batch_count = N` なら `RUN_BATCH_INDEX = 0` から `N-1` まで順に実行する。
-48. 全 batch を回し終わるまでは `Block 6` を実行しない。途中 batch の確認だけなら `batch_000`、`batch_001` などの `batch_summary.json` を見る。
-49. 全 batch 完了後に `Block 6` を 1 回だけ実行し、`merged_gs.ply`、`merged_scene.glb`、bundle zip を再構築する。bundle は Drive visible dir / Drive zip / local visible dir / local zip を同時に作るので、少なくとも `drive_bundle_dir` と `local_bundle_zip` を控える。
-50. `merged_scene.glb` または `merged_gs.ply` を viewer で開き、天地反転していないこと、camera pose と scene の向きが一致してぶれた二重像になっていないことを確認する。異常がある時は `chunk_global_transforms.csv` の `rotation_det`、`center_rmse`、`rotation_dir_residual` と、`merge_warning_summary.json`、`owner_record_histogram.csv`、`chunk_assignment_summary.csv`、各 chunk dir の `vertex_assignment_summary.csv` を確認し、runbook の owner-based merge 実装に従って再実行する。
+46. `#1` から `#10` までを順に実行し、mount、config、input 選択、tree 作成、install、helper、full anchor、anchor QC、record manifest、chunk plan、precheck を通す。
+47. `#11` を 1 回実行し、target output reset と execution preflight を通す。fatal が出た時は `final_outputs/diagnostics/` の summary を先に確認する。
+48. `#12` を実行して batch/chunk 処理を走らせる。実行対象 batch は `#2 Config` の値で決まり、途中確認は `chunk_runs/batch_***/batch_summary.json` を見る。
+49. `#13` を実行して residual / continuity / pre-merge gate を通し、通過後に `#14` を 1 回だけ実行して `merged_gs.ply` と `merged_scene.glb` を再構築する。local zip が必要な時だけ `#15` を実行する。
+50. `merged_scene.glb` または `merged_gs.ply` を viewer で開き、天地反転していないこと、camera pose と scene の向きが一致してぶれた二重像になっていないことを確認する。異常がある時は `chunk_global_transforms.csv`、`chunk_transform_quality.csv`、`merge_warning_summary.json`、`owner_record_histogram.csv`、`chunk_assignment_summary.csv`、各 chunk dir の `vertex_assignment_summary.csv` を確認し、runbook の sequence-anchor / owner-based merge 実装に従って再実行する。
 
 ## Colab へ入る時の考え方
 
@@ -91,30 +91,22 @@
 - `Colab` 未経験でも、いきなり全部理解する必要はない。1 cell ずつ順に実行し、止まった場所を Codex へ渡せばよい。
 - password、認証 token、private key は Codex へ送らない。必要なのは secret ではなく、画面名、menu 名、file path、error message である。
 
-## `CONFIG` に入れる値
+## `#2 Config` に入れる主値
 
-- 前提
-  - `Colab` で使うには、`Google Drive` または PC 側で `session_root/` が見える状態にする必要がある。
-  - `trajectreview-correcting` の `Google Drive転送` が使える時は、その転送先を起点にしてよい。
-  - `Google Drive転送` を使わない時は、user 自身が `Google Drive` または PC へ copy する。
-  - したがって notebook へ入れる主値は、`Google Drive` に置いた session folder の path になる。
-- `session_root`
-  - 何を入れるか: 今回処理する session folder そのものの path。
-  - どこで見るか: `Google Drive` にコピーした `trajectreview_export/<session_id>/` の path。
-  - 例: `/content/drive/MyDrive/trajectreview/input/session-20260327-153000`
-  - 間違えやすい点: 親 folder ではなく、`session_package.json` などが入っている session folder まで含める。
-- `result_root`
-  - 何を入れるか: Google Drive 上で結果を書き戻す親 folder path。
-  - 期待する構造: notebook が `result_root/session_id/route_id/` を自動で作る。
-  - 例: `/content/drive/MyDrive/trajectreview/results`
-  - 間違えやすい点: 出力先の親 folder を入れる。`session_id` や `route_id` は入れない。
-- `route_id`
-  - 基本方針: notebook が `selected_route.json` または `colab_job_request.json` から自動取得する。
-  - 手動既定値: `route-da3nested-giant-large-10fps-per-frame-intrinsics`
-- `session_id`
-  - 基本方針: notebook が `session_package.json` の `sessionId` から自動取得する。
-- `input_root`
-  - 基本方針: notebook が `session_root.parent` として自動取得する。
+- `AUTO_SELECT_SESSION_ID`
+  - 特定 zip を使う時だけ `trajectreview-correcting-session-*` を入れる。空なら最新更新 zip を自動選択する。
+- `BATCH_SIZE` / `CHUNK_SIZE` / `CHUNK_STEP` / `ADOPT_SIZE`
+  - chunk 分割条件。後段はすべてこの値を参照する。
+- `PROCESS_RES` / `PROCESS_RES_METHOD`
+  - DA3 推論解像度と resize policy。
+- `USE_TARGET_CHUNK_WINDOW`
+  - 全 chunk ではなく一部 chunk だけ走らせる時に `True` にする。
+- `TARGET_CHUNK_WINDOW_START_1BASED` / `TARGET_CHUNK_WINDOW_COUNT`
+  - 部分実行時の 1-based chunk window。`USE_TARGET_CHUNK_WINDOW=False` の時は無視される。
+- `RESET_TARGET_OUTPUTS_BEFORE_RUN`
+  - `#11` 実行前に対象 chunk / merge 出力を初期化するかどうか。
+- `MAKE_DRIVE_BUNDLE` / `DOWNLOAD_LOCAL_BUNDLE`
+  - `#14` と `#15` の保存 / download policy。
 
 ## Colab に置く入力 data
 
@@ -193,8 +185,8 @@
 - `Colab` へ入れたかどうか。入れない時は、どの画面で止まったか。
 - 開いた notebook 名。`Upload notebook` を使ったか、Drive 上の notebook を開いたか。
 - `ランタイムのタイプ` で何が見えたか。`CPU` のままか、`T4`、`L4`、`A100` などが選べたか。
-- `CONFIG` に入れた `session_root`、`result_root`。
-- `CONFIG` に入れた値が、どの file や folder を根拠に決めたか。
+- `#2 Config` に入れた主値。
+- `#2 Config` の入力選択条件を何に合わせたか。
 - upload または Drive 配置した file 名。少なくとも `video.mp4`、`session_package.json`、`frame_pose_index.csv`、`sensor_quality.json`、`space_handoff_manifest.json` の有無。
 - `camera_calibration_summary.json` の有無と、`imageIntrinsicsCoverageRatio`、`lensDistortionCoverageRatio` の値。
 - `trajectreview/image/` folder の有無。ある時は画像枚数の概数。

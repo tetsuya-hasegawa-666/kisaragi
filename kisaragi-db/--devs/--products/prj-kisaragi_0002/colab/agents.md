@@ -8,6 +8,7 @@
 
 - `Colab` に貼り付ける `runbook`、upload する notebook、補助 script はこの directory に集約する。
 - `runbook` は `.md` と `.ipynb` の pair を必須とし、`.md` を正本、`.ipynb` を同内容の実行 notebook として同じ task で同期する。
+- 現行 canonical pair は `da3_ngl_runbook.md` と `da3_ngl_runbook.ipynb` とする。
 - `modeling/evidence/` は legacy evidence の保持先としてのみ扱い、新しい `Colab` script や notebook は保存しない。
 - `Colab` 実行で生じる生成物、download 物、raw artifact はここに置かず、Drive 正本または evidence / testlog 側の規則へ従う。
 - `modeling` の Drive 正本 top directory 名は modeling session 名そのものを使い、`trajectreview-modeling-session-YYYYMMDD_<slug>` 形式へそろえる。

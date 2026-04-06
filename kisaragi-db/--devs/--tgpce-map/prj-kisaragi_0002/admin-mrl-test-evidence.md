@@ -68,7 +68,7 @@
   - hardcoded zip path を編集せず、fresh runtime から任意 session input を選んで runbook 本体と `MRL-7` one-block へ handoff できる
   - `MRL-8`、`mRL-8.1`、`mRL-8.2` を `p-done` とする
 - 主要 evidence:
-  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_colab_evid_runbook.md`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.md`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/`
   - `trajectreview/results/trajectreview-correcting-session-20260331-034831_da3_smoke_v24/`
   - `trajectreview/results/trajectreview-correcting-session-20260331-034831_da3_multiframe_probe_v01/world_fusion_v01/`
@@ -124,7 +124,7 @@
   - `mRL-6.1` から `mRL-6.2`
   - `mRL-7.1` から `mRL-7.2`
 - admin 操作観点:
-  - [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_colab_evid_runbook.md) を fresh runtime から実行し、bootstrap UX が再現可能である
+  - [da3_ngl_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook.md) を fresh runtime から実行し、bootstrap UX が再現可能である
   - `trajectreview-correcting` 由来の実 data を入力に、`DA3Metric-Large` から `3DGS` 系主空間モデル候補を smoke 生成できる
   - `trajectreview-modeling` で実 bundle を読み、request 元、input directory、result directory を含む `colab_job_request.json` を生成できる
   - `Google Drive` directory 指定で `Colab` route の入力位置を決められる
@@ -164,7 +164,7 @@
   - `HF_TOKEN` warning は public model download の範囲では blocker ではなかった
   - `MRL-5` の `multi-frame` densify、route 比較や採用固定はこの bootstrap candidate には含めない
 - evidence path:
-  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_colab_evid_runbook.md`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.md`
 
 ## 2026-03-29 correcting batch `MRL-1` と `MRL-2` close evidence
 
@@ -209,7 +209,7 @@
   - waiting ring、`job_status.json`、download URL は `mRL-3.3` と後続 `MRL-**` に残した
 - evidence path:
   - `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/hi-ai-unified-blueprint.md`
-  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_colab_evid_runbook.md`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.md`
 
 ## 2026-03-29 `MRL-4` `3DGS` smoke candidate evidence
 
@@ -250,7 +250,7 @@
 - local downloaded evidence:
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/da3_smoke_v05/`
 - evidence path:
-  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_colab_evid_runbook.md`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.md`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/trajectreview_modeling_20260329_gpu-evidence.ipynb`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/da3_smoke_v05/`
 
@@ -305,7 +305,7 @@
   - `world_points_multiframe_preview.png`
   - `mrl7_closeout_summary.json`
 - evidence path:
-  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_colab_evid_runbook.md`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.md`
   - `kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/mrl7_multiframe_viewer_bundle/`
 
 ## 2026-03-30 `mRL-7.2` gaussian short-optimization candidate evidence
@@ -645,8 +645,8 @@
   - `mRL-9.1` は `p-done`
   - `MRL-9` 全体は external viewer 未確認のため `active`
 - 主要 evidence:
-  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_colab_evid_runbook.md`
-  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_colab_evid_runbook.ipynb`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.md`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.ipynb`
   - `/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/step9j_giant_infergs_summary.json`
 
 ## 2026-03-31 `MRL-9` viewer close evidence
@@ -666,7 +666,7 @@
   - `mRL-9.2` は `p-done`
   - `MRL-9` 全体も `p-done`
 - 主要 evidence:
-  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_colab_evid_runbook.md`
-  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_colab_evid_runbook.ipynb`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.md`
+  - `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.ipynb`
   - `/content/drive/MyDrive/trajectreview/modeling/trajectreview-correcting-session-20260331-034831_da3giant_infergs_probe_v01/gs_ply/0000.ply`
 

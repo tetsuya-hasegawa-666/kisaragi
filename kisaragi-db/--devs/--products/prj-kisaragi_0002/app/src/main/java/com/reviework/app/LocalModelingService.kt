@@ -149,7 +149,7 @@ class LocalModelingService {
                 .put("localVerification", "pass")
                 .put("requiredUploadArtifacts", JSONArray(listOf("video.mp4", "session_package.json", "frame_pose_index.csv", "sensor_quality.json", "space_handoff_manifest.json", "camera_calibration_summary.json", "frame_record.jsonl", "trajectreview/image")))
                 .put("recommendedNotebookId", "trajectreview-da3nested-giant-large")
-                .put("recommendedNotebookPath", "colab/da3_colab_evid_runbook.ipynb")
+                .put("recommendedNotebookPath", "colab/da3_ngl_runbook.ipynb")
                 .put("defaultRouteId", defaultRoute.routeId)
                 .put("routeIds", JSONArray(routeProfiles.map { it.routeId }))
                 .put(
