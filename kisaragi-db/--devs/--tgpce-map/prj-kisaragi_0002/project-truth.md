@@ -89,10 +89,10 @@
 
 - 空間生成の主経路は、採択 frame ごとの image、`camera.pose`、intrinsics を正にした `DA3NESTED-GIANT-LARGE-1.1` / `3DGS` 前処理入力とする。
 - remote modeling の canonical `Colab` route でも、主入力は `frame_record.jsonl` と対応 image 群を正とし、`frame_pose_index.csv` は診断用の二次資料として扱う。
-- `Colab` 側は `1 record = image + pose + intrinsics + timestamp` の構造を壊さずに読み、`intrinsics[N,3,3]` と `extrinsics_w2c[N,4,4]` を canonical manifest として常に生成する。
+- `Colab` 側は `1 record = image + pose + intrinsics + timestamp` の構造を壊さずに読み、`intrinsics[N,3,3]` と `extrinsics_w2c_arc[N,4,4]` を canonical manifest として常に生成する。
 - `Colab` 側は `correcting` から渡る `90度右回転` 済み upright image を canonical input とし、pixel を再回転しない。legacy session のように intrinsics だけ raw 向きの時だけ、実画像寸法との照合に基づいて `K` を upright 基準へ補正し、その結果を manifest に残す。
 - `DA3` の現行 canonical route は `depth-anything/DA3NESTED-GIANT-LARGE-1.1` のみを使い、camera pose / trajectory の事前推定も同じ model の公式 API / CLI 契約で行う。
-- `frame_record` 由来の `intrinsics` / `extrinsics_w2c` は、`1 record = image + pose + intrinsics + timestamp` の anchor 契約を保つための sequence anchor、QC、比較証跡、merge 拘束に使う。
+- `frame_record` 由来の `intrinsics` / `extrinsics_w2c_arc` は、`1 record = image + pose + intrinsics + timestamp` の anchor 契約を保つための sequence anchor、QC、比較証跡、merge 拘束に使う。
 - `infer_gs=True` route も同じ `DA3NESTED-GIANT-LARGE-1.1` を使い、`gs_ply` / `gs_video` を生成し、`debug_gs_readback` と bundle manifest を残す。
 - 画像向きは main contract の一部とし、raw 向きのまま silently 扱わない。回転正規化を行う時は image 回転、`width` / `height`、`K` 補正、manifest 記録を同時に行う。
 - `trajectreview-correcting` の canonical 静止画は、現行端末では raw image が左へ `90度` 倒れて見える前提で、record 保存時に `90度右回転` の portrait upright へ正規化して保持する。`frame_record.jsonl` の `imageIntrinsics` と manifest も同じ向き基準へそろえる。

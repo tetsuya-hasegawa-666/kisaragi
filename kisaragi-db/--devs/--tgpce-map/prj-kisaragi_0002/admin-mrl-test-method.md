@@ -70,7 +70,7 @@
 
 ### PC + Colab block
 
-38. `Colab` runbook の正本は [da3_ngl_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook.md) とし、admin が Colab でそのまま実行する notebook は [da3_ngl_runbook.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook.ipynb) を使う。canonical route は `MRL-10 sequence-anchor record-native DA3 route` であり、`frame_record.jsonl + images` を正に読み、`intrinsics[N,3,3]` と `extrinsics_w2c[N,4,4]` を canonical manifest として生成する。画像は `correcting` 側で `90度右回転` 済みの upright JPEG を受け取り、`Colab` は pixel を再回転しない。camera pose / trajectory の事前推定も `depth-anything/DA3NESTED-GIANT-LARGE-1.1` の official API / CLI 基準で full sequence anchor、anchor QC、adjacent continuity precheck、batch/chunk gate、final merge を行う。
+38. `Colab` runbook の正本は [da3_ngl_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook.md) とし、admin が Colab でそのまま実行する notebook は [da3_ngl_runbook.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook.ipynb) を使う。canonical route は `MRL-10 sequence-anchor record-native DA3 route` であり、`frame_record.jsonl + images` を正に読み、`intrinsics[N,3,3]` と `extrinsics_w2c_arc[N,4,4]` を canonical manifest として生成する。画像は `correcting` 側で `90度右回転` 済みの upright JPEG を受け取り、`Colab` は pixel を再回転しない。camera pose / trajectory の事前推定も `depth-anything/DA3NESTED-GIANT-LARGE-1.1` の official API / CLI 基準で full sequence anchor、anchor QC、adjacent continuity precheck、batch/chunk gate、final merge を行う。
 39. PC browser で [Google Colab](https://colab.research.google.com/) を開き、Google account で sign in する。
 40. `ファイル` -> `ノートブックをアップロード` を選び、[da3_ngl_runbook.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook.ipynb) を開く。menu 名が違う時は `Upload notebook` 相当を探す。
 41. `ランタイム` -> `ランタイムのタイプを変更` で `GPU` を選ぶ。候補に `T4`、`L4`、`A100` などが見えた時は、その表示を記録する。
@@ -81,8 +81,8 @@
 46. `#1` から `#10` までを順に実行し、mount、config、input 選択、tree 作成、install、helper、full anchor、anchor QC、record manifest、chunk plan、precheck を通す。
 47. `#11` を 1 回実行し、target output reset と execution preflight を通す。fatal が出た時は `final_outputs/diagnostics/` の summary を先に確認する。
 48. `#12` を実行して batch/chunk 処理を走らせる。実行対象 batch は `#2 Config` の値で決まり、途中確認は `chunk_runs/batch_***/batch_summary.json` を見る。
-49. `#13` を実行して residual / continuity / pre-merge gate を通し、通過後に `#14` を 1 回だけ実行して `merged_gs.ply` と `merged_scene.glb` を再構築する。local zip が必要な時だけ `#15` を実行する。
-50. `merged_scene.glb` または `merged_gs.ply` を viewer で開き、天地反転していないこと、camera pose と scene の向きが一致してぶれた二重像になっていないことを確認する。異常がある時は `chunk_global_transforms.csv`、`chunk_transform_quality.csv`、`merge_warning_summary.json`、`owner_record_histogram.csv`、`chunk_assignment_summary.csv`、各 chunk dir の `vertex_assignment_summary.csv` を確認し、runbook の sequence-anchor / owner-based merge 実装に従って再実行する。
+49. `#13` を実行して residual / continuity / pre-merge gate を通し、通過後に `#14` を 1 回だけ実行して `merged_gs_arc.ply` と `merged_scene_arc.glb` を再構築する。local zip が必要な時だけ `#15` を実行する。
+50. `merged_scene_arc.glb` または `merged_gs_arc.ply` を viewer で開き、天地反転していないこと、camera pose と scene の向きが一致してぶれた二重像になっていないことを確認する。異常がある時は `chunk_global_transforms_arc.csv`、`chunk_transform_quality_arc.csv`、`merge_warning_summary_arc.json`、`owner_record_histogram_arc.csv`、`chunk_assignment_summary_arc.csv`、各 chunk dir の `vertex_assignment_summary.csv` を確認し、runbook の sequence-anchor / owner-based merge 実装に従って再実行する。
 
 ## Colab へ入る時の考え方
 

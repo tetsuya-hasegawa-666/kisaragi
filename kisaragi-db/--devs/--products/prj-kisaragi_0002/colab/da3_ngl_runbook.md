@@ -593,7 +593,7 @@ for p in [manifest_dir, da3_nested_dir, world_dir, final_outputs_dir, final_outp
 required_files = {
     "input_manifest": manifest_dir / "da3_input_manifest.csv",
     "intrinsics": manifest_dir / "intrinsics.npy",
-    "extrinsics": manifest_dir / "extrinsics_w2c.npy",
+    "extrinsics": manifest_dir / "extrinsics_w2c_arc.npy",
 }
 
 CANONICAL_ORIENTATION_POLICY = "upright_rot90cw_from_correcting"
@@ -810,7 +810,7 @@ def build_anchor_inputs_from_zip():
     Ks = np.stack([build_K(row) for row in selected_df.itertuples(index=False)], axis=0)
     exts = np.stack([pose_to_w2c(row) for row in selected_df.itertuples(index=False)], axis=0)
     np.save(manifest_dir / "intrinsics.npy", Ks)
-    np.save(manifest_dir / "extrinsics_w2c.npy", exts)
+    np.save(manifest_dir / "extrinsics_w2c_arc.npy", exts)
     selected_df.to_csv(manifest_dir / "da3_input_manifest.csv", index=False, encoding="utf-8")
 
     k_check = selected_df[[
@@ -841,13 +841,13 @@ def build_anchor_inputs_from_zip():
         "selected_count": int(len(selected_df)),
         "canonical_orientation_policy": CANONICAL_ORIENTATION_POLICY,
         "intrinsics_path": str(manifest_dir / "intrinsics.npy"),
-        "extrinsics_path": str(manifest_dir / "extrinsics_w2c.npy"),
+        "extrinsics_path": str(manifest_dir / "extrinsics_w2c_arc.npy"),
         "orientation_summary_path": str(manifest_dir / "orientation_summary.json"),
         "built_from": "zip_frame_record",
     }
     extrinsics_source_summary = {
-        "artifact": "extrinsics_w2c.npy",
-        "artifact_path": str(manifest_dir / "extrinsics_w2c.npy"),
+        "artifact": "extrinsics_w2c_arc.npy",
+        "artifact_path": str(manifest_dir / "extrinsics_w2c_arc.npy"),
         "generated_by": "build_anchor_inputs_from_zip.pose_to_w2c",
         "source_record_path": str(frame_record_path),
         "source_fields": ["pose.tx", "pose.ty", "pose.tz", "pose.qx", "pose.qy", "pose.qz", "pose.qw"],
@@ -864,7 +864,7 @@ def build_anchor_inputs_from_zip():
         "canonical_orientation_policy": CANONICAL_ORIENTATION_POLICY,
     }, indent=2, ensure_ascii=False), encoding="utf-8")
     (manifest_dir / "da3_input_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
-    (manifest_dir / "extrinsics_w2c_source_summary.json").write_text(json.dumps(extrinsics_source_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+    (manifest_dir / "extrinsics_w2c_arc_source_summary.json").write_text(json.dumps(extrinsics_source_summary, indent=2, ensure_ascii=False), encoding="utf-8")
     return summary
 
 missing_required = {key: str(path) for key, path in required_files.items() if not path.exists()}
@@ -899,7 +899,7 @@ display_stage_summary(
         {"item": "da3_input_manifest", "path": str(required_files["input_manifest"])},
         {"item": "intrinsics", "path": str(required_files["intrinsics"])},
         {"item": "extrinsics_w2c", "path": str(required_files["extrinsics"])},
-        {"item": "extrinsics_w2c_source_summary", "path": str(manifest_dir / "extrinsics_w2c_source_summary.json")},
+        {"item": "extrinsics_w2c_source_summary", "path": str(manifest_dir / "extrinsics_w2c_arc_source_summary.json")},
         {"item": "da3_input_summary", "path": str(manifest_dir / "da3_input_summary.json")},
     ],
     notes=[
@@ -926,8 +926,8 @@ def _existing(p):
 
 def _find_manifest_triplet(search_roots):
     rels = [
-        ("manifests/da3_input_manifest.csv", "manifests/intrinsics.npy", "manifests/extrinsics_w2c.npy"),
-        ("00_config/da3_input_manifest.csv", "00_config/intrinsics.npy", "00_config/extrinsics_w2c.npy"),
+        ("manifests/da3_input_manifest.csv", "manifests/intrinsics.npy", "manifests/extrinsics_w2c_arc.npy"),
+        ("00_config/da3_input_manifest.csv", "00_config/intrinsics.npy", "00_config/extrinsics_w2c_arc.npy"),
     ]
     for root in search_roots:
         if root is None:
@@ -980,7 +980,7 @@ assert persist_root is not None, {
     "expected_files": [
         "manifests/da3_input_manifest.csv",
         "manifests/intrinsics.npy",
-        "manifests/extrinsics_w2c.npy",
+        "manifests/extrinsics_w2c_arc.npy",
     ],
 }
 
@@ -1075,10 +1075,10 @@ camera_anchor_full_df["lens_x"] = lens_vecs[:, 0]
 camera_anchor_full_df["lens_y"] = lens_vecs[:, 1]
 camera_anchor_full_df["lens_z"] = lens_vecs[:, 2]
 
-camera_matrix_full_csv = anchor_dir / "camera_matrix_full.csv"
-camera_center_matrix_csv = anchor_dir / "camera_center_matrix.csv"
-camera_orientation_full_csv = anchor_dir / "camera_orientation_full.csv"
-camera_anchor_full_csv = anchor_dir / "camera_anchor_full.csv"
+camera_matrix_full_csv = anchor_dir / "camera_matrix_full_arc.csv"
+camera_center_matrix_csv = anchor_dir / "camera_center_matrix_arc.csv"
+camera_orientation_full_csv = anchor_dir / "camera_orientation_full_arc.csv"
+camera_anchor_full_csv = anchor_dir / "camera_anchor_full_arc.csv"
 
 pd.DataFrame(
     extrinsics_w2c.reshape(extrinsics_w2c.shape[0], -1),
@@ -1089,9 +1089,9 @@ camera_center_df.to_csv(camera_center_matrix_csv, index=False)
 camera_orientation_df.to_csv(camera_orientation_full_csv, index=False)
 camera_anchor_full_df.to_csv(camera_anchor_full_csv, index=False)
 
-np.save(anchor_dir / "extrinsics_w2c.npy", extrinsics_w2c)
+np.save(anchor_dir / "extrinsics_w2c_arc.npy", extrinsics_w2c)
 np.save(anchor_dir / "intrinsics.npy", intrinsics)
-np.save(anchor_dir / "c2w.npy", c2w)
+np.save(anchor_dir / "c2w_arc.npy", c2w)
 
 print({
     "persist_root": str(persist_root),
@@ -1109,20 +1109,20 @@ display_stage_summary(
         {"item": "da3_input_manifest", "path": str(input_manifest_path)},
         {"item": "intrinsics", "path": str(intrinsics_path)},
         {"item": "extrinsics_w2c", "path": str(extrinsics_path)},
-        {"item": "extrinsics_w2c_source_summary", "path": str(manifest_dir / "extrinsics_w2c_source_summary.json")},
+        {"item": "extrinsics_w2c_source_summary", "path": str(manifest_dir / "extrinsics_w2c_arc_source_summary.json")},
     ],
     outputs=[
         {"item": "camera_matrix_full", "path": str(camera_matrix_full_csv)},
         {"item": "camera_center_matrix", "path": str(camera_center_matrix_csv)},
         {"item": "camera_orientation_full", "path": str(camera_orientation_full_csv)},
         {"item": "camera_anchor_full", "path": str(camera_anchor_full_csv)},
-        {"item": "anchor_extrinsics_w2c", "path": str(anchor_dir / "extrinsics_w2c.npy")},
+        {"item": "anchor_extrinsics_w2c", "path": str(anchor_dir / "extrinsics_w2c_arc.npy")},
         {"item": "anchor_intrinsics", "path": str(anchor_dir / "intrinsics.npy")},
-        {"item": "anchor_c2w", "path": str(anchor_dir / "c2w.npy")},
+        {"item": "anchor_c2w", "path": str(anchor_dir / "c2w_arc.npy")},
     ],
     notes=[
         {"item": "row_count", "value": int(len(manifest_df))},
-        {"item": "matrix_source", "value": "manifests/extrinsics_w2c.npy を c2w へ反転し basis / center を再構成"},
+        {"item": "matrix_source", "value": "manifests/extrinsics_w2c_arc.npy を c2w へ反転し basis / center を再構成"},
     ],
 )
 ```
@@ -1145,9 +1145,9 @@ def _existing(p):
 
 def _find_anchor_root(search_roots):
     rels = [
-        "01_anchor/camera_anchor_full.csv",
-        "01_anchor/camera_center_matrix.csv",
-        "01_anchor/camera_orientation_full.csv",
+        "01_anchor/camera_anchor_full_arc.csv",
+        "01_anchor/camera_center_matrix_arc.csv",
+        "01_anchor/camera_orientation_full_arc.csv",
     ]
     for root in search_roots:
         if root is None:
@@ -1190,11 +1190,11 @@ persist_root = _find_anchor_root(search_roots)
 assert persist_root is not None, {
     "error": "01_anchor not found",
     "searched_roots": [str(p) for p in search_roots if p is not None],
-    "expected": "01_anchor/camera_anchor_full.csv",
+    "expected": "01_anchor/camera_anchor_full_arc.csv",
 }
 
 anchor_dir = persist_root / "01_anchor"
-anchor_path = anchor_dir / "camera_anchor_full.csv"
+anchor_path = anchor_dir / "camera_anchor_full_arc.csv"
 anchor_df = pd.read_csv(anchor_path)
 
 assert not anchor_df.empty, anchor_path
@@ -1313,7 +1313,7 @@ anchor_pose_diag_df["delta2_rot"] = delta2_rot
 anchor_pose_diag_df["prev_sequence_index"] = anchor_pose_diag_df["sequence_index"].shift(1)
 anchor_pose_diag_df["next_sequence_index"] = anchor_pose_diag_df["sequence_index"].shift(-1)
 
-diag_csv = anchor_dir / "full_anchor_pose_diag.csv"
+diag_csv = anchor_dir / "full_anchor_pose_diag_arc.csv"
 anchor_pose_diag_df.to_csv(diag_csv, index=False)
 
 summary = {
@@ -1371,7 +1371,7 @@ def _existing(p):
     return p if p.exists() else None
 
 def _find_anchor_diag_root(search_roots):
-    rel = "01_anchor/full_anchor_pose_diag.csv"
+    rel = "01_anchor/full_anchor_pose_diag_arc.csv"
     for root in search_roots:
         if root is None:
             continue
@@ -1411,12 +1411,12 @@ search_roots = [
 
 persist_root = _find_anchor_diag_root(search_roots)
 assert persist_root is not None, {
-    "error": "full_anchor_pose_diag.csv not found",
+    "error": "full_anchor_pose_diag_arc.csv not found",
     "searched_roots": [str(p) for p in search_roots if p is not None],
 }
 
 anchor_dir = persist_root / "01_anchor"
-diag_path = anchor_dir / "full_anchor_pose_diag.csv"
+diag_path = anchor_dir / "full_anchor_pose_diag_arc.csv"
 df = pd.read_csv(diag_path)
 assert not df.empty, diag_path
 
@@ -1467,9 +1467,9 @@ if len(df) > 0:
 fail_df = df[df["anchor_qc_fail"]].copy()
 warn_df = df[df["warn_roll_band"] | df["warn_pitch_band"]].copy()
 
-qc_csv = anchor_dir / "full_anchor_pose_qc.csv"
-fail_csv = anchor_dir / "full_anchor_pose_qc_fail.csv"
-warn_csv = anchor_dir / "full_anchor_pose_qc_warn.csv"
+qc_csv = anchor_dir / "full_anchor_pose_qc_arc.csv"
+fail_csv = anchor_dir / "full_anchor_pose_qc_fail_arc.csv"
+warn_csv = anchor_dir / "full_anchor_pose_qc_warn_arc.csv"
 
 df.to_csv(qc_csv, index=False)
 fail_df.to_csv(fail_csv, index=False)
@@ -1531,10 +1531,10 @@ def _existing(p):
 
 def _find_anchor_root(search_roots):
     rels = [
-        "01_anchor/camera_anchor_full.csv",
-        "01_anchor/full_anchor_pose_diag.csv",
-        "01_anchor/camera_center_matrix.csv",
-        "01_anchor/camera_orientation_full.csv",
+        "01_anchor/camera_anchor_full_arc.csv",
+        "01_anchor/full_anchor_pose_diag_arc.csv",
+        "01_anchor/camera_center_matrix_arc.csv",
+        "01_anchor/camera_orientation_full_arc.csv",
     ]
     for root in search_roots:
         if root is None:
@@ -1610,9 +1610,9 @@ assert persist_root is not None, {
 
 anchor_dir = persist_root / "01_anchor"
 anchor_csv = _pick_first_existing([
-    anchor_dir / "full_anchor_pose_diag.csv",
-    anchor_dir / "camera_anchor_full.csv",
-    anchor_dir / "camera_center_matrix.csv",
+    anchor_dir / "full_anchor_pose_diag_arc.csv",
+    anchor_dir / "camera_anchor_full_arc.csv",
+    anchor_dir / "camera_center_matrix_arc.csv",
 ])
 
 assert anchor_csv is not None, {"missing_anchor_csv_in": str(anchor_dir)}
@@ -1635,8 +1635,8 @@ else:
 cx_col, cy_col, cz_col = _resolve_center_cols(df)
 lens_cols = _resolve_lens_cols(df)
 
-plotly_html = anchor_dir / "full_anchor_preview.html"
-plotly_png = anchor_dir / "full_anchor_preview.png"
+plotly_html = anchor_dir / "full_anchor_preview_arc.html"
+plotly_png = anchor_dir / "full_anchor_preview_arc.png"
 
 centers = df[[cx_col, cy_col, cz_col]].to_numpy(dtype=float)
 
@@ -2059,7 +2059,7 @@ assert len(selected_df) >= 2, {"selected_df": len(selected_df)}
 Ks = np.stack([build_K(row) for row in selected_df.itertuples(index=False)], axis=0)
 exts = np.stack([pose_to_w2c(row) for row in selected_df.itertuples(index=False)], axis=0)
 np.save(manifest_dir / "intrinsics.npy", Ks)
-np.save(manifest_dir / "extrinsics_w2c.npy", exts)
+np.save(manifest_dir / "extrinsics_w2c_arc.npy", exts)
 selected_df.to_csv(manifest_dir / "da3_input_manifest.csv", index=False, encoding="utf-8")
 
 k_check = selected_df[[
@@ -2105,12 +2105,12 @@ summary = {
     "selected_count": int(len(selected_df)),
     "canonical_orientation_policy": CANONICAL_ORIENTATION_POLICY,
     "intrinsics_path": str(manifest_dir / "intrinsics.npy"),
-    "extrinsics_path": str(manifest_dir / "extrinsics_w2c.npy"),
+    "extrinsics_path": str(manifest_dir / "extrinsics_w2c_arc.npy"),
     "orientation_summary_path": str(manifest_dir / "orientation_summary.json"),
 }
 extrinsics_source_summary = {
-    "artifact": "extrinsics_w2c.npy",
-    "artifact_path": str(manifest_dir / "extrinsics_w2c.npy"),
+    "artifact": "extrinsics_w2c_arc.npy",
+    "artifact_path": str(manifest_dir / "extrinsics_w2c_arc.npy"),
     "generated_by": "section_9_1.pose_to_w2c",
     "source_record_path": str(frame_record_path),
     "source_fields": ["pose.tx", "pose.ty", "pose.tz", "pose.qx", "pose.qy", "pose.qz", "pose.qw"],
@@ -2127,7 +2127,7 @@ extrinsics_source_summary = {
     "canonical_orientation_policy": CANONICAL_ORIENTATION_POLICY,
 }, indent=2, ensure_ascii=False), encoding="utf-8")
 (manifest_dir / "da3_input_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
-(manifest_dir / "extrinsics_w2c_source_summary.json").write_text(json.dumps(extrinsics_source_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+(manifest_dir / "extrinsics_w2c_arc_source_summary.json").write_text(json.dumps(extrinsics_source_summary, indent=2, ensure_ascii=False), encoding="utf-8")
 print(json.dumps(summary, indent=2, ensure_ascii=False))
 display_stage_summary(
     "9-1",
@@ -2143,12 +2143,12 @@ display_stage_summary(
         {"item": "pose_conversion_check", "path": str(manifest_dir / "pose_conversion_check.csv")},
         {"item": "da3_input_manifest", "path": str(manifest_dir / "da3_input_manifest.csv")},
         {"item": "intrinsics", "path": str(manifest_dir / "intrinsics.npy")},
-        {"item": "extrinsics_w2c", "path": str(manifest_dir / "extrinsics_w2c.npy")},
+        {"item": "extrinsics_w2c", "path": str(manifest_dir / "extrinsics_w2c_arc.npy")},
         {"item": "orientation_summary", "path": str(manifest_dir / "orientation_summary.json")},
         {"item": "da3_input_summary", "path": str(manifest_dir / "da3_input_summary.json")},
     ],
     notes=[
-        {"item": "extrinsics_source_rule", "value": "frame_record pose(tx,ty,tz,qx,qy,qz,qw) -> pose_to_w2c -> extrinsics_w2c.npy"},
+        {"item": "extrinsics_source_rule", "value": "frame_record pose(tx,ty,tz,qx,qy,qz,qw) -> pose_to_w2c -> extrinsics_w2c_arc.npy"},
     ],
 )
 ```
@@ -2164,7 +2164,7 @@ manifest_dir = Path(ctx['manifest_dir'])
 managed_dirs = json.loads(Path('/content/runbook_managed_dirs.json').read_text(encoding='utf-8'))
 record_dir = Path(managed_dirs['02_records'])
 record_dir.mkdir(parents=True, exist_ok=True)
-anchor_diag = pd.read_csv(Path(managed_dirs['01_anchor']) / 'full_anchor_pose_diag.csv')
+anchor_diag = pd.read_csv(Path(managed_dirs['01_anchor']) / 'full_anchor_pose_diag_arc.csv')
 anchor_keep_cols = [c for c in ['sequence_index','roll_deg','pitch_deg','yaw_deg','delta_roll_deg','delta_pitch_deg','delta_yaw_deg','delta_pos','delta2_pos','delta2_rot'] if c in anchor_diag.columns]
 anchor_join = anchor_diag[anchor_keep_cols].copy() if anchor_keep_cols else pd.DataFrame()
 
@@ -2184,7 +2184,7 @@ display_stage_summary(
     "record manifest refresh",
     inputs=[
         {"item": "da3_input_manifest", "path": str(p)},
-        {"item": "full_anchor_pose_diag", "path": str(Path(managed_dirs['01_anchor']) / 'full_anchor_pose_diag.csv')},
+        {"item": "full_anchor_pose_diag", "path": str(Path(managed_dirs['01_anchor']) / 'full_anchor_pose_diag_arc.csv')},
     ],
     outputs=[
         {"item": "record_manifest", "path": str(record_dir / 'record_manifest.csv')},
@@ -2264,7 +2264,7 @@ config = {
     "CHUNK_STEP": CHUNK_STEP,
     "ADOPT_SIZE": ADOPT_SIZE,
     "BATCH_SIZE": BATCH_SIZE,
-    "GLOBAL_CAMERA_SOURCE": "manifests/extrinsics_w2c.npy",
+    "GLOBAL_CAMERA_SOURCE": "manifests/extrinsics_w2c_arc.npy",
     "CANONICAL_ANCHOR_MODE": "lens=-c2w_z, up=c2w_y",
     "PIPELINE_SLUG": pipeline_slug,
     "TARGET_POLICY": "canonical_full_set",
@@ -2283,7 +2283,7 @@ def sha256_file(path: Path) -> str:
 
 input_manifest_path = manifest_dir / "da3_input_manifest.csv"
 intrinsics_path = manifest_dir / "intrinsics.npy"
-extrinsics_path = manifest_dir / "extrinsics_w2c.npy"
+extrinsics_path = manifest_dir / "extrinsics_w2c_arc.npy"
 
 assert input_manifest_path.exists(), input_manifest_path
 assert intrinsics_path.exists(), intrinsics_path
@@ -2390,7 +2390,7 @@ batch_plan_path = chunk_manifest_dir / "batch_plan.csv"
 batch_plan_df.to_csv(batch_plan_path, index=False, encoding="utf-8")
 
 # ----- full anchor のコピー/索引化（#2系生成物の利用） -----
-camera_anchor_full_path = anchor_dir / "camera_anchor_full.csv"
+camera_anchor_full_path = anchor_dir / "camera_anchor_full_arc.csv"
 assert camera_anchor_full_path.exists(), camera_anchor_full_path
 
 anchor_df = pd.read_csv(camera_anchor_full_path)
@@ -2437,7 +2437,7 @@ chunk_sequence_anchor_index_df.to_csv(chunk_sequence_anchor_index_path, index=Fa
 
 summary = {
     "route": "da3_record_sequence_anchor_batch_plan_full_target",
-    "global_camera_source": "manifests/extrinsics_w2c.npy",
+    "global_camera_source": "manifests/extrinsics_w2c_arc.npy",
     "frame_count": int(len(input_df)),
     "chunk_count": int(len(all_chunks_df)),
     "target_chunk_count": int(len(target_chunks_df)),
@@ -2691,7 +2691,7 @@ run_dir = persist_root / ctx.get("pipeline_slug", config.get("PIPELINE_SLUG", "d
 manifest_dir = run_dir / "manifests"
 anchor_dir = persist_root / "01_anchor"
 
-anchor_qc_path = anchor_dir / "full_anchor_pose_qc.csv"
+anchor_qc_path = anchor_dir / "full_anchor_pose_qc_arc.csv"
 sequence_precheck_path = manifest_dir / "batch_chunk_sequence_precheck.csv"
 edge_validation_path = manifest_dir / "adjacent_edge_validation.csv"
 
@@ -3042,8 +3042,8 @@ save_json(final_outputs_diagnostics_dir / "target_output_reset_summary.json", re
 
 # preflight
 record_manifest_path = manifest_dir / "da3_input_manifest.csv"
-anchor_pose_diag_path = anchor_dir / "full_anchor_pose_diag.csv"
-anchor_qc_path = anchor_dir / "full_anchor_pose_qc.csv"
+anchor_pose_diag_path = anchor_dir / "full_anchor_pose_diag_arc.csv"
+anchor_qc_path = anchor_dir / "full_anchor_pose_qc_arc.csv"
 sequence_precheck_path = chunk_manifest_dir / "batch_chunk_sequence_precheck.csv"
 edge_validation_path = chunk_manifest_dir / "adjacent_edge_validation.csv"
 
@@ -3375,7 +3375,7 @@ def main():
     if not {"tx", "ty", "tz", "qx", "qy", "qz", "qw"}.issubset(df.columns):
         raise AssertionError({"reason": "pose quaternion/translation columns missing", "columns": df.columns.tolist()})
 
-    # notebook側で既に extrinsics_w2c.npy を整備している想定だが、
+    # notebook側で既に extrinsics_w2c_arc.npy を整備している想定だが、
     # chunk csv だけからも走れるように tx/ty/tz + qx/qy/qz/qw からは再構成しない。
     # 代わりに chunk csv に extrinsics 参照列が無い場合は、w2c は使わず image-only API にフォールバックする。
     use_pose_conditioning = False
@@ -3978,7 +3978,7 @@ else:
         "STEP": 12,
         "ADOPT_SIZE": 12,
         "CHUNKS_PER_BATCH": 3,
-        "GLOBAL_CAMERA_SOURCE": "extrinsics_w2c.npy",
+        "GLOBAL_CAMERA_SOURCE": "extrinsics_w2c_arc.npy",
         "USE_TARGET_CHUNK_WINDOW": False,
         "TARGET_CHUNK_WINDOW_START_1BASED": 1,
         "TARGET_CHUNK_WINDOW_COUNT": 0,
@@ -4062,7 +4062,7 @@ batch_summaries = sorted({
     str(p) for p in chunk_runs_dir.glob("batch_*/batch_summary.json")
 })
 summary_rows = [json.loads(Path(p).read_text(encoding="utf-8")) for p in batch_summaries]
-(merged_dir / "all_batch_summary.json").write_text(json.dumps(summary_rows, indent=2, ensure_ascii=False), encoding="utf-8")
+(merged_dir / "all_batch_summary_arc.json").write_text(json.dumps(summary_rows, indent=2, ensure_ascii=False), encoding="utf-8")
 premerge_pose_validation_path = merged_dir / "premerge_pose_validation.json"
 
 if not premerge_pose_validation_path.exists():
@@ -4071,7 +4071,7 @@ if not premerge_pose_validation_path.exists():
         "status": "skipped",
         "reason": "premerge_pose_validation_required",
         "premerge_pose_validation_path": str(premerge_pose_validation_path),
-        "all_batch_summary_path": str(merged_dir / "all_batch_summary.json"),
+        "all_batch_summary_path": str(merged_dir / "all_batch_summary_arc.json"),
     }
     (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
     print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
@@ -4086,7 +4086,7 @@ if premerge_pose_validation.get("status") != "ok":
         "premerge_pose_validation_path": str(premerge_pose_validation_path),
         "hard_fail_count": int(premerge_pose_validation.get("hard_fail_count", 0)),
         "failed_chunks": premerge_pose_validation.get("failed_chunks", []),
-        "all_batch_summary_path": str(merged_dir / "all_batch_summary.json"),
+        "all_batch_summary_path": str(merged_dir / "all_batch_summary_arc.json"),
     }
     (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
     print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
@@ -4100,14 +4100,14 @@ if REQUIRE_ALL_CHUNKS and len(completed_chunks_df) < len(target_chunks_df):
         "completed_chunk_count": int(len(completed_chunks_df)),
         "ply_ready_chunk_count": int(len(ply_ready_target_chunk_names)),
         "all_chunk_count": int(len(target_chunks_df)),
-        "all_batch_summary_path": str(merged_dir / "all_batch_summary.json"),
+        "all_batch_summary_path": str(merged_dir / "all_batch_summary_arc.json"),
     }
     (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
     print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
 else:
-    global_centers_df = pd.read_csv(global_pose_dir / "camera_center_matrix.csv")
-    global_camera_matrix_df = pd.read_csv(global_pose_dir / "camera_matrix_full.csv")
-    global_anchor_df = pd.read_csv(global_pose_dir / "camera_anchor_full.csv")
+    global_centers_df = pd.read_csv(global_pose_dir / "camera_center_matrix_arc.csv")
+    global_camera_matrix_df = pd.read_csv(global_pose_dir / "camera_matrix_full_arc.csv")
+    global_anchor_df = pd.read_csv(global_pose_dir / "camera_anchor_full_arc.csv")
     input_manifest_path = manifest_dir / "da3_input_manifest.csv"
     assert input_manifest_path.exists(), input_manifest_path
     input_manifest_df = pd.read_csv(input_manifest_path)
@@ -4514,18 +4514,18 @@ else:
                 master_scene.add_geometry(geom2, node_name=f"{row.chunk_name}_{gname}")
 
     transform_df = pd.DataFrame(transform_rows)
-    transform_df.to_csv(chunk_manifest_dir / "chunk_global_transforms.csv", index=False, encoding="utf-8")
+    transform_df.to_csv(chunk_manifest_dir / "chunk_global_transforms_arc.csv", index=False, encoding="utf-8")
 
     keep_df = pd.DataFrame(keep_rows)
-    keep_summary_path = merged_dir / "chunk_keep_summary.csv"
+    keep_summary_path = merged_dir / "chunk_keep_summary_arc.csv"
     keep_df.to_csv(keep_summary_path, index=False, encoding="utf-8")
-    transform_quality_path = merged_dir / "chunk_transform_quality.csv"
+    transform_quality_path = merged_dir / "chunk_transform_quality_arc.csv"
     transform_df.to_csv(transform_quality_path, index=False, encoding="utf-8")
 
     if owner_hist_rows:
-        pd.concat(owner_hist_rows, ignore_index=True).to_csv(merged_dir / "owner_record_histogram.csv", index=False, encoding="utf-8")
+        pd.concat(owner_hist_rows, ignore_index=True).to_csv(merged_dir / "owner_record_histogram_arc.csv", index=False, encoding="utf-8")
     if chunk_assign_rows:
-        pd.concat(chunk_assign_rows, ignore_index=True).to_csv(merged_dir / "chunk_assignment_summary.csv", index=False, encoding="utf-8")
+        pd.concat(chunk_assign_rows, ignore_index=True).to_csv(merged_dir / "chunk_assignment_summary_arc.csv", index=False, encoding="utf-8")
 
     warning_summary = {
         "transform_warning_count": int(sum(bool(x["transform_warning"]) for x in warning_rows)),
@@ -4533,22 +4533,22 @@ else:
         "fallback_used_count": 0,
         "rows": warning_rows,
     }
-    (merged_dir / "merge_warning_summary.json").write_text(json.dumps(warning_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+    (merged_dir / "merge_warning_summary_arc.json").write_text(json.dumps(warning_summary, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    merged_ply_path = merged_dir / "merged_gs.ply"
+    merged_ply_path = merged_dir / "merged_gs_arc.ply"
     if all_vertices:
         merged_vertices = np.concatenate(all_vertices, axis=0)
         PlyData([PlyElement.describe(merged_vertices, "vertex")], text=False).write(str(merged_ply_path))
 
     stage_11_2_copy_plan = [
-        (merged_ply_path, stage_11_2_dir / "merged_gs.ply"),
-        (chunk_manifest_dir / "chunk_global_transforms.csv", stage_11_2_dir / "chunk_global_transforms.csv"),
-        (keep_summary_path, stage_11_2_dir / "chunk_keep_summary.csv"),
-        (transform_quality_path, stage_11_2_dir / "chunk_transform_quality.csv"),
-        (merged_dir / "owner_record_histogram.csv", stage_11_2_dir / "owner_record_histogram.csv"),
-        (merged_dir / "chunk_assignment_summary.csv", stage_11_2_dir / "chunk_assignment_summary.csv"),
-        (merged_dir / "merge_warning_summary.json", stage_11_2_dir / "merge_warning_summary.json"),
-        (merged_dir / "all_batch_summary.json", stage_11_2_dir / "all_batch_summary.json"),
+        (merged_ply_path, stage_11_2_dir / "merged_gs_arc.ply"),
+        (chunk_manifest_dir / "chunk_global_transforms_arc.csv", stage_11_2_dir / "chunk_global_transforms_arc.csv"),
+        (keep_summary_path, stage_11_2_dir / "chunk_keep_summary_arc.csv"),
+        (transform_quality_path, stage_11_2_dir / "chunk_transform_quality_arc.csv"),
+        (merged_dir / "owner_record_histogram_arc.csv", stage_11_2_dir / "owner_record_histogram_arc.csv"),
+        (merged_dir / "chunk_assignment_summary_arc.csv", stage_11_2_dir / "chunk_assignment_summary_arc.csv"),
+        (merged_dir / "merge_warning_summary_arc.json", stage_11_2_dir / "merge_warning_summary_arc.json"),
+        (merged_dir / "all_batch_summary_arc.json", stage_11_2_dir / "all_batch_summary_arc.json"),
     ]
     stage_11_2_files = []
     for src, dst in stage_11_2_copy_plan:
@@ -4567,7 +4567,7 @@ else:
     }
     (final_outputs_diagnostics_dir / "merge_resume_state.json").write_text(json.dumps(merge_resume_state, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    merged_glb_path = merged_dir / "merged_scene.glb"
+    merged_glb_path = merged_dir / "merged_scene_arc.glb"
     if len(master_scene.geometry) > 0:
         master_scene.export(str(merged_glb_path))
 
@@ -4575,7 +4575,7 @@ else:
         if src.is_file():
             shutil.copy2(src, stage_11_3_dir / src.name)
     if merged_glb_path.exists():
-        shutil.copy2(merged_glb_path, stage_11_3_dir / "merged_scene.glb")
+        shutil.copy2(merged_glb_path, stage_11_3_dir / "merged_scene_arc.glb")
     merge_resume_state.update({
         "stage": "11-3-complete",
         "stage_11_3_dir": str(stage_11_3_dir),
@@ -4585,19 +4585,19 @@ else:
     shutil.copy2(final_outputs_diagnostics_dir / "merge_resume_state.json", stage_11_3_dir / "merge_resume_state.json")
 
     final_output_copy_plan = [
-        (merged_ply_path, final_outputs_merged_dir / "merged_gs.ply"),
-        (merged_glb_path, final_outputs_merged_dir / "merged_scene.glb"),
-        (chunk_manifest_dir / "chunk_global_transforms.csv", final_outputs_diagnostics_dir / "chunk_global_transforms.csv"),
-        (keep_summary_path, final_outputs_diagnostics_dir / "chunk_keep_summary.csv"),
-        (transform_quality_path, final_outputs_diagnostics_dir / "chunk_transform_quality.csv"),
-        (merged_dir / "owner_record_histogram.csv", final_outputs_diagnostics_dir / "owner_record_histogram.csv"),
-        (merged_dir / "chunk_assignment_summary.csv", final_outputs_diagnostics_dir / "chunk_assignment_summary.csv"),
-        (merged_dir / "merge_warning_summary.json", final_outputs_diagnostics_dir / "merge_warning_summary.json"),
-        (merged_dir / "all_batch_summary.json", final_outputs_diagnostics_dir / "all_batch_summary.json"),
+        (merged_ply_path, final_outputs_merged_dir / "merged_gs_arc.ply"),
+        (merged_glb_path, final_outputs_merged_dir / "merged_scene_arc.glb"),
+        (chunk_manifest_dir / "chunk_global_transforms_arc.csv", final_outputs_diagnostics_dir / "chunk_global_transforms_arc.csv"),
+        (keep_summary_path, final_outputs_diagnostics_dir / "chunk_keep_summary_arc.csv"),
+        (transform_quality_path, final_outputs_diagnostics_dir / "chunk_transform_quality_arc.csv"),
+        (merged_dir / "owner_record_histogram_arc.csv", final_outputs_diagnostics_dir / "owner_record_histogram_arc.csv"),
+        (merged_dir / "chunk_assignment_summary_arc.csv", final_outputs_diagnostics_dir / "chunk_assignment_summary_arc.csv"),
+        (merged_dir / "merge_warning_summary_arc.json", final_outputs_diagnostics_dir / "merge_warning_summary_arc.json"),
+        (merged_dir / "all_batch_summary_arc.json", final_outputs_diagnostics_dir / "all_batch_summary_arc.json"),
         (input_manifest_path, final_outputs_manifests_dir / "da3_input_manifest.csv"),
-        (global_pose_dir / "camera_center_matrix.csv", final_outputs_manifests_dir / "camera_center_matrix.csv"),
-        (global_pose_dir / "camera_matrix_full.csv", final_outputs_manifests_dir / "camera_matrix_full.csv"),
-        (global_pose_dir / "camera_anchor_full.csv", final_outputs_manifests_dir / "camera_anchor_full.csv"),
+        (global_pose_dir / "camera_center_matrix_arc.csv", final_outputs_manifests_dir / "camera_center_matrix_arc.csv"),
+        (global_pose_dir / "camera_matrix_full_arc.csv", final_outputs_manifests_dir / "camera_matrix_full_arc.csv"),
+        (global_pose_dir / "camera_anchor_full_arc.csv", final_outputs_manifests_dir / "camera_anchor_full_arc.csv"),
         (chunk_manifest_dir / "chunk_index_all.csv", final_outputs_manifests_dir / "chunk_index_all.csv"),
         (chunk_manifest_dir / "batch_plan.csv", final_outputs_manifests_dir / "batch_plan.csv"),
     ]
@@ -4641,7 +4641,7 @@ else:
         "file_count": int(len(final_output_files)),
         "files": final_output_files,
     }
-    (final_outputs_dir / "final_output_manifest.json").write_text(json.dumps(final_output_manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+    (final_outputs_dir / "final_output_manifest_arc.json").write_text(json.dumps(final_output_manifest, indent=2, ensure_ascii=False), encoding="utf-8")
 
     merge_summary = {
         "route": "continuous-gs-v06-chunk18-overlap6-adopt12-merge",
@@ -4651,15 +4651,15 @@ else:
         "all_chunk_count": int(len(target_chunks_df)),
         "merged_ply_path": str(merged_ply_path) if merged_ply_path.exists() else None,
         "merged_glb_path": str(merged_glb_path) if merged_glb_path.exists() else None,
-        "chunk_global_transforms_path": str(chunk_manifest_dir / "chunk_global_transforms.csv"),
+        "chunk_global_transforms_path": str(chunk_manifest_dir / "chunk_global_transforms_arc.csv"),
         "chunk_keep_summary_path": str(keep_summary_path),
         "chunk_transform_quality_path": str(transform_quality_path),
-        "owner_record_histogram_path": str(merged_dir / "owner_record_histogram.csv"),
-        "chunk_assignment_summary_path": str(merged_dir / "chunk_assignment_summary.csv"),
-        "merge_warning_summary_path": str(merged_dir / "merge_warning_summary.json"),
-        "all_batch_summary_path": str(merged_dir / "all_batch_summary.json"),
+        "owner_record_histogram_path": str(merged_dir / "owner_record_histogram_arc.csv"),
+        "chunk_assignment_summary_path": str(merged_dir / "chunk_assignment_summary_arc.csv"),
+        "merge_warning_summary_path": str(merged_dir / "merge_warning_summary_arc.json"),
+        "all_batch_summary_path": str(merged_dir / "all_batch_summary_arc.json"),
         "final_outputs_dir": str(final_outputs_dir),
-        "final_output_manifest_path": str(final_outputs_dir / "final_output_manifest.json"),
+        "final_output_manifest_path": str(final_outputs_dir / "final_output_manifest_arc.json"),
         "bundle_summary": bundle_summary,
     }
     (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -4670,15 +4670,15 @@ else:
         "merge",
         inputs=[
             {"item": "batch_execution_items", "path": str(batch_execution_items_path)},
-            {"item": "camera_anchor_full", "path": str(global_pose_dir / "camera_anchor_full.csv")},
+            {"item": "camera_anchor_full", "path": str(global_pose_dir / "camera_anchor_full_arc.csv")},
             {"item": "da3_input_manifest", "path": str(input_manifest_path)},
         ],
         outputs=[
             {"item": "merge_summary", "path": str(merged_dir / "merge_summary.json")},
             {"item": "merged_gs", "path": str(merged_ply_path)},
             {"item": "merged_scene_glb", "path": str(merged_glb_path)},
-            {"item": "final_output_manifest", "path": str(final_outputs_dir / "final_output_manifest.json")},
-            {"item": "chunk_global_transforms", "path": str(chunk_manifest_dir / "chunk_global_transforms.csv")},
+            {"item": "final_output_manifest", "path": str(final_outputs_dir / "final_output_manifest_arc.json")},
+            {"item": "chunk_global_transforms", "path": str(chunk_manifest_dir / "chunk_global_transforms_arc.csv")},
             {"item": "chunk_keep_summary", "path": str(keep_summary_path)},
             {"item": "chunk_transform_quality", "path": str(transform_quality_path)},
         ],

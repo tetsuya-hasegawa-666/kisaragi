@@ -56,7 +56,7 @@
 2. [hi-ai-unified-blueprint.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\hi-ai-unified-blueprint.md) で `MRL-2S` と後続 `MRL-**` の current_state を確認する。
 3. record-native route を blank runtime から進める時は [da3_ngl_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook.md) の `#1` から `#6` までを順に実行し、mount、config、input 選択、tree 作成、install、helper を固める。
 4. `MRL-10` を進める時は同 runbook の `#7` から `#10` を順に実行し、full anchor、anchor QC、record manifest、chunk plan、precheck が通ることを先に確認する。
-5. giant production candidate は同 runbook の `#11`、`#12`、`#13`、`#14` を順に実行し、reset / preflight、chunk 実行、residual / continuity gate、final merge を進める。chunk 条件は `#2 Config` の設定値だけで決まり、merge 証跡は `chunk_global_transforms.csv`、`chunk_keep_summary.csv`、`chunk_assignment_summary.csv`、`merge_warning_summary.json`、`chunk_transform_quality.csv` として残る。
+5. giant production candidate は同 runbook の `#11`、`#12`、`#13`、`#14` を順に実行し、reset / preflight、chunk 実行、residual / continuity gate、final merge を進める。chunk 条件は `#2 Config` の設定値だけで決まり、merge 証跡は `chunk_global_transforms_arc.csv`、`chunk_keep_summary_arc.csv`、`chunk_assignment_summary_arc.csv`、`merge_warning_summary_arc.json`、`chunk_transform_quality_arc.csv` として残る。
 
 ## 引き継ぎ上の重要判断
 
