@@ -125,7 +125,7 @@
   - `mRL-7.1` から `mRL-7.2`
 - admin 操作観点:
   - [da3_ngl_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook.md) を fresh runtime から実行し、bootstrap UX が再現可能である
-  - `trajectreview-correcting` 由来の実 data を入力に、`DA3Metric-Large` から `3DGS` 系主空間モデル候補を smoke 生成できる
+  - `trajectreview-correcting` 由来の実 data を入力に、`DA3NESTED-GIANT-LARGE-1.1` canonical route から `3DGS` 系主空間モデル候補を smoke 生成できる
   - `trajectreview-modeling` で実 bundle を読み、request 元、input directory、result directory を含む `colab_job_request.json` を生成できる
   - `Google Drive` directory 指定で `Colab` route の入力位置を決められる
   - waiting ring、現在段階、`job_status.json` の更新は `MRL-3.3` 以降の未達項目として残す

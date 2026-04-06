@@ -13,6 +13,17 @@
 
 ## Entries
 
+- record date: `2026-04-07`
+  target MRL: `MRL-10`
+  target mRL: `mRL-10.5`、`mRL-10.5a`、`mRL-10.5b`、`mRL-10.5c`
+  gate change: `active`
+  issue: [da3_ngl_runbook.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.md) は canonical pair として使い始めていたが、`HAUB` 上では `mRL-10.5` の意図が「runbook 構成そのものの gate」だと読めず、旧 `da3_colab_evid_runbook.md` 名や `Block 3-6` 記法も残っていた。このままだと、runbook 設計変更の意味が artifact algorithm の一部なのか、運用面の closeout なのかを後から追えない
+  cause: `MRL-10` の実装を先に進める中で、runbook pair の正本切替、`#1`-`#17` への再構成、official API / CLI 基準統一、provenance 可視化、stage summary 可視化を同時に入れたが、その設計意図を `MRL` 表と closeout 記録へ十分に昇格していなかった
+  resolution: [hi-ai-unified-blueprint.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/hi-ai-unified-blueprint.md) の `MRL-10` 対応表を更新し、`mRL-10.5` を canonical runbook pair 自体の設計 gate として明記した。あわせて旧 runbook 名と旧 block 記法を [da3_ngl_runbook.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.md) の `#1`-`#17` 基準へ置き換え、`mRL-10.5c` を追加して `extrinsics_w2c.npy` provenance、anchor 以降の input / output summary、section と code cell 番号一致を canonical 条件へ含めた
+  recurrence prevention: runbook 正本の名称、section 構成、admin 実行順、provenance 可視化、`.md/.ipynb` 同期のいずれかを変更した時は、同じ task で `HAUB` の `MRL-10.5` と `codex-mrl-test-evidence.md` を同時更新し、algorithm gate と runbook architecture gate を混在させない
+  remaining work: `mRL-10.5` はまだ `active` であり、admin が fresh runtime から [da3_ngl_runbook.ipynb](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.ipynb) の `#1`-`#17` を使って clean bootstrap し、stage summary と provenance 表示が運用上も十分読めるかを batch で確認する必要がある。加えて `BLK-1` の merge 品質問題は別途残る
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.md`
+
 - record date: `2026-04-02`
   target MRL: `MRL-10`
   target mRL: `mRL-10.1`、`mRL-10.2`、`mRL-10.3`
