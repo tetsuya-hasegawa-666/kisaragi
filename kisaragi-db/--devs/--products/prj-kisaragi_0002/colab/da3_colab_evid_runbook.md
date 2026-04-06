@@ -1,67 +1,431 @@
-# DA3 Colab Evid Runbook
+# DA3 Sequence-Anchor Canonical Colab Evid Runbook
 
-## 文書の役割
+- この runbook は `prj-kisaragi_0002` の `Colab` modeling canonical runbook であり、正本はこの `.md`、実行 companion は同名 `.ipynb` とする。
+- canonical route は `sequence-anchor first`、`1 frame = 1 record`、`strict one-to-one join`、`batch/chunk precheck -> batch inference -> merge` である。
+- `DA3` model は `depth-anything/DA3NESTED-GIANT-LARGE-1.1` のみを使い、camera pose / trajectory の事前推定も同一 model に統一し、公式 `DepthAnything3.inference(...)` と公式 CLI/Backend 契約に寄せる。
+- 参照した upstream 一次資料は `ByteDance-Seed/Depth-Anything-3` の [README](https://github.com/ByteDance-Seed/Depth-Anything-3)、[docs/API.md](https://raw.githubusercontent.com/ByteDance-Seed/Depth-Anything-3/main/docs/API.md)、[docs/CLI.md](https://raw.githubusercontent.com/ByteDance-Seed/Depth-Anything-3/main/docs/CLI.md) である。
+- 外部 notebook の read-only copy は [da3_record_sequence_anchor_rebuild7.ipynb](C:/Users/tetsuya/kisaragi/kisaragi-db/--exsams/prj-kisaragi_0002/colab-inputs/da3_record_sequence_anchor_rebuild7.ipynb) を参照し、そこにある precheck、可視化、adjacent continuity、pre-merge gate の有益部分をこの runbook へ昇格して使う。
 
-- `Colab` modeling の canonical runbook とする。
-- canonical input は `session_manifest.json`、`frame_record.jsonl`、`trajectreview/image` または `trajectreview/images` とする。
-- `frame_pose_index.csv` は診断用、`arcore_pose.jsonl` は fallback とする。
-- canonical route は `MRL-10 record-native DA3 route` とし、`proof route` と `production route` を分離する。
-- `1 record = image + pose + intrinsics + timestamp` の構造を `Colab` 側で壊さないことを最優先とする。
+zip input を canonical source とし、全 frame を timestamp 順 `sequence_index` に正規化し、full anchor、anchor 姿勢導出、record-native manifest、batch/chunk 事前可視化、隣接 continuity gate、統合 merge、cleanup inventory を上から順に独立再実行できる親番-小番構成へ再編した runbook とする。旧 runbook の類似処理は各節に「旧#**と目的は類似」と明記する。
 
-## Route Policy
+---
 
-- `proof route`
-  - QC 通過後の subset を使って短く壊れ方を見る。
-  - 既定では `baseline thinning` 後の先頭 `24` frame までを使う。
-- `production route`
-  - QC 通過した全 record を主対象にする。
-  - 固定枚数 cap は置かない。
-  - thinning は `skip reason` を残す時だけ許可する。
-- record-native canonical route では常に
-  - `image[]`
-  - `intrinsics[N,3,3]`
-  - `extrinsics_w2c[N,4,4]`
-  を manifest として生成する。
-- `DA3Metric-Large` は現行 upstream 制約により image-only 推論とし、`intrinsics` / `extrinsics_w2c` は world projection と評価証跡に使う。
-- `Giant` proof living route は `DA3NESTED-GIANT-LARGE-1.1`、`da3_estimated pose`、`debug_gs_readback` bundle を canonical とする。
+## 全体方針
+- **旧 notebook の処理目的は継承**
+- **順序は「anchor先行」に再編**
+- **各親番は単独再実行可能**
+- **小番は MVC/関心分離**
+  - 設定
+  - 入出力
+  - 検証
+  - 実処理
+  - 可視化
+  - 永続化
+- **旧セル対応は各節に注記**
+- **1セルが重すぎない粒度**
+- **不具合原因を batch/chunk/merge 単位で切れる粒度**
 
-## Orientation Policy
+# 新 notebook 構成案
 
-- canonical image は `correcting` 側で `90度右回転` 済みの upright JPEG を受け取る前提とする。
-- `Colab` 側は image pixel を再回転しない。
-- `Block 1` では、実画像の `width` / `height` と `frame_record.jsonl` の `imageIntrinsics` を照合し、すでに upright ならそのまま使う。
-- legacy session のように intrinsics だけ raw 向きで `width` / `height` が swap している時は、`90度右回転` の式で `fx` / `fy` / `cx` / `cy` を canonical upright 基準へ補正する。
-- 上記の判定結果は `input_frame_manifest.csv`、`k_resize_check.csv`、`orientation_summary.json` に残す。
+---
 
-## Bundle Naming Policy
+## #1 事前準備
+> 観点: 参照先確認、保存先作成、依存導入、共通設定  
+> 旧 `#2 #3 #4 #5 #6-1 #6-1a #6-1b` と目的は類似
 
-- `correcting` 側の canonical zip 名は `trajectreview/correcting/trajectreview-correcting-session-YYYYMMDD-HHMMSS.zip` とする。
-- `modeling` 側の Drive 正本保存先は、`1 correcting session = 1 modeling directory` とし、`MyDrive/trajectreview/modeling/<modeling_session_id>_<route_slug>/` だけを使う。
-- `Colab` runbook では `selected input` の `session_id` が `trajectreview-correcting-session-*` なら、Drive 正本 directory 名に使う `modeling_session_id` を `trajectreview-modeling-session-*` へ置き換えて使う。
-- download 用 zip は Drive 上へ重複保存せず、すべての Drive 保存完了後に必要時だけ `/content/<modeling_session_id>_<model_slug>_...zip` を別段で作る。
-- binary `gs_ply` は text viewer で文字化けするため、runbook は header、property stats、focus stats、`xyz_only.ply` を `debug_gs_visible_copy/` と bundle zip に同梱する。
+### #1-1 実行ポリシーと共通設定
+- runbook 概要
+- 親番説明
+- 再実行ルール
+- 共通パラメータ定義
+  - project名
+  - probe_root
+  - persist_root
+  - cleanup_root
+  - batch/chunk設定
+  - 閾値群
+- `CONFIG` を dict で一元化
 
-## 実行順
+### #1-2 参照元入力の事前チェック
+- raw/probe/zip/dir 存在確認
+- 必須ファイル一覧確認
+- timestamp/image/intrinsics/extrinsics 候補確認
+- 失敗時はここで停止
 
-1. `準備確認 1-4`
-2. `install`
-3. `MRL-10 Block 1`
-4. `MRL-10 Block 2`
-5. 必要時のみ `MRL-10 Block 3`
-6. 必要時のみ `MRL-10 Block 4`
-7. 必要時のみ `MRL-10 Block 5` を `RUN_BATCH_INDEX` を変えながら繰り返す
-   - 例: `0`, `1`, `2`, `3` ...
-   - 1 回の `Block 5` で `3chunk` だけ処理する
-   - ただし `1chunk = 18frame`、`chunk overlap = 6frame`、各 chunk の再構成責務は基本 `後半 12frame` とする
-8. 最後に `MRL-10 Block 6`
-9. 必要時のみ `MRL-10 Block 6-1` で local bundle zip を作成して download する
+### #1-3 永続化ディレクトリ作成
+- Google Drive 上に以下を作成
+  - `00_config`
+  - `01_anchor`
+  - `02_records`
+  - `03_batch_plan`
+  - `04_batch_runs`
+  - `05_merge`
+  - `06_cleanup`
+  - `other`
+- 実行ログ保存先も作成
 
-## 準備確認
+### #1-4 依存導入と import
+- install
+- import
+- version 記録
+- 環境情報CSV/JSON保存
 
-### #1 準備確認 1
+### #1-5 共通ユーティリティ定義
+- path helper
+- save/load helper
+- csv/json export helper
+- pose helper
+- plotting helper
+- diagnostics helper
+
+---
+
+## #2 時系列アンカー構築
+> 観点: global full-anchor を最初に確定  
+> 旧 `#7 #8-1 #8-1b` と目的は類似
+
+### #2-1 full anchor 入力収集
+- 元データから full sequence に必要なもの収集
+- 全フレーム timestamp 順整列
+- `sequence_index` 付与
+- 基礎 manifest 保存
+
+### #2-2 full anchor 生成
+- `extrinsics_w2c.npy` 生成/読込
+- `c2w`
+- camera center
+- lens/up/right 導出
+- full anchor manifest 保存
+
+### #2-3 anchor 姿勢導出
+- roll/pitch/yaw
+- delta_roll/pitch/yaw
+- delta_pos
+- delta2_pos
+- delta2_rot
+- continuity列保存
+
+### #2-4 anchor QC
+- 時系列欠落
+- 姿勢ジャンプ
+- roll帯
+- pitch帯
+- yaw反転頻度
+- 異常フレーム一覧保存
+
+### #2-5 full anchor 可視化
+- 全軌跡3D可視化
+- カメラ方向付き3D可視化
+- html / glb / json 等、視点変更可能な保存物出力
+
+---
+
+## #3 1フレーム1レコード化＋chunk/batch設定
+> 観点: record-native manifest と batch/chunk 可変設計  
+> 旧 `#6-2 #8 #9` と目的は類似
+
+### #3-1 1フレーム1レコード manifest 生成
+- image
+- timestamp
+- intrinsics
+- extrinsics
+- sequence_index
+- prev/next relation
+- anchor由来姿勢列
+- QC列
+- record manifest 保存
+
+### #3-2 record QC
+- blur
+- 欠落
+- サイズ差
+- intrinsics 不整合
+- anchor continuity異常
+- 結果CSV保存
+
+### #3-3 batch/chunk パラメータ定義
+- `BATCH_SIZE`
+- `BATCH_STEP`
+- `CHUNK_SIZE`
+- `CHUNK_STEP`
+- `ADOPT_SIZE`
+- overlap
+- 可変設定を1セル集中
+
+### #3-4 batch 計画生成
+- sequence順 batch 生成
+- 各 batch に含まれる record 範囲保存
+- batch manifest 出力
+
+### #3-5 chunk 計画生成
+- 各 batch 内 chunk 生成
+- chunk は必ず sequence部分列
+- chunk manifest 出力
+
+### #3-6 chunk csv 拡張
+- anchor姿勢列
+- 隣接edge情報
+- interior/head/tail
+- 境界情報
+- 旧 chunk csv の拡張版を保存
+
+---
+
+## #4 batch/chunk の時系列整列事前確認
+> 観点: batch/chunk が時系列順・anchor整列済みであることを事前検証  
+> 旧 `#8 #8-1b #9` と目的は類似
+
+### #4-1 batch/chunk sequence 整列検証
+- sequence_index 昇順
+- 欠落/重複検出
+- batch境界確認
+- chunk境界確認
+
+### #4-2 batch/chunk anchor 3D可視化
+- batchごとの軌跡
+- chunkごとの軌跡
+- カメラ方向
+- 色分け保存
+
+### #4-3 隣接edge検証
+- `(r_i, r_{i+1})` が正しく張られているか
+- 欠落edge一覧
+- batchまたぎedge一覧
+
+### #4-4 batch実行前QC要約
+- batch難易度
+- chunk難易度
+- 異常候補batch一覧
+- ここで stop 可能
+
+---
+
+## #5 batch単位処理
+> 観点: 計算負荷分散、batchごと独立処理、隣接軌跡連続性検証  
+> 旧 `#9-1 #10-1 #10-2 #10-3 #10-4 #10-5 #10-6` と目的は類似
+
+### #5-1 batch実行対象の準備
+- target batch 選択
+- 出力先 reset
+- batch専用 workdir 作成
+
+### #5-2 batch入力生成
+- batch内 chunk 入力作成
+- manifest / images / intrinsics / anchor補助列配置
+
+### #5-3 batch内 chunk 推論実行
+- chunk単位 DA3 実行
+- 出力存在確認
+- 失敗chunk記録
+
+### #5-4 batch内 chunk 結果正規化
+- `pred_extrinsics`
+- `pred_intrinsics`
+- local center
+- local pose導出
+- 残差計算可能な形に統一
+
+### #5-5 anchor 残差計算
+- local→anchor 比較
+- center error
+- lens error
+- up error
+- roll/pitch/yaw error
+- frame単位 residual csv 保存
+
+### #5-6 batch内隣接連続性検証
+- `(r_i,r_{i+1})` 単位で
+  - center jump
+  - lens jump
+  - pose jump
+- 時系列連続性 fail を保存
+
+### #5-7 batch内 pre-merge gate
+- scale
+- RMSE
+- frame単位 p95/max
+- 連続性
+- 撮影前提違反
+- gate結果保存
+
+### #5-8 batch成果物要約保存
+- batch summary
+- fail chunk list
+- keep chunk list
+- 可視化
+
+---
+
+## #6 統合処理
+> 観点: batch間統合、ownership、seam検証、bundle出力  
+> 旧 `#11 #11-1` と目的は類似
+
+### #6-1 統合入力の収集
+- 通過batchのみ収集
+- 統合対象一覧保存
+
+### #6-2 local→global 整列
+- similarity
+- basis適用
+- batch間整列
+- 残差保存
+
+### #6-3 owner 判定と point 採用
+- distance
+- direction
+- blur
+- anchor residual
+- adjacent consistency penalty
+- ownership 保存
+
+### #6-4 seam 検証
+- batch境界/ chunk境界
+- center mismatch
+- lens mismatch
+- point conflict
+- seam summary 保存
+
+### #6-5 final merge 出力
+- merged ply / bundle / manifest / summary
+- 最終3D可視化保存
+
+### #6-6 optional bundle/export
+- zip
+- download 用出力
+- inventory 登録
+
+---
+
+## #7 非永続化対象一覧化
+> 観点: 消してよいものを一覧化  
+> 旧 `#12` と目的は類似
+
+### #7-1 全生成物 inventory 収集
+- 全ファイル列挙
+- サイズ
+- 更新時刻
+- 由来親番
+- 由来batch
+- 永続候補区分
+
+### #7-2 非永続候補判定
+- tmp
+- 中間npy
+- workdir
+- 再生成可能物
+- inventory csv 保存
+
+### #7-3 ユーザー確認用 cleanup csv 出力
+- delete候補一覧
+- keep候補一覧
+- 判定理由付き
+
+---
+
+## #8 cleanup apply
+> 観点: ユーザー確認済 csv を読んで delete / other 退避  
+> 旧 `#13` と目的は類似
+
+### #8-1 ユーザー確認済 csv 読込
+- cleanup csv 読込
+- 整合性確認
+- 欠落行確認
+
+### #8-2 delete 実行
+- csvに記載された delete 対象を削除
+- 実行ログ保存
+
+### #8-3 `other` 退避
+- csvから外れた非永続候補を `other` に移動
+- 移動ログ保存
+
+### #8-4 cleanup 結果要約
+- deleted
+- moved_to_other
+- kept
+- cleanup summary 保存
+
+# 小番の切り方の原則
+各親番の中は、原則この順です。
+
+| 小番種別 | 役割 |
+|---|---|
+| `-1` | 設定・入力確認 |
+| `-2` | 生成・計算 |
+| `-3` | 導出・整形 |
+| `-4` | QC・検証 |
+| `-5` | 可視化・保存 |
+| `-6` 以降 | 追加機能 / export / apply |
+
+これで、**どこで壊れたかを親番内で切りやすい**です。
+
+# 旧 notebook から見た主な再配置
+大きいものだけ示します。
+
+| 新 | 旧 | 変化 |
+|---|---|---|
+| `#2 時系列アンカー構築` | 旧 `#7 #8-1 #8-1b` | 前倒し |
+| `#3 1レコード化 + batch/chunk設定` | 旧 `#6-2 #8 #9` | anchor後へ移動 |
+| `#4 batch/chunk事前確認` | 旧 `#8-1b #9` 周辺 | 新設強化 |
+| `#5 batch単位処理` | 旧 `#10-*` | 目的維持 |
+| `#6 統合処理` | 旧 `#11` | 目的維持 |
+| `#7/#8 cleanup` | 旧 `#12 #13` | 目的維持 |
+
+# この再編で最も重要な差分
+1. **anchor を最初に確定**
+2. **record は anchor情報を持った sequence record にする**
+3. **batch/chunk は sequence の部分列として作る**
+4. **batch処理後に「隣接連続性」を必ず検証**
+5. **統合前に batch単位で落とせる構造にする**
+
+# 追加しておくべき共通保存物
+最低これを毎段で出すと、故障解析がかなり楽です。
+
+| 保存物 | 出す段 |
+|---|---|
+| `config_snapshot.json` | `#1` |
+| `full_anchor_manifest.csv` | `#2` |
+| `full_anchor_pose_diag.csv` | `#2` |
+| `record_manifest.csv` | `#3` |
+| `batch_manifest.csv` | `#3` |
+| `chunk_manifest.csv` | `#3` |
+| `batch_chunk_anchor_preview.html` | `#4` |
+| `batch_residual.csv` | `#5` |
+| `batch_gate_summary.csv` | `#5` |
+| `merge_seam_summary.csv` | `#6` |
+| `cleanup_inventory.csv` | `#7` |
+| `cleanup_apply_log.csv` | `#8` |
+
+# 実装時の注記文テンプレート
+各 markdown 冒頭はこう統一すると見やすいです。
+
+```markdown
+### #2-3 anchor 姿勢導出
+旧 #8-1 と目的は類似。full anchor を基に roll/pitch/yaw, continuity, camera direction を導出し、後段の record/chunk/batch に配布する。
+```
+
+# 最終案
+親番は以下で確定がよいです。
+
+- `#1` 事前準備
+- `#2` 時系列アンカー構築
+- `#3` 1フレーム1レコード化＋chunk/batch設定
+- `#4` batch/chunk の時系列整列事前確認
+- `#5` batch毎処理
+- `#6` 統合処理
+- `#7` 非永続化対象一覧化
+- `#8` cleanup apply
+
+この構成なら、  
+**旧参照混乱を避けつつ、anchor先行・record-native・時系列主拘束・batch単位故障切り分け** を全部入れられます。
+
+
+### #1-1 実行ポリシーと共通設定  
+旧 #1 と目的は類似。runtime / Drive mount / CUDA 可否を確認し、以降の親番で共通利用する設定を初期化する。
+
 
 ```python
-#1
+#1-1
 import os
 from pathlib import Path
 import torch
@@ -76,10 +440,39 @@ print("mydrive_exists", Path("/content/drive/MyDrive").exists())
 print("shortcut_root_exists", Path("/content/drive/.shortcut-targets-by-id").exists())
 ```
 
-### #2 準備確認 2
 
 ```python
-#2
+#1-1b
+from pathlib import Path
+import json
+
+CONFIG = {
+    "PROJECT_SLUG": "da3_record_sequence_anchor_rebuild_v02",
+    "PIPELINE_SLUG": "da3_seq_anchor_batch_v02",
+    "BATCH_SIZE": 3,
+    "CHUNK_SIZE": 18,
+    "CHUNK_STEP": 12,
+    "ADOPT_SIZE": 12,
+    "PROCESS_RES": 504,
+    "ROLL_BAND_DEG": 20.0,
+    "PITCH_MIN_DEG": -85.0,
+    "PITCH_MAX_DEG": -1.0,
+    "YAW_JUMP_MAX_DEG": 90.0,
+    "AUTO_SELECT_SESSION_ID": "",
+    "AUTO_SELECT_CANDIDATE_INDEX": None,
+    "AUTO_SELECT_POLICY": "latest_modified",
+}
+Path('/content/config_snapshot.json').write_text(json.dumps(CONFIG, indent=2, ensure_ascii=False), encoding='utf-8')
+print(json.dumps(CONFIG, indent=2, ensure_ascii=False))
+```
+
+
+### #1-2 参照元入力の事前チェックと自動選択  
+旧 #2, #2a, #2b と目的は類似。raw correcting 入力候補を探索し、設定優先・未指定時は自動選択で `runbook_selected_input.json` と `runbook_paths.json` を生成する。
+
+
+```python
+#1-2
 from pathlib import Path
 import json
 import shutil
@@ -89,16 +482,16 @@ import zipfile
 OAI_SHORTCUT_ID = "1bHJGtRhmrcZ8xaEG3DVnHfQhMaGnlP5_"
 SHORTCUT_ROOT = Path(f"/content/drive/.shortcut-targets-by-id/{OAI_SHORTCUT_ID}")
 
-# 探索対象は raw correcting と既存 modeling の両方
+# 探索対象は correcting zip のみ
 RAW_SCAN_ROOTS = [
     SHORTCUT_ROOT / "trajectreview" / "correcting",
     Path("/content/drive/MyDrive/trajectreview/correcting"),
 ]
 
-# 保存先は modeling
+# 保存先は modeling_3chunk_2
 RESULTS_ROOT_CANDIDATES = [
-    Path("/content/drive/MyDrive/trajectreview/modeling"),
-    SHORTCUT_ROOT / "trajectreview" / "modeling",
+    Path("/content/drive/MyDrive/trajectreview/modeling_3chunk_2"),
+    SHORTCUT_ROOT / "trajectreview" / "modeling_3chunk_2",
 ]
 
 RESULTS_ROOT = next((p for p in RESULTS_ROOT_CANDIDATES if p.exists()), RESULTS_ROOT_CANDIDATES[0])
@@ -108,18 +501,17 @@ EXTRACT_ROOT = Path("/content/trajectreview_input")
 RUNBOOK_CANDIDATE_DOC = Path("/content/runbook_drive_candidates.json")
 RUNBOOK_SELECTED_DOC = Path("/content/runbook_selected_input.json")
 RUNBOOK_PATHS_DOC = Path("/content/runbook_paths.json")
+CONFIG_SNAPSHOT = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8")) if Path("/content/config_snapshot.json").exists() else {}
+PIPELINE_SLUG = CONFIG_SNAPSHOT.get("PIPELINE_SLUG", "da3_seq_anchor_batch_v02")
 
 def infer_session_id(path: Path) -> str:
-    return path.stem if path.suffix.lower() == ".zip" else path.name
+    return path.stem
 
 def scan_candidates(scan_roots):
     zip_map = {}
-    dir_map = {}
-
     for root in scan_roots:
         if not root.exists():
             continue
-
         for zip_path in sorted(root.rglob("*.zip")):
             stat = zip_path.stat()
             key = (infer_session_id(zip_path), stat.st_size)
@@ -129,42 +521,9 @@ def scan_candidates(scan_roots):
                 "label": f"{infer_session_id(zip_path)} [zip]",
                 "path": str(zip_path),
                 "size_bytes": stat.st_size,
+                "mtime_ns": int(stat.st_mtime_ns),
             }
-
-        for manifest_path in sorted(root.rglob("session_manifest.json")):
-            session_dir = manifest_path.parent
-            dir_map[infer_session_id(session_dir)] = {
-                "kind": "dir",
-                "session_id": infer_session_id(session_dir),
-                "label": f"{infer_session_id(session_dir)} [dir]",
-                "path": str(session_dir),
-            }
-
-    return sorted(
-        list(zip_map.values()) + list(dir_map.values()),
-        key=lambda x: (x["session_id"], x["kind"], x["path"]),
-    )
-
-def scan_modeling_candidates(results_root: Path):
-    rows = []
-    if not results_root.exists():
-        return rows
-    for p in sorted(results_root.iterdir(), key=lambda x: x.name):
-        if not p.is_dir():
-            continue
-        if not p.name.startswith("trajectreview-modeling-session-"):
-            continue
-        pipeline_root = p / "continuous_gs_v06_chunk18_overlap6_adopt12"
-        rows.append({
-            "kind": "modeling_dir",
-            "source_family": "modeling",
-            "session_id": p.name,
-            "label": f"{p.name} [modeling]",
-            "path": str(p),
-            "has_chunk_pipeline": bool(pipeline_root.exists()),
-            "has_chunk_runs": bool((pipeline_root / "chunk_runs").exists()),
-        })
-    return rows
+    return sorted(list(zip_map.values()), key=lambda x: (x["session_id"], x["path"]))
 
 def reset_extract_root():
     if EXTRACT_ROOT.exists():
@@ -172,12 +531,10 @@ def reset_extract_root():
     EXTRACT_ROOT.mkdir(parents=True, exist_ok=True)
 
 def extract_selected_input(selected_path: Path, selected_kind: str):
+    assert selected_kind == "zip", {"selected_kind": selected_kind, "expected": "zip"}
     reset_extract_root()
-    if selected_kind == "zip":
-        with zipfile.ZipFile(selected_path, "r") as zf:
-            zf.extractall(EXTRACT_ROOT)
-    else:
-        shutil.copytree(selected_path, EXTRACT_ROOT / selected_path.name)
+    with zipfile.ZipFile(selected_path, "r") as zf:
+        zf.extractall(EXTRACT_ROOT)
 
 def pick_best_raw_root(base: Path) -> Path:
     manifest_hits = sorted(base.rglob("session_manifest.json"))
@@ -186,7 +543,6 @@ def pick_best_raw_root(base: Path) -> Path:
         if root.name != "trajectreview" and (root / "trajectreview").exists():
             return root / "trajectreview"
         return root
-
     package_hits = sorted(base.rglob("session_package.json"))
     if package_hits:
         pkg_parent = package_hits[0].parent
@@ -194,54 +550,44 @@ def pick_best_raw_root(base: Path) -> Path:
         if root.name != "trajectreview" and (root / "trajectreview").exists():
             return root / "trajectreview"
         return root
-
     frame_hits = sorted(list(base.rglob("frame_record.jsonl")) + list(base.rglob("arcore_pose.jsonl")))
     image_dir_hits = sorted([p for p in base.rglob("*") if p.is_dir() and p.name in {"images", "image"}])
     candidate_roots = []
-
     for p in frame_hits:
         candidate_roots.append(p.parent)
         if (p.parent / "trajectreview").exists():
             candidate_roots.append(p.parent / "trajectreview")
-
     for p in image_dir_hits:
         candidate_roots.append(p.parent)
         if (p.parent / "trajectreview").exists():
             candidate_roots.append(p.parent / "trajectreview")
-
     for c in candidate_roots:
         if c.name == "trajectreview":
             return c
-
     if candidate_roots:
         root = candidate_roots[0]
         if root.name != "trajectreview" and (root / "trajectreview").exists():
             return root / "trajectreview"
         return root
-
     dirs = [p for p in base.iterdir() if p.is_dir()]
     if len(dirs) == 1:
         only = dirs[0]
         if (only / "trajectreview").exists():
             return only / "trajectreview"
         return only
-
     raise AssertionError(f"raw session root not found under {base}")
 
 def resolve_and_validate_paths(selected_doc: dict):
     selected_path = Path(selected_doc["path"])
     selected_kind = selected_doc["kind"]
     session_id = selected_doc["session_id"]
-
     assert selected_path.exists(), f"selected input missing: {selected_path}"
-
+    assert selected_kind == "zip", {"selected_kind": selected_kind, "expected": "zip"}
     extract_selected_input(selected_path, selected_kind)
-
     session_root = pick_best_raw_root(EXTRACT_ROOT)
     if session_root.name != "trajectreview" and (session_root / "trajectreview").exists():
         session_root = session_root / "trajectreview"
     session_outer = session_root.parent if session_root.name == "trajectreview" else session_root
-
     image_dir_candidates = [
         session_root / "images",
         session_root / "image",
@@ -254,19 +600,11 @@ def resolve_and_validate_paths(selected_doc: dict):
     for p in image_dir_candidates:
         if not p.exists():
             continue
-        image_count = (
-            len(list(p.glob("*.jpg"))) +
-            len(list(p.glob("*.jpeg"))) +
-            len(list(p.glob("*.png"))) +
-            len(list(p.glob("*.JPG"))) +
-            len(list(p.glob("*.JPEG"))) +
-            len(list(p.glob("*.PNG")))
-        )
+        image_count = len(list(p.glob("*.jpg"))) + len(list(p.glob("*.jpeg"))) + len(list(p.glob("*.png"))) + len(list(p.glob("*.JPG"))) + len(list(p.glob("*.JPEG"))) + len(list(p.glob("*.PNG")))
         valid_image_dirs.append((p, image_count))
     assert valid_image_dirs, {"image_dir_candidates": [str(p) for p in image_dir_candidates]}
     valid_image_dirs = sorted(valid_image_dirs, key=lambda x: (-x[1], len(str(x[0]))))
     images_dir = valid_image_dirs[0][0]
-
     frame_record_candidates = [
         session_outer / "frame_record.jsonl",
         session_root / "frame_record.jsonl",
@@ -277,11 +615,10 @@ def resolve_and_validate_paths(selected_doc: dict):
     ]
     frame_record_path = next((p for p in frame_record_candidates if p.exists()), None)
     assert frame_record_path is not None, {"frame_record_candidates": [str(p) for p in frame_record_candidates]}
-
+    modeling_session_id = session_id.replace("trajectreview-correcting-session-", "trajectreview-modeling-session-", 1) if session_id.startswith("trajectreview-correcting-session-") else f"trajectreview-modeling-session-{session_id}"
     probe_root = RESULTS_ROOT / modeling_session_id
-    proof_metric_dir = probe_root / "proof_metriclarge"
-    prod_metric_dir = probe_root / "prod_metriclarge"
-    proof_giant_dir = probe_root / "proof_giant"
+    da3_nested_dir = probe_root / "da3_nested_giant_large"
+    da3_nested_gs_dir = probe_root / "da3_nested_gs"
     world_dir = probe_root / "world_fusion_v01"
     manifest_dir = probe_root / "manifests"
     final_outputs_dir = probe_root / "final_outputs"
@@ -289,35 +626,20 @@ def resolve_and_validate_paths(selected_doc: dict):
     final_outputs_diagnostics_dir = final_outputs_dir / "diagnostics"
     final_outputs_manifests_dir = final_outputs_dir / "manifests"
     final_outputs_chunk_evidence_dir = final_outputs_dir / "chunk_evidence"
-
-    for p in [
-        probe_root,
-        proof_metric_dir,
-        prod_metric_dir,
-        proof_giant_dir,
-        world_dir,
-        manifest_dir,
-        final_outputs_dir,
-        final_outputs_merged_dir,
-        final_outputs_diagnostics_dir,
-        final_outputs_manifests_dir,
-        final_outputs_chunk_evidence_dir,
-    ]:
+    for p in [probe_root, da3_nested_dir, da3_nested_gs_dir, world_dir, manifest_dir, final_outputs_dir, final_outputs_merged_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir, final_outputs_chunk_evidence_dir]:
         p.mkdir(parents=True, exist_ok=True)
-
     return {
         "session_id": session_id,
         "selected_kind": selected_kind,
-        "source_family": selected_doc.get("source_family", "correcting"),
+        "source_family": "correcting_zip_only",
         "selected_path": str(selected_path),
         "results_root": str(RESULTS_ROOT),
         "results_root_visibility": "google_drive_mydrive_visible",
         "extract_root": str(EXTRACT_ROOT),
         "probe_root": str(probe_root),
         "manifest_dir": str(manifest_dir),
-        "proof_metric_dir": str(proof_metric_dir),
-        "prod_metric_dir": str(prod_metric_dir),
-        "proof_giant_dir": str(proof_giant_dir),
+        "da3_nested_dir": str(da3_nested_dir),
+        "da3_nested_gs_dir": str(da3_nested_gs_dir),
         "world_dir": str(world_dir),
         "final_outputs_dir": str(final_outputs_dir),
         "final_outputs_merged_dir": str(final_outputs_merged_dir),
@@ -330,266 +652,59 @@ def resolve_and_validate_paths(selected_doc: dict):
         "frame_record_path": str(frame_record_path),
         "session_root": str(session_root),
         "session_outer": str(session_outer),
-        "input_mode": "raw_session",
-    }
-
-def resolve_modeling_probe_paths(selected_doc: dict):
-    selected_path = Path(selected_doc["path"])
-    assert selected_path.exists(), f"selected modeling directory missing: {selected_path}"
-    pipeline_root = selected_path / "continuous_gs_v06_chunk18_overlap6_adopt12"
-    manifest_dir = selected_path / "manifests"
-    required_paths = [
-        pipeline_root,
-        pipeline_root / "global_pose_bootstrap" / "camera_matrix_full.csv",
-        pipeline_root / "global_pose_bootstrap" / "camera_center_matrix.csv",
-        pipeline_root / "manifests" / "chunk_index_all.csv",
-        pipeline_root / "chunk_runs",
-        manifest_dir / "da3_input_manifest_prod.csv",
-    ]
-    for p in required_paths:
-        assert p.exists(), f"modeling probe_root missing required path: {p}"
-
-    return {
-        "session_id": selected_doc["session_id"],
-        "selected_kind": selected_doc["kind"],
-        "source_family": "modeling",
-        "selected_path": str(selected_path),
-        "results_root": str(RESULTS_ROOT),
-        "results_root_visibility": "google_drive_mydrive_visible",
-        "probe_root": str(selected_path),
-        "pipeline_root": str(pipeline_root),
-        "manifest_dir": str(manifest_dir),
-        "proof_metric_dir": str(selected_path / "proof_metriclarge"),
-        "prod_metric_dir": str(selected_path / "prod_metriclarge"),
-        "proof_giant_dir": str(selected_path / "proof_giant"),
-        "world_dir": str(selected_path / "world_fusion_v01"),
-        "final_outputs_dir": str(selected_path / "final_outputs"),
-        "final_outputs_merged_dir": str(selected_path / "final_outputs" / "merged"),
-        "final_outputs_diagnostics_dir": str(selected_path / "final_outputs" / "diagnostics"),
-        "final_outputs_manifests_dir": str(selected_path / "final_outputs" / "manifests"),
-        "final_outputs_chunk_evidence_dir": str(selected_path / "final_outputs" / "chunk_evidence"),
-        "chunk_runs_dir": str(pipeline_root / "chunk_runs"),
-        "input_mode": "existing_modeling_probe_root",
-    }
-
-def build_context_doc_from_paths(paths: dict) -> dict:
-    probe_root = Path(paths["probe_root"])
-    session_root = Path(paths["session_root"]) if "session_root" in paths else probe_root
-    frame_pose_index_path = Path(paths["frame_pose_index_path"]) if "frame_pose_index_path" in paths else (session_root / "frame_pose_index.csv")
-    selected_path = Path(paths["selected_path"])
-    session_id = paths["session_id"]
-    selected_kind = paths["selected_kind"]
-    results_root = Path(paths["results_root"])
-    route_slug = "da3_record_route_v01"
-    modeling_session_id = session_id.replace("trajectreview-correcting-session-", "trajectreview-modeling-session-", 1) if session_id.startswith("trajectreview-correcting-session-") else session_id
-    if selected_kind == "modeling_dir":
-        modeling_session_id = probe_root.name
-    return {
-        "session_id": session_id,
-        "modeling_session_id": modeling_session_id,
-        "selected_kind": selected_kind,
-        "selected_path": str(selected_path),
-        "results_root": str(results_root),
-        "results_root_visibility": paths.get("results_root_visibility", "google_drive_mydrive_visible"),
-        "route_slug": route_slug,
-        "probe_root_name": probe_root.name,
-        "session_outer": str(Path(paths["session_outer"])) if "session_outer" in paths else str(probe_root),
-        "session_root": str(session_root),
-        "images_dir": str(Path(paths["images_dir"])) if "images_dir" in paths else "",
-        "frame_record_path": str(Path(paths["frame_record_path"])) if "frame_record_path" in paths else "",
-        "frame_pose_index_path": str(frame_pose_index_path),
-        "probe_root": str(probe_root),
-        "proof_metric_dir": str(Path(paths["proof_metric_dir"])),
-        "prod_metric_dir": str(Path(paths["prod_metric_dir"])),
-        "proof_giant_dir": str(Path(paths["proof_giant_dir"])),
-        "world_dir": str(Path(paths["world_dir"])),
-        "manifest_dir": str(Path(paths["manifest_dir"])),
-        "merged_dir": str(Path(paths["merged_dir"])) if "merged_dir" in paths else str(probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12" / "merged"),
-        "final_outputs_dir": str(Path(paths["final_outputs_dir"])),
-        "final_outputs_merged_dir": str(Path(paths["final_outputs_merged_dir"])),
-        "final_outputs_diagnostics_dir": str(Path(paths["final_outputs_diagnostics_dir"])),
-        "final_outputs_manifests_dir": str(Path(paths["final_outputs_manifests_dir"])),
-        "final_outputs_chunk_evidence_dir": str(Path(paths["final_outputs_chunk_evidence_dir"])),
-        "add_suffix": paths.get("add_suffix", ""),
-        "resume_mode": "existing_probe_root" if selected_kind == "modeling_dir" else "",
-        "pipeline_root": paths.get("pipeline_root", str(probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12")),
-        "chunk_runs_dir": paths.get("chunk_runs_dir", ""),
-        "input_mode": paths.get("input_mode", ""),
+        "input_mode": "zip_only",
     }
 
 candidate_doc = {
     "results_root": str(RESULTS_ROOT),
     "results_root_visibility": "google_drive_mydrive_visible",
-    "scan_roots": [str(p) for p in RAW_SCAN_ROOTS] + [str(RESULTS_ROOT)],
+    "scan_roots": [str(p) for p in RAW_SCAN_ROOTS],
     "candidate_count": 0,
-    "candidates": scan_candidates(RAW_SCAN_ROOTS) + scan_modeling_candidates(RESULTS_ROOT),
+    "candidates": scan_candidates(RAW_SCAN_ROOTS),
 }
 candidate_doc["candidate_count"] = len(candidate_doc["candidates"])
 RUNBOOK_CANDIDATE_DOC.write_text(json.dumps(candidate_doc, indent=2, ensure_ascii=False), encoding="utf-8")
-print("RUNBOOK_CANDIDATE_DOC", RUNBOOK_CANDIDATE_DOC)
-print("RESULTS_ROOT", RESULTS_ROOT)
-print("candidate_count", candidate_doc["candidate_count"])
-for idx, item in enumerate(candidate_doc["candidates"]):
-    print(f"[{idx}] {item['label']}: {item['path']}")
-```
 
-### #3 準備確認 3
+assert candidate_doc["candidate_count"] > 0, {"scan_roots": candidate_doc["scan_roots"]}
 
-```python
-#3
-from pathlib import Path
-import json
-import ipywidgets as widgets
-from IPython.display import display
+selected = None
+session_id_hint = str(CONFIG_SNAPSHOT.get("AUTO_SELECT_SESSION_ID", "") or "").strip()
+candidate_index_hint = CONFIG_SNAPSHOT.get("AUTO_SELECT_CANDIDATE_INDEX", None)
+policy = str(CONFIG_SNAPSHOT.get("AUTO_SELECT_POLICY", "latest_modified"))
 
-candidate_doc = json.loads(Path("/content/runbook_drive_candidates.json").read_text(encoding="utf-8"))
-selected_doc_path = RUNBOOK_SELECTED_DOC if "RUNBOOK_SELECTED_DOC" in globals() else Path("/content/runbook_selected_input.json")
-options = [(f"[{idx}] {item['label']}", idx) for idx, item in enumerate(candidate_doc["candidates"])]
-dropdown = widgets.Dropdown(options=options, description="input", layout=widgets.Layout(width="95%"))
-button = widgets.Button(description="selected input を保存", button_style="success")
-output = widgets.Output()
-
-def on_click(_):
-    selected = candidate_doc["candidates"][dropdown.value]
-    selected_doc = {
-        "selected_index": dropdown.value,
-        "kind": selected["kind"],
-        "source_family": selected.get("source_family", "correcting" if selected["kind"] in {"zip", "dir"} else "modeling"),
-        "session_id": selected["session_id"],
-        "label": selected["label"],
-        "path": selected["path"],
-        "results_root": candidate_doc["results_root"],
-    }
-    selected_doc_path.write_text(json.dumps(selected_doc, indent=2, ensure_ascii=False), encoding="utf-8")
-    with output:
-        output.clear_output()
-        print(json.dumps(selected_doc, indent=2, ensure_ascii=False))
-        print("selected_exists", Path(selected["path"]).exists())
-
-button.on_click(on_click)
-display(dropdown, button, output)
-```
-
-- `#3` で `... [zip]` または `... [dir]` を選んだ時は `correcting` の raw input として扱う。
-- `#3` で `... [modeling]` を選んだ時は、既存 chunk ありの `probe_root` として扱う。
-
-### #4 準備確認 4
-
-```python
-#4
-from pathlib import Path
-import json
-
-assert "resolve_and_validate_paths" in globals(), "#2 を先に実行して helper を定義してください"
-assert "RUNBOOK_PATHS_DOC" in globals(), "#2 を先に実行して RUNBOOK_PATHS_DOC を定義してください"
-if "build_context_doc_from_paths" not in globals():
-    def build_context_doc_from_paths(paths: dict) -> dict:
-        probe_root = Path(paths["probe_root"])
-        session_root = Path(paths["session_root"]) if "session_root" in paths else probe_root
-        frame_pose_index_path = Path(paths["frame_pose_index_path"]) if "frame_pose_index_path" in paths else (session_root / "frame_pose_index.csv")
-        selected_path = Path(paths["selected_path"])
-        session_id = paths["session_id"]
-        selected_kind = paths["selected_kind"]
-        results_root = Path(paths["results_root"])
-        route_slug = "da3_record_route_v01"
-        modeling_session_id = session_id.replace("trajectreview-correcting-session-", "trajectreview-modeling-session-", 1) if session_id.startswith("trajectreview-correcting-session-") else session_id
-        if selected_kind == "modeling_dir":
-            modeling_session_id = probe_root.name
-        return {
-            "session_id": session_id,
-            "modeling_session_id": modeling_session_id,
-            "selected_kind": selected_kind,
-            "selected_path": str(selected_path),
-            "results_root": str(results_root),
-            "results_root_visibility": paths.get("results_root_visibility", "google_drive_mydrive_visible"),
-            "route_slug": route_slug,
-            "probe_root_name": probe_root.name,
-            "session_outer": str(Path(paths["session_outer"])) if "session_outer" in paths else str(probe_root),
-            "session_root": str(session_root),
-            "images_dir": str(Path(paths["images_dir"])) if "images_dir" in paths else "",
-            "frame_record_path": str(Path(paths["frame_record_path"])) if "frame_record_path" in paths else "",
-            "frame_pose_index_path": str(frame_pose_index_path),
-            "probe_root": str(probe_root),
-            "proof_metric_dir": str(Path(paths["proof_metric_dir"])),
-            "prod_metric_dir": str(Path(paths["prod_metric_dir"])),
-            "proof_giant_dir": str(Path(paths["proof_giant_dir"])),
-            "world_dir": str(Path(paths["world_dir"])),
-            "manifest_dir": str(Path(paths["manifest_dir"])),
-            "merged_dir": str(Path(paths["merged_dir"])) if "merged_dir" in paths else str(probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12" / "merged"),
-            "final_outputs_dir": str(Path(paths["final_outputs_dir"])),
-            "final_outputs_merged_dir": str(Path(paths["final_outputs_merged_dir"])),
-            "final_outputs_diagnostics_dir": str(Path(paths["final_outputs_diagnostics_dir"])),
-            "final_outputs_manifests_dir": str(Path(paths["final_outputs_manifests_dir"])),
-            "final_outputs_chunk_evidence_dir": str(Path(paths["final_outputs_chunk_evidence_dir"])),
-            "add_suffix": paths.get("add_suffix", ""),
-            "resume_mode": "existing_probe_root" if selected_kind == "modeling_dir" else "",
-            "pipeline_root": paths.get("pipeline_root", str(probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12")),
-            "chunk_runs_dir": paths.get("chunk_runs_dir", ""),
-            "input_mode": paths.get("input_mode", ""),
-        }
-selected_doc = json.loads(RUNBOOK_SELECTED_DOC.read_text(encoding="utf-8")) if "RUNBOOK_SELECTED_DOC" in globals() else json.loads(Path("/content/runbook_selected_input.json").read_text(encoding="utf-8"))
-if selected_doc.get("source_family") == "modeling" or selected_doc.get("kind") == "modeling_dir":
-    paths = resolve_modeling_probe_paths(selected_doc)
+if session_id_hint:
+    matched = [c for c in candidate_doc["candidates"] if c["session_id"] == session_id_hint]
+    assert matched, {"AUTO_SELECT_SESSION_ID": session_id_hint, "available_session_ids": sorted(set(c["session_id"] for c in candidate_doc["candidates"]))[:50]}
+    selected = sorted(matched, key=lambda x: (-x["mtime_ns"], x["path"]))[0]
+elif candidate_index_hint is not None:
+    idx = int(candidate_index_hint)
+    assert 0 <= idx < len(candidate_doc["candidates"]), {"AUTO_SELECT_CANDIDATE_INDEX": idx, "candidate_count": len(candidate_doc["candidates"])}
+    selected = candidate_doc["candidates"][idx]
 else:
-    paths = resolve_and_validate_paths(selected_doc)
-RUNBOOK_PATHS_DOC.write_text(json.dumps(paths, indent=2, ensure_ascii=False), encoding="utf-8")
-context_doc = build_context_doc_from_paths(paths)
-Path("/content/runbook_session_context.json").write_text(json.dumps(context_doc, indent=2, ensure_ascii=False), encoding="utf-8")
-print(json.dumps(paths, indent=2, ensure_ascii=False))
-print("# runbook_session_context")
-print(json.dumps(context_doc, indent=2, ensure_ascii=False))
+    if policy == "latest_modified":
+        selected = sorted(candidate_doc["candidates"], key=lambda x: (-x["mtime_ns"], x["path"]))[0]
+    elif policy == "largest_zip":
+        selected = sorted(candidate_doc["candidates"], key=lambda x: (-x["size_bytes"], -x["mtime_ns"], x["path"]))[0]
+    else:
+        selected = candidate_doc["candidates"][0]
+
+RUNBOOK_SELECTED_DOC.write_text(json.dumps(selected, indent=2, ensure_ascii=False), encoding="utf-8")
+resolved = resolve_and_validate_paths(selected)
+RUNBOOK_PATHS_DOC.write_text(json.dumps(resolved, indent=2, ensure_ascii=False), encoding="utf-8")
+
+print(json.dumps({
+    "selected": selected,
+    "resolved": resolved,
+}, indent=2, ensure_ascii=False))
 ```
 
-## #5 install
+
+### #1-3 永続化ディレクトリ作成  
+旧 #6-1 と目的は類似。Drive 側の probe_root / final_outputs を作成し、以降の親番が参照する session context を永続化する。
+
 
 ```python
-#5
-from pathlib import Path
-import inspect
-import shutil
-import subprocess
-import sys
-
-repo_root = Path("/content/Depth-Anything-3")
-if repo_root.exists():
-    shutil.rmtree(repo_root)
-subprocess.run(["git", "clone", "https://github.com/ByteDance-Seed/Depth-Anything-3.git", str(repo_root)], check=True)
-
-subprocess.run([
-    "python", "-m", "pip", "install", "--quiet",
-    "addict", "evo", "moviepy==1.0.3", "pygame", "pycolmap", "plyfile", "trimesh", "gsplat", "e3nn"
-], check=True)
-
-src_root = repo_root / "src"
-if str(src_root) not in sys.path:
-    sys.path.insert(0, str(src_root))
-
-from depth_anything_3.api import DepthAnything3
-import gsplat
-import e3nn
-
-print("repo_exists", repo_root.exists(), repo_root)
-print("dependency_install_ok")
-print("depth_anything_3_import_ok", DepthAnything3)
-print("gsplat_version", getattr(gsplat, "__version__", "unknown"))
-print("e3nn_version", getattr(e3nn, "__version__", "unknown"))
-print("inference_sig", inspect.signature(DepthAnything3.inference))
-```
-
-## MRL-10 record-native DA3 route
-
-### 再利用方法
-
-- 既存 `probe_root` を再利用して merge 系だけをやり直す場合でも、runtime 初期化と path cache 生成のため `#1` から `#4` は必須とする。
-- `#3` では `correcting` と `modeling` を明示的に選べる。`correcting` を選んだ時は raw input 扱い、`modeling` を選んだ時は既存 chunk ありの `probe_root` 扱いとする。
-- 既存 modeling data を使う最短順は `#1 -> #2 -> #3 -> #4 -> #10-5 -> #10-6 -> #11` とする。`#10-6` は merge 依存 package の preflight、`#11` は不足が残っていてもその場で補完する。必要なら `#6-1a` / `#6-1b` で候補一覧の再表示や手動切替を行う。
-- `correcting` を選んだ時は raw session 前提なので、通常どおり前段から全工程を進める。
-- cleanup が必要な時だけ `#12` と `#13` を続ける。
-
-### #6-1 正規化 + context pack
-
-```python
-#6-1
+#1-3
 from pathlib import Path
 import json
 
@@ -605,14 +720,17 @@ session_outer = Path(paths["session_outer"])
 images_dir = Path(paths["images_dir"])
 frame_record_path = Path(paths["frame_record_path"])
 frame_pose_index_path = session_root / "frame_pose_index.csv"
-route_slug = "da3_record_route_v01"
+config = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8")) if Path("/content/config_snapshot.json").exists() else {}
+route_slug = config.get("PROJECT_SLUG", "da3_record_sequence_anchor_rebuild_v02")
+pipeline_slug = config.get("PIPELINE_SLUG", "da3_seq_anchor_batch_v02")
+legacy_source_pipeline_slug = "continuous_gs_v06_chunk18_overlap6_adopt12"
 modeling_session_id = session_id.replace("trajectreview-correcting-session-", "trajectreview-modeling-session-", 1) if session_id.startswith("trajectreview-correcting-session-") else f"trajectreview-modeling-session-{session_id}"
 probe_root_name = modeling_session_id
 probe_root = Path(paths["probe_root"])
-merged_dir = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12" / "merged"
-proof_metric_dir = Path(paths["proof_metric_dir"])
-prod_metric_dir = Path(paths["prod_metric_dir"])
-proof_giant_dir = Path(paths["proof_giant_dir"])
+pipeline_root = probe_root / pipeline_slug
+merged_dir = pipeline_root / "merged"
+da3_nested_dir = Path(paths["da3_nested_dir"])
+da3_nested_gs_dir = Path(paths["da3_nested_gs_dir"])
 world_dir = Path(paths["world_dir"])
 manifest_dir = Path(paths["manifest_dir"])
 final_outputs_dir = Path(paths["final_outputs_dir"])
@@ -623,9 +741,8 @@ final_outputs_chunk_evidence_dir = Path(paths["final_outputs_chunk_evidence_dir"
 
 for p in [
     probe_root,
-    proof_metric_dir,
-    prod_metric_dir,
-    proof_giant_dir,
+    da3_nested_dir,
+    da3_nested_gs_dir,
     world_dir,
     manifest_dir,
     final_outputs_dir,
@@ -644,6 +761,8 @@ context_doc = {
     "results_root": str(results_root),
     "results_root_visibility": "google_drive_mydrive_visible",
     "route_slug": route_slug,
+    "pipeline_slug": pipeline_slug,
+    "legacy_source_pipeline_slug": legacy_source_pipeline_slug,
     "probe_root_name": probe_root_name,
     "session_outer": str(session_outer),
     "session_root": str(session_root),
@@ -651,9 +770,8 @@ context_doc = {
     "frame_record_path": str(frame_record_path),
     "frame_pose_index_path": str(frame_pose_index_path),
     "probe_root": str(probe_root),
-    "proof_metric_dir": str(proof_metric_dir),
-    "prod_metric_dir": str(prod_metric_dir),
-    "proof_giant_dir": str(proof_giant_dir),
+    "da3_nested_dir": str(da3_nested_dir),
+    "da3_nested_gs_dir": str(da3_nested_gs_dir),
     "world_dir": str(world_dir),
     "manifest_dir": str(manifest_dir),
     "merged_dir": str(merged_dir),
@@ -662,202 +780,1258 @@ context_doc = {
     "final_outputs_diagnostics_dir": str(final_outputs_diagnostics_dir),
     "final_outputs_manifests_dir": str(final_outputs_manifests_dir),
     "final_outputs_chunk_evidence_dir": str(final_outputs_chunk_evidence_dir),
+    "input_mode": "zip_only",
     "add_suffix": "",
 }
 Path("/content/runbook_session_context.json").write_text(json.dumps(context_doc, indent=2, ensure_ascii=False), encoding="utf-8")
 print(json.dumps(context_doc, indent=2, ensure_ascii=False))
 ```
 
-### #6-1b 既存 probe_root 参照で再開
-
-- すでに Drive 上に `probe_root` があり、chunk 実行結果や manifest を再利用して `#10-5` または `#11` から再開したい時はこの cell を使う。
-- ただし再開時も `#1` から `#4` は省略せず先に実行し、Drive mount、selected input、`runbook_paths.json` をそろえる。
-- `EXISTING_PROBE_ROOT` には `continuous_gs_v06_chunk18_overlap6_adopt12/` を含む既存 root を入れる。
-- この cell は既存 tree を読み、`runbook_session_context.json` だけを再生成する。未作成 route の `#6-1` と同じ親番の再開枝番とする。
-- canonical な top directory 名は modeling session 名そのもの、たとえば `trajectreview-modeling-session-20260403_gl11_c18ov6ad12` とする。
-- 既存 data を読んで追加生成する時の出力先は、既存物へ上書きせず `_add**` suffix を付けた directory / file へ分離する。連番は `01` から始め、未使用の最小番号を採る。
 
 ```python
-#6-1a
+#1-3b
 from pathlib import Path
 import json
 
-RUNBOOK_PATHS_DOC = Path("/content/runbook_paths.json")
-assert RUNBOOK_PATHS_DOC.exists(), "再開でも #2 -> #3 -> #4 を先に実行して /content/runbook_paths.json を作成してください"
-paths = json.loads(RUNBOOK_PATHS_DOC.read_text(encoding="utf-8"))
-results_root = Path(paths["results_root"])
-assert str(results_root).startswith("/content/drive/MyDrive/"), results_root
-assert results_root.exists(), results_root
-
-candidates = sorted(
-    [p for p in results_root.iterdir() if p.is_dir() and p.name.startswith("trajectreview-modeling-session-")],
-    key=lambda p: p.name,
-)
-assert candidates, f"no modeling directories found under {results_root}"
-
-selected_modeling_path = Path(paths["selected_path"]) if paths.get("selected_kind") == "modeling_dir" else None
-selected_modeling_name = selected_modeling_path.name if selected_modeling_path is not None else ""
-
-rows = [
-    {
-        "index": i,
-        "name": p.name,
-        "path": str(p),
-        "selected_by_block3": bool(p.name == selected_modeling_name),
-    }
-    for i, p in enumerate(candidates)
-]
-Path("/content/runbook_existing_probe_roots.json").write_text(json.dumps(rows, indent=2, ensure_ascii=False), encoding="utf-8")
-print(json.dumps({
-    "results_root": str(results_root),
-    "candidate_count": len(rows),
-    "candidates": rows,
-}, indent=2, ensure_ascii=False))
+ctx = json.loads(Path('/content/runbook_session_context.json').read_text(encoding='utf-8'))
+probe_root = Path(ctx['probe_root'])
+managed_dirs = {
+    '00_config': probe_root / '00_config',
+    '01_anchor': probe_root / '01_anchor',
+    '02_records': probe_root / '02_records',
+    '03_batch_plan': probe_root / '03_batch_plan',
+    '04_batch_runs': probe_root / '04_batch_runs',
+    '05_merge': probe_root / '05_merge',
+    '06_cleanup': probe_root / '06_cleanup',
+    'other': probe_root / 'other',
+}
+for p in managed_dirs.values():
+    p.mkdir(parents=True, exist_ok=True)
+Path('/content/runbook_managed_dirs.json').write_text(json.dumps({k:str(v) for k,v in managed_dirs.items()}, indent=2, ensure_ascii=False), encoding='utf-8')
+print(json.dumps({k:str(v) for k,v in managed_dirs.items()}, indent=2, ensure_ascii=False))
 ```
 
+
+### #1-4 依存導入と import  
+旧 #5 と目的は類似。Depth-Anything-3 repo / 依存を導入する。
+
+
 ```python
-#6-1b
+#1-4
 from pathlib import Path
+import inspect
+import subprocess
+import sys
+
+repo_root = Path("/content/Depth-Anything-3")
+repo_url = "https://github.com/ByteDance-Seed/Depth-Anything-3.git"
+src_root = repo_root / "src"
+
+if not repo_root.exists():
+    subprocess.run(["git", "clone", "--depth", "1", repo_url, str(repo_root)], check=True)
+else:
+    print("repo already exists:", repo_root)
+
+subprocess.run([
+    "python", "-m", "pip", "install", "--quiet",
+    "addict", "evo", "moviepy==1.0.3", "pygame", "pycolmap", "plyfile", "trimesh", "gsplat", "e3nn"
+], check=True)
+
+assert repo_root.exists(), repo_root
+assert src_root.exists(), src_root
+if str(src_root) not in sys.path:
+    sys.path.insert(0, str(src_root))
+
+from depth_anything_3.api import DepthAnything3
+import gsplat
+import e3nn
+
+print("repo_exists", repo_root.exists(), repo_root)
+print("dependency_install_ok")
+print("depth_anything_3_import_ok", DepthAnything3)
+print("gsplat_version", getattr(gsplat, "__version__", "unknown"))
+print("e3nn_version", getattr(e3nn, "__version__", "unknown"))
+print("inference_sig", inspect.signature(DepthAnything3.inference))
+```
+
+
+### #1-5 共通ユーティリティ定義  
+新設。sequence / anchor / cleanup で再利用する軽量 helper を定義する。
+
+
+```python
+#1-5
+from pathlib import Path
+import json, math, shutil
+import numpy as np
+import pandas as pd
+
+RUNBOOK_CTX_PATH = Path('/content/runbook_session_context.json')
+
+
+def load_ctx() -> dict:
+    return json.loads(RUNBOOK_CTX_PATH.read_text(encoding='utf-8'))
+
+
+def save_json(path: Path, obj: dict):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(obj, indent=2, ensure_ascii=False), encoding='utf-8')
+
+
+def append_sequence_columns(df: pd.DataFrame, timestamp_col: str = 'frame_timestamp_ns') -> pd.DataFrame:
+    out = df.copy()
+    if timestamp_col in out.columns:
+        out = out.sort_values(timestamp_col, kind='stable').reset_index(drop=True)
+    else:
+        out = out.reset_index(drop=True)
+    out['sequence_index'] = np.arange(len(out), dtype=np.int64)
+    out['prev_sequence_index'] = out['sequence_index'] - 1
+    out['next_sequence_index'] = out['sequence_index'] + 1
+    out.loc[out['sequence_index'] == 0, 'prev_sequence_index'] = -1
+    out.loc[out['sequence_index'] == len(out) - 1, 'next_sequence_index'] = -1
+    return out
+
+
+def rotmat_to_rpy_deg(R: np.ndarray):
+    sy = math.sqrt(float(R[0,0] * R[0,0] + R[1,0] * R[1,0]))
+    singular = sy < 1e-6
+    if not singular:
+        roll = math.degrees(math.atan2(float(R[2,1]), float(R[2,2])))
+        pitch = math.degrees(math.atan2(float(-R[2,0]), sy))
+        yaw = math.degrees(math.atan2(float(R[1,0]), float(R[0,0])))
+    else:
+        roll = math.degrees(math.atan2(float(-R[1,2]), float(R[1,1])))
+        pitch = math.degrees(math.atan2(float(-R[2,0]), sy))
+        yaw = 0.0
+    return roll, pitch, yaw
+```
+
+
+## #2 時系列アンカー構築
+
+
+### #2-1 full anchor 入力収集  
+旧 #7 と目的は類似。zip入力onlyの単一 manifest / intrinsics / extrinsics を anchor 先行で確定する。
+
+
+```python
+#2-1
+from pathlib import Path
+import csv
 import json
+import subprocess
 
-SELECT_MODELING_INDEX = 0
-SELECT_MODELING_NAME = ""
+import imageio.v3 as iio
+import numpy as np
+import pandas as pd
+from PIL import Image
 
-RUNBOOK_PATHS_DOC = Path("/content/runbook_paths.json")
-assert RUNBOOK_PATHS_DOC.exists(), "再開でも #2 -> #3 -> #4 を先に実行して /content/runbook_paths.json を作成してください"
-paths = json.loads(RUNBOOK_PATHS_DOC.read_text(encoding="utf-8"))
-results_root = Path(paths["results_root"])
-candidate_cache_path = Path("/content/runbook_existing_probe_roots.json")
-if candidate_cache_path.exists():
-    candidates = json.loads(candidate_cache_path.read_text(encoding="utf-8"))
-else:
-    candidates = [
-        {"index": i, "name": p.name, "path": str(p)}
-        for i, p in enumerate(sorted(
-            [p for p in results_root.iterdir() if p.is_dir() and p.name.startswith("trajectreview-modeling-session-")],
-            key=lambda p: p.name,
-        ))
-    ]
-assert candidates, f"no modeling directories found under {results_root}"
+ctx_path = Path("/content/runbook_session_context.json")
+assert ctx_path.exists(), ctx_path
+ctx = json.loads(ctx_path.read_text(encoding="utf-8"))
+manifest_dir = Path(ctx["manifest_dir"])
+da3_nested_dir = Path(ctx["da3_nested_dir"])
+world_dir = Path(ctx["world_dir"])
+final_outputs_dir = Path(ctx["final_outputs_dir"])
+final_outputs_merged_dir = Path(ctx["final_outputs_merged_dir"])
+final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
+final_outputs_manifests_dir = Path(ctx["final_outputs_manifests_dir"])
+final_outputs_chunk_evidence_dir = Path(ctx["final_outputs_chunk_evidence_dir"])
+images_dir = Path(ctx["images_dir"])
+frame_record_path = Path(ctx["frame_record_path"])
+frame_pose_index_path = Path(ctx["frame_pose_index_path"])
 
-selected_modeling_path = Path(paths["selected_path"]) if paths.get("selected_kind") == "modeling_dir" else None
-if selected_modeling_path is not None and selected_modeling_path.exists() and not SELECT_MODELING_NAME:
-    matched = [row for row in candidates if Path(row["path"]) == selected_modeling_path]
-    if matched:
-        SELECT_MODELING_INDEX = int(matched[0]["index"])
+repo_root = Path("/content/Depth-Anything-3")
+repo_url = "https://github.com/ByteDance-Seed/Depth-Anything-3.git"
+src_root = repo_root / "src"
+if not repo_root.exists():
+    print("Depth-Anything-3 repo not found. Cloning automatically...")
+    subprocess.run(["git", "clone", "--depth", "1", repo_url, str(repo_root)], check=True)
+assert repo_root.exists(), repo_root
+assert src_root.exists(), src_root
+assert (src_root / "depth_anything_3" / "api.py").exists(), src_root / "depth_anything_3" / "api.py"
 
-if SELECT_MODELING_NAME:
-    matched = [row for row in candidates if row["name"] == SELECT_MODELING_NAME]
-    assert matched, {"SELECT_MODELING_NAME": SELECT_MODELING_NAME, "candidates": candidates}
-    selected_row = matched[0]
-else:
-    matched = [row for row in candidates if int(row["index"]) == int(SELECT_MODELING_INDEX)]
-    assert matched, {"SELECT_MODELING_INDEX": SELECT_MODELING_INDEX, "candidates": candidates}
-    selected_row = matched[0]
-
-EXISTING_PROBE_ROOT = Path(selected_row["path"])
-assert str(EXISTING_PROBE_ROOT).startswith("/content/drive/MyDrive/"), EXISTING_PROBE_ROOT
-assert EXISTING_PROBE_ROOT.exists(), EXISTING_PROBE_ROOT
-
-def resolve_next_add_path(parent: Path, stem: str) -> tuple[Path, str]:
-    n = 1
-    while True:
-        suffix = f"_add{n:02d}"
-        candidate = parent / f"{stem}{suffix}"
-        if not candidate.exists():
-            return candidate, suffix
-        n += 1
-
-pipeline_root = EXISTING_PROBE_ROOT / "continuous_gs_v06_chunk18_overlap6_adopt12"
-global_pose_dir = pipeline_root / "global_pose_bootstrap"
-chunk_manifest_dir = pipeline_root / "manifests"
-chunk_runs_dir = pipeline_root / "chunk_runs"
-
-required_paths = [
-    pipeline_root,
-    global_pose_dir / "camera_matrix_full.csv",
-    global_pose_dir / "camera_center_matrix.csv",
-    chunk_manifest_dir / "chunk_index_all.csv",
-    chunk_manifest_dir / "da3_input_manifest_prod.csv",
-]
-for p in required_paths:
-    assert p.exists(), f"missing required path: {p}"
-
-selected_path = Path(paths["selected_path"])
-selected_kind = paths["selected_kind"]
-session_id = paths["session_id"]
-assert str(results_root).startswith("/content/drive/MyDrive/"), results_root
-session_root = Path(paths["session_root"])
-session_outer = Path(paths["session_outer"])
-images_dir = Path(paths["images_dir"])
-frame_record_path = Path(paths["frame_record_path"])
-frame_pose_index_path = session_root / "frame_pose_index.csv"
-route_slug = "da3_record_route_v01"
-modeling_session_id = EXISTING_PROBE_ROOT.name
-probe_root_name = EXISTING_PROBE_ROOT.name
-probe_root = EXISTING_PROBE_ROOT
-proof_metric_dir = probe_root / "proof_metriclarge"
-prod_metric_dir = probe_root / "prod_metriclarge"
-proof_giant_dir = probe_root / "proof_giant"
-world_dir = probe_root / "world_fusion_v01"
-manifest_dir = probe_root / "manifests"
-final_outputs_dir, add_suffix = resolve_next_add_path(probe_root, "final_outputs")
-final_outputs_merged_dir = final_outputs_dir / "merged"
-final_outputs_diagnostics_dir = final_outputs_dir / "diagnostics"
-final_outputs_manifests_dir = final_outputs_dir / "manifests"
-final_outputs_chunk_evidence_dir = final_outputs_dir / "chunk_evidence"
-merged_dir, merged_add_suffix = resolve_next_add_path(pipeline_root, "merged")
-assert add_suffix == merged_add_suffix, {"final_outputs_add_suffix": add_suffix, "merged_add_suffix": merged_add_suffix}
-
-for p in [
-    final_outputs_dir,
-    final_outputs_merged_dir,
-    final_outputs_diagnostics_dir,
-    final_outputs_manifests_dir,
-    final_outputs_chunk_evidence_dir,
-]:
+for p in [manifest_dir, da3_nested_dir, world_dir, final_outputs_dir, final_outputs_merged_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir, final_outputs_chunk_evidence_dir]:
     p.mkdir(parents=True, exist_ok=True)
 
-context_doc = {
-    "session_id": session_id,
-    "modeling_session_id": modeling_session_id,
-    "selected_kind": selected_kind,
-    "selected_path": str(selected_path),
-    "results_root": str(results_root),
-    "results_root_visibility": "google_drive_mydrive_visible",
-    "route_slug": route_slug,
-    "probe_root_name": probe_root_name,
-    "session_outer": str(session_outer),
-    "session_root": str(session_root),
-    "images_dir": str(images_dir),
-    "frame_record_path": str(frame_record_path),
-    "frame_pose_index_path": str(frame_pose_index_path),
-    "probe_root": str(probe_root),
-    "proof_metric_dir": str(proof_metric_dir),
-    "prod_metric_dir": str(prod_metric_dir),
-    "proof_giant_dir": str(proof_giant_dir),
-    "world_dir": str(world_dir),
-    "manifest_dir": str(manifest_dir),
-    "final_outputs_dir": str(final_outputs_dir),
-    "final_outputs_merged_dir": str(final_outputs_merged_dir),
-    "final_outputs_diagnostics_dir": str(final_outputs_diagnostics_dir),
-    "final_outputs_manifests_dir": str(final_outputs_manifests_dir),
-    "final_outputs_chunk_evidence_dir": str(final_outputs_chunk_evidence_dir),
-    "merged_dir": str(merged_dir),
-    "add_suffix": add_suffix,
-    "resume_mode": "existing_probe_root",
-    "pipeline_root": str(pipeline_root),
-    "chunk_runs_dir": str(chunk_runs_dir),
-    "source_probe_root": str(EXISTING_PROBE_ROOT),
+required_files = {
+    "input_manifest": manifest_dir / "da3_input_manifest.csv",
+    "intrinsics": manifest_dir / "intrinsics.npy",
+    "extrinsics": manifest_dir / "extrinsics_w2c.npy",
 }
-Path("/content/runbook_session_context.json").write_text(json.dumps(context_doc, indent=2, ensure_ascii=False), encoding="utf-8")
-print(json.dumps(context_doc, indent=2, ensure_ascii=False))
+
+CANONICAL_ORIENTATION_POLICY = "upright_rot90cw_from_correcting"
+BLUR_THRESHOLD = 8.0
+
+def build_anchor_inputs_from_zip():
+    assert frame_record_path.exists(), {"frame_record_path": str(frame_record_path)}
+    with frame_record_path.open("r", encoding="utf-8") as f:
+        frame_records = [json.loads(line) for line in f if line.strip()]
+    assert len(frame_records) > 0, "frame_record.jsonl empty"
+
+    frame_pose_df = pd.read_csv(frame_pose_index_path) if frame_pose_index_path.exists() else pd.DataFrame()
+    image_name_by_record_index = {}
+    if len(frame_pose_df) > 0:
+        image_name_col = next((c for c in ["image_file_name", "imageFileName", "frame_name"] if c in frame_pose_df.columns), None)
+        record_index_col = next((c for c in ["pose_record_index", "record_index"] if c in frame_pose_df.columns), None)
+        if image_name_col is not None and record_index_col is not None:
+            tmp = frame_pose_df[[record_index_col, image_name_col]].copy().dropna()
+            tmp[image_name_col] = tmp[image_name_col].astype(str).str.strip()
+            tmp = tmp.loc[tmp[image_name_col] != ""]
+            image_name_by_record_index = {
+                int(getattr(row, record_index_col)): getattr(row, image_name_col)
+                for row in tmp.itertuples(index=False)
+            }
+        elif "frame_index" in frame_pose_df.columns:
+            sorted_image_names = sorted([
+                *[p.name for p in images_dir.glob("*.jpg")], *[p.name for p in images_dir.glob("*.jpeg")], *[p.name for p in images_dir.glob("*.png")],
+                *[p.name for p in images_dir.glob("*.JPG")], *[p.name for p in images_dir.glob("*.JPEG")], *[p.name for p in images_dir.glob("*.PNG")],
+            ])
+            record_index_col = next((c for c in ["pose_record_index", "record_index"] if c in frame_pose_df.columns), None)
+            if record_index_col is not None:
+                for row in frame_pose_df.itertuples(index=False):
+                    frame_idx = int(getattr(row, "frame_index"))
+                    if 0 <= frame_idx < len(sorted_image_names):
+                        image_name_by_record_index[int(getattr(row, record_index_col))] = sorted_image_names[frame_idx]
+
+    def ranked_image_dirs(primary_dir: Path, frame_record_path: Path):
+        session_outer = frame_record_path.parent
+        session_root = session_outer / "trajectreview" if (session_outer / "trajectreview").exists() else session_outer
+        candidates = [
+            primary_dir,
+            session_root / "images", session_root / "image",
+            session_outer / "images", session_outer / "image",
+            session_outer / "trajectreview" / "images", session_outer / "trajectreview" / "image",
+        ]
+        ranked, seen = [], set()
+        for p in candidates:
+            key = str(p)
+            if key in seen or not p.exists():
+                continue
+            seen.add(key)
+            image_count = sum(len(list(p.glob(ext))) for ext in ["*.jpg", "*.jpeg", "*.png", "*.JPG", "*.JPEG", "*.PNG"])
+            ranked.append((p, image_count))
+        return sorted(ranked, key=lambda x: (-x[1], len(str(x[0]))))
+
+    def lap_var(image_path: Path) -> float:
+        img = iio.imread(image_path)
+        gray = img[..., :3].mean(axis=2).astype(np.float32) if img.ndim == 3 else img.astype(np.float32)
+        gx = gray[:, 1:] - gray[:, :-1]
+        gy = gray[1:, :] - gray[:-1, :]
+        return float(np.var(gx) + np.var(gy))
+
+    def read_actual_wh(image_path: Path):
+        with Image.open(image_path) as img:
+            width, height = img.size
+        return int(width), int(height)
+
+    def normalize_intrinsics_to_upright(intr, actual_width: int, actual_height: int):
+        fx, fy, cx, cy = intr.get("fx"), intr.get("fy"), intr.get("cx"), intr.get("cy")
+        intr_width, intr_height = intr.get("width"), intr.get("height")
+        if None in [fx, fy, cx, cy, intr_width, intr_height]:
+            return {"intrinsics_case": "missing_intrinsics", "rotation_applied_deg": None, "fx_canonical": None, "fy_canonical": None, "cx_canonical": None, "cy_canonical": None, "width_canonical": None, "height_canonical": None}
+        fx, fy, cx, cy = float(fx), float(fy), float(cx), float(cy)
+        intr_width, intr_height = int(intr_width), int(intr_height)
+        if intr_width == actual_width and intr_height == actual_height:
+            return {"intrinsics_case": "already_upright", "rotation_applied_deg": 0, "fx_canonical": fx, "fy_canonical": fy, "cx_canonical": cx, "cy_canonical": cy, "width_canonical": actual_width, "height_canonical": actual_height}
+        if intr_width == actual_height and intr_height == actual_width:
+            return {"intrinsics_case": "rot90cw_intrinsics_fixed", "rotation_applied_deg": 90, "fx_canonical": fy, "fy_canonical": fx, "cx_canonical": float(intr_height - 1) - cy, "cy_canonical": cx, "width_canonical": actual_width, "height_canonical": actual_height}
+        return {"intrinsics_case": "dimension_mismatch", "rotation_applied_deg": None, "fx_canonical": None, "fy_canonical": None, "cx_canonical": None, "cy_canonical": None, "width_canonical": None, "height_canonical": None}
+
+    image_dir_ranking = ranked_image_dirs(images_dir, frame_record_path)
+    assert len(image_dir_ranking) > 0, {"images_dir": str(images_dir), "frame_record_path": str(frame_record_path)}
+    resolved_images_dir = image_dir_ranking[0][0]
+
+    rows = []
+    for rec in sorted(frame_records, key=lambda x: int(x.get("frameTimestampNs", 0) or 0)):
+        image_name = str(rec.get("imageFileName", "") or "").strip()
+        if not image_name:
+            record_index = rec.get("recordIndex")
+            if record_index is not None:
+                image_name = str(image_name_by_record_index.get(int(record_index), "")).strip()
+        image_path = resolved_images_dir / image_name if image_name else None
+        image_exists = bool(image_name) and image_path.exists()
+        intr = rec.get("imageIntrinsics") or {}
+        pose = rec.get("pose") or {}
+        blur_score = lap_var(image_path) if image_exists else None
+        actual_width = actual_height = None
+        intr_norm = {"intrinsics_case": "image_missing", "rotation_applied_deg": None, "fx_canonical": None, "fy_canonical": None, "cx_canonical": None, "cy_canonical": None, "width_canonical": None, "height_canonical": None}
+        if image_exists:
+            actual_width, actual_height = read_actual_wh(image_path)
+            intr_norm = normalize_intrinsics_to_upright(intr, actual_width, actual_height)
+        rows.append({
+            "session_id": rec.get("sessionId"),
+            "record_index": rec.get("recordIndex"),
+            "frame_timestamp_ns": rec.get("frameTimestampNs"),
+            "capture_timestamp_ns": rec.get("captureTimestampNs"),
+            "tracking_state": rec.get("trackingState"),
+            "image_file_name": image_name,
+            "image_path": str(image_path) if image_path else "",
+            "resolved_images_dir": str(resolved_images_dir),
+            "image_name_source": "frame_record" if str(rec.get("imageFileName", "") or "").strip() else "frame_pose_index_fallback",
+            "image_exists": image_exists,
+            "canonical_orientation_policy": CANONICAL_ORIENTATION_POLICY,
+            "actual_width": actual_width,
+            "actual_height": actual_height,
+            "fx": intr.get("fx"), "fy": intr.get("fy"), "cx": intr.get("cx"), "cy": intr.get("cy"), "width": intr.get("width"), "height": intr.get("height"),
+            **intr_norm,
+            "tx": pose.get("tx"), "ty": pose.get("ty"), "tz": pose.get("tz"),
+            "qx": pose.get("qx"), "qy": pose.get("qy"), "qz": pose.get("qz"), "qw": pose.get("qw"),
+            "blur_score": blur_score,
+        })
+
+    manifest_df = pd.DataFrame(rows)
+    manifest_df.to_csv(manifest_dir / "input_frame_manifest.csv", index=False, encoding="utf-8")
+
+    qc_df = manifest_df.copy()
+    qc_df["qc_tracking_ok"] = qc_df["tracking_state"].fillna("") == "TRACKING"
+    qc_df["qc_image_ok"] = qc_df["image_exists"].fillna(False)
+    qc_df["qc_orientation_ok"] = qc_df["intrinsics_case"].isin(["already_upright", "rot90cw_intrinsics_fixed"])
+    qc_df["qc_intrinsics_ok"] = qc_df[["fx_canonical", "fy_canonical", "cx_canonical", "cy_canonical", "width_canonical", "height_canonical"]].notna().all(axis=1)
+    qc_df["qc_pose_ok"] = qc_df[["tx", "ty", "tz", "qx", "qy", "qz", "qw"]].notna().all(axis=1)
+    qc_df["blur_score"] = pd.to_numeric(qc_df["blur_score"], errors="coerce")
+    qc_df["qc_blur_ok"] = qc_df["blur_score"].fillna(0.0).ge(BLUR_THRESHOLD).infer_objects(copy=False)
+    qc_df["qc_pass"] = qc_df[["qc_tracking_ok", "qc_image_ok", "qc_orientation_ok", "qc_intrinsics_ok", "qc_pose_ok"]].all(axis=1)
+    qc_df["skip_reason"] = ""
+    qc_df.loc[~qc_df["qc_tracking_ok"], "skip_reason"] = "tracking_not_ok"
+    qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_image_ok"], "skip_reason"] = "image_missing"
+    qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_orientation_ok"], "skip_reason"] = "orientation_mismatch"
+    qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_intrinsics_ok"], "skip_reason"] = "intrinsics_missing"
+    qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_pose_ok"], "skip_reason"] = "pose_missing"
+    qc_df.to_csv(manifest_dir / "input_frame_qc.csv", index=False, encoding="utf-8", quoting=csv.QUOTE_MINIMAL)
+
+    def quat_to_rot(qx, qy, qz, qw):
+        xx, yy, zz = qx*qx, qy*qy, qz*qz
+        xy, xz, yz = qx*qy, qx*qz, qy*qz
+        wx, wy, wz = qw*qx, qw*qy, qw*qz
+        return np.array([
+            [1 - 2*(yy + zz), 2*(xy - wz), 2*(xz + wy)],
+            [2*(xy + wz), 1 - 2*(xx + zz), 2*(yz - wx)],
+            [2*(xz - wy), 2*(yz + wx), 1 - 2*(xx + yy)],
+        ], dtype=np.float32)
+
+    def pose_to_w2c(row):
+        R_c2w = quat_to_rot(float(row.qx), float(row.qy), float(row.qz), float(row.qw))
+        t_c2w = np.array([float(row.tx), float(row.ty), float(row.tz)], dtype=np.float32)
+        R_w2c = R_c2w.T
+        t_w2c = -R_w2c @ t_c2w
+        out = np.eye(4, dtype=np.float32)
+        out[:3, :3] = R_w2c
+        out[:3, 3] = t_w2c
+        return out
+
+    def build_K(row):
+        return np.array([
+            [float(row.fx_canonical), 0.0, float(row.cx_canonical)],
+            [0.0, float(row.fy_canonical), float(row.cy_canonical)],
+            [0.0, 0.0, 1.0],
+        ], dtype=np.float32)
+
+    adopt_df = qc_df.loc[qc_df["qc_pass"]].copy().sort_values("frame_timestamp_ns").reset_index(drop=True)
+    if len(adopt_df) < 2:
+        fail_counts = {
+            "frame_record_count": int(len(qc_df)),
+            "qc_pass_count": int(len(adopt_df)),
+            "tracking_not_ok": int((~qc_df["qc_tracking_ok"]).sum()),
+            "image_missing": int((~qc_df["qc_image_ok"]).sum()),
+            "orientation_mismatch": int((~qc_df["qc_orientation_ok"]).sum()),
+            "intrinsics_missing": int((~qc_df["qc_intrinsics_ok"]).sum()),
+            "pose_missing": int((~qc_df["qc_pose_ok"]).sum()),
+            "blur_low_diag_only": int((~qc_df["qc_blur_ok"]).sum()),
+            "skip_reason_counts": qc_df["skip_reason"].value_counts(dropna=False).to_dict(),
+        }
+        (manifest_dir / "qc_failure_summary.json").write_text(json.dumps(fail_counts, indent=2, ensure_ascii=False), encoding="utf-8")
+        raise AssertionError(fail_counts)
+
+    adopted_rows = []
+    last_t = None
+    last_R = None
+    for row in adopt_df.itertuples(index=False):
+        t = np.array([float(row.tx), float(row.ty), float(row.tz)], dtype=np.float32)
+        R = quat_to_rot(float(row.qx), float(row.qy), float(row.qz), float(row.qw))
+        baseline = None if last_t is None else float(np.linalg.norm(t - last_t))
+        rot_delta = None if last_R is None else float(np.degrees(np.arccos(np.clip((np.trace(last_R.T @ R) - 1.0) / 2.0, -1.0, 1.0))))
+        geometric_adopt = last_t is None or (baseline >= 0.05) or (rot_delta is not None and rot_delta >= 3.0)
+        blur_boost = bool(row.qc_blur_ok) if pd.notna(row.qc_blur_ok) else False
+        adopt = geometric_adopt or (last_t is None and blur_boost)
+        adopted_rows.append({
+            **row._asdict(),
+            "baseline_from_prev_adopted_m": baseline,
+            "rotation_from_prev_adopted_deg": rot_delta,
+            "geometric_adopt": geometric_adopt,
+            "anchor_input_adopted": adopt,
+            "anchor_input_skip_reason": "" if adopt else "baseline_small",
+        })
+        if adopt:
+            last_t = t
+            last_R = R
+
+    anchor_input_df = pd.DataFrame(adopted_rows)
+    anchor_input_df.to_csv(manifest_dir / "pose_conversion_check.csv", index=False, encoding="utf-8")
+
+    selected_df = anchor_input_df.loc[anchor_input_df["anchor_input_adopted"]].copy().reset_index(drop=True)
+    assert len(selected_df) >= 2, {"selected_df": len(selected_df)}
+    Ks = np.stack([build_K(row) for row in selected_df.itertuples(index=False)], axis=0)
+    exts = np.stack([pose_to_w2c(row) for row in selected_df.itertuples(index=False)], axis=0)
+    np.save(manifest_dir / "intrinsics.npy", Ks)
+    np.save(manifest_dir / "extrinsics_w2c.npy", exts)
+    selected_df.to_csv(manifest_dir / "da3_input_manifest.csv", index=False, encoding="utf-8")
+
+    k_check = selected_df[[
+        "image_file_name", "canonical_orientation_policy", "intrinsics_case", "rotation_applied_deg", "width", "height",
+        "actual_width", "actual_height", "width_canonical", "height_canonical", "fx", "fy", "cx", "cy",
+        "fx_canonical", "fy_canonical", "cx_canonical", "cy_canonical",
+    ]].copy()
+    k_check["resize_mode"] = "native"
+    k_check.to_csv(manifest_dir / "k_resize_check.csv", index=False, encoding="utf-8")
+
+    orientation_summary = {
+        "canonical_orientation_policy": CANONICAL_ORIENTATION_POLICY,
+        "already_upright_count": int((manifest_df["intrinsics_case"] == "already_upright").sum()),
+        "rot90cw_intrinsics_fixed_count": int((manifest_df["intrinsics_case"] == "rot90cw_intrinsics_fixed").sum()),
+        "dimension_mismatch_count": int((manifest_df["intrinsics_case"] == "dimension_mismatch").sum()),
+        "image_missing_count": int((manifest_df["intrinsics_case"] == "image_missing").sum()),
+    }
+    (manifest_dir / "orientation_summary.json").write_text(json.dumps(orientation_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    summary = {
+        "frame_record_count": int(len(manifest_df)),
+        "qc_pass_count": int(len(adopt_df)),
+        "qc_skip_count": int((~qc_df["qc_pass"]).sum()),
+        "resolved_images_dir": str(resolved_images_dir),
+        "resolved_images_dir_file_count": int(image_dir_ranking[0][1]),
+        "frame_pose_index_path": str(frame_pose_index_path),
+        "frame_pose_fallback_mapping_count": int(len(image_name_by_record_index)),
+        "selected_count": int(len(selected_df)),
+        "canonical_orientation_policy": CANONICAL_ORIENTATION_POLICY,
+        "intrinsics_path": str(manifest_dir / "intrinsics.npy"),
+        "extrinsics_path": str(manifest_dir / "extrinsics_w2c.npy"),
+        "orientation_summary_path": str(manifest_dir / "orientation_summary.json"),
+        "built_from": "zip_frame_record",
+    }
+    (manifest_dir / "qc_summary.json").write_text(json.dumps({
+        "frame_record_count": summary["frame_record_count"],
+        "qc_pass_count": summary["qc_pass_count"],
+        "qc_skip_count": summary["qc_skip_count"],
+        "frame_record_path": str(frame_record_path),
+        "images_dir": str(images_dir),
+        "canonical_orientation_policy": CANONICAL_ORIENTATION_POLICY,
+    }, indent=2, ensure_ascii=False), encoding="utf-8")
+    (manifest_dir / "da3_input_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+    return summary
+
+missing_required = {key: str(path) for key, path in required_files.items() if not path.exists()}
+if missing_required:
+    print({"message": "anchor inputs missing; building from zip source", "missing": missing_required})
+    build_summary = build_anchor_inputs_from_zip()
+    print(json.dumps(build_summary, indent=2, ensure_ascii=False))
+
+for key, path in required_files.items():
+    assert path.exists(), {key: str(path)}
+
+manifest_df = pd.read_csv(required_files["input_manifest"])
+assert not manifest_df.empty, "input manifest empty"
+print({
+    "input_manifest": str(required_files["input_manifest"]),
+    "intrinsics": str(required_files["intrinsics"]),
+    "extrinsics": str(required_files["extrinsics"]),
+    "row_count": int(len(manifest_df)),
+})
 ```
 
-### #6-2 QC と manifest 化
+
+### #2-2 full anchor 生成  
+旧 #8-1b と目的は類似。canonical full camera trajectory を source から反映し、global anchor の正本を作る。
+
 
 ```python
-#6-2
+# #2-2 full anchor 生成
+# 旧 #8-1 / #8-1b と目的は類似。
+# zip-only / single-manifest 前提で、#2-1 が生成または再利用した
+# da3_input_manifest.csv / intrinsics.npy / extrinsics_w2c.npy から
+# full anchor を直接生成する。
+
+from pathlib import Path
+import json
+import numpy as np
+import pandas as pd
+
+config = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8"))
+
+def _existing(p):
+    if not p:
+        return None
+    p = Path(p)
+    return p if p.exists() else None
+
+def _find_manifest_triplet(search_roots):
+    rels = [
+        ("manifests/da3_input_manifest.csv", "manifests/intrinsics.npy", "manifests/extrinsics_w2c.npy"),
+        ("00_config/da3_input_manifest.csv", "00_config/intrinsics.npy", "00_config/extrinsics_w2c.npy"),
+    ]
+    for root in search_roots:
+        if root is None:
+            continue
+        root = Path(root)
+        if root.is_file():
+            root = root.parent
+        if not root.exists():
+            continue
+
+        # root 自体と配下を少し探索
+        candidate_dirs = [root]
+        candidate_dirs += [p for p in root.glob("*") if p.is_dir()]
+        candidate_dirs += [p for p in root.glob("*/*") if p.is_dir()]
+
+        seen = set()
+        for d in candidate_dirs:
+            d = d.resolve()
+            if str(d) in seen:
+                continue
+            seen.add(str(d))
+            for a, b, c in rels:
+                pa = d / a
+                pb = d / b
+                pc = d / c
+                if pa.exists() and pb.exists() and pc.exists():
+                    return d, pa, pb, pc
+    return None, None, None, None
+
+# まず config から探索起点を集める
+search_roots = [
+    _existing(config.get("persist_root")),
+    _existing(config.get("google_drive_run_root")),
+    _existing(config.get("run_root")),
+    _existing(config.get("persist_dir")),
+    _existing(config.get("output_root")),
+    _existing(config.get("project_root")),
+    _existing(config.get("session_dir")),
+    _existing(config.get("target_probe_root")),
+    _existing(config.get("probe_root")),
+    Path("/content/drive/MyDrive/trajectreview"),
+    Path("/content/drive/MyDrive"),
+]
+
+persist_root, input_manifest_path, intrinsics_path, extrinsics_path = _find_manifest_triplet(search_roots)
+
+assert persist_root is not None, {
+    "error": "manifest triplet not found",
+    "searched_roots": [str(p) for p in search_roots if p is not None],
+    "expected_files": [
+        "manifests/da3_input_manifest.csv",
+        "manifests/intrinsics.npy",
+        "manifests/extrinsics_w2c.npy",
+    ],
+}
+
+anchor_dir = persist_root / "01_anchor"
+manifest_dir = input_manifest_path.parent
+anchor_dir.mkdir(parents=True, exist_ok=True)
+
+manifest_df = pd.read_csv(input_manifest_path)
+intrinsics = np.load(intrinsics_path)
+extrinsics_w2c = np.load(extrinsics_path)
+
+assert len(manifest_df) > 0, "da3_input_manifest.csv is empty"
+assert extrinsics_w2c.ndim == 3 and extrinsics_w2c.shape[1:] == (4, 4), extrinsics_w2c.shape
+assert len(manifest_df) == extrinsics_w2c.shape[0], {
+    "manifest_rows": len(manifest_df),
+    "extrinsics_rows": int(extrinsics_w2c.shape[0]),
+}
+assert intrinsics.ndim == 3 and intrinsics.shape[1:] == (3, 3), intrinsics.shape
+assert intrinsics.shape[0] == len(manifest_df), {
+    "manifest_rows": len(manifest_df),
+    "intrinsics_rows": int(intrinsics.shape[0]),
+}
+
+# c2w
+c2w = np.linalg.inv(extrinsics_w2c)
+
+# camera center / basis
+camera_centers = c2w[:, :3, 3]
+right_vecs = c2w[:, :3, 0]
+up_vecs = c2w[:, :3, 1]
+lens_vecs = -c2w[:, :3, 2]
+
+def _normalize_rows(x: np.ndarray, eps: float = 1e-12) -> np.ndarray:
+    n = np.linalg.norm(x, axis=1, keepdims=True)
+    n = np.maximum(n, eps)
+    return x / n
+
+right_vecs = _normalize_rows(right_vecs)
+up_vecs = _normalize_rows(up_vecs)
+lens_vecs = _normalize_rows(lens_vecs)
+
+# sequence_index
+if "frame_timestamp_ns" in manifest_df.columns:
+    ts_col = "frame_timestamp_ns"
+elif "timestamp_ns" in manifest_df.columns:
+    ts_col = "timestamp_ns"
+elif "timestamp" in manifest_df.columns:
+    ts_col = "timestamp"
+else:
+    ts_col = None
+
+if "sequence_index" not in manifest_df.columns:
+    if ts_col is not None:
+        manifest_df = manifest_df.sort_values(ts_col, kind="stable").reset_index(drop=True)
+    else:
+        manifest_df = manifest_df.reset_index(drop=True)
+    manifest_df["sequence_index"] = np.arange(len(manifest_df), dtype=np.int64)
+else:
+    manifest_df = manifest_df.sort_values("sequence_index", kind="stable").reset_index(drop=True)
+
+camera_center_df = pd.DataFrame({
+    "sequence_index": manifest_df["sequence_index"].astype(int),
+    "cam_cx": camera_centers[:, 0],
+    "cam_cy": camera_centers[:, 1],
+    "cam_cz": camera_centers[:, 2],
+})
+
+camera_orientation_df = pd.DataFrame({
+    "sequence_index": manifest_df["sequence_index"].astype(int),
+    "right_x": right_vecs[:, 0],
+    "right_y": right_vecs[:, 1],
+    "right_z": right_vecs[:, 2],
+    "up_x": up_vecs[:, 0],
+    "up_y": up_vecs[:, 1],
+    "up_z": up_vecs[:, 2],
+    "lens_x": lens_vecs[:, 0],
+    "lens_y": lens_vecs[:, 1],
+    "lens_z": lens_vecs[:, 2],
+})
+
+camera_anchor_full_df = manifest_df.copy()
+camera_anchor_full_df["cam_cx"] = camera_centers[:, 0]
+camera_anchor_full_df["cam_cy"] = camera_centers[:, 1]
+camera_anchor_full_df["cam_cz"] = camera_centers[:, 2]
+camera_anchor_full_df["right_x"] = right_vecs[:, 0]
+camera_anchor_full_df["right_y"] = right_vecs[:, 1]
+camera_anchor_full_df["right_z"] = right_vecs[:, 2]
+camera_anchor_full_df["up_x"] = up_vecs[:, 0]
+camera_anchor_full_df["up_y"] = up_vecs[:, 1]
+camera_anchor_full_df["up_z"] = up_vecs[:, 2]
+camera_anchor_full_df["lens_x"] = lens_vecs[:, 0]
+camera_anchor_full_df["lens_y"] = lens_vecs[:, 1]
+camera_anchor_full_df["lens_z"] = lens_vecs[:, 2]
+
+camera_matrix_full_csv = anchor_dir / "camera_matrix_full.csv"
+camera_center_matrix_csv = anchor_dir / "camera_center_matrix.csv"
+camera_orientation_full_csv = anchor_dir / "camera_orientation_full.csv"
+camera_anchor_full_csv = anchor_dir / "camera_anchor_full.csv"
+
+pd.DataFrame(
+    extrinsics_w2c.reshape(extrinsics_w2c.shape[0], -1),
+    columns=[f"w2c_{r}{c}" for r in range(4) for c in range(4)]
+).assign(sequence_index=manifest_df["sequence_index"].astype(int)).to_csv(camera_matrix_full_csv, index=False)
+
+camera_center_df.to_csv(camera_center_matrix_csv, index=False)
+camera_orientation_df.to_csv(camera_orientation_full_csv, index=False)
+camera_anchor_full_df.to_csv(camera_anchor_full_csv, index=False)
+
+np.save(anchor_dir / "extrinsics_w2c.npy", extrinsics_w2c)
+np.save(anchor_dir / "intrinsics.npy", intrinsics)
+np.save(anchor_dir / "c2w.npy", c2w)
+
+print({
+    "persist_root": str(persist_root),
+    "manifest_dir": str(manifest_dir),
+    "rows": len(manifest_df),
+    "camera_matrix_full_csv": str(camera_matrix_full_csv),
+    "camera_center_matrix_csv": str(camera_center_matrix_csv),
+    "camera_orientation_full_csv": str(camera_orientation_full_csv),
+    "camera_anchor_full_csv": str(camera_anchor_full_csv),
+})
+```
+
+
+### #2-3 anchor 姿勢導出  
+旧 #8-1 と目的は類似。full anchor を基に roll/pitch/yaw, continuity, camera direction を導出し、後段の record/chunk/batch に配布する。
+
+
+```python
+# #2-3 anchor 姿勢導出
+# 旧 #8-1b と目的は類似。
+# #2-2 で生成した 01_anchor/camera_anchor_full.csv を読み、
+# roll / pitch / yaw と連続性量を導出して保存する。
+
+from pathlib import Path
+import json
+import numpy as np
+import pandas as pd
+
+config = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8"))
+
+def _existing(p):
+    if not p:
+        return None
+    p = Path(p)
+    return p if p.exists() else None
+
+def _find_anchor_root(search_roots):
+    rels = [
+        "01_anchor/camera_anchor_full.csv",
+        "01_anchor/camera_center_matrix.csv",
+        "01_anchor/camera_orientation_full.csv",
+    ]
+    for root in search_roots:
+        if root is None:
+            continue
+        root = Path(root)
+        if root.is_file():
+            root = root.parent
+        if not root.exists():
+            continue
+
+        candidate_dirs = [root]
+        candidate_dirs += [p for p in root.glob("*") if p.is_dir()]
+        candidate_dirs += [p for p in root.glob("*/*") if p.is_dir()]
+
+        seen = set()
+        for d in candidate_dirs:
+            d = d.resolve()
+            if str(d) in seen:
+                continue
+            seen.add(str(d))
+            if all((d / rel).exists() for rel in rels):
+                return d
+    return None
+
+search_roots = [
+    _existing(config.get("persist_root")),
+    _existing(config.get("google_drive_run_root")),
+    _existing(config.get("run_root")),
+    _existing(config.get("persist_dir")),
+    _existing(config.get("output_root")),
+    _existing(config.get("project_root")),
+    _existing(config.get("session_dir")),
+    _existing(config.get("target_probe_root")),
+    _existing(config.get("probe_root")),
+    Path("/content/drive/MyDrive/trajectreview"),
+    Path("/content/drive/MyDrive"),
+]
+
+persist_root = _find_anchor_root(search_roots)
+assert persist_root is not None, {
+    "error": "01_anchor not found",
+    "searched_roots": [str(p) for p in search_roots if p is not None],
+    "expected": "01_anchor/camera_anchor_full.csv",
+}
+
+anchor_dir = persist_root / "01_anchor"
+anchor_path = anchor_dir / "camera_anchor_full.csv"
+anchor_df = pd.read_csv(anchor_path)
+
+assert not anchor_df.empty, anchor_path
+
+# sequence_index を保証
+if "sequence_index" not in anchor_df.columns:
+    if "frame_timestamp_ns" in anchor_df.columns:
+        anchor_df = anchor_df.sort_values("frame_timestamp_ns", kind="stable").reset_index(drop=True)
+    elif "timestamp_ns" in anchor_df.columns:
+        anchor_df = anchor_df.sort_values("timestamp_ns", kind="stable").reset_index(drop=True)
+    elif "timestamp" in anchor_df.columns:
+        anchor_df = anchor_df.sort_values("timestamp", kind="stable").reset_index(drop=True)
+    else:
+        anchor_df = anchor_df.reset_index(drop=True)
+    anchor_df["sequence_index"] = np.arange(len(anchor_df), dtype=np.int64)
+else:
+    anchor_df = anchor_df.sort_values("sequence_index", kind="stable").reset_index(drop=True)
+
+required_cols = [
+    "right_x","right_y","right_z",
+    "up_x","up_y","up_z",
+    "lens_x","lens_y","lens_z",
+    "cam_cx","cam_cy","cam_cz",
+]
+missing = [c for c in required_cols if c not in anchor_df.columns]
+assert not missing, {"missing_columns": missing, "anchor_path": str(anchor_path)}
+
+def _normalize(v, eps=1e-12):
+    n = np.linalg.norm(v, axis=1, keepdims=True)
+    n = np.maximum(n, eps)
+    return v / n
+
+def _wrap_deg(x):
+    return (x + 180.0) % 360.0 - 180.0
+
+def _angle_deg(a, b, eps=1e-12):
+    a = _normalize(a, eps)
+    b = _normalize(b, eps)
+    d = np.sum(a * b, axis=1)
+    d = np.clip(d, -1.0, 1.0)
+    return np.degrees(np.arccos(d))
+
+# world basis: x right, y up, z forward を仮定
+# lens = camera forward in world
+# yaw   = atan2(fx, fz)
+# pitch = atan2(-fy, sqrt(fx^2 + fz^2))
+# roll  = up ベクトルの傾きから近似導出
+lens = anchor_df[["lens_x","lens_y","lens_z"]].to_numpy(dtype=float)
+up   = anchor_df[["up_x","up_y","up_z"]].to_numpy(dtype=float)
+right = anchor_df[["right_x","right_y","right_z"]].to_numpy(dtype=float)
+centers = anchor_df[["cam_cx","cam_cy","cam_cz"]].to_numpy(dtype=float)
+
+lens = _normalize(lens)
+up = _normalize(up)
+right = _normalize(right)
+
+fx, fy, fz = lens[:, 0], lens[:, 1], lens[:, 2]
+ux, uy, uz = up[:, 0], up[:, 1], up[:, 2]
+
+yaw_deg = np.degrees(np.arctan2(fx, fz))
+pitch_deg = np.degrees(np.arctan2(-fy, np.sqrt(np.maximum(fx * fx + fz * fz, 1e-12))))
+
+# roll 近似:
+# forward を固定したときの up の回転を world-up 基準で表す
+world_up = np.tile(np.array([[0.0, 1.0, 0.0]]), (len(anchor_df), 1))
+proj_world_up = world_up - np.sum(world_up * lens, axis=1, keepdims=True) * lens
+proj_up = up - np.sum(up * lens, axis=1, keepdims=True) * lens
+proj_world_up = _normalize(proj_world_up)
+proj_up = _normalize(proj_up)
+
+cross_u = np.cross(proj_world_up, proj_up)
+sign_roll = np.sign(np.sum(cross_u * lens, axis=1))
+dot_roll = np.clip(np.sum(proj_world_up * proj_up, axis=1), -1.0, 1.0)
+roll_deg = np.degrees(np.arccos(dot_roll)) * sign_roll
+
+# 連続性
+delta_yaw_deg = np.zeros(len(anchor_df), dtype=float)
+delta_pitch_deg = np.zeros(len(anchor_df), dtype=float)
+delta_roll_deg = np.zeros(len(anchor_df), dtype=float)
+delta_pos = np.zeros(len(anchor_df), dtype=float)
+delta_lens_angle_deg = np.zeros(len(anchor_df), dtype=float)
+delta_up_angle_deg = np.zeros(len(anchor_df), dtype=float)
+
+if len(anchor_df) >= 2:
+    delta_yaw_deg[1:] = _wrap_deg(np.diff(yaw_deg))
+    delta_pitch_deg[1:] = np.diff(pitch_deg)
+    delta_roll_deg[1:] = _wrap_deg(np.diff(roll_deg))
+    delta_pos[1:] = np.linalg.norm(np.diff(centers, axis=0), axis=1)
+    delta_lens_angle_deg[1:] = _angle_deg(lens[:-1], lens[1:])
+    delta_up_angle_deg[1:] = _angle_deg(up[:-1], up[1:])
+
+delta2_pos = np.zeros(len(anchor_df), dtype=float)
+delta2_rot = np.zeros(len(anchor_df), dtype=float)
+if len(anchor_df) >= 3:
+    delta2_pos[2:] = np.linalg.norm(centers[2:] - 2.0 * centers[1:-1] + centers[:-2], axis=1)
+    delta2_rot[2:] = np.sqrt(
+        (delta_yaw_deg[2:] - delta_yaw_deg[1:-1]) ** 2 +
+        (delta_pitch_deg[2:] - delta_pitch_deg[1:-1]) ** 2 +
+        (delta_roll_deg[2:] - delta_roll_deg[1:-1]) ** 2
+    )
+
+anchor_pose_diag_df = anchor_df.copy()
+anchor_pose_diag_df["yaw_deg"] = yaw_deg
+anchor_pose_diag_df["pitch_deg"] = pitch_deg
+anchor_pose_diag_df["roll_deg"] = roll_deg
+anchor_pose_diag_df["delta_yaw_deg"] = delta_yaw_deg
+anchor_pose_diag_df["delta_pitch_deg"] = delta_pitch_deg
+anchor_pose_diag_df["delta_roll_deg"] = delta_roll_deg
+anchor_pose_diag_df["delta_pos"] = delta_pos
+anchor_pose_diag_df["delta_lens_angle_deg"] = delta_lens_angle_deg
+anchor_pose_diag_df["delta_up_angle_deg"] = delta_up_angle_deg
+anchor_pose_diag_df["delta2_pos"] = delta2_pos
+anchor_pose_diag_df["delta2_rot"] = delta2_rot
+
+# prev / next
+anchor_pose_diag_df["prev_sequence_index"] = anchor_pose_diag_df["sequence_index"].shift(1)
+anchor_pose_diag_df["next_sequence_index"] = anchor_pose_diag_df["sequence_index"].shift(-1)
+
+diag_csv = anchor_dir / "full_anchor_pose_diag.csv"
+anchor_pose_diag_df.to_csv(diag_csv, index=False)
+
+summary = {
+    "persist_root": str(persist_root),
+    "anchor_path": str(anchor_path),
+    "rows": int(len(anchor_pose_diag_df)),
+    "yaw_deg_min": float(np.nanmin(yaw_deg)),
+    "yaw_deg_max": float(np.nanmax(yaw_deg)),
+    "pitch_deg_min": float(np.nanmin(pitch_deg)),
+    "pitch_deg_max": float(np.nanmax(pitch_deg)),
+    "roll_deg_min": float(np.nanmin(roll_deg)),
+    "roll_deg_max": float(np.nanmax(roll_deg)),
+    "delta_pos_max": float(np.nanmax(delta_pos)),
+    "delta_lens_angle_deg_max": float(np.nanmax(delta_lens_angle_deg)),
+    "delta2_pos_max": float(np.nanmax(delta2_pos)),
+    "delta2_rot_max": float(np.nanmax(delta2_rot)),
+    "diag_csv": str(diag_csv),
+}
+print(summary)
+```
+
+
+### #2-4 anchor QC  
+新設。撮影前提と continuity を集計し、異常候補を先に見つける。
+
+
+```python
+# #2-4 anchor QC
+# 旧 #8-1b の一部と目的は類似。
+# full_anchor_pose_diag.csv を読み、まずは「全落ちしない」QCにする。
+# fail は連続性の明確な破綻だけに限定し、roll/pitch は warning 扱いにする。
+
+from pathlib import Path
+import json
+import numpy as np
+import pandas as pd
+
+config = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8"))
+
+def _existing(p):
+    if not p:
+        return None
+    p = Path(p)
+    return p if p.exists() else None
+
+def _find_anchor_diag_root(search_roots):
+    rel = "01_anchor/full_anchor_pose_diag.csv"
+    for root in search_roots:
+        if root is None:
+            continue
+        root = Path(root)
+        if root.is_file():
+            root = root.parent
+        if not root.exists():
+            continue
+
+        candidate_dirs = [root]
+        candidate_dirs += [p for p in root.glob("*") if p.is_dir()]
+        candidate_dirs += [p for p in root.glob("*/*") if p.is_dir()]
+
+        seen = set()
+        for d in candidate_dirs:
+            d = d.resolve()
+            if str(d) in seen:
+                continue
+            seen.add(str(d))
+            if (d / rel).exists():
+                return d
+    return None
+
+search_roots = [
+    _existing(config.get("persist_root")),
+    _existing(config.get("google_drive_run_root")),
+    _existing(config.get("run_root")),
+    _existing(config.get("persist_dir")),
+    _existing(config.get("output_root")),
+    _existing(config.get("project_root")),
+    _existing(config.get("session_dir")),
+    _existing(config.get("target_probe_root")),
+    _existing(config.get("probe_root")),
+    Path("/content/drive/MyDrive/trajectreview"),
+    Path("/content/drive/MyDrive"),
+]
+
+persist_root = _find_anchor_diag_root(search_roots)
+assert persist_root is not None, {
+    "error": "full_anchor_pose_diag.csv not found",
+    "searched_roots": [str(p) for p in search_roots if p is not None],
+}
+
+anchor_dir = persist_root / "01_anchor"
+diag_path = anchor_dir / "full_anchor_pose_diag.csv"
+df = pd.read_csv(diag_path)
+assert not df.empty, diag_path
+
+# ---- 閾値: まずは緩め。全落ち防止 ----
+MAX_DELTA_POS = float(config.get("ANCHOR_QC_MAX_DELTA_POS", 5.0))
+MAX_DELTA_LENS_ANGLE_DEG = float(config.get("ANCHOR_QC_MAX_DELTA_LENS_ANGLE_DEG", 45.0))
+MAX_DELTA_UP_ANGLE_DEG = float(config.get("ANCHOR_QC_MAX_DELTA_UP_ANGLE_DEG", 45.0))
+MAX_DELTA2_POS = float(config.get("ANCHOR_QC_MAX_DELTA2_POS", 5.0))
+MAX_DELTA2_ROT = float(config.get("ANCHOR_QC_MAX_DELTA2_ROT", 60.0))
+
+# warning 用
+WARN_ABS_ROLL_DEG = float(config.get("ANCHOR_QC_WARN_ABS_ROLL_DEG", 45.0))
+WARN_PITCH_MIN_DEG = float(config.get("ANCHOR_QC_WARN_PITCH_MIN_DEG", -89.0))
+WARN_PITCH_MAX_DEG = float(config.get("ANCHOR_QC_WARN_PITCH_MAX_DEG", 89.0))
+
+for col in [
+    "delta_pos", "delta_lens_angle_deg", "delta_up_angle_deg",
+    "delta2_pos", "delta2_rot", "roll_deg", "pitch_deg"
+]:
+    if col not in df.columns:
+        df[col] = 0.0
+
+# ---- fail: 連続性の明確な破綻だけ ----
+df["fail_delta_pos"] = df["delta_pos"].abs() > MAX_DELTA_POS
+df["fail_delta_lens"] = df["delta_lens_angle_deg"].abs() > MAX_DELTA_LENS_ANGLE_DEG
+df["fail_delta_up"] = df["delta_up_angle_deg"].abs() > MAX_DELTA_UP_ANGLE_DEG
+df["fail_delta2_pos"] = df["delta2_pos"].abs() > MAX_DELTA2_POS
+df["fail_delta2_rot"] = df["delta2_rot"].abs() > MAX_DELTA2_ROT
+
+df["anchor_qc_fail"] = (
+    df["fail_delta_pos"] |
+    df["fail_delta_lens"] |
+    df["fail_delta_up"] |
+    df["fail_delta2_pos"] |
+    df["fail_delta2_rot"]
+)
+
+# ---- warning: 姿勢帯域。まだ fail に使わない ----
+df["warn_roll_band"] = df["roll_deg"].abs() > WARN_ABS_ROLL_DEG
+df["warn_pitch_band"] = (df["pitch_deg"] < WARN_PITCH_MIN_DEG) | (df["pitch_deg"] > WARN_PITCH_MAX_DEG)
+
+# 先頭フレームは差分系が 0 or NaN になりやすいので fail解除
+if len(df) > 0:
+    first_idx = df.index[0]
+    for c in ["fail_delta_pos", "fail_delta_lens", "fail_delta_up", "fail_delta2_pos", "fail_delta2_rot", "anchor_qc_fail"]:
+        df.loc[first_idx, c] = False
+
+fail_df = df[df["anchor_qc_fail"]].copy()
+warn_df = df[df["warn_roll_band"] | df["warn_pitch_band"]].copy()
+
+qc_csv = anchor_dir / "full_anchor_pose_qc.csv"
+fail_csv = anchor_dir / "full_anchor_pose_qc_fail.csv"
+warn_csv = anchor_dir / "full_anchor_pose_qc_warn.csv"
+
+df.to_csv(qc_csv, index=False)
+fail_df.to_csv(fail_csv, index=False)
+warn_df.to_csv(warn_csv, index=False)
+
+summary = {
+    "anchor_qc_rows": int(len(df)),
+    "fail_rows": int(len(fail_df)),
+    "warn_rows": int(len(warn_df)),
+    "fail_rate": float(len(fail_df) / max(len(df), 1)),
+    "warn_rate": float(len(warn_df) / max(len(df), 1)),
+    "max_delta_pos": float(df["delta_pos"].abs().max()),
+    "max_delta_lens_angle_deg": float(df["delta_lens_angle_deg"].abs().max()),
+    "max_delta_up_angle_deg": float(df["delta_up_angle_deg"].abs().max()),
+    "max_delta2_pos": float(df["delta2_pos"].abs().max()),
+    "max_delta2_rot": float(df["delta2_rot"].abs().max()),
+    "roll_deg_min": float(df["roll_deg"].min()),
+    "roll_deg_max": float(df["roll_deg"].max()),
+    "pitch_deg_min": float(df["pitch_deg"].min()),
+    "pitch_deg_max": float(df["pitch_deg"].max()),
+    "qc_csv": str(qc_csv),
+    "fail_csv": str(fail_csv),
+    "warn_csv": str(warn_csv),
+}
+print(summary)
+```
+
+
+### #2-5 full anchor 可視化  
+新設。視点変更可能な HTML を保存する。
+
+
+```python
+# #2-5 full anchor 可視化
+# 旧 #8-1b の可視化と目的は類似。
+# #2-2 / #2-3 で生成した 01_anchor 配下の anchor csv から
+# 3D 軌跡とカメラ方向を可視化し、html を保存する。
+
+from pathlib import Path
+import json
+import numpy as np
+import pandas as pd
+
+config = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8"))
+
+def _existing(p):
+    if not p:
+        return None
+    p = Path(p)
+    return p if p.exists() else None
+
+def _find_anchor_root(search_roots):
+    rels = [
+        "01_anchor/camera_anchor_full.csv",
+        "01_anchor/full_anchor_pose_diag.csv",
+        "01_anchor/camera_center_matrix.csv",
+        "01_anchor/camera_orientation_full.csv",
+    ]
+    for root in search_roots:
+        if root is None:
+            continue
+        root = Path(root)
+        if root.is_file():
+            root = root.parent
+        if not root.exists():
+            continue
+
+        candidate_dirs = [root]
+        candidate_dirs += [p for p in root.glob("*") if p.is_dir()]
+        candidate_dirs += [p for p in root.glob("*/*") if p.is_dir()]
+
+        seen = set()
+        for d in candidate_dirs:
+            d = d.resolve()
+            if str(d) in seen:
+                continue
+            seen.add(str(d))
+            if any((d / rel).exists() for rel in rels):
+                return d
+    return None
+
+def _pick_first_existing(paths):
+    for p in paths:
+        if p.exists():
+            return p
+    return None
+
+def _resolve_center_cols(df: pd.DataFrame):
+    candidates = [
+        ("cam_cx", "cam_cy", "cam_cz"),
+        ("cx", "cy", "cz"),
+        ("camera_center_x", "camera_center_y", "camera_center_z"),
+        ("tx", "ty", "tz"),
+    ]
+    for cols in candidates:
+        if all(c in df.columns for c in cols):
+            return cols
+    raise ValueError(f"camera center columns not found; columns={list(df.columns)}")
+
+def _resolve_lens_cols(df: pd.DataFrame):
+    candidates = [
+        ("lens_x", "lens_y", "lens_z"),
+        ("forward_x", "forward_y", "forward_z"),
+        ("dir_x", "dir_y", "dir_z"),
+    ]
+    for cols in candidates:
+        if all(c in df.columns for c in cols):
+            return cols
+    return None
+
+search_roots = [
+    _existing(config.get("persist_root")),
+    _existing(config.get("google_drive_run_root")),
+    _existing(config.get("run_root")),
+    _existing(config.get("persist_dir")),
+    _existing(config.get("output_root")),
+    _existing(config.get("project_root")),
+    _existing(config.get("session_dir")),
+    _existing(config.get("target_probe_root")),
+    _existing(config.get("probe_root")),
+    Path("/content/drive/MyDrive/trajectreview"),
+    Path("/content/drive/MyDrive"),
+]
+
+persist_root = _find_anchor_root(search_roots)
+assert persist_root is not None, {
+    "error": "anchor root not found",
+    "searched_roots": [str(p) for p in search_roots if p is not None],
+}
+
+anchor_dir = persist_root / "01_anchor"
+anchor_csv = _pick_first_existing([
+    anchor_dir / "full_anchor_pose_diag.csv",
+    anchor_dir / "camera_anchor_full.csv",
+    anchor_dir / "camera_center_matrix.csv",
+])
+
+assert anchor_csv is not None, {"missing_anchor_csv_in": str(anchor_dir)}
+
+df = pd.read_csv(anchor_csv)
+assert not df.empty, anchor_csv
+
+# sequence 順に並べる
+if "sequence_index" in df.columns:
+    df = df.sort_values("sequence_index", kind="stable").reset_index(drop=True)
+elif "frame_timestamp_ns" in df.columns:
+    df = df.sort_values("frame_timestamp_ns", kind="stable").reset_index(drop=True)
+elif "timestamp_ns" in df.columns:
+    df = df.sort_values("timestamp_ns", kind="stable").reset_index(drop=True)
+elif "timestamp" in df.columns:
+    df = df.sort_values("timestamp", kind="stable").reset_index(drop=True)
+else:
+    df = df.reset_index(drop=True)
+
+cx_col, cy_col, cz_col = _resolve_center_cols(df)
+lens_cols = _resolve_lens_cols(df)
+
+plotly_html = anchor_dir / "full_anchor_preview.html"
+plotly_png = anchor_dir / "full_anchor_preview.png"
+
+centers = df[[cx_col, cy_col, cz_col]].to_numpy(dtype=float)
+
+# 矢印長
+bbox_min = np.nanmin(centers, axis=0)
+bbox_max = np.nanmax(centers, axis=0)
+diag = float(np.linalg.norm(bbox_max - bbox_min))
+arrow_scale = max(diag * 0.03, 0.02)
+
+# Plotly 可視化
+try:
+    import plotly.graph_objects as go
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter3d(
+        x=centers[:, 0],
+        y=centers[:, 1],
+        z=centers[:, 2],
+        mode="lines+markers",
+        name="camera_centers",
+        marker=dict(size=2),
+        line=dict(width=4),
+        text=[f"idx={i}" for i in range(len(df))],
+        hovertemplate="x=%{x:.3f}<br>y=%{y:.3f}<br>z=%{z:.3f}<br>%{text}<extra></extra>",
+    ))
+
+    if lens_cols is not None:
+        lens = df[list(lens_cols)].to_numpy(dtype=float)
+        lens_norm = np.linalg.norm(lens, axis=1, keepdims=True)
+        lens_norm = np.maximum(lens_norm, 1e-12)
+        lens = lens / lens_norm
+        ends = centers + lens * arrow_scale
+
+        step = max(len(df) // 40, 1)  # 矢印が多すぎないよう間引き
+        for i in range(0, len(df), step):
+            fig.add_trace(go.Scatter3d(
+                x=[centers[i, 0], ends[i, 0]],
+                y=[centers[i, 1], ends[i, 1]],
+                z=[centers[i, 2], ends[i, 2]],
+                mode="lines",
+                name="lens_dir" if i == 0 else None,
+                showlegend=(i == 0),
+                line=dict(width=3),
+                hoverinfo="skip",
+            ))
+
+    fig.update_layout(
+        title="Full Anchor Preview",
+        scene=dict(
+            xaxis_title="X",
+            yaxis_title="Y",
+            zaxis_title="Z",
+            aspectmode="data",
+        ),
+        margin=dict(l=0, r=0, t=40, b=0),
+    )
+
+    fig.write_html(str(plotly_html), include_plotlyjs="cdn")
+    preview_result = {
+        "plotly_preview": "saved",
+        "anchor_csv": str(anchor_csv),
+        "html": str(plotly_html),
+        "rows": int(len(df)),
+        "center_cols": [cx_col, cy_col, cz_col],
+        "lens_cols": list(lens_cols) if lens_cols is not None else None,
+    }
+except Exception as e:
+    preview_result = {
+        "plotly_preview": "skipped",
+        "reason": repr(e),
+        "anchor_csv": str(anchor_csv),
+        "rows": int(len(df)),
+        "available_columns": list(df.columns),
+    }
+
+print(preview_result)
+```
+
+
+## #3 1フレーム1レコード化＋chunk/batch設定
+
+
+### #3-1 1フレーム1レコード manifest 生成  
+旧 #6-2 と目的は類似。frame 単位 manifest / intrinsics / extrinsics を生成する。
+
+
+```python
+#3-1
 from pathlib import Path
 import csv
 import json
@@ -1162,28 +2336,26 @@ for row in adopt_df.itertuples(index=False):
         "baseline_from_prev_adopted_m": baseline,
         "rotation_from_prev_adopted_deg": rot_delta,
         "geometric_adopt": geometric_adopt,
-        "prod_adopted": adopt,
-        "prod_skip_reason": "" if adopt else "baseline_small",
+        "anchor_input_adopted": adopt,
+        "anchor_input_skip_reason": "" if adopt else "baseline_small",
     })
     if adopt:
         last_t = t
         last_R = R
 
-prod_df = pd.DataFrame(adopted_rows)
-prod_df.to_csv(manifest_dir / "pose_conversion_check.csv", index=False, encoding="utf-8")
+anchor_input_df = pd.DataFrame(adopted_rows)
+anchor_input_df.to_csv(manifest_dir / "pose_conversion_check.csv", index=False, encoding="utf-8")
 
-prod_selected = prod_df.loc[prod_df["prod_adopted"]].copy().reset_index(drop=True)
-proof_selected = prod_selected.head(min(24, len(prod_selected))).copy()
-assert len(proof_selected) >= 2, {"proof_selected": len(proof_selected)}
+selected_df = anchor_input_df.loc[anchor_input_df["anchor_input_adopted"]].copy().reset_index(drop=True)
+assert len(selected_df) >= 2, {"selected_df": len(selected_df)}
 
-for name, df in [("proof", proof_selected), ("prod", prod_selected)]:
-    Ks = np.stack([build_K(row) for row in df.itertuples(index=False)], axis=0)
-    exts = np.stack([pose_to_w2c(row) for row in df.itertuples(index=False)], axis=0)
-    np.save(manifest_dir / f"intrinsics_{name}.npy", Ks)
-    np.save(manifest_dir / f"extrinsics_w2c_{name}.npy", exts)
-    df.to_csv(manifest_dir / f"da3_input_manifest_{name}.csv", index=False, encoding="utf-8")
+Ks = np.stack([build_K(row) for row in selected_df.itertuples(index=False)], axis=0)
+exts = np.stack([pose_to_w2c(row) for row in selected_df.itertuples(index=False)], axis=0)
+np.save(manifest_dir / "intrinsics.npy", Ks)
+np.save(manifest_dir / "extrinsics_w2c.npy", exts)
+selected_df.to_csv(manifest_dir / "da3_input_manifest.csv", index=False, encoding="utf-8")
 
-k_check = prod_selected[[
+k_check = selected_df[[
     "image_file_name",
     "canonical_orientation_policy",
     "intrinsics_case",
@@ -1223,13 +2395,10 @@ summary = {
     "resolved_images_dir_file_count": int(image_dir_ranking[0][1]),
     "frame_pose_index_path": str(frame_pose_index_path),
     "frame_pose_fallback_mapping_count": int(len(image_name_by_record_index)),
-    "prod_selected_count": int(len(prod_selected)),
-    "proof_selected_count": int(len(proof_selected)),
+    "selected_count": int(len(selected_df)),
     "canonical_orientation_policy": CANONICAL_ORIENTATION_POLICY,
-    "proof_intrinsics_path": str(manifest_dir / "intrinsics_proof.npy"),
-    "proof_extrinsics_path": str(manifest_dir / "extrinsics_w2c_proof.npy"),
-    "prod_intrinsics_path": str(manifest_dir / "intrinsics_prod.npy"),
-    "prod_extrinsics_path": str(manifest_dir / "extrinsics_w2c_prod.npy"),
+    "intrinsics_path": str(manifest_dir / "intrinsics.npy"),
+    "extrinsics_path": str(manifest_dir / "extrinsics_w2c.npy"),
     "orientation_summary_path": str(manifest_dir / "orientation_summary.json"),
 }
 (manifest_dir / "qc_summary.json").write_text(json.dumps({
@@ -1244,294 +2413,151 @@ summary = {
 print(json.dumps(summary, indent=2, ensure_ascii=False))
 ```
 
-### #7 MetricLarge proof + production + world export
+
+### #3-2 record QC / sequence 拡張  
+新設。manifest に sequence_index と anchor 由来姿勢列を注入する。
+
 
 ```python
-#7
+#3-2
 from pathlib import Path
 import json
-import sys
-
-import numpy as np
 import pandas as pd
-import torch
-from PIL import Image
-ctx_path = Path("/content/runbook_session_context.json")
-assert ctx_path.exists(), ctx_path
-ctx = json.loads(ctx_path.read_text(encoding="utf-8"))
-manifest_dir = Path(ctx["manifest_dir"])
-proof_metric_dir = Path(ctx["proof_metric_dir"])
-prod_metric_dir = Path(ctx["prod_metric_dir"])
-world_dir = Path(ctx["world_dir"])
-final_outputs_dir = Path(ctx["final_outputs_dir"])
-final_outputs_merged_dir = Path(ctx["final_outputs_merged_dir"])
-final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
-final_outputs_manifests_dir = Path(ctx["final_outputs_manifests_dir"])
-final_outputs_chunk_evidence_dir = Path(ctx["final_outputs_chunk_evidence_dir"])
 
-repo_root = Path("/content/Depth-Anything-3")
-src_root = repo_root / "src"
-assert repo_root.exists(), repo_root
-assert src_root.exists(), src_root
-assert (src_root / "depth_anything_3" / "api.py").exists(), src_root / "depth_anything_3" / "api.py"
-if str(src_root) not in sys.path:
-    sys.path.insert(0, str(src_root))
-for name in list(sys.modules.keys()):
-    if name.startswith("depth_anything_3"):
-        del sys.modules[name]
+ctx = load_ctx()
+manifest_dir = Path(ctx['manifest_dir'])
+managed_dirs = json.loads(Path('/content/runbook_managed_dirs.json').read_text(encoding='utf-8'))
+record_dir = Path(managed_dirs['02_records'])
+record_dir.mkdir(parents=True, exist_ok=True)
+anchor_diag = pd.read_csv(Path(managed_dirs['01_anchor']) / 'full_anchor_pose_diag.csv')
+anchor_keep_cols = [c for c in ['sequence_index','roll_deg','pitch_deg','yaw_deg','delta_roll_deg','delta_pitch_deg','delta_yaw_deg','delta_pos','delta2_pos','delta2_rot'] if c in anchor_diag.columns]
+anchor_join = anchor_diag[anchor_keep_cols].copy() if anchor_keep_cols else pd.DataFrame()
 
-from depth_anything_3.api import DepthAnything3
+p = manifest_dir / 'da3_input_manifest.csv'
+assert p.exists(), p
+df = pd.read_csv(p)
+ts_col = next((c for c in ['frame_timestamp_ns','timestamp_ns','timestamp'] if c in df.columns), None)
+df = append_sequence_columns(df, ts_col or 'frame_timestamp_ns')
+if not anchor_join.empty and 'sequence_index' in df.columns:
+    df = df.merge(anchor_join, on='sequence_index', how='left', suffixes=('', '_anchor'))
+df['is_time_adjacent_valid'] = True
+df.to_csv(p, index=False, encoding='utf-8')
+df.to_csv(record_dir / 'record_manifest.csv', index=False, encoding='utf-8')
+print({'updated_manifest': str(p), 'rows': len(df)})
+```
 
-required_dirs = [manifest_dir, proof_metric_dir, prod_metric_dir, world_dir]
-for p in required_dirs:
-    p.mkdir(parents=True, exist_ok=True)
 
-required_files = {
-    "proof_manifest": manifest_dir / "da3_input_manifest_proof.csv",
-    "prod_manifest": manifest_dir / "da3_input_manifest_prod.csv",
-    "proof_intrinsics": manifest_dir / "intrinsics_proof.npy",
-    "proof_extrinsics": manifest_dir / "extrinsics_w2c_proof.npy",
-    "prod_intrinsics": manifest_dir / "intrinsics_prod.npy",
-    "prod_extrinsics": manifest_dir / "extrinsics_w2c_prod.npy",
-}
-for key, path in required_files.items():
-    assert path.exists(), {key: str(path)}
+### #3-3 batch/chunk パラメータ定義  
+旧 #8 と目的は類似。batch/chunk 系パラメータを一か所で確認する。
 
-proof_df = pd.read_csv(required_files["proof_manifest"])
-prod_df = pd.read_csv(required_files["prod_manifest"])
-assert not proof_df.empty, "proof manifest empty"
-assert not prod_df.empty, "prod manifest empty"
 
-required_columns = {
-    "image_path",
-    "image_file_name",
-    "canonical_orientation_policy",
-    "intrinsics_case",
-}
-assert required_columns.issubset(proof_df.columns), {
-    "missing_in_proof": sorted(required_columns - set(proof_df.columns))
-}
-assert required_columns.issubset(prod_df.columns), {
-    "missing_in_prod": sorted(required_columns - set(prod_df.columns))
-}
+```python
+#3-3
+from pathlib import Path
+import json
 
-proof_images = proof_df["image_path"].tolist()
-prod_images = prod_df["image_path"].tolist()
-assert len(proof_images) >= 2, {"proof_image_count": len(proof_images)}
-assert len(prod_images) >= 2, {"prod_image_count": len(prod_images)}
-
-for label, image_paths in [("proof", proof_images), ("prod", prod_images)]:
-    missing = [p for p in image_paths if not Path(p).exists()]
-    assert not missing, {f"{label}_missing_images_head": missing[:10], f"{label}_missing_count": len(missing)}
-
-proof_intrinsics = np.load(required_files["proof_intrinsics"])
-proof_extrinsics = np.load(required_files["proof_extrinsics"])
-prod_intrinsics = np.load(required_files["prod_intrinsics"])
-prod_extrinsics = np.load(required_files["prod_extrinsics"])
-
-assert proof_intrinsics.shape == (len(proof_df), 3, 3), {
-    "proof_intrinsics_shape": tuple(proof_intrinsics.shape),
-    "proof_count": len(proof_df),
-}
-assert proof_extrinsics.shape[0] == len(proof_df), {
-    "proof_extrinsics_shape": tuple(proof_extrinsics.shape),
-    "proof_count": len(proof_df),
-}
-assert prod_intrinsics.shape == (len(prod_df), 3, 3), {
-    "prod_intrinsics_shape": tuple(prod_intrinsics.shape),
-    "prod_count": len(prod_df),
-}
-assert prod_extrinsics.shape[0] == len(prod_df), {
-    "prod_extrinsics_shape": tuple(prod_extrinsics.shape),
-    "prod_count": len(prod_df),
-}
-
-preflight = {
-    "ctx_path": str(ctx_path),
-    "repo_root": str(repo_root),
-    "manifest_dir": str(manifest_dir),
-    "proof_metric_dir": str(proof_metric_dir),
-    "prod_metric_dir": str(prod_metric_dir),
-    "world_dir": str(world_dir),
-    "proof_image_count": len(proof_images),
-    "prod_image_count": len(prod_images),
-    "proof_intrinsics_shape": list(proof_intrinsics.shape),
-    "proof_extrinsics_shape": list(proof_extrinsics.shape),
-    "prod_intrinsics_shape": list(prod_intrinsics.shape),
-    "prod_extrinsics_shape": list(prod_extrinsics.shape),
-}
-(manifest_dir / "metriclarge_block2_preflight.json").write_text(json.dumps(preflight, indent=2, ensure_ascii=False), encoding="utf-8")
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = DepthAnything3.from_pretrained("depth-anything/DA3METRIC-LARGE").to(device=device)
-proof_prediction = model.inference(
-    image=proof_images,
-    infer_gs=False,
-    process_res=504,
-    export_dir=str(proof_metric_dir),
-    export_format="mini_npz-depth_vis",
-)
-prod_prediction = model.inference(
-    image=prod_images,
-    infer_gs=False,
-    process_res=504,
-    export_dir=str(prod_metric_dir),
-    export_format="mini_npz-depth_vis",
-)
-
-depths = np.asarray(prod_prediction.depth)
-assert depths is not None and len(depths) == len(prod_df), {
-    "depth_count": None if depths is None else len(depths),
-    "prod_selected_count": len(prod_df),
-}
-assert np.isfinite(prod_intrinsics).all(), "prod intrinsics has non-finite value"
-assert np.isfinite(prod_extrinsics).all(), "prod extrinsics has non-finite value"
-
-all_points = []
-per_frame = []
-skipped_frames = []
-stride = 24
-for idx, row in enumerate(prod_df.itertuples(index=False)):
-    depth = np.asarray(depths[idx]).astype(np.float32)
-    K = prod_intrinsics[idx]
-    w2c = prod_extrinsics[idx]
-    c2w = np.linalg.inv(w2c)
-    h, w = depth.shape
-    grid_y, grid_x = np.mgrid[0:h:stride, 0:w:stride]
-    z = depth[grid_y, grid_x]
-    valid = np.isfinite(z) & (z > 0.0)
-    if not np.any(valid):
-        skipped_frames.append({"image_file_name": row.image_file_name, "reason": "no_valid_depth"})
-        continue
-    px = grid_x[valid].astype(np.float32)
-    py = grid_y[valid].astype(np.float32)
-    zz = z[valid].astype(np.float32)
-    x = (px - K[0, 2]) * zz / K[0, 0]
-    y = (py - K[1, 2]) * zz / K[1, 1]
-    cam = np.stack([x, y, zz], axis=-1)
-    cam_h = np.concatenate([cam, np.ones((len(cam), 1), dtype=np.float32)], axis=1)
-    world = (c2w @ cam_h.T).T[:, :3]
-    all_points.append(world)
-    per_frame.append({"image_file_name": row.image_file_name, "point_count": int(len(world))})
-
-assert all_points, "no world points generated"
-merged = np.concatenate(all_points, axis=0).astype(np.float32)
-np.save(world_dir / "world_points_multiframe.npy", merged)
-
-with (world_dir / "world_points_multiframe.ply").open("w", encoding="utf-8") as f:
-    f.write("ply\nformat ascii 1.0\n")
-    f.write(f"element vertex {len(merged)}\n")
-    f.write("property float x\nproperty float y\nproperty float z\n")
-    f.write("end_header\n")
-    for p in merged:
-        f.write(f"{p[0]} {p[1]} {p[2]}\n")
-
-sample = merged[::4] if len(merged) > 4000 else merged
-mins = sample.min(axis=0)
-maxs = sample.max(axis=0)
-norm = (sample - mins) / np.maximum(maxs - mins, 1e-6)
-preview = np.zeros((800, 800, 3), dtype=np.uint8)
-px = np.clip((norm[:, 0] * 799).astype(int), 0, 799)
-py = np.clip((norm[:, 1] * 799).astype(int), 0, 799)
-preview[799 - py, px] = 255
-Image.fromarray(preview).save(world_dir / "world_points_multiframe_preview.png")
-
-proof_summary = {
-    "route": "MetricLarge-proof",
-    "image_count": len(proof_images),
-    "proof_metric_dir": str(proof_metric_dir),
-    "prediction_type": str(type(proof_prediction).__name__),
-    "da3_camera_input_mode": "image_only",
-    "canonical_orientation_policy": str(proof_df["canonical_orientation_policy"].iloc[0]),
-    "intrinsics_case_counts": proof_df["intrinsics_case"].value_counts().to_dict(),
-}
-prod_summary = {
-    "route": "MetricLarge-production",
-    "image_count": len(prod_images),
-    "prod_metric_dir": str(prod_metric_dir),
-    "prediction_type": str(type(prod_prediction).__name__),
-    "da3_camera_input_mode": "image_only",
-    "canonical_orientation_policy": str(prod_df["canonical_orientation_policy"].iloc[0]),
-    "intrinsics_case_counts": prod_df["intrinsics_case"].value_counts().to_dict(),
-}
-world_summary = {
-    "route": "MetricLarge-production-world",
-    "processed_frames": len(per_frame),
-    "skipped_frames": skipped_frames,
-    "total_points": int(len(merged)),
-    "stride": stride,
-    "depth_source": "prod_prediction.depth",
-    "world_projection_input_mode": "frame_record_intrinsics_and_pose",
-    "canonical_orientation_policy": str(prod_df["canonical_orientation_policy"].iloc[0]),
-    "npy_path": str(world_dir / "world_points_multiframe.npy"),
-    "ply_path": str(world_dir / "world_points_multiframe.ply"),
-}
-(proof_metric_dir / "export_summary.json").write_text(json.dumps(proof_summary, indent=2, ensure_ascii=False), encoding="utf-8")
-(prod_metric_dir / "export_summary.json").write_text(json.dumps(prod_summary, indent=2, ensure_ascii=False), encoding="utf-8")
-(world_dir / "export_summary.json").write_text(json.dumps(world_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+config = json.loads(Path('/content/config_snapshot.json').read_text(encoding='utf-8'))
 print(json.dumps({
-    "preflight_path": str(manifest_dir / "metriclarge_block2_preflight.json"),
-    "proof_image_count": proof_summary["image_count"],
-    "prod_image_count": prod_summary["image_count"],
-    "processed_frames": world_summary["processed_frames"],
-    "total_points": world_summary["total_points"],
-    "world_dir": str(world_dir),
+    'BATCH_SIZE': config['BATCH_SIZE'],
+    'CHUNK_SIZE': config['CHUNK_SIZE'],
+    'CHUNK_STEP': config['CHUNK_STEP'],
+    'ADOPT_SIZE': config['ADOPT_SIZE'],
+    'PROCESS_RES': config['PROCESS_RES'],
 }, indent=2, ensure_ascii=False))
 ```
 
-### #8 Global camera matrix + batch plan
+
+### #3-4 batch 計画生成 / #3-5 chunk 計画生成  
+旧 #8 と目的は類似。pipeline root, batch plan, chunk manifest を生成する。
+
 
 ```python
-#8
+# #3-4 batch 計画生成
+# 旧 #8 / #9 の一部と目的は類似。
+# 正本として global chunk を全件生成し、batch_plan も全件に対して作る。
+# テスト用の部分実行制限は #5-0 で扱い、ここでは target window を正本に焼き込まない。
+
 from pathlib import Path
 import json
 import math
+import hashlib
 
 import numpy as np
 import pandas as pd
 
 ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
+config_snapshot = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8")) if Path("/content/config_snapshot.json").exists() else {}
+
 manifest_dir = Path(ctx["manifest_dir"])
-probe_root = Path(ctx["probe_root"])
+persist_root = Path(ctx.get("persist_root", manifest_dir.parent))
+pipeline_slug = ctx.get("pipeline_slug", config_snapshot.get("PIPELINE_SLUG", "da3_seq_anchor_batch_v02"))
 
-pipeline_root = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12"
-global_pose_dir = pipeline_root / "global_pose_bootstrap"
+pipeline_root = persist_root / pipeline_slug
+anchor_dir = persist_root / "01_anchor"
 chunk_manifest_dir = pipeline_root / "manifests"
-chunk_runs_dir = pipeline_root / "chunk_runs"
-merged_dir = pipeline_root / "merged"
+batch_runs_dir = pipeline_root / "04_batch_runs"
+merged_dir = pipeline_root / "05_merge"
 
-for p in [pipeline_root, global_pose_dir, chunk_manifest_dir, chunk_runs_dir, merged_dir]:
+for p in [pipeline_root, chunk_manifest_dir, batch_runs_dir, merged_dir]:
     p.mkdir(parents=True, exist_ok=True)
 
 MODEL_ID = "depth-anything/DA3NESTED-GIANT-LARGE-1.1"
-BUNDLE_MODEL_SLUG = "".join(ch.lower() for ch in MODEL_ID.split("/")[-1] if ch.isalnum()).replace("da3nested", "")
-PROCESS_RES = 504
-CHUNK_SIZE = 18
-STEP = 12
-ADOPT_SIZE = 12
-CHUNKS_PER_BATCH = 3
+BUNDLE_MODEL_SLUG = "nestedgiantlarge11"
+PROCESS_RES = int(config_snapshot.get("PROCESS_RES", 504))
+CHUNK_SIZE = int(config_snapshot.get("CHUNK_SIZE", 18))
+CHUNK_STEP = int(config_snapshot.get("CHUNK_STEP", 12))
+ADOPT_SIZE = int(config_snapshot.get("ADOPT_SIZE", 12))
+BATCH_SIZE = int(config_snapshot.get("BATCH_SIZE", 3))
 
 config = {
     "MODEL_ID": MODEL_ID,
     "BUNDLE_MODEL_SLUG": BUNDLE_MODEL_SLUG,
     "PROCESS_RES": PROCESS_RES,
     "CHUNK_SIZE": CHUNK_SIZE,
-    "STEP": STEP,
+    "CHUNK_STEP": CHUNK_STEP,
     "ADOPT_SIZE": ADOPT_SIZE,
-    "CHUNKS_PER_BATCH": CHUNKS_PER_BATCH,
-    "GLOBAL_CAMERA_SOURCE": "extrinsics_w2c_prod.npy",
+    "BATCH_SIZE": BATCH_SIZE,
+    "GLOBAL_CAMERA_SOURCE": "manifests/extrinsics_w2c.npy",
+    "CANONICAL_ANCHOR_MODE": "lens=-c2w_z, up=c2w_y",
+    "PIPELINE_SLUG": pipeline_slug,
+    "TARGET_POLICY": "canonical_full_set",
+    "TEST_EXECUTION_LIMITER_LOCATION": "#5-0",
 }
-(pipeline_root / "pipeline_config.json").write_text(json.dumps(config, indent=2, ensure_ascii=False), encoding="utf-8")
 
-prod_df = pd.read_csv(manifest_dir / "da3_input_manifest_prod.csv").reset_index(drop=True)
-assert len(prod_df) >= 2, {"prod_frame_count": len(prod_df)}
-prod_extrinsics_path = manifest_dir / "extrinsics_w2c_prod.npy"
-assert prod_extrinsics_path.exists(), prod_extrinsics_path
-prod_extrinsics = np.load(prod_extrinsics_path).astype(np.float32)
-assert prod_extrinsics.shape[0] == len(prod_df), {
-    "prod_extrinsics_shape": tuple(prod_extrinsics.shape),
-    "prod_frame_count": len(prod_df),
+def sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        while True:
+            chunk = f.read(1024 * 1024)
+            if not chunk:
+                break
+            h.update(chunk)
+    return h.hexdigest()
+
+input_manifest_path = manifest_dir / "da3_input_manifest.csv"
+intrinsics_path = manifest_dir / "intrinsics.npy"
+extrinsics_path = manifest_dir / "extrinsics_w2c.npy"
+
+assert input_manifest_path.exists(), input_manifest_path
+assert intrinsics_path.exists(), intrinsics_path
+assert extrinsics_path.exists(), extrinsics_path
+
+input_df = pd.read_csv(input_manifest_path).reset_index(drop=True)
+assert len(input_df) >= 2, {"frame_count": len(input_df)}
+
+input_extrinsics = np.load(extrinsics_path).astype(np.float32)
+assert input_extrinsics.shape[0] == len(input_df), {
+    "input_extrinsics_shape": tuple(input_extrinsics.shape),
+    "frame_count": len(input_df),
 }
+assert input_df["record_index"].notnull().all(), "record_index contains null"
+assert input_df["record_index"].is_unique, "record_index must be unique"
+assert input_df["frame_timestamp_ns"].notnull().all(), "frame_timestamp_ns contains null"
+assert input_df["frame_timestamp_ns"].is_monotonic_increasing, "frame_timestamp_ns must be monotonic increasing"
+
+config["INPUT_MANIFEST_SHA256"] = sha256_file(input_manifest_path)
+config["INPUT_EXTRINSICS_SHA256"] = sha256_file(extrinsics_path)
+(pipeline_root / "pipeline_config.json").write_text(json.dumps(config, indent=2, ensure_ascii=False), encoding="utf-8")
 
 def to_4x4(ext):
     ext = np.asarray(ext).astype(np.float32)
@@ -1543,17 +2569,22 @@ def to_4x4(ext):
         return M
     raise ValueError(f"unexpected extrinsic shape: {ext.shape}")
 
+# ----- global chunk 生成 -----
 chunks = []
 start_pos = 0
 chunk_id = 0
-while start_pos < len(prod_df):
-    end_pos = min(start_pos + CHUNK_SIZE, len(prod_df))
-    chunk_df = prod_df.iloc[start_pos:end_pos].copy().reset_index(drop=True)
+
+while start_pos < len(input_df):
+    end_pos = min(start_pos + CHUNK_SIZE, len(input_df))
+    chunk_df = input_df.iloc[start_pos:end_pos].copy().reset_index(drop=True)
     if len(chunk_df) < 2:
         break
 
     chunk_name = f"chunk_{chunk_id:04d}_{start_pos:05d}_{end_pos-1:05d}"
+    chunk_df["chunk_id"] = int(chunk_id)
+    chunk_df["chunk_name"] = chunk_name
     chunk_df["chunk_local_index"] = range(len(chunk_df))
+
     adopt_local_start = max(0, len(chunk_df) - min(ADOPT_SIZE, len(chunk_df)))
     adopt_local_end = len(chunk_df) - 1
     chunk_df["is_adopted_region"] = chunk_df["chunk_local_index"] >= adopt_local_start
@@ -1572,640 +2603,1634 @@ while start_pos < len(prod_df):
         "chunk_csv": str(chunk_csv),
     })
 
-    if end_pos == len(prod_df):
+    if end_pos == len(input_df):
         break
-    start_pos += STEP
+
+    start_pos += CHUNK_STEP
     chunk_id += 1
 
 all_chunks_df = pd.DataFrame(chunks)
 assert len(all_chunks_df) >= 1, "no chunks generated"
-all_chunks_df.to_csv(chunk_manifest_dir / "chunk_index_all.csv", index=False, encoding="utf-8")
-all_chunks_df.to_csv(chunk_manifest_dir / "chunk_index_target.csv", index=False, encoding="utf-8")
 
+chunk_index_all_path = chunk_manifest_dir / "chunk_index_all.csv"
+all_chunks_df.to_csv(chunk_index_all_path, index=False, encoding="utf-8")
+
+# ----- 正本 target = 全chunk集合 -----
+target_chunks_df = all_chunks_df.copy().reset_index(drop=True)
+target_chunks_df["target_local_chunk_index"] = range(len(target_chunks_df))
+
+chunk_index_target_path = chunk_manifest_dir / "chunk_index_target.csv"
+target_chunks_df.to_csv(chunk_index_target_path, index=False, encoding="utf-8")
+
+# ----- batch plan は target_local_chunk_index 基準で全件生成 -----
 batch_rows = []
-batch_count = math.ceil(len(all_chunks_df) / CHUNKS_PER_BATCH)
+batch_count = math.ceil(len(target_chunks_df) / BATCH_SIZE)
+
 for batch_index in range(batch_count):
-    s = batch_index * CHUNKS_PER_BATCH
-    e = min(s + CHUNKS_PER_BATCH, len(all_chunks_df))
+    s = batch_index * BATCH_SIZE
+    e = min(s + BATCH_SIZE, len(target_chunks_df))
     batch_rows.append({
-        "batch_index": batch_index,
-        "chunk_from": s,
-        "chunk_to": e - 1,
-        "chunk_count": e - s,
-        "chunk_names": "|".join(all_chunks_df.iloc[s:e]["chunk_name"].tolist()),
+        "batch_index": int(batch_index),
+        "chunk_from": int(s),       # target_local_chunk_index の開始
+        "chunk_to": int(e - 1),     # target_local_chunk_index の終了
+        "chunk_count": int(e - s),
+        "chunk_names": "|".join(target_chunks_df.iloc[s:e]["chunk_name"].tolist()),
+        "global_chunk_ids": "|".join(target_chunks_df.iloc[s:e]["chunk_id"].astype(int).astype(str).tolist()),
     })
+
 batch_plan_df = pd.DataFrame(batch_rows)
-batch_plan_df.to_csv(chunk_manifest_dir / "batch_plan.csv", index=False, encoding="utf-8")
+batch_plan_path = chunk_manifest_dir / "batch_plan.csv"
+batch_plan_df.to_csv(batch_plan_path, index=False, encoding="utf-8")
 
-bootstrap_df = prod_df.copy()
-bootstrap_df.to_csv(global_pose_dir / "bootstrap_input_frames.csv", index=False, encoding="utf-8")
+# ----- full anchor のコピー/索引化（#2系生成物の利用） -----
+camera_anchor_full_path = anchor_dir / "camera_anchor_full.csv"
+assert camera_anchor_full_path.exists(), camera_anchor_full_path
 
-rows = []
-pose_rows = []
-for i, row in enumerate(bootstrap_df.itertuples(index=False)):
-    w2c = to_4x4(prod_extrinsics[i])
-    c2w = np.linalg.inv(w2c)
-    center = c2w[:3, 3]
-    rows.append({
-        "bootstrap_index": i,
-        "record_index": int(row.record_index),
-        "image_file_name": row.image_file_name,
-        "image_path": row.image_path,
-        "cx_world": float(center[0]),
-        "cy_world": float(center[1]),
-        "cz_world": float(center[2]),
+anchor_df = pd.read_csv(camera_anchor_full_path)
+assert not anchor_df.empty, camera_anchor_full_path
+assert "record_index" in anchor_df.columns, anchor_df.columns.tolist()
+assert "sequence_index" in anchor_df.columns, anchor_df.columns.tolist()
+
+chunk_sequence_anchor_index_rows = []
+
+for row in all_chunks_df.itertuples(index=False):
+    chunk_csv_path = Path(row.chunk_csv)
+    chunk_df = pd.read_csv(chunk_csv_path)
+    chunk_anchor_df = chunk_df.merge(
+        anchor_df,
+        on=["record_index"],
+        how="left",
+        suffixes=("", "_anchor")
+    )
+    assert len(chunk_anchor_df) == len(chunk_df), {"chunk_name": row.chunk_name, "reason": "anchor merge row count mismatch"}
+
+    missing_anchor = chunk_anchor_df["sequence_index_anchor"].isna().sum() if "sequence_index_anchor" in chunk_anchor_df.columns else 0
+    if "sequence_index_anchor" in chunk_anchor_df.columns:
+        chunk_anchor_df = chunk_anchor_df.rename(columns={"sequence_index_anchor": "sequence_index"})
+    if "frame_timestamp_ns_anchor" in chunk_anchor_df.columns and "frame_timestamp_ns" not in chunk_anchor_df.columns:
+        chunk_anchor_df = chunk_anchor_df.rename(columns={"frame_timestamp_ns_anchor": "frame_timestamp_ns"})
+
+    chunk_anchor_csv = chunk_manifest_dir / f"{row.chunk_name}_sequence_anchor.csv"
+    chunk_anchor_df.to_csv(chunk_anchor_csv, index=False, encoding="utf-8")
+
+    chunk_sequence_anchor_index_rows.append({
+        "chunk_id": int(row.chunk_id),
+        "chunk_name": row.chunk_name,
+        "global_start": int(row.global_start),
+        "global_end": int(row.global_end),
+        "frame_count": int(row.frame_count),
+        "chunk_csv": str(chunk_csv_path),
+        "chunk_sequence_anchor_csv": str(chunk_anchor_csv),
+        "missing_anchor_count": int(missing_anchor),
     })
-    pose_rows.append({
-        "bootstrap_index": i,
-        "record_index": int(row.record_index),
-        "image_file_name": row.image_file_name,
-        "m00": float(c2w[0, 0]), "m01": float(c2w[0, 1]), "m02": float(c2w[0, 2]), "m03": float(c2w[0, 3]),
-        "m10": float(c2w[1, 0]), "m11": float(c2w[1, 1]), "m12": float(c2w[1, 2]), "m13": float(c2w[1, 3]),
-        "m20": float(c2w[2, 0]), "m21": float(c2w[2, 1]), "m22": float(c2w[2, 2]), "m23": float(c2w[2, 3]),
-        "m30": float(c2w[3, 0]), "m31": float(c2w[3, 1]), "m32": float(c2w[3, 2]), "m33": float(c2w[3, 3]),
-    })
 
-camera_centers_df = pd.DataFrame(rows)
-camera_centers_df.to_csv(global_pose_dir / "camera_center_matrix.csv", index=False, encoding="utf-8")
-
-camera_matrix_df = pd.DataFrame(pose_rows)
-camera_matrix_df.to_csv(global_pose_dir / "camera_matrix_full.csv", index=False, encoding="utf-8")
+chunk_sequence_anchor_index_df = pd.DataFrame(chunk_sequence_anchor_index_rows)
+chunk_sequence_anchor_index_path = chunk_manifest_dir / "chunk_sequence_anchor_index.csv"
+chunk_sequence_anchor_index_df.to_csv(chunk_sequence_anchor_index_path, index=False, encoding="utf-8")
 
 summary = {
-    "route": "continuous-gs-v06-chunk18-overlap6-adopt12-global-camera-matrix",
-    "global_camera_source": "extrinsics_w2c_prod.npy",
-    "bootstrap_frame_count": int(len(bootstrap_df)),
+    "route": "da3_record_sequence_anchor_batch_plan_full_target",
+    "global_camera_source": "manifests/extrinsics_w2c.npy",
+    "frame_count": int(len(input_df)),
     "chunk_count": int(len(all_chunks_df)),
+    "target_chunk_count": int(len(target_chunks_df)),
     "batch_count": int(batch_count),
-    "global_pose_dir": str(global_pose_dir),
+    "pipeline_root": str(pipeline_root),
+    "anchor_dir": str(anchor_dir),
+    "camera_anchor_full_path": str(camera_anchor_full_path),
     "bundle_model_slug": BUNDLE_MODEL_SLUG,
-    "prod_extrinsics_path": str(prod_extrinsics_path),
-    "chunk_index_all_path": str(chunk_manifest_dir / "chunk_index_all.csv"),
-    "batch_plan_path": str(chunk_manifest_dir / "batch_plan.csv"),
+    "input_extrinsics_path": str(extrinsics_path),
+    "chunk_index_all_path": str(chunk_index_all_path),
+    "chunk_index_target_path": str(chunk_index_target_path),
+    "chunk_sequence_anchor_index_path": str(chunk_sequence_anchor_index_path),
+    "batch_plan_path": str(batch_plan_path),
+    "target_policy": "full_set",
+    "test_execution_limiter_location": "#5-0",
 }
-(global_pose_dir / "export_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+
+(chunk_manifest_dir / "batch_plan_summary.json").write_text(
+    json.dumps(summary, indent=2, ensure_ascii=False),
+    encoding="utf-8"
+)
 
 print(json.dumps(summary, indent=2, ensure_ascii=False))
 print("\n# batch_plan")
 print(batch_plan_df.to_string(index=False))
 ```
 
-### #9 chunk helper for 18frame / overlap6 / adopt12
 
-- この helper は `Block 3` の `camera_matrix_full.csv` と各 chunk の `pred_extrinsics.npy` を合わせて pose-aware alignment を解く。
-- chunk merge の keep 判定は `PCA 1軸帯` ではなく `owner_record_index` ベースで行う。
-- 各 vertex は global frame center 近傍 `top-k` に対し `distance + direction + blur_penalty + index_penalty` で owner を決め、owner が当該 chunk の `is_adopted_region=True` record に属する時だけ keep する。
-- 生成物は `vertex_assignment_summary.csv`、`owner_record_histogram.csv`、`chunk_assignment_summary.csv`、`merge_warning_summary.csv`、`chunk_transform_quality.csv` として `pipeline_root` 配下へ保存され、`Block 6` bundle に自動同梱される。
+### #3-6 chunk csv 拡張  
+新設。chunk csv に sequence / anchor / adjacency を追加する。
+
 
 ```python
-#9
+#3-6
 from pathlib import Path
-import gc
 import json
+import pandas as pd
+
+ctx = load_ctx()
+probe_root = Path(ctx['probe_root'])
+pipeline_root = probe_root / ctx.get('pipeline_slug', 'da3_seq_anchor_batch_v02')
+chunk_manifest_dir = pipeline_root / 'manifests'
+record_manifest_path = Path(json.loads(Path('/content/runbook_managed_dirs.json').read_text(encoding='utf-8'))['02_records']) / 'record_manifest.csv'
+record_df = pd.read_csv(record_manifest_path) if record_manifest_path.exists() else None
+if record_df is not None:
+    keep_cols = [c for c in ['sequence_index','roll_deg','pitch_deg','yaw_deg','delta_roll_deg','delta_pitch_deg','delta_yaw_deg','delta_pos','delta2_pos','delta2_rot'] if c in record_df.columns]
+    join_df = record_df[['image_file_name', *keep_cols]].drop_duplicates() if 'image_file_name' in record_df.columns else record_df[keep_cols + ['sequence_index']].copy()
+else:
+    join_df = None
+
+chunk_index_path = chunk_manifest_dir / 'chunk_index_all.csv'
+assert chunk_index_path.exists(), chunk_index_path
+chunk_index_df = pd.read_csv(chunk_index_path)
+rows = []
+for row in chunk_index_df.itertuples(index=False):
+    chunk_csv = Path(getattr(row, 'chunk_csv')) if getattr(row, 'chunk_csv', None) else None
+    if chunk_csv is None or not chunk_csv.exists():
+        continue
+    cdf = pd.read_csv(chunk_csv)
+    ts_col = next((c for c in ['frame_timestamp_ns','timestamp_ns','timestamp'] if c in cdf.columns), None)
+    cdf = append_sequence_columns(cdf, ts_col or 'frame_timestamp_ns')
+    if join_df is not None:
+        common = [c for c in ['image_file_name', 'sequence_index'] if c in cdf.columns and c in join_df.columns]
+        if common:
+            cdf = cdf.merge(join_df, on=common, how='left', suffixes=('', '_record'))
+    cdf['adjacent_edge_src_sequence_index'] = cdf['sequence_index']
+    cdf['adjacent_edge_dst_sequence_index'] = cdf['sequence_index'].shift(-1).fillna(-1).astype(int)
+    cdf['adjacent_edge_valid'] = cdf['adjacent_edge_dst_sequence_index'] >= 0
+    cdf['adjacent_pair_role'] = 'interior'
+    if len(cdf) > 0:
+        cdf.loc[cdf.index[0], 'adjacent_pair_role'] = 'head'
+        cdf.loc[cdf.index[-1], 'adjacent_pair_role'] = 'tail'
+    ext_path = chunk_csv.with_name(chunk_csv.stem + '_sequence_anchor.csv')
+    cdf.to_csv(ext_path, index=False, encoding='utf-8')
+    rows.append({'chunk_name': getattr(row, 'chunk_name', chunk_csv.stem), 'chunk_csv_ext': str(ext_path), 'row_count': int(len(cdf))})
+
+out = chunk_manifest_dir / 'chunk_sequence_anchor_index.csv'
+pd.DataFrame(rows).to_csv(out, index=False, encoding='utf-8')
+print({'chunk_sequence_anchor_index': str(out), 'chunk_count': len(rows)})
+```
+
+
+## #4 batch/chunk の時系列整列事前確認
+
+
+### #4-1 batch/chunk sequence 整列検証  
+新設。sequence 境界・欠落・重複を事前確認する。
+
+
+```python
+# #4-1 batch/chunk sequence 整列検証
+# 旧 #9 の事前確認と目的は類似。
+# chunk_index_all.csv と各 chunk csv から、sequence の単調増加・重複・欠落ギャップを検証する。
+
+from pathlib import Path
+import json
+import pandas as pd
+import numpy as np
+
+ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
+config_snapshot = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8")) if Path("/content/config_snapshot.json").exists() else {}
+
+manifest_dir = Path(ctx["manifest_dir"])
+persist_root = Path(ctx.get("persist_root", manifest_dir.parent))
+pipeline_slug = ctx.get("pipeline_slug", config_snapshot.get("PIPELINE_SLUG", "da3_seq_anchor_batch_v02"))
+pipeline_root = persist_root / pipeline_slug
+chunk_manifest_dir = pipeline_root / "manifests"
+
+chunk_index_all_path = chunk_manifest_dir / "chunk_index_all.csv"
+assert chunk_index_all_path.exists(), chunk_index_all_path
+
+chunk_index_df = pd.read_csv(chunk_index_all_path)
+assert not chunk_index_df.empty, chunk_index_all_path
+assert "chunk_name" in chunk_index_df.columns, chunk_index_df.columns.tolist()
+assert "chunk_csv" in chunk_index_df.columns, chunk_index_df.columns.tolist()
+
+rows = []
+
+for row in chunk_index_df.itertuples(index=False):
+    chunk_name = row.chunk_name
+    chunk_csv = Path(row.chunk_csv)
+    assert chunk_csv.exists(), {"chunk_name": chunk_name, "missing_chunk_csv": str(chunk_csv)}
+
+    chunk_df = pd.read_csv(chunk_csv)
+    assert not chunk_df.empty, {"chunk_name": chunk_name, "reason": "empty chunk csv"}
+
+    # sequence_index がなければ record_index / timestamp で代用
+    if "sequence_index" in chunk_df.columns:
+        seq = chunk_df["sequence_index"].astype(int).to_numpy()
+    elif "record_index" in chunk_df.columns:
+        seq = chunk_df["record_index"].astype(int).to_numpy()
+    else:
+        raise AssertionError({"chunk_name": chunk_name, "reason": "sequence_index/record_index not found", "columns": chunk_df.columns.tolist()})
+
+    is_monotonic = bool(np.all(np.diff(seq) > 0)) if len(seq) >= 2 else True
+    has_duplicate_sequence = bool(pd.Series(seq).duplicated().any())
+    bad_gap_count = int(np.sum(np.diff(seq) != 1)) if len(seq) >= 2 else 0
+
+    rows.append({
+        "chunk_id": int(row.chunk_id) if "chunk_id" in chunk_index_df.columns else None,
+        "chunk_name": chunk_name,
+        "row_count": int(len(chunk_df)),
+        "sequence_min": int(seq.min()) if len(seq) else None,
+        "sequence_max": int(seq.max()) if len(seq) else None,
+        "is_monotonic": is_monotonic,
+        "has_duplicate_sequence": has_duplicate_sequence,
+        "bad_gap_count": bad_gap_count,
+        "chunk_csv": str(chunk_csv),
+    })
+
+precheck_df = pd.DataFrame(rows)
+precheck_path = chunk_manifest_dir / "batch_chunk_sequence_precheck.csv"
+precheck_df.to_csv(precheck_path, index=False, encoding="utf-8")
+
+bad_chunk_count = int(
+    ((~precheck_df["is_monotonic"]) | (precheck_df["has_duplicate_sequence"]) | (precheck_df["bad_gap_count"] > 0)).sum()
+)
+
+print(precheck_df.head())
+print({
+    "precheck_csv": str(precheck_path),
+    "bad_chunk_count": bad_chunk_count,
+    "chunk_count": int(len(precheck_df)),
+})
+```
+
+
+### #4-2 batch/chunk anchor 3D可視化  
+新設。batch/chunk 整列 preview を保存する。
+
+
+### #4-3 隣接edge検証  
+新設。`(r_i, r_{i+1})` edge の欠落を確認する。
+
+
+```python
+#4-3
+from pathlib import Path
+import json
+import pandas as pd
+
+ctx = load_ctx()
+pipeline_root = Path(ctx['probe_root']) / ctx.get('pipeline_slug', 'da3_seq_anchor_batch_v02')
+chunk_manifest_dir = pipeline_root / 'manifests'
+idx_df = pd.read_csv(chunk_manifest_dir / 'chunk_sequence_anchor_index.csv')
+rows=[]
+for row in idx_df.itertuples(index=False):
+    cdf = pd.read_csv(Path(row.chunk_csv_ext))
+    miss = cdf.loc[cdf['adjacent_edge_valid'] & ((cdf['adjacent_edge_dst_sequence_index'] - cdf['adjacent_edge_src_sequence_index']) != 1)].copy() if 'adjacent_edge_valid' in cdf.columns else pd.DataFrame()
+    rows.append({'chunk_name': row.chunk_name, 'missing_or_bad_edge_count': int(len(miss))})
+edge_df = pd.DataFrame(rows)
+out = chunk_manifest_dir / 'adjacent_edge_validation.csv'
+edge_df.to_csv(out, index=False, encoding='utf-8')
+print(edge_df)
+```
+
+
+### #4-4 batch実行前QC要約  
+新設。anchor / sequence / edge の summary を一つに集約する。
+
+
+```python
+# #4-4 batch実行前QC要約
+# 旧 #9 の一部と目的は類似。
+# anchor QC / sequence precheck / adjacent edge validation を集約する。
+# raw roll ではなく centered roll を使う。
+
+from pathlib import Path
+import json
+import numpy as np
+import pandas as pd
+
+config = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8"))
+
+persist_root = Path("/content/drive/MyDrive/trajectreview/modeling_3chunk_2/trajectreview-modeling-session-20260403-194043")
+run_dir = persist_root / "da3_seq_anchor_batch_v02"
+manifest_dir = run_dir / "manifests"
+anchor_dir = persist_root / "01_anchor"
+
+anchor_qc_path = anchor_dir / "full_anchor_pose_qc.csv"
+sequence_precheck_path = manifest_dir / "batch_chunk_sequence_precheck.csv"
+edge_validation_path = manifest_dir / "adjacent_edge_validation.csv"
+
+assert anchor_qc_path.exists(), anchor_qc_path
+assert sequence_precheck_path.exists(), sequence_precheck_path
+assert edge_validation_path.exists(), edge_validation_path
+
+anchor_qc_df = pd.read_csv(anchor_qc_path)
+sequence_df = pd.read_csv(sequence_precheck_path)
+edge_df = pd.read_csv(edge_validation_path)
+
+# centered roll を使う
+if "roll_deg_centered" not in anchor_qc_df.columns:
+    if "roll_deg_raw" in anchor_qc_df.columns:
+        roll_base = float(np.nanmedian(anchor_qc_df["roll_deg_raw"]))
+        roll_src = anchor_qc_df["roll_deg_raw"].to_numpy(float)
+    else:
+        roll_base = float(np.nanmedian(anchor_qc_df["roll_deg"]))
+        roll_src = anchor_qc_df["roll_deg"].to_numpy(float)
+    roll_centered = ((roll_src - roll_base + 180.0) % 360.0) - 180.0
+    anchor_qc_df["roll_deg_centered"] = roll_centered
+
+ROLL_CENTER_WARN_DEG = float(config.get("ANCHOR_QC_WARN_ABS_ROLL_CENTERED_DEG", 15.0))
+PITCH_MIN_WARN_DEG = float(config.get("ANCHOR_QC_WARN_PITCH_MIN_DEG", -89.0))
+PITCH_MAX_WARN_DEG = float(config.get("ANCHOR_QC_WARN_PITCH_MAX_DEG", 89.0))
+YAW_JUMP_FAIL_DEG = float(config.get("ANCHOR_QC_MAX_DELTA_LENS_ANGLE_DEG", 45.0))
+
+anchor_qc_df["roll_warn_centered"] = anchor_qc_df["roll_deg_centered"].abs() > ROLL_CENTER_WARN_DEG
+anchor_qc_df["pitch_warn_band"] = (
+    (anchor_qc_df["pitch_deg"] < PITCH_MIN_WARN_DEG) |
+    (anchor_qc_df["pitch_deg"] > PITCH_MAX_WARN_DEG)
+)
+anchor_qc_df["yaw_jump_fail"] = anchor_qc_df["delta_lens_angle_deg"].abs() > YAW_JUMP_FAIL_DEG
+
+bad_sequence_chunk_count = int((~sequence_df["is_monotonic"]).sum() + sequence_df["has_duplicate_sequence"].sum() + (sequence_df["bad_gap_count"] > 0).sum())
+
+# edge_df の chunk単位 fail 数をゆるく集計
+edge_fail_cols = [c for c in edge_df.columns if c.endswith("_fail") or c.endswith("_error")]
+if "chunk_name" in edge_df.columns:
+    if edge_fail_cols:
+        tmp = edge_df.copy()
+        row_bad = np.zeros(len(tmp), dtype=bool)
+        for c in edge_fail_cols:
+            if tmp[c].dtype == bool:
+                row_bad |= tmp[c].fillna(False).to_numpy()
+        bad_edge_chunk_count = int(tmp.loc[row_bad, "chunk_name"].nunique())
+    else:
+        bad_edge_chunk_count = 0
+else:
+    bad_edge_chunk_count = 0
+
+summary = {
+    "anchor_qc": {
+        "row_count": int(len(anchor_qc_df)),
+        "fail_count": int(anchor_qc_df["anchor_qc_fail"].sum()) if "anchor_qc_fail" in anchor_qc_df.columns else 0,
+        "roll_warn_centered_count": int(anchor_qc_df["roll_warn_centered"].sum()),
+        "pitch_warn_count": int(anchor_qc_df["pitch_warn_band"].sum()),
+        "yaw_jump_fail_count": int(anchor_qc_df["yaw_jump_fail"].sum()),
+    },
+    "bad_sequence_chunk_count": int(bad_sequence_chunk_count),
+    "bad_edge_chunk_count": int(bad_edge_chunk_count),
+}
+
+summary_path = manifest_dir / "batch_preflight_summary.json"
+summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+
+print(json.dumps(summary, ensure_ascii=False, indent=2))
+```
+
+
+## #5 batch毎処理
+
+
+batch plan check
+
+
+```python
+#5-1-precheck
+
+from pathlib import Path
+import pandas as pd
+
+manifest_dir = Path("/content/drive/MyDrive/trajectreview/modeling_3chunk_2/trajectreview-modeling-session-20260403-194043/da3_seq_anchor_batch_v02/manifests")
+
+batch_plan_df = pd.read_csv(manifest_dir / "batch_plan.csv")
+chunk_all_df = pd.read_csv(manifest_dir / "chunk_index_all.csv")
+chunk_target_df = pd.read_csv(manifest_dir / "chunk_index_target.csv")
+
+print("=== batch_plan ===")
+print(batch_plan_df)
+
+print("\n=== chunk_index_all head/tail ===")
+print(chunk_all_df[["chunk_id","chunk_name"]].head(10))
+print(chunk_all_df[["chunk_id","chunk_name"]].tail(10))
+
+print("\n=== chunk_index_target ===")
+print(chunk_target_df[[c for c in chunk_target_df.columns if c in ["chunk_id","chunk_name"]]])
+```
+
+
+```python
+# #5-0-1 common helpers
+from pathlib import Path
+import json, os, shutil, subprocess, shlex, math, hashlib
+import numpy as np
+import pandas as pd
+
+def load_json(path):
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+def save_json(path, obj):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(obj, indent=2, ensure_ascii=False), encoding="utf-8")
+
+def load_ctx():
+    return load_json("/content/runbook_session_context.json")
+
+def find_first(paths):
+    for p in paths:
+        p = Path(p)
+        if p.exists():
+            return p
+    return None
+
+def normalize_rows(x, eps=1e-12):
+    x = np.asarray(x, dtype=float)
+    n = np.linalg.norm(x, axis=1, keepdims=True)
+    n = np.maximum(n, eps)
+    return x / n
+
+def angle_deg(a, b):
+    a = normalize_rows(a)
+    b = normalize_rows(b)
+    d = np.sum(a * b, axis=1)
+    d = np.clip(d, -1.0, 1.0)
+    return np.degrees(np.arccos(d))
+
+print("common helpers loaded")
+```
+
+
+```python
+# #5-0-2 test-only execution limiter
+# 正本manifest / 正本batch plan は変更せず、この実行だけ対象batchを絞る。
+# ここでは batch_index 2, 3 を対象にする。必要なら test_batch_indices を変更する。
+
+from pathlib import Path
+import pandas as pd
+
+ctx = load_ctx()
+probe_root = Path(ctx["probe_root"])
+pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_seq_anchor_batch_v02")
+manifest_dir = pipeline_root / "manifests"
+
+batch_plan_path = manifest_dir / "batch_plan.csv"
+chunk_target_path = manifest_dir / "chunk_index_target.csv"
+
+assert batch_plan_path.exists(), batch_plan_path
+assert chunk_target_path.exists(), chunk_target_path
+
+batch_plan_df = pd.read_csv(batch_plan_path)
+chunk_target_df = pd.read_csv(chunk_target_path)
+
+assert not batch_plan_df.empty, batch_plan_path
+assert not chunk_target_df.empty, chunk_target_path
+assert "batch_index" in batch_plan_df.columns, batch_plan_df.columns.tolist()
+assert "chunk_from" in batch_plan_df.columns, batch_plan_df.columns.tolist()
+assert "chunk_to" in batch_plan_df.columns, batch_plan_df.columns.tolist()
+
+chunk_name_col = next((c for c in ["chunk_name", "chunk_id", "name"] if c in chunk_target_df.columns), None)
+assert chunk_name_col is not None, chunk_target_df.columns.tolist()
+
+# target 集合内 local index を付与
+target_df = chunk_target_df.copy().reset_index(drop=True)
+target_df["target_local_chunk_index"] = range(len(target_df))
+
+# 今回の試験対象
+test_batch_indices = [2, 3]
+
+test_batch_plan_df = (
+    batch_plan_df[batch_plan_df["batch_index"].astype(int).isin(test_batch_indices)]
+    .copy()
+    .sort_values("batch_index", kind="stable")
+    .reset_index(drop=True)
+)
+
+assert len(test_batch_plan_df) == len(test_batch_indices), {
+    "requested_batch_indices": test_batch_indices,
+    "resolved_batch_indices": test_batch_plan_df["batch_index"].astype(int).tolist(),
+}
+
+selected_local_indices = []
+for row in test_batch_plan_df.itertuples(index=False):
+    selected_local_indices.extend(range(int(row.chunk_from), int(row.chunk_to) + 1))
+selected_local_indices = sorted(set(selected_local_indices))
+
+test_chunk_rows = target_df[
+    target_df["target_local_chunk_index"].astype(int).isin(selected_local_indices)
+].copy().sort_values("target_local_chunk_index", kind="stable").reset_index(drop=True)
+
+assert not test_chunk_rows.empty, {
+    "requested_batch_indices": test_batch_indices,
+    "selected_local_indices": selected_local_indices,
+}
+
+test_chunk_rows["batch_index"] = test_chunk_rows["target_local_chunk_index"].map(
+    lambda x: int(
+        test_batch_plan_df[
+            (test_batch_plan_df["chunk_from"].astype(int) <= int(x)) &
+            (test_batch_plan_df["chunk_to"].astype(int) >= int(x))
+        ].iloc[0]["batch_index"]
+    )
+)
+
+test_batch_plan_df["batch_name"] = test_batch_plan_df["batch_index"].astype(int).map(lambda x: f"batch_{x:03d}")
+
+run_meta = {
+    "mode": "test_only_execution_limiter",
+    "does_not_modify_canonical_plan": True,
+    "selected_batch_indices": test_batch_plan_df["batch_index"].astype(int).tolist(),
+    "selected_batch_names": test_batch_plan_df["batch_name"].tolist(),
+    "selected_target_local_chunk_indices": test_chunk_rows["target_local_chunk_index"].astype(int).tolist(),
+    "selected_global_chunk_ids": test_chunk_rows["chunk_id"].astype(int).tolist() if "chunk_id" in test_chunk_rows.columns else None,
+}
+
+test_chunk_rows.to_csv(manifest_dir / "test_only_target_chunk_with_batch.csv", index=False)
+test_batch_plan_df.to_csv(manifest_dir / "test_only_target_batch_plan.csv", index=False)
+save_json(manifest_dir / "test_only_target_batch_run_meta.json", run_meta)
+
+print(json.dumps(run_meta, ensure_ascii=False, indent=2))
+display(test_chunk_rows[[c for c in ["chunk_id", "chunk_name", "target_local_chunk_index", "batch_index"] if c in test_chunk_rows.columns]])
+display(test_batch_plan_df)
+```
+
+
+```python
+# #5-0-3 execution target resolver
+# #5-0-1 があれば test_only を優先し、無ければ正本 target を使う。
+# 後段セルが共通に読める execution_target_* を manifests に保存する。
+
+ctx = load_ctx()
+probe_root = Path(ctx["probe_root"])
+pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_seq_anchor_batch_v02")
+chunk_manifest_dir = pipeline_root / "manifests"
+chunk_runs_dir = pipeline_root / "chunk_runs"
+
+chunk_manifest_dir.mkdir(parents=True, exist_ok=True)
+chunk_runs_dir.mkdir(parents=True, exist_ok=True)
+
+test_chunk_with_batch_path = chunk_manifest_dir / "test_only_target_chunk_with_batch.csv"
+test_batch_plan_path = chunk_manifest_dir / "test_only_target_batch_plan.csv"
+
+canonical_chunk_with_batch_path = chunk_manifest_dir / "target_chunk_with_batch.csv"
+canonical_batch_plan_path = chunk_manifest_dir / "target_batch_plan.csv"
+
+fallback_chunk_target_path = chunk_manifest_dir / "chunk_index_target.csv"
+fallback_batch_plan_path = chunk_manifest_dir / "batch_plan.csv"
+
+if test_chunk_with_batch_path.exists():
+    execution_chunk_path = test_chunk_with_batch_path
+    execution_mode_chunks = "test_only"
+elif canonical_chunk_with_batch_path.exists():
+    execution_chunk_path = canonical_chunk_with_batch_path
+    execution_mode_chunks = "canonical_target_with_batch"
+else:
+    execution_chunk_path = fallback_chunk_target_path
+    execution_mode_chunks = "canonical_chunk_index_target"
+
+if test_batch_plan_path.exists():
+    execution_batch_plan_path = test_batch_plan_path
+    execution_mode_batch_plan = "test_only"
+elif canonical_batch_plan_path.exists():
+    execution_batch_plan_path = canonical_batch_plan_path
+    execution_mode_batch_plan = "canonical_target_batch_plan"
+else:
+    execution_batch_plan_path = fallback_batch_plan_path
+    execution_mode_batch_plan = "canonical_batch_plan"
+
+assert execution_chunk_path.exists(), {"missing_execution_chunk_source": str(execution_chunk_path)}
+assert execution_batch_plan_path.exists(), {"missing_execution_batch_source": str(execution_batch_plan_path)}
+
+execution_chunks_df = pd.read_csv(execution_chunk_path)
+execution_batch_plan_df = pd.read_csv(execution_batch_plan_path)
+
+assert not execution_chunks_df.empty, execution_chunk_path
+assert not execution_batch_plan_df.empty, execution_batch_plan_path
+
+chunk_name_col = next((c for c in ["chunk_name", "chunk_id", "name"] if c in execution_chunks_df.columns), None)
+assert chunk_name_col is not None, {"execution_chunk_columns": execution_chunks_df.columns.tolist()}
+
+if "batch_name" not in execution_batch_plan_df.columns:
+    if "batch_index" in execution_batch_plan_df.columns:
+        execution_batch_plan_df["batch_name"] = execution_batch_plan_df["batch_index"].astype(int).map(lambda x: f"batch_{x:03d}")
+    else:
+        execution_batch_plan_df["batch_name"] = [f"batch_{i:03d}" for i in range(len(execution_batch_plan_df))]
+
+if "batch_name" not in execution_chunks_df.columns and "batch_index" in execution_chunks_df.columns:
+    execution_chunks_df["batch_name"] = execution_chunks_df["batch_index"].astype(int).map(lambda x: f"batch_{x:03d}")
+
+execution_chunk_out = chunk_manifest_dir / "execution_target_chunks.csv"
+execution_batch_out = chunk_manifest_dir / "execution_target_batch_plan.csv"
+
+execution_chunks_df.to_csv(execution_chunk_out, index=False, encoding="utf-8")
+execution_batch_plan_df.to_csv(execution_batch_out, index=False, encoding="utf-8")
+
+summary = {
+    "status": "ok",
+    "execution_mode_chunks": execution_mode_chunks,
+    "execution_mode_batch_plan": execution_mode_batch_plan,
+    "execution_chunk_source": str(execution_chunk_path),
+    "execution_batch_plan_source": str(execution_batch_plan_path),
+    "execution_chunk_rows": int(len(execution_chunks_df)),
+    "execution_batch_rows": int(len(execution_batch_plan_df)),
+    "execution_chunk_names_sample": execution_chunks_df[chunk_name_col].astype(str).head(10).tolist(),
+    "execution_batch_names": execution_batch_plan_df["batch_name"].astype(str).tolist(),
+    "execution_chunk_out": str(execution_chunk_out),
+    "execution_batch_out": str(execution_batch_out),
+}
+
+save_json(chunk_manifest_dir / "execution_target_resolution_summary.json", summary)
+
+print(json.dumps(summary, indent=2, ensure_ascii=False))
+display(execution_chunks_df.head())
+display(execution_batch_plan_df)
+```
+
+
+```python
+# #5-0-4 reset + preflight (test-aware)
+# 実行対象だけを初期化し、実行前 fatal 条件を止める。
+
+ctx = load_ctx()
+
+probe_root = Path(ctx["probe_root"])
+pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_seq_anchor_batch_v02")
+chunk_manifest_dir = pipeline_root / "manifests"
+chunk_runs_dir = pipeline_root / "chunk_runs"
+
+manifest_dir = Path(ctx["manifest_dir"])
+persist_root = Path(ctx.get("persist_root", manifest_dir.parent))
+anchor_dir = persist_root / "01_anchor"
+
+merged_dir = Path(ctx["merged_dir"])
+final_outputs_dir = Path(ctx["final_outputs_dir"])
+final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
+final_outputs_manifests_dir = Path(ctx["final_outputs_manifests_dir"])
+final_outputs_chunk_evidence_dir = Path(ctx["final_outputs_chunk_evidence_dir"])
+final_outputs_merged_dir = Path(ctx["final_outputs_merged_dir"])
+
+execution_chunks_path = chunk_manifest_dir / "execution_target_chunks.csv"
+execution_batch_plan_path = chunk_manifest_dir / "execution_target_batch_plan.csv"
+
+assert execution_chunks_path.exists(), execution_chunks_path
+assert execution_batch_plan_path.exists(), execution_batch_plan_path
+
+target_chunks_df = pd.read_csv(execution_chunks_path)
+batch_plan_df = pd.read_csv(execution_batch_plan_path)
+
+assert not target_chunks_df.empty, execution_chunks_path
+assert not batch_plan_df.empty, execution_batch_plan_path
+
+chunk_name_col = next((c for c in ["chunk_name", "chunk_id", "name"] if c in target_chunks_df.columns), None)
+assert chunk_name_col is not None, {"target_chunk_columns": target_chunks_df.columns.tolist()}
+
+batch_names = batch_plan_df["batch_name"].astype(str).tolist() if "batch_name" in batch_plan_df.columns else [f"batch_{int(v):03d}" for v in batch_plan_df["batch_index"].tolist()]
+
+delete_targets = []
+for row in target_chunks_df.itertuples(index=False):
+    chunk_name = str(getattr(row, chunk_name_col))
+    delete_targets.append(chunk_runs_dir / chunk_name)
+    delete_targets.append(chunk_manifest_dir / f"{chunk_name}_to_w0.npy")
+for batch_name in batch_names:
+    delete_targets.append(chunk_runs_dir / batch_name)
+delete_targets.extend([merged_dir, final_outputs_dir])
+
+deleted, missing = [], []
+for path in delete_targets:
+    if not path.exists():
+        missing.append(str(path))
+        continue
+    if path.is_dir():
+        shutil.rmtree(path)
+    else:
+        path.unlink()
+    deleted.append(str(path))
+
+for p in [merged_dir, final_outputs_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir, final_outputs_chunk_evidence_dir, final_outputs_merged_dir]:
+    p.mkdir(parents=True, exist_ok=True)
+
+reset_summary = {
+    "status": "ok",
+    "route": "da3_seq_anchor_batch_v02_test_target_output_reset",
+    "probe_root": str(probe_root),
+    "chunk_source_path": str(execution_chunks_path),
+    "batch_source_path": str(execution_batch_plan_path),
+    "target_chunk_count": int(len(target_chunks_df)),
+    "target_batch_count": int(len(batch_names)),
+    "deleted_count": int(len(deleted)),
+    "missing_count": int(len(missing)),
+}
+save_json(final_outputs_diagnostics_dir / "target_output_reset_summary_test.json", reset_summary)
+
+# preflight
+record_manifest_path = manifest_dir / "da3_input_manifest.csv"
+anchor_pose_diag_path = anchor_dir / "full_anchor_pose_diag.csv"
+anchor_qc_path = anchor_dir / "full_anchor_pose_qc.csv"
+sequence_precheck_path = chunk_manifest_dir / "batch_chunk_sequence_precheck.csv"
+edge_validation_path = chunk_manifest_dir / "adjacent_edge_validation.csv"
+
+required_paths = {
+    "record_manifest": record_manifest_path,
+    "anchor_pose_diag": anchor_pose_diag_path,
+    "anchor_qc": anchor_qc_path,
+    "sequence_precheck": sequence_precheck_path,
+    "edge_validation": edge_validation_path,
+}
+missing_required = {k: str(p) for k, p in required_paths.items() if not p.exists()}
+assert not missing_required, {"missing_required": missing_required}
+
+record_df = pd.read_csv(record_manifest_path)
+anchor_pose_df = pd.read_csv(anchor_pose_diag_path)
+anchor_qc_df = pd.read_csv(anchor_qc_path)
+sequence_df = pd.read_csv(sequence_precheck_path)
+edge_df = pd.read_csv(edge_validation_path)
+
+record_count_match = len(record_df) == len(anchor_pose_df)
+sequence_bad_count = int(((~sequence_df["is_monotonic"]) | (sequence_df["has_duplicate_sequence"]) | (sequence_df["bad_gap_count"] > 0)).sum()) if len(sequence_df) else 0
+edge_bad_chunk_count = 0
+if len(edge_df) and "chunk_name" in edge_df.columns:
+    fail_cols = [c for c in edge_df.columns if c.endswith("_fail")]
+    if fail_cols:
+        bad_mask = np.zeros(len(edge_df), dtype=bool)
+        for c in fail_cols:
+            bad_mask |= edge_df[c].fillna(False).astype(bool).to_numpy()
+        edge_bad_chunk_count = int(edge_df.loc[bad_mask, "chunk_name"].nunique())
+anchor_fail_count = int(anchor_qc_df["anchor_qc_fail"].sum()) if "anchor_qc_fail" in anchor_qc_df.columns else 0
+
+image_path_col = next((c for c in ["image_path", "image_abs_path"] if c in record_df.columns), None)
+missing_images = []
+if image_path_col is not None:
+    target_record_indices = set()
+    if "record_index" in target_chunks_df.columns:
+        target_record_indices = set(target_chunks_df["record_index"].dropna().astype(int).tolist())
+    else:
+        for row in target_chunks_df.itertuples(index=False):
+            chunk_name = str(getattr(row, chunk_name_col))
+            chunk_csv = chunk_manifest_dir / f"{chunk_name}.csv"
+            if chunk_csv.exists():
+                cdf = pd.read_csv(chunk_csv)
+                if "record_index" in cdf.columns:
+                    target_record_indices.update(cdf["record_index"].dropna().astype(int).tolist())
+    sub = record_df[record_df["record_index"].astype(int).isin(sorted(target_record_indices))].copy() if target_record_indices and "record_index" in record_df.columns else record_df.copy()
+    for r in sub.itertuples(index=False):
+        p = Path(getattr(r, image_path_col))
+        if not p.exists():
+            missing_images.append(str(p))
+
+if missing_images:
+    pd.DataFrame({"missing_image_path": missing_images}).to_csv(final_outputs_diagnostics_dir / "batch_execution_preflight_missing_images.csv", index=False, encoding="utf-8")
+
+fatal_issues, warnings = [], []
+if not record_count_match:
+    fatal_issues.append({"type": "record_anchor_count_mismatch", "record_rows": int(len(record_df)), "anchor_rows": int(len(anchor_pose_df))})
+if sequence_bad_count > 0:
+    fatal_issues.append({"type": "sequence_precheck_failed", "bad_chunk_count": sequence_bad_count})
+if edge_bad_chunk_count > 0:
+    warnings.append({"type": "adjacent_edge_validation_has_failures", "bad_chunk_count": edge_bad_chunk_count})
+if anchor_fail_count > 0:
+    warnings.append({"type": "anchor_qc_failures_present", "anchor_fail_count": anchor_fail_count})
+if missing_images:
+    fatal_issues.append({"type": "missing_images", "missing_image_count": int(len(missing_images))})
+
+preflight = {
+    "status": "fatal" if fatal_issues else "ok_with_warnings" if warnings else "ok",
+    "target_chunk_count": int(len(target_chunks_df)),
+    "target_batch_count": int(len(batch_plan_df)),
+    "record_rows": int(len(record_df)),
+    "anchor_rows": int(len(anchor_pose_df)),
+    "record_anchor_count_match": bool(record_count_match),
+    "sequence_bad_chunk_count": int(sequence_bad_count),
+    "edge_bad_chunk_count": int(edge_bad_chunk_count),
+    "anchor_fail_count": int(anchor_fail_count),
+    "missing_image_count": int(len(missing_images)),
+    "fatal_issues": fatal_issues,
+    "warnings": warnings,
+}
+save_json(final_outputs_diagnostics_dir / "batch_execution_preflight_test.json", preflight)
+print(json.dumps({"reset_summary": reset_summary, "preflight": preflight}, indent=2, ensure_ascii=False))
+assert not fatal_issues, preflight
+```
+
+
+```python
+# #5-0-5 実推論入力組成
+# execution target を batch/chunk 実行単位へ具体化する。
+
+ctx = load_ctx()
+
+probe_root = Path(ctx["probe_root"])
+pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_seq_anchor_batch_v02")
+chunk_manifest_dir = pipeline_root / "manifests"
+chunk_runs_dir = pipeline_root / "chunk_runs"
+chunk_runs_dir.mkdir(parents=True, exist_ok=True)
+
+final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
+final_outputs_diagnostics_dir.mkdir(parents=True, exist_ok=True)
+
+execution_chunks_path = chunk_manifest_dir / "execution_target_chunks.csv"
+execution_batch_plan_path = chunk_manifest_dir / "execution_target_batch_plan.csv"
+assert execution_chunks_path.exists(), execution_chunks_path
+assert execution_batch_plan_path.exists(), execution_batch_plan_path
+
+execution_chunks_df = pd.read_csv(execution_chunks_path)
+execution_batch_plan_df = pd.read_csv(execution_batch_plan_path)
+
+if "batch_name" not in execution_batch_plan_df.columns:
+    execution_batch_plan_df["batch_name"] = execution_batch_plan_df["batch_index"].astype(int).map(lambda x: f"batch_{x:03d}")
+
+if "target_local_chunk_index" not in execution_chunks_df.columns:
+    execution_chunks_df = execution_chunks_df.copy().reset_index(drop=True)
+    execution_chunks_df["target_local_chunk_index"] = range(len(execution_chunks_df))
+
+if "batch_index" not in execution_chunks_df.columns:
+    def resolve_batch_index(local_idx: int):
+        hit = execution_batch_plan_df[(execution_batch_plan_df["chunk_from"].astype(int) <= int(local_idx)) &
+                                      (execution_batch_plan_df["chunk_to"].astype(int) >= int(local_idx))]
+        if len(hit) == 0:
+            return None
+        return int(hit.sort_values("batch_index", kind="stable").iloc[0]["batch_index"])
+    execution_chunks_df["batch_index"] = execution_chunks_df["target_local_chunk_index"].map(resolve_batch_index)
+
+assert execution_chunks_df["batch_index"].notna().all(), {"unresolved_target_local_chunk_indices": execution_chunks_df.loc[execution_chunks_df["batch_index"].isna(), "target_local_chunk_index"].tolist()}
+execution_chunks_df["batch_index"] = execution_chunks_df["batch_index"].astype(int)
+
+if "batch_name" not in execution_chunks_df.columns:
+    execution_chunks_df["batch_name"] = execution_chunks_df["batch_index"].astype(int).map(lambda x: f"batch_{x:03d}")
+
+rows, missing_files = [], []
+for b_row in execution_batch_plan_df.itertuples(index=False):
+    batch_index = int(b_row.batch_index) if hasattr(b_row, "batch_index") else None
+    batch_name = str(b_row.batch_name)
+    batch_work_dir = chunk_runs_dir / batch_name
+    batch_work_dir.mkdir(parents=True, exist_ok=True)
+
+    batch_chunks_df = execution_chunks_df[execution_chunks_df["batch_index"].astype(int) == batch_index].copy().sort_values("target_local_chunk_index", kind="stable").reset_index(drop=True)
+    assert not batch_chunks_df.empty, {"batch_name": batch_name, "batch_index": batch_index}
+
+    for c_row in batch_chunks_df.itertuples(index=False):
+        chunk_name = str(getattr(c_row, "chunk_name"))
+        chunk_csv_path = chunk_manifest_dir / f"{chunk_name}.csv"
+        chunk_anchor_csv_path = chunk_manifest_dir / f"{chunk_name}_sequence_anchor.csv"
+        if not chunk_csv_path.exists():
+            missing_files.append(str(chunk_csv_path))
+        if not chunk_anchor_csv_path.exists():
+            missing_files.append(str(chunk_anchor_csv_path))
+        rows.append({
+            "batch_index": int(batch_index),
+            "batch_name": batch_name,
+            "chunk_id": int(getattr(c_row, "chunk_id")) if "chunk_id" in execution_chunks_df.columns else None,
+            "chunk_name": chunk_name,
+            "target_local_chunk_index": int(getattr(c_row, "target_local_chunk_index")),
+            "chunk_csv": str(chunk_csv_path),
+            "chunk_sequence_anchor_csv": str(chunk_anchor_csv_path),
+            "batch_work_dir": str(batch_work_dir),
+        })
+
+assert not missing_files, {"missing_chunk_related_files_count": len(missing_files), "missing_chunk_related_files_sample": missing_files[:10]}
+
+batch_execution_items_df = pd.DataFrame(rows).sort_values(["batch_index", "target_local_chunk_index"], kind="stable").reset_index(drop=True)
+batch_execution_items_path = chunk_manifest_dir / "batch_execution_items_test.csv"
+batch_execution_items_df.to_csv(batch_execution_items_path, index=False, encoding="utf-8")
+
+batch_manifest_rows = []
+for batch_name, batch_df in batch_execution_items_df.groupby("batch_name", sort=True):
+    batch_work_dir = Path(batch_df.iloc[0]["batch_work_dir"])
+    batch_manifest_dir = batch_work_dir / "manifests"
+    batch_manifest_dir.mkdir(parents=True, exist_ok=True)
+    batch_chunk_index_path = batch_manifest_dir / "batch_chunk_index.csv"
+    batch_df.to_csv(batch_chunk_index_path, index=False, encoding="utf-8")
+    batch_manifest_rows.append({
+        "batch_name": str(batch_name),
+        "batch_index": int(batch_df.iloc[0]["batch_index"]),
+        "chunk_count": int(len(batch_df)),
+        "chunk_names": "|".join(batch_df["chunk_name"].astype(str).tolist()),
+        "batch_work_dir": str(batch_work_dir),
+        "batch_chunk_index_path": str(batch_chunk_index_path),
+    })
+
+batch_manifests_df = pd.DataFrame(batch_manifest_rows).sort_values(["batch_index", "batch_name"], kind="stable").reset_index(drop=True)
+batch_manifests_path = chunk_manifest_dir / "batch_manifests_test.csv"
+batch_manifests_df.to_csv(batch_manifests_path, index=False, encoding="utf-8")
+
+summary = {
+    "status": "ok",
+    "batch_count": int(len(batch_manifests_df)),
+    "chunk_count_total": int(batch_execution_items_df.shape[0]),
+    "batch_execution_items_path": str(batch_execution_items_path),
+    "batch_manifests_path": str(batch_manifests_path),
+    "batch_names": batch_manifests_df["batch_name"].astype(str).tolist(),
+}
+save_json(final_outputs_diagnostics_dir / "batch_input_generation_test_summary.json", summary)
+
+print(json.dumps(summary, indent=2, ensure_ascii=False))
+display(batch_execution_items_df)
+display(batch_manifests_df)
+```
+
+
+```python
+# #5-0-5b local wrapper generator
+# API/CLI準拠の local chunk runner を生成する。
+# 以後 #5-0-6 は /content/Depth-Anything-3/run_da3_chunk_local.py を呼ぶ。
+
+from pathlib import Path
+import textwrap
+
+repo_root = Path("/content/Depth-Anything-3")
+src_root = repo_root / "src"
+assert repo_root.exists(), repo_root
+assert src_root.exists(), src_root
+
+wrapper_path = repo_root / "run_da3_chunk_local.py"
+
+wrapper_code = r'''
+import argparse
+import json
+from pathlib import Path
 import sys
-import shutil
 
 import numpy as np
 import pandas as pd
-import torch
-import trimesh
-from plyfile import PlyData, PlyElement
-from scipy.spatial import cKDTree
+
+REPO_ROOT = Path("/content/Depth-Anything-3")
+SRC_ROOT = REPO_ROOT / "src"
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(SRC_ROOT))
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from depth_anything_3.api import DepthAnything3
+
+
+def _resolve_device(device_arg: str) -> str:
+    if device_arg and device_arg != "auto":
+        return device_arg
+    try:
+        import torch
+        return "cuda" if torch.cuda.is_available() else "cpu"
+    except Exception:
+        return "cpu"
+
+
+def _pick_pred_array(prediction, attr_names):
+    for name in attr_names:
+        if hasattr(prediction, name):
+            v = getattr(prediction, name)
+            if v is None:
+                continue
+            try:
+                arr = np.asarray(v)
+                return arr
+            except Exception:
+                pass
+    return None
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--chunk-csv", required=True)
+    ap.add_argument("--out-dir", required=True)
+    ap.add_argument("--model-id", required=True)
+    ap.add_argument("--device", default="auto")
+    ap.add_argument("--process-res", type=int, default=504)
+    ap.add_argument("--process-res-method", default="upper_bound_resize")
+    ap.add_argument("--export-format", default="mini_npz")
+    ap.add_argument("--infer-gs", action="store_true")
+    ap.add_argument("--align-to-input-ext-scale", action="store_true")
+    ap.add_argument("--show-cameras", action="store_true")
+    ap.add_argument("--conf-thresh-percentile", type=float, default=40.0)
+    ap.add_argument("--num-max-points", type=int, default=1_000_000)
+    args = ap.parse_args()
+
+    chunk_csv = Path(args.chunk_csv)
+    out_dir = Path(args.out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    df = pd.read_csv(chunk_csv)
+    assert len(df) >= 2, {"chunk_csv": str(chunk_csv), "reason": "need at least 2 frames"}
+
+    required_cols = ["image_path", "fx_canonical", "fy_canonical", "cx_canonical", "cy_canonical"]
+    missing = [c for c in required_cols if c not in df.columns]
+    assert not missing, {"chunk_csv": str(chunk_csv), "missing_required_columns": missing}
+
+    image_paths = df["image_path"].astype(str).tolist()
+    missing_images = [p for p in image_paths if not Path(p).exists()]
+    assert not missing_images, {"missing_images_count": len(missing_images), "sample": missing_images[:10]}
+
+    if not {"tx", "ty", "tz", "qx", "qy", "qz", "qw"}.issubset(df.columns):
+        raise AssertionError({"reason": "pose quaternion/translation columns missing", "columns": df.columns.tolist()})
+
+    # notebook側で既に extrinsics_w2c.npy を整備している想定だが、
+    # chunk csv だけからも走れるように tx/ty/tz + qx/qy/qz/qw からは再構成しない。
+    # 代わりに chunk csv に extrinsics 参照列が無い場合は、w2c は使わず image-only API にフォールバックする。
+    use_pose_conditioning = False
+    extrinsics = None
+
+    if {"w2c_00","w2c_01","w2c_02","w2c_03","w2c_10","w2c_11","w2c_12","w2c_13","w2c_20","w2c_21","w2c_22","w2c_23","w2c_30","w2c_31","w2c_32","w2c_33"}.issubset(df.columns):
+        mats = []
+        for r in df.itertuples(index=False):
+            M = np.array([
+                [r.w2c_00, r.w2c_01, r.w2c_02, r.w2c_03],
+                [r.w2c_10, r.w2c_11, r.w2c_12, r.w2c_13],
+                [r.w2c_20, r.w2c_21, r.w2c_22, r.w2c_23],
+                [r.w2c_30, r.w2c_31, r.w2c_32, r.w2c_33],
+            ], dtype=np.float32)
+            mats.append(M)
+        extrinsics = np.stack(mats, axis=0)
+        use_pose_conditioning = True
+    elif {"extrinsics_path", "chunk_local_index"}.issubset(df.columns):
+        # 予備: 外部npyへの参照があればそれを使えるようにする余地
+        pass
+
+    intrinsics = []
+    for r in df.itertuples(index=False):
+        K = np.array([
+            [float(r.fx_canonical), 0.0, float(r.cx_canonical)],
+            [0.0, float(r.fy_canonical), float(r.cy_canonical)],
+            [0.0, 0.0, 1.0],
+        ], dtype=np.float32)
+        intrinsics.append(K)
+    intrinsics = np.stack(intrinsics, axis=0)
+
+    device = _resolve_device(args.device)
+    model = DepthAnything3.from_pretrained(args.model_id)
+    model = model.to(device)
+
+    inference_kwargs = dict(
+        image=image_paths,
+        intrinsics=intrinsics,
+        process_res=args.process_res,
+        process_res_method=args.process_res_method,
+        export_dir=str(out_dir),
+        export_format=args.export_format,
+        conf_thresh_percentile=args.conf_thresh_percentile,
+        num_max_points=args.num_max_points,
+        show_cameras=bool(args.show_cameras),
+    )
+
+    if use_pose_conditioning:
+        inference_kwargs["extrinsics"] = extrinsics
+        inference_kwargs["align_to_input_ext_scale"] = bool(args.align_to_input_ext_scale)
+
+    if args.infer_gs:
+        inference_kwargs["infer_gs"] = True
+
+    prediction = model.inference(**inference_kwargs)
+
+    # pred_extrinsics / pred_intrinsics を後段互換で保存
+    pred_ext = _pick_pred_array(prediction, ["extrinsics", "pred_extrinsics", "camera_extrinsics"])
+    pred_ixt = _pick_pred_array(prediction, ["intrinsics", "pred_intrinsics", "camera_intrinsics"])
+
+    # API docs によれば align_to_input_ext_scale=True の場合、返る extrinsics は入力 extrinsics に置換される。
+    # 後段互換のため、pose conditioning時に pred_ext が拾えなければ入力 extrinsics を保存する。
+    if pred_ext is None and extrinsics is not None:
+        pred_ext = extrinsics
+    if pred_ixt is None:
+        pred_ixt = intrinsics
+
+    if pred_ext is not None:
+        np.save(out_dir / "pred_extrinsics.npy", np.asarray(pred_ext, dtype=np.float32))
+    if pred_ixt is not None:
+        np.save(out_dir / "pred_intrinsics.npy", np.asarray(pred_ixt, dtype=np.float32))
+
+    df.to_csv(out_dir / "chunk_input_frames.csv", index=False, encoding="utf-8")
+
+    summary = {
+        "status": "ok",
+        "chunk_csv": str(chunk_csv),
+        "out_dir": str(out_dir),
+        "model_id": args.model_id,
+        "device": device,
+        "frame_count": int(len(df)),
+        "use_pose_conditioning": bool(use_pose_conditioning),
+        "align_to_input_ext_scale": bool(args.align_to_input_ext_scale),
+        "infer_gs": bool(args.infer_gs),
+        "pred_extrinsics_saved": bool((out_dir / "pred_extrinsics.npy").exists()),
+        "pred_intrinsics_saved": bool((out_dir / "pred_intrinsics.npy").exists()),
+    }
+    (out_dir / "_SUCCESS.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    main()
+'''
+
+wrapper_path.write_text(textwrap.dedent(wrapper_code), encoding="utf-8")
+print({"wrapper_path": str(wrapper_path), "exists": wrapper_path.exists()})
+```
+
+
+```python
+# #5-0-6 実推論本体
+# #5-0-5b で生成した /content/Depth-Anything-3/run_da3_chunk_local.py を呼ぶ。
+# execution_target_* / batch_execution_items_test.csv を前提に、各 chunk を実行する。
+
+from pathlib import Path
+import json
+import subprocess
+import pandas as pd
 
 ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
-probe_root = Path(ctx["probe_root"])
-manifest_dir = Path(ctx["manifest_dir"])
 
-pipeline_root = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12"
-global_pose_dir = pipeline_root / "global_pose_bootstrap"
+probe_root = Path(ctx["probe_root"])
+pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_seq_anchor_batch_v02")
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
-merged_dir = pipeline_root / "merged"
+chunk_runs_dir.mkdir(parents=True, exist_ok=True)
 
-config = json.loads((pipeline_root / "pipeline_config.json").read_text(encoding="utf-8"))
-MODEL_ID = config["MODEL_ID"]
-PROCESS_RES = config["PROCESS_RES"]
-CHUNKS_PER_BATCH = config["CHUNKS_PER_BATCH"]
+final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
+final_outputs_diagnostics_dir.mkdir(parents=True, exist_ok=True)
 
-target_chunks_df = pd.read_csv(chunk_manifest_dir / "chunk_index_target.csv")
-batch_plan_df = pd.read_csv(chunk_manifest_dir / "batch_plan.csv")
-global_centers_df = pd.read_csv(global_pose_dir / "camera_center_matrix.csv")
-global_camera_matrix_df = pd.read_csv(global_pose_dir / "camera_matrix_full.csv")
-prod_manifest_df = pd.read_csv(manifest_dir / "da3_input_manifest_prod.csv")
+wrapper_path = Path("/content/Depth-Anything-3/run_da3_chunk_local.py")
+assert wrapper_path.exists(), wrapper_path
 
-OWNER_TOPK = 6
-OWNER_W_DIST = 1.0
-OWNER_W_DIR = 0.35
-OWNER_W_BLUR = 0.25
-OWNER_W_INDEX = 0.02
-OWNER_RECORD_MARGIN = 6
-TRANSFORM_CENTER_RMSE_WARN = 0.25
-TRANSFORM_ROT_DIR_WARN = 0.25
-TRANSFORM_SCALE_MIN = 0.8
-TRANSFORM_SCALE_MAX = 1.3
-TRANSFORM_CENTER_RMSE_MAX = 0.05
-TRANSFORM_ROT_DIR_MAX = 0.05
+batch_execution_items_path = chunk_manifest_dir / "batch_execution_items_test.csv"
+assert batch_execution_items_path.exists(), batch_execution_items_path
 
-LOCAL_CAMERA_BASIS = np.eye(4, dtype=np.float32)
-LOCAL_CAMERA_BASIS[:3, :3] = np.array([
-    [0.0, 1.0, 0.0],
-    [1.0, 0.0, 0.0],
-    [0.0, 0.0, -1.0],
-], dtype=np.float32)
+items_df = pd.read_csv(batch_execution_items_path)
+assert not items_df.empty, batch_execution_items_path
 
-print("# batch_plan")
-print(batch_plan_df.to_string(index=False))
+# 実行設定
+DRY_RUN = False
+DEVICE = "auto"   # "auto" / "cuda" / "cpu"
+MODEL_ID = "depth-anything/DA3NESTED-GIANT-LARGE-1.1"
 
-def to_4x4(ext):
-    ext = np.asarray(ext).astype(np.float32)
-    if ext.shape == (4, 4):
-        return ext
-    if ext.shape == (3, 4):
-        M = np.eye(4, dtype=np.float32)
-        M[:3, :] = ext
-        return M
-    raise ValueError(f"unexpected extrinsic shape: {ext.shape}")
+PROCESS_RES = 504
+PROCESS_RES_METHOD = "upper_bound_resize"
+EXPORT_FORMAT = "mini_npz"
+ALIGN_TO_INPUT_EXT_SCALE = True
+INFER_GS = False
+SHOW_CAMERAS = False
+CONF_THRESH_PERCENTILE = 40.0
+NUM_MAX_POINTS = 1_000_000
+SKIP_ALREADY_SUCCESS = True
 
-def camera_centers_from_extrinsics(extrinsics):
-    centers = []
-    for ext in extrinsics:
-        w2c = to_4x4(ext)
-        c2w = np.linalg.inv(w2c)
-        centers.append(c2w[:3, 3])
-    return np.stack(centers, axis=0)
+required_cols = ["batch_name", "chunk_name", "chunk_csv", "batch_work_dir"]
+missing_cols = [c for c in required_cols if c not in items_df.columns]
+assert not missing_cols, {"missing_columns": missing_cols, "available": items_df.columns.tolist()}
 
-def c2w_rows_to_map(df: pd.DataFrame):
-    out = {}
-    cols = [f"m{i}{j}" for i in range(4) for j in range(4)]
-    for row in df.itertuples(index=False):
-        M = np.array([getattr(row, c) for c in cols], dtype=np.float32).reshape(4, 4)
-        out[int(row.record_index)] = M
-    return out
+rows = []
 
-def optical_axis_from_c2w(c2w: np.ndarray):
-    axis = np.asarray(c2w[:3, 2], dtype=np.float32)
-    norm = float(np.linalg.norm(axis))
-    return axis / max(norm, 1e-12)
+for row in items_df.itertuples(index=False):
+    batch_name = str(row.batch_name)
+    chunk_name = str(row.chunk_name)
+    chunk_csv = Path(row.chunk_csv)
+    batch_work_dir = Path(row.batch_work_dir)
+    out_dir = batch_work_dir / chunk_name
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-def c2w_list_from_extrinsics(extrinsics):
-    mats = []
-    for ext in extrinsics:
-        c2w = np.linalg.inv(to_4x4(ext)).astype(np.float32)
-        mats.append((c2w @ LOCAL_CAMERA_BASIS).astype(np.float32))
-    return mats
+    assert chunk_csv.exists(), {"chunk_name": chunk_name, "missing_chunk_csv": str(chunk_csv)}
 
-def estimate_pose_aware_similarity(local_c2w_list, global_c2w_list, estimate_scale=True):
-    assert len(local_c2w_list) == len(global_c2w_list) >= 2, {"local_len": len(local_c2w_list), "global_len": len(global_c2w_list)}
+    success_json = out_dir / "_SUCCESS.json"
+    stderr_txt = out_dir / "run_stderr.txt"
+    stdout_txt = out_dir / "run_stdout.txt"
 
-    src_dirs = []
-    dst_dirs = []
-    src_centers = []
-    dst_centers = []
-    for local_c2w, global_c2w in zip(local_c2w_list, global_c2w_list):
-        src_dirs.extend([local_c2w[:3, 0], local_c2w[:3, 1], local_c2w[:3, 2]])
-        dst_dirs.extend([global_c2w[:3, 0], global_c2w[:3, 1], global_c2w[:3, 2]])
-        src_centers.append(local_c2w[:3, 3])
-        dst_centers.append(global_c2w[:3, 3])
-
-    src_dirs = np.asarray(src_dirs, dtype=np.float64)
-    dst_dirs = np.asarray(dst_dirs, dtype=np.float64)
-    src_centers = np.asarray(src_centers, dtype=np.float64)
-    dst_centers = np.asarray(dst_centers, dtype=np.float64)
-
-    H = dst_dirs.T @ src_dirs
-    U, _, Vt = np.linalg.svd(H)
-    S = np.eye(3, dtype=np.float64)
-    if np.linalg.det(U) * np.linalg.det(Vt) < 0:
-        S[-1, -1] = -1.0
-    R = U @ S @ Vt
-
-    src_mean = src_centers.mean(axis=0)
-    dst_mean = dst_centers.mean(axis=0)
-    src_c = src_centers - src_mean
-    dst_c = dst_centers - dst_mean
-    src_rot = (R @ src_c.T).T
-
-    if estimate_scale:
-        denom = float(np.sum(src_rot ** 2))
-        numer = float(np.sum(dst_c * src_rot))
-        scale = numer / max(denom, 1e-12)
-    else:
-        scale = 1.0
-
-    t = dst_mean - scale * (R @ src_mean)
-    pred = (scale * (R @ src_centers.T)).T + t
-    center_rmse = float(np.sqrt(np.mean(np.sum((pred - dst_centers) ** 2, axis=1))))
-    rot_residual = float(np.mean(np.linalg.norm((R @ src_dirs.T).T - dst_dirs, axis=1)))
-
-    T = np.eye(4, dtype=np.float64)
-    T[:3, :3] = scale * R
-    T[:3, 3] = t
-    diag = {
-        "scale": float(scale),
-        "rotation_det": float(np.linalg.det(R)),
-        "center_rmse": center_rmse,
-        "rotation_dir_residual": rot_residual,
-        "positive_similarity_ok": bool(scale > 0.0),
-        "scale_in_range_ok": bool(TRANSFORM_SCALE_MIN <= scale <= TRANSFORM_SCALE_MAX),
-        "center_rmse_ok": bool(center_rmse <= TRANSFORM_CENTER_RMSE_MAX),
-        "rotation_dir_ok": bool(rot_residual <= TRANSFORM_ROT_DIR_MAX),
-    }
-    diag["hard_fail"] = bool(
-        (scale <= 0.0)
-        or (scale < TRANSFORM_SCALE_MIN)
-        or (scale > TRANSFORM_SCALE_MAX)
-        or (center_rmse > TRANSFORM_CENTER_RMSE_MAX)
-        or (rot_residual > TRANSFORM_ROT_DIR_MAX)
-    )
-    return T.astype(np.float32), diag
-
-def load_scene_any(path: Path):
-    loaded = trimesh.load(str(path), force="scene")
-    if isinstance(loaded, trimesh.Scene):
-        return loaded
-    scene = trimesh.Scene()
-    if hasattr(loaded, "geometry"):
-        for name, geom in loaded.geometry.items():
-            scene.add_geometry(geom, node_name=name)
-    else:
-        scene.add_geometry(loaded)
-    return scene
-
-global_camera_map = c2w_rows_to_map(global_camera_matrix_df)
-global_frame_meta_df = global_centers_df.merge(
-    prod_manifest_df[["record_index", "qc_blur_ok", "blur_score"]],
-    on="record_index",
-    how="left",
-)
-global_frame_meta_df["opt_x"] = global_frame_meta_df["record_index"].map(lambda x: float(optical_axis_from_c2w(global_camera_map[int(x)])[0]))
-global_frame_meta_df["opt_y"] = global_frame_meta_df["record_index"].map(lambda x: float(optical_axis_from_c2w(global_camera_map[int(x)])[1]))
-global_frame_meta_df["opt_z"] = global_frame_meta_df["record_index"].map(lambda x: float(optical_axis_from_c2w(global_camera_map[int(x)])[2]))
-global_frame_meta_df["qc_blur_ok"] = global_frame_meta_df["qc_blur_ok"].fillna(False).astype(bool)
-global_frame_meta_df["blur_score"] = global_frame_meta_df["blur_score"].fillna(0.0)
-global_frame_meta_df = global_frame_meta_df.sort_values("record_index").reset_index(drop=True)
-global_center_tree = cKDTree(global_frame_meta_df[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32))
-
-def assign_vertex_owners(xyz_w: np.ndarray, chunk_df: pd.DataFrame):
-    chunk_record_df = global_frame_meta_df.loc[
-        global_frame_meta_df["record_index"].isin(chunk_df["record_index"].astype(int).tolist())
-    ].copy()
-    record_min = int(chunk_df["record_index"].min())
-    record_max = int(chunk_df["record_index"].max())
-    candidate_mode = "chunk_only"
-    candidate_df = chunk_record_df
-    if len(candidate_df) < 2:
-        candidate_mode = "chunk_with_margin"
-        candidate_df = global_frame_meta_df.loc[
-            global_frame_meta_df["record_index"].between(record_min - OWNER_RECORD_MARGIN, record_max + OWNER_RECORD_MARGIN)
-        ].copy()
-    if len(candidate_df) < 2:
-        candidate_mode = "global_fallback"
-        candidate_df = global_frame_meta_df.copy()
-    candidate_tree = cKDTree(candidate_df[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32))
-
-    k = min(OWNER_TOPK, len(candidate_df))
-    dists, idxs = candidate_tree.query(xyz_w, k=k)
-    if k == 1:
-        dists = dists[:, None]
-        idxs = idxs[:, None]
-
-    candidate_meta = candidate_df.iloc[idxs.reshape(-1)].reset_index(drop=True)
-    candidate_centers = candidate_meta[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32).reshape(len(xyz_w), k, 3)
-    candidate_axes = candidate_meta[["opt_x", "opt_y", "opt_z"]].to_numpy(dtype=np.float32).reshape(len(xyz_w), k, 3)
-    candidate_blur_ok = candidate_meta["qc_blur_ok"].to_numpy(dtype=bool).reshape(len(xyz_w), k)
-    candidate_records = candidate_meta["record_index"].to_numpy(dtype=np.int64).reshape(len(xyz_w), k)
-
-    view_vec = xyz_w[:, None, :] - candidate_centers
-    view_norm = np.linalg.norm(view_vec, axis=2, keepdims=True)
-    view_dir = view_vec / np.maximum(view_norm, 1e-12)
-    dir_cos = np.sum(view_dir * candidate_axes, axis=2)
-    dir_term = 1.0 - np.clip(dir_cos, -1.0, 1.0)
-    blur_penalty = np.where(candidate_blur_ok, 0.0, 1.0)
-
-    chunk_record_center = float(chunk_df["record_index"].median())
-    chunk_record_span = float(max(chunk_df["record_index"].max() - chunk_df["record_index"].min(), 1))
-    index_penalty = np.minimum(np.abs(candidate_records - chunk_record_center) / chunk_record_span, 1.0)
-
-    score = (
-        OWNER_W_DIST * np.asarray(dists, dtype=np.float32)
-        + OWNER_W_DIR * dir_term.astype(np.float32)
-        + OWNER_W_BLUR * blur_penalty.astype(np.float32)
-        + OWNER_W_INDEX * index_penalty.astype(np.float32)
-    )
-
-    best_local = np.argmin(score, axis=1)
-    row_idx = np.arange(len(xyz_w))
-    owner_records = candidate_records[row_idx, best_local]
-    owner_scores = score[row_idx, best_local]
-    owner_dists = np.asarray(dists, dtype=np.float32)[row_idx, best_local]
-    owner_dir_cos = dir_cos[row_idx, best_local]
-    owner_blur_ok = candidate_blur_ok[row_idx, best_local]
-
-    assignment_df = pd.DataFrame({
-        "vertex_index": np.arange(len(xyz_w), dtype=np.int64),
-        "owner_record_index": owner_records.astype(np.int64),
-        "owner_chunk_name": chunk_df.attrs.get("chunk_name", ""),
-        "owner_candidate_mode": candidate_mode,
-        "owner_candidate_record_min": int(candidate_df["record_index"].min()),
-        "owner_candidate_record_max": int(candidate_df["record_index"].max()),
-        "owner_score": owner_scores.astype(np.float32),
-        "owner_dist": owner_dists.astype(np.float32),
-        "owner_dir_cos": owner_dir_cos.astype(np.float32),
-        "owner_blur_ok": owner_blur_ok.astype(bool),
-    })
-    return assignment_df
-
-def show_batch_plan(run_batch_index: int):
-    assert len(batch_plan_df) >= 1, "batch_plan.csv is empty"
-    if run_batch_index < 0 or run_batch_index >= len(batch_plan_df):
-        print(json.dumps({
-            "status": "skip",
-            "reason": "batch_out_of_range",
-            "run_batch_index": int(run_batch_index),
-            "available_batch_count": int(len(batch_plan_df)),
-        }, indent=2, ensure_ascii=False))
-        return
-
-    row = batch_plan_df.iloc[int(run_batch_index)]
-    chunk_names = str(row["chunk_names"]).split("|") if str(row["chunk_names"]).strip() else []
-    print("# selected_batch")
-    print(json.dumps({
-        "run_batch_index": int(run_batch_index),
-        "chunk_from": int(row["chunk_from"]),
-        "chunk_to": int(row["chunk_to"]),
-        "chunk_count": int(row["chunk_count"]),
-        "chunk_names": chunk_names,
-    }, indent=2, ensure_ascii=False))
-
-def process_batch(run_batch_index: int):
-    batch_start = run_batch_index * CHUNKS_PER_BATCH
-    batch_end = min(batch_start + CHUNKS_PER_BATCH, len(target_chunks_df))
-
-    show_batch_plan(run_batch_index)
-
-    if batch_start >= len(target_chunks_df):
-        print(json.dumps({
-            "status": "skip",
-            "reason": "batch_out_of_range",
-            "run_batch_index": int(run_batch_index),
-            "available_batch_count": int((len(target_chunks_df) + CHUNKS_PER_BATCH - 1) // CHUNKS_PER_BATCH),
-        }, indent=2, ensure_ascii=False))
-        return
-
-    batch_chunks_df = target_chunks_df.iloc[batch_start:batch_end].copy().reset_index(drop=True)
-    batch_name = f"batch_{run_batch_index:03d}"
-    batch_dir = chunk_runs_dir / batch_name
-    batch_dir.mkdir(parents=True, exist_ok=True)
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = DepthAnything3.from_pretrained(MODEL_ID).to(device=device)
-
-    run_rows = []
-    transform_rows = []
-    keep_rows = []
-    warning_rows = []
-    batch_records = []
-    batch_scene = trimesh.Scene()
-
-    for row in batch_chunks_df.itertuples(index=False):
-        chunk_df = pd.read_csv(row.chunk_csv)
-        chunk_df.attrs["chunk_name"] = row.chunk_name
-        images = chunk_df["image_path"].tolist()
-
-        out_dir = chunk_runs_dir / row.chunk_name
-        done_flag = out_dir / "_SUCCESS.json"
-
-        if done_flag.exists():
-            pred_extrinsics = np.load(out_dir / "pred_extrinsics.npy")
-            chunk_df = pd.read_csv(out_dir / "chunk_input_frames.csv")
-        else:
-            if out_dir.exists():
-                shutil.rmtree(out_dir)
-            out_dir.mkdir(parents=True, exist_ok=True)
-
-            prediction = model.inference(
-                image=images,
-                infer_gs=True,
-                process_res=PROCESS_RES,
-                export_dir=str(out_dir),
-                export_format="npz-glb-gs_ply-gs_video",
-            )
-
-            pred_intrinsics = getattr(prediction, "intrinsics", None)
-            pred_extrinsics = getattr(prediction, "extrinsics", None)
-
-            assert pred_intrinsics is not None, f"intrinsics missing: {row.chunk_name}"
-            assert pred_extrinsics is not None, f"extrinsics missing: {row.chunk_name}"
-
-            np.save(out_dir / "pred_intrinsics.npy", np.asarray(pred_intrinsics).astype(np.float32))
-            np.save(out_dir / "pred_extrinsics.npy", np.asarray(pred_extrinsics).astype(np.float32))
-            chunk_df.to_csv(out_dir / "chunk_input_frames.csv", index=False, encoding="utf-8")
-            done_flag.write_text(json.dumps({"chunk_name": row.chunk_name}, indent=2, ensure_ascii=False), encoding="utf-8")
-
-        pred_extrinsics = np.asarray(pred_extrinsics).astype(np.float32)
-        local_centers = camera_centers_from_extrinsics(pred_extrinsics)
-        local_c2w_list = c2w_list_from_extrinsics(pred_extrinsics)
-
-        merged = chunk_df.merge(
-            global_centers_df[["record_index", "cx_world", "cy_world", "cz_world"]],
-            on="record_index",
-            how="left",
-        )
-        assert len(merged) == len(chunk_df), {"chunk_name": row.chunk_name, "merged_len": len(merged), "chunk_len": len(chunk_df)}
-        global_c2w_list = [global_camera_map[int(record_index)] for record_index in merged["record_index"].tolist()]
-
-        src = local_centers
-        dst = merged[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32)
-        T_c_to_w0, align_diag = estimate_pose_aware_similarity(local_c2w_list, global_c2w_list, estimate_scale=True)
-
-        T_path = chunk_manifest_dir / f"{row.chunk_name}_to_w0.npy"
-        np.save(T_path, T_c_to_w0.astype(np.float32))
-
-        transform_rows.append({
-            "chunk_name": row.chunk_name,
-            "frame_count": int(len(chunk_df)),
-            "transform_path": str(T_path),
-            "local_camera_basis": "perm_yxz_sign_ppn",
-            "scale": float(align_diag["scale"]),
-            "rotation_det": float(align_diag["rotation_det"]),
-            "center_rmse": float(align_diag["center_rmse"]),
-            "rotation_dir_residual": float(align_diag["rotation_dir_residual"]),
-            "positive_similarity_ok": bool(align_diag["positive_similarity_ok"]),
-            "scale_in_range_ok": bool(align_diag["scale_in_range_ok"]),
-            "center_rmse_ok": bool(align_diag["center_rmse_ok"]),
-            "rotation_dir_ok": bool(align_diag["rotation_dir_ok"]),
-            "hard_fail": bool(align_diag["hard_fail"]),
-        })
-        assert not align_diag["hard_fail"], {
-            "chunk_name": row.chunk_name,
-            "reason": "invalid_pose_similarity",
-            "align_diag": align_diag,
-        }
-
-        ply_path = out_dir / "gs_ply" / "0000.ply"
-        glb_path = out_dir / "scene.glb"
-
-        run_rows.append({
+    if SKIP_ALREADY_SUCCESS and success_json.exists():
+        rows.append({
             "batch_name": batch_name,
-            "chunk_name": row.chunk_name,
-            "frame_count": int(len(chunk_df)),
-            "ply_exists": bool(ply_path.exists()),
-            "glb_exists": bool(glb_path.exists()),
+            "chunk_name": chunk_name,
+            "status": "skipped_already_success",
+            "returncode": 0,
+            "outputs_exist": (out_dir / "pred_extrinsics.npy").exists(),
             "out_dir": str(out_dir),
         })
+        continue
 
-        if ply_path.exists():
-            T = np.load(T_path).astype(np.float32)
-            A = T[:3, :3]
-            t = T[:3, 3]
-            adopted_record_set = set(chunk_df.loc[chunk_df["is_adopted_region"] == True, "record_index"].astype(int).tolist())
+    cmd = [
+        "python3", str(wrapper_path),
+        "--chunk-csv", str(chunk_csv),
+        "--out-dir", str(out_dir),
+        "--model-id", MODEL_ID,
+        "--device", DEVICE,
+        "--process-res", str(PROCESS_RES),
+        "--process-res-method", PROCESS_RES_METHOD,
+        "--export-format", EXPORT_FORMAT,
+        "--conf-thresh-percentile", str(CONF_THRESH_PERCENTILE),
+        "--num-max-points", str(NUM_MAX_POINTS),
+    ]
 
-            ply = PlyData.read(str(ply_path))
-            df = pd.DataFrame(ply["vertex"].data)
-            xyz = df[["x", "y", "z"]].to_numpy(dtype=np.float32)
+    if ALIGN_TO_INPUT_EXT_SCALE:
+        cmd.append("--align-to-input-ext-scale")
+    if INFER_GS:
+        cmd.append("--infer-gs")
+    if SHOW_CAMERAS:
+        cmd.append("--show-cameras")
 
-            xyz_w = (A @ xyz.T).T + t
-            assignment_df = assign_vertex_owners(xyz_w, chunk_df)
-            keep = assignment_df["owner_record_index"].isin(adopted_record_set).to_numpy(dtype=bool)
-            assignment_df["kept"] = keep
-            assignment_df.to_csv(out_dir / "vertex_assignment_summary.csv", index=False, encoding="utf-8")
+    if DRY_RUN:
+        rows.append({
+            "batch_name": batch_name,
+            "chunk_name": chunk_name,
+            "status": "dry_run",
+            "returncode": None,
+            "outputs_exist": False,
+            "command": " ".join(cmd),
+            "out_dir": str(out_dir),
+        })
+        continue
 
-            owner_hist_df = assignment_df.groupby("owner_record_index", as_index=False).size().rename(columns={"size": "owner_vertex_count"})
-            owner_hist_df.to_csv(out_dir / "owner_record_histogram.csv", index=False, encoding="utf-8")
+    proc = subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        cwd="/content/Depth-Anything-3",
+    )
 
-            chunk_assignment_summary = assignment_df.groupby(["owner_record_index", "owner_blur_ok"], as_index=False).agg(
-                owner_vertex_count=("vertex_index", "count"),
-                owner_score_mean=("owner_score", "mean"),
-                owner_dist_mean=("owner_dist", "mean"),
-                owner_dir_cos_mean=("owner_dir_cos", "mean"),
-            )
-            chunk_assignment_summary.to_csv(out_dir / "chunk_assignment_summary.csv", index=False, encoding="utf-8")
+    stdout_txt.write_text(proc.stdout or "", encoding="utf-8")
+    stderr_txt.write_text(proc.stderr or "", encoding="utf-8")
 
-            df["x"] = xyz_w[:, 0]
-            df["y"] = xyz_w[:, 1]
-            df["z"] = xyz_w[:, 2]
-            df = df.loc[keep].copy()
+    outputs_exist = (out_dir / "pred_extrinsics.npy").exists()
 
-            if len(df) > 0:
-                batch_records.append(df.to_records(index=False))
+    if proc.returncode == 0 and outputs_exist:
+        status = "ok"
+    else:
+        status = "failed"
+        failed_json = out_dir / "_FAILED.json"
+        failed_json.write_text(json.dumps({
+            "status": "failed",
+            "returncode": proc.returncode,
+            "command": cmd,
+            "stdout_path": str(stdout_txt),
+            "stderr_path": str(stderr_txt),
+            "outputs_exist": outputs_exist,
+        }, ensure_ascii=False, indent=2), encoding="utf-8")
 
-            transform_warning = bool(
-                align_diag["center_rmse"] > TRANSFORM_CENTER_RMSE_WARN
-                or align_diag["rotation_dir_residual"] > TRANSFORM_ROT_DIR_WARN
-            )
-            keep_zero_chunk = int(len(df)) == 0
-            warning_rows.append({
-                "batch_name": batch_name,
-                "chunk_name": row.chunk_name,
-                "transform_warning": transform_warning,
-                "keep_zero_chunk": keep_zero_chunk,
-                "fallback_used": False,
-            })
-            keep_rows.append({
-                "batch_name": batch_name,
-                "chunk_name": row.chunk_name,
-                "kept_vertices": int(len(df)),
-                "owner_record_unique_count": int(assignment_df["owner_record_index"].nunique()),
-                "owner_candidate_mode": str(assignment_df["owner_candidate_mode"].iloc[0]),
-                "owner_record_min": int(assignment_df["owner_record_index"].min()),
-                "owner_record_max": int(assignment_df["owner_record_index"].max()),
-                "owner_blur_ok_ratio": float(assignment_df["owner_blur_ok"].mean()),
-                "owner_score_mean": float(assignment_df["owner_score"].mean()),
-            })
-            assert not keep_zero_chunk, {"chunk_name": row.chunk_name, "reason": "keep_zero_chunk"}
-
-        if glb_path.exists():
-            scene = load_scene_any(glb_path)
-            T = np.load(T_path).astype(np.float32)
-            for gname, geom in scene.geometry.items():
-                geom2 = geom.copy()
-                if hasattr(geom2, "apply_transform"):
-                    geom2.apply_transform(T)
-                batch_scene.add_geometry(geom2, node_name=f"{row.chunk_name}_{gname}")
-
-    run_df = pd.DataFrame(run_rows)
-    run_df.to_csv(batch_dir / "chunk_run_summary.csv", index=False, encoding="utf-8")
-
-    transform_df = pd.DataFrame(transform_rows)
-    transform_df.to_csv(batch_dir / "chunk_global_transforms.csv", index=False, encoding="utf-8")
-
-    keep_df = pd.DataFrame(keep_rows)
-    keep_df.to_csv(batch_dir / "chunk_keep_summary.csv", index=False, encoding="utf-8")
-
-    warning_df = pd.DataFrame(warning_rows)
-    warning_df.to_csv(batch_dir / "merge_warning_summary.csv", index=False, encoding="utf-8")
-    transform_df.to_csv(batch_dir / "chunk_transform_quality.csv", index=False, encoding="utf-8")
-
-    batch_ply_path = batch_dir / f"{batch_name}_merged_gs.ply"
-    if batch_records:
-        batch_records_concat = np.concatenate(batch_records, axis=0)
-        PlyData([PlyElement.describe(batch_records_concat, "vertex")], text=False).write(str(batch_ply_path))
-
-    batch_glb_path = batch_dir / f"{batch_name}_merged_scene.glb"
-    if len(batch_scene.geometry) > 0:
-        batch_scene.export(str(batch_glb_path))
-
-    batch_summary = {
-        "status": "ok",
+    rows.append({
         "batch_name": batch_name,
-        "run_batch_index": int(run_batch_index),
-        "chunk_count": int(len(batch_chunks_df)),
-        "chunk_names": batch_chunks_df["chunk_name"].tolist(),
-        "batch_ply_path": str(batch_ply_path) if batch_ply_path.exists() else None,
-        "batch_glb_path": str(batch_glb_path) if batch_glb_path.exists() else None,
-    }
-    (batch_dir / "batch_summary.json").write_text(json.dumps(batch_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+        "chunk_name": chunk_name,
+        "status": status,
+        "returncode": int(proc.returncode),
+        "outputs_exist": bool(outputs_exist),
+        "command": " ".join(cmd),
+        "out_dir": str(out_dir),
+    })
 
-    del model
-    gc.collect()
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
+run_df = pd.DataFrame(rows)
+run_csv = chunk_manifest_dir / "batch_run_results_test.csv"
+run_df.to_csv(run_csv, index=False, encoding="utf-8")
 
-    print(json.dumps(batch_summary, indent=2, ensure_ascii=False))
+summary = {
+    "status": "ok",
+    "dry_run": DRY_RUN,
+    "row_count": int(len(run_df)),
+    "ok_count": int((run_df["status"] == "ok").sum()) if len(run_df) else 0,
+    "failed_count": int((run_df["status"] == "failed").sum()) if len(run_df) else 0,
+    "dry_run_count": int((run_df["status"] == "dry_run").sum()) if len(run_df) else 0,
+    "skipped_already_success_count": int((run_df["status"] == "skipped_already_success").sum()) if len(run_df) else 0,
+    "run_csv": str(run_csv),
+}
+(final_outputs_diagnostics_dir / "batch_run_results_test_summary.json").write_text(
+    json.dumps(summary, ensure_ascii=False, indent=2),
+    encoding="utf-8",
+)
+
+print(json.dumps(summary, ensure_ascii=False, indent=2))
+display(run_df)
 ```
 
-### #10 batch run
-
-- この block は 1 回で `3chunk` だけ処理する。
-- 各 chunk は `18frame` を持ち、次 chunk と `6frame` 重なり、再構成責務は基本 `後半 12frame` である。
-- `RUN_BATCH_INDEX = 0` は先頭 `3chunk`、`RUN_BATCH_INDEX = 1` は次の `3chunk` を意味する。
-- `batch_plan.csv` を見ながら `0`, `1`, `2`, `3` ... と順に実行する。
-- 全 batch を回し終わるまでは `Block 6` を実行しない。
 
 ```python
-#10-1
-RUN_BATCH_INDEX = 0
-process_batch(RUN_BATCH_INDEX)
+# #5-0-7 推論結果検証
+# 推論結果正規化 / anchor 残差 / 隣接連続性 / pose gate / 要約をまとめて実施する。
+
+ctx = load_ctx()
+
+probe_root = Path(ctx["probe_root"])
+pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_seq_anchor_batch_v02")
+chunk_manifest_dir = pipeline_root / "manifests"
+chunk_runs_dir = pipeline_root / "chunk_runs"
+
+final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
+final_outputs_diagnostics_dir.mkdir(parents=True, exist_ok=True)
+
+batch_execution_items_path = chunk_manifest_dir / "batch_execution_items_test.csv"
+assert batch_execution_items_path.exists(), batch_execution_items_path
+
+items_df = pd.read_csv(batch_execution_items_path)
+assert not items_df.empty, batch_execution_items_path
+
+def resolve_center_cols(df: pd.DataFrame):
+    candidates = [
+        ("cam_cx", "cam_cy", "cam_cz"),
+        ("cx_world", "cy_world", "cz_world"),
+        ("tx", "ty", "tz"),
+        ("cx", "cy", "cz"),
+    ]
+    return next((cols for cols in candidates if all(c in df.columns for c in cols)), None)
+
+def resolve_ypr_cols(df: pd.DataFrame):
+    candidates = [
+        ("yaw_deg", "pitch_deg", "roll_deg"),
+        ("yaw_deg_record", "pitch_deg_record", "roll_deg_record"),
+    ]
+    return next((cols for cols in candidates if all(c in df.columns for c in cols)), None)
+
+def resolve_lens_cols(df: pd.DataFrame):
+    candidates = [
+        ("lens_x", "lens_y", "lens_z"),
+        ("anchor_lens_x", "anchor_lens_y", "anchor_lens_z"),
+        ("forward_x", "forward_y", "forward_z"),
+    ]
+    return next((cols for cols in candidates if all(c in df.columns for c in cols)), None)
+
+def lens_from_yaw_pitch_deg(yaw_deg: np.ndarray, pitch_deg: np.ndarray) -> np.ndarray:
+    yaw = np.deg2rad(yaw_deg.astype(float))
+    pitch = np.deg2rad(pitch_deg.astype(float))
+    fx = np.sin(yaw) * np.cos(pitch)
+    fy = -np.sin(pitch)
+    fz = np.cos(yaw) * np.cos(pitch)
+    return normalize_rows(np.stack([fx, fy, fz], axis=1))
+
+residual_rows = []
+missing_pred_chunks = []
+
+for row in items_df.itertuples(index=False):
+    batch_name = str(row.batch_name)
+    chunk_name = str(row.chunk_name)
+    batch_work_dir = Path(row.batch_work_dir)
+    chunk_anchor_csv = Path(row.chunk_sequence_anchor_csv)
+
+    assert chunk_anchor_csv.exists(), {"chunk_name": chunk_name, "missing_anchor_csv": str(chunk_anchor_csv)}
+    anchor_df = pd.read_csv(chunk_anchor_csv)
+    assert not anchor_df.empty, {"chunk_name": chunk_name, "reason": "empty anchor csv"}
+
+    center_cols = resolve_center_cols(anchor_df)
+    lens_cols = resolve_lens_cols(anchor_df)
+    ypr_cols = resolve_ypr_cols(anchor_df)
+
+    assert center_cols is not None, {"chunk_name": chunk_name, "reason": "center cols not found", "available_columns": anchor_df.columns.tolist()}
+    assert (lens_cols is not None) or (ypr_cols is not None), {"chunk_name": chunk_name, "reason": "neither lens cols nor yaw/pitch/roll cols found", "available_columns": anchor_df.columns.tolist()}
+
+    pred_candidates = [
+        batch_work_dir / chunk_name / "pred_extrinsics.npy",
+        chunk_runs_dir / chunk_name / "pred_extrinsics.npy",
+        batch_work_dir / f"{chunk_name}_pred_extrinsics.npy",
+    ]
+    pred_path = next((p for p in pred_candidates if p.exists()), None)
+
+    if pred_path is None:
+        missing_pred_chunks.append({"batch_name": batch_name, "chunk_name": chunk_name, "reason": "pred_extrinsics.npy not found yet"})
+        continue
+
+    # pred = np.load(pred_path)
+    # assert pred.ndim == 3 and pred.shape[1:] == (4, 4), {"chunk_name": chunk_name, "pred_shape": tuple(pred.shape)}
+
+    # n = min(len(anchor_df), pred.shape[0])
+    # if n <= 0:
+    #     continue
+
+    # pred = pred[:n]
+    # a = anchor_df.iloc[:n].copy()
+
+    # pred_c2w = np.linalg.inv(pred)
+
+    pred = np.load(pred_path)
+
+    def to_4x4_batch(arr: np.ndarray) -> np.ndarray:
+        arr = np.asarray(arr)
+        assert arr.ndim == 3, {"pred_shape": tuple(arr.shape)}
+        if arr.shape[1:] == (4, 4):
+            return arr.astype(np.float32)
+        if arr.shape[1:] == (3, 4):
+            out = np.repeat(np.eye(4, dtype=np.float32)[None, :, :], arr.shape[0], axis=0)
+            out[:, :3, :] = arr.astype(np.float32)
+            return out
+        raise AssertionError({"pred_shape": tuple(arr.shape), "expected": "(N,4,4) or (N,3,4)"})
+
+    pred = to_4x4_batch(pred)
+
+    n = min(len(anchor_df), pred.shape[0])
+    if n <= 0:
+        continue
+
+    pred = pred[:n]
+    pred_c2w = np.linalg.inv(pred)
+
+    pred_center = pred_c2w[:, :3, 3]
+    pred_lens = -pred_c2w[:, :3, 2]
+    a = anchor_df.iloc[:n].copy()
+
+
+    anchor_center = a[list(center_cols)].to_numpy(float)
+    if lens_cols is not None:
+        anchor_lens = a[list(lens_cols)].to_numpy(float)
+    else:
+        yaw_col, pitch_col, _ = ypr_cols
+        anchor_lens = lens_from_yaw_pitch_deg(a[yaw_col].to_numpy(float), a[pitch_col].to_numpy(float))
+
+    center_error = np.linalg.norm(pred_center - anchor_center, axis=1)
+    lens_error_deg = angle_deg(pred_lens, anchor_lens)
+
+    delta_center_error = np.zeros(n, dtype=float)
+    delta_lens_error_deg = np.zeros(n, dtype=float)
+    if n >= 2:
+        delta_center_error[1:] = np.abs(np.diff(center_error))
+        delta_lens_error_deg[1:] = np.abs(np.diff(lens_error_deg))
+
+    for i in range(n):
+        residual_rows.append({
+            "batch_name": batch_name,
+            "chunk_name": chunk_name,
+            "local_index": int(i),
+            "record_index": int(a.iloc[i]["record_index"]) if "record_index" in a.columns and pd.notna(a.iloc[i]["record_index"]) else None,
+            "sequence_index": int(a.iloc[i]["sequence_index"]) if "sequence_index" in a.columns and pd.notna(a.iloc[i]["sequence_index"]) else None,
+            "center_error": float(center_error[i]),
+            "lens_error_deg": float(lens_error_deg[i]),
+            "delta_center_error": float(delta_center_error[i]),
+            "delta_lens_error_deg": float(delta_lens_error_deg[i]),
+            "pred_extrinsics_path": str(pred_path),
+        })
+
+residual_df = pd.DataFrame(residual_rows)
+residual_csv = chunk_manifest_dir / "pred_vs_anchor_pose_residual_test.csv"
+residual_df.to_csv(residual_csv, index=False, encoding="utf-8")
+
+missing_pred_df = pd.DataFrame(missing_pred_chunks)
+missing_pred_csv = chunk_manifest_dir / "pred_vs_anchor_pose_residual_missing_pred_test.csv"
+missing_pred_df.to_csv(missing_pred_csv, index=False, encoding="utf-8")
+
+gate_rows = []
+if len(residual_df):
+    for chunk_name, cdf in residual_df.groupby("chunk_name", sort=True):
+        gate_rows.append({
+            "chunk_name": chunk_name,
+            "row_count": int(len(cdf)),
+            "center_error_mean": float(cdf["center_error"].mean()),
+            "center_error_p95": float(cdf["center_error"].quantile(0.95)),
+            "lens_error_deg_mean": float(cdf["lens_error_deg"].mean()),
+            "lens_error_deg_p95": float(cdf["lens_error_deg"].quantile(0.95)),
+            "delta_center_error_max": float(cdf["delta_center_error"].max()),
+            "delta_lens_error_deg_max": float(cdf["delta_lens_error_deg"].max()),
+        })
+gate_df = pd.DataFrame(gate_rows)
+gate_csv = chunk_manifest_dir / "premerge_pose_gate_test.csv"
+gate_df.to_csv(gate_csv, index=False, encoding="utf-8")
+
+if len(residual_df) == 0:
+    status = "not_run"
+elif len(missing_pred_df) > 0:
+    status = "partial"
+else:
+    status = "ok"
+
+summary = {
+    "status": status,
+    "residual_row_count": int(len(residual_df)),
+    "missing_pred_chunk_count": int(len(missing_pred_df)),
+    "gate_chunk_count": int(len(gate_df)),
+    "residual_csv": str(residual_csv),
+    "missing_pred_csv": str(missing_pred_csv),
+    "gate_csv": str(gate_csv),
+}
+if len(residual_df) > 0:
+    summary["center_error_mean"] = float(residual_df["center_error"].mean())
+    summary["center_error_p95"] = float(residual_df["center_error"].quantile(0.95))
+    summary["lens_error_deg_mean"] = float(residual_df["lens_error_deg"].mean())
+    summary["lens_error_deg_p95"] = float(residual_df["lens_error_deg"].quantile(0.95))
+
+save_json(final_outputs_diagnostics_dir / "premerge_pose_gate_summary_test.json", summary)
+save_json(final_outputs_diagnostics_dir / "batch_residual_summary_test.json", summary)
+
+print(json.dumps(summary, indent=2, ensure_ascii=False))
+if len(gate_df):
+    display(gate_df)
+if len(missing_pred_df):
+    display(missing_pred_df.head())
 ```
 
+
 ```python
-#10-2
-RUN_BATCH_INDEX = 1
-process_batch(RUN_BATCH_INDEX)
+# #5-3-t batch実行対象の具体化 (test-aware)
+# 旧 #5-3 のテスト用コピー。
+# #5-0-2 / #5-2-t で確定した execution target を前提に、
+# 今回実行する batch ごとの chunk 一覧・chunk csv・sequence anchor csv・作業ディレクトリを確定する。
+
+from pathlib import Path
+import json
+import pandas as pd
+
+ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
+
+probe_root = Path(ctx["probe_root"])
+pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_seq_anchor_batch_v02")
+chunk_manifest_dir = pipeline_root / "manifests"
+chunk_runs_dir = pipeline_root / "chunk_runs"
+chunk_runs_dir.mkdir(parents=True, exist_ok=True)
+
+final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
+final_outputs_diagnostics_dir.mkdir(parents=True, exist_ok=True)
+
+execution_chunks_path = chunk_manifest_dir / "execution_target_chunks.csv"
+execution_batch_plan_path = chunk_manifest_dir / "execution_target_batch_plan.csv"
+
+assert execution_chunks_path.exists(), execution_chunks_path
+assert execution_batch_plan_path.exists(), execution_batch_plan_path
+
+execution_chunks_df = pd.read_csv(execution_chunks_path)
+execution_batch_plan_df = pd.read_csv(execution_batch_plan_path)
+
+assert not execution_chunks_df.empty, execution_chunks_path
+assert not execution_batch_plan_df.empty, execution_batch_plan_path
+
+chunk_name_col = next((c for c in ["chunk_name", "chunk_id", "name"] if c in execution_chunks_df.columns), None)
+assert chunk_name_col is not None, {"execution_chunk_columns": execution_chunks_df.columns.tolist()}
+
+if "batch_name" not in execution_batch_plan_df.columns:
+    assert "batch_index" in execution_batch_plan_df.columns, execution_batch_plan_df.columns.tolist()
+    execution_batch_plan_df["batch_name"] = execution_batch_plan_df["batch_index"].astype(int).map(lambda x: f"batch_{x:03d}")
+
+if "target_local_chunk_index" not in execution_chunks_df.columns:
+    execution_chunks_df = execution_chunks_df.copy().reset_index(drop=True)
+    execution_chunks_df["target_local_chunk_index"] = range(len(execution_chunks_df))
+
+if "batch_index" not in execution_chunks_df.columns:
+    # batch_plan の chunk_from/chunk_to は target_local_chunk_index 基準
+    def resolve_batch_index(local_idx: int):
+        hit = execution_batch_plan_df[
+            (execution_batch_plan_df["chunk_from"].astype(int) <= int(local_idx)) &
+            (execution_batch_plan_df["chunk_to"].astype(int) >= int(local_idx))
+        ]
+        if len(hit) == 0:
+            return None
+        return int(hit.sort_values("batch_index", kind="stable").iloc[0]["batch_index"])
+    execution_chunks_df["batch_index"] = execution_chunks_df["target_local_chunk_index"].map(resolve_batch_index)
+
+assert execution_chunks_df["batch_index"].notna().all(), {
+    "unresolved_target_local_chunk_indices": execution_chunks_df.loc[execution_chunks_df["batch_index"].isna(), "target_local_chunk_index"].tolist()
+}
+execution_chunks_df["batch_index"] = execution_chunks_df["batch_index"].astype(int)
+
+if "batch_name" not in execution_chunks_df.columns:
+    execution_chunks_df["batch_name"] = execution_chunks_df["batch_index"].astype(int).map(lambda x: f"batch_{x:03d}")
+
+rows = []
+missing_files = []
+
+for b_row in execution_batch_plan_df.itertuples(index=False):
+    batch_index = int(b_row.batch_index) if hasattr(b_row, "batch_index") else None
+    batch_name = str(b_row.batch_name)
+
+    batch_work_dir = chunk_runs_dir / batch_name
+    batch_work_dir.mkdir(parents=True, exist_ok=True)
+
+    batch_chunks_df = (
+        execution_chunks_df[execution_chunks_df["batch_index"].astype(int) == batch_index]
+        .copy()
+        .sort_values("target_local_chunk_index", kind="stable")
+        .reset_index(drop=True)
+    )
+
+    assert not batch_chunks_df.empty, {"batch_name": batch_name, "batch_index": batch_index}
+
+    for c_row in batch_chunks_df.itertuples(index=False):
+        chunk_name = str(getattr(c_row, chunk_name_col))
+        chunk_csv_path = chunk_manifest_dir / f"{chunk_name}.csv"
+        chunk_anchor_csv_path = chunk_manifest_dir / f"{chunk_name}_sequence_anchor.csv"
+
+        if not chunk_csv_path.exists():
+            missing_files.append(str(chunk_csv_path))
+        if not chunk_anchor_csv_path.exists():
+            missing_files.append(str(chunk_anchor_csv_path))
+
+        rows.append({
+            "batch_index": int(batch_index),
+            "batch_name": batch_name,
+            "chunk_id": int(getattr(c_row, "chunk_id")) if "chunk_id" in execution_chunks_df.columns else None,
+            "chunk_name": chunk_name,
+            "target_local_chunk_index": int(getattr(c_row, "target_local_chunk_index")),
+            "chunk_csv": str(chunk_csv_path),
+            "chunk_sequence_anchor_csv": str(chunk_anchor_csv_path),
+            "batch_work_dir": str(batch_work_dir),
+        })
+
+assert not missing_files, {
+    "missing_chunk_related_files_count": len(missing_files),
+    "missing_chunk_related_files_sample": missing_files[:10],
+}
+
+batch_execution_items_df = pd.DataFrame(rows).sort_values(
+    ["batch_index", "target_local_chunk_index"], kind="stable"
+).reset_index(drop=True)
+
+batch_execution_items_path = chunk_manifest_dir / "batch_execution_items_test.csv"
+batch_execution_items_df.to_csv(batch_execution_items_path, index=False, encoding="utf-8")
+
+summary = {
+    "status": "ok",
+    "batch_count": int(batch_execution_items_df["batch_name"].nunique()),
+    "chunk_count": int(len(batch_execution_items_df)),
+    "batch_names": sorted(batch_execution_items_df["batch_name"].astype(str).unique().tolist()),
+    "batch_execution_items_path": str(batch_execution_items_path),
+}
+
+(final_outputs_diagnostics_dir / "batch_execution_items_test_summary.json").write_text(
+    json.dumps(summary, indent=2, ensure_ascii=False),
+    encoding="utf-8",
+)
+
+print(json.dumps(summary, indent=2, ensure_ascii=False))
+display(batch_execution_items_df)
 ```
 
-```python
-#10-3
-RUN_BATCH_INDEX = 2
-process_batch(RUN_BATCH_INDEX)
-```
+
+### #5-5 batch内 chunk 結果正規化 / #5-6 anchor 残差計算 / #5-7 batch内隣接連続性検証 / #5-8 pre-merge gate  
+旧 #10-5 と目的は類似。pre-merge pose gate に加え、残差と隣接連続性の保存を行う。
+
 
 ```python
-#10-4
-RUN_BATCH_INDEX = 3
-process_batch(RUN_BATCH_INDEX)
-```
-
-### #10-5 Pre-merge pose gate
-
-- `#11 merge` の前に、全 chunk を対象に camera-only の pose validation を必ず実行する。
-- この cell は `pred_extrinsics.npy` を `w2c` とみなし、local camera basis を `perm_yxz_sign_ppn` へ固定したうえで、global `camera_matrix_full.csv` に対する positive similarity 制約を全 chunk で確認する。
-- gate 条件は `scale > 0`、`0.8 <= scale <= 1.3`、`center_rmse <= 0.05`、`rotation_dir_residual <= 0.05` とする。
-- 生成物は `merged` または `merged_add**` 配下の `premerge_pose_validation.csv` と `premerge_pose_validation.json`、および `final_outputs/diagnostics/` または `final_outputs_add**/diagnostics/` への copy とする。
-- `hard_fail` が 1 件でもあれば、この cell 自体を fail させ、`#11 merge` へ進まない。
-
-```python
-#10-5
+#5-5
 from pathlib import Path
 import json
 import numpy as np
@@ -2216,7 +4241,7 @@ ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encodin
 probe_root = Path(ctx["probe_root"])
 final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
 
-pipeline_root = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12"
+pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_seq_anchor_batch_v02")
 global_pose_dir = pipeline_root / "global_pose_bootstrap"
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
@@ -2260,12 +4285,50 @@ def c2w_list_from_extrinsics(extrinsics):
         mats.append((c2w @ LOCAL_CAMERA_BASIS).astype(np.float32))
     return mats
 
+def lens_direction_from_c2w(c2w: np.ndarray):
+    axis = -np.asarray(c2w[:3, 2], dtype=np.float32)
+    norm = float(np.linalg.norm(axis))
+    return axis / max(norm, 1e-12)
+
+def up_direction_from_c2w(c2w: np.ndarray):
+    axis = -np.asarray(c2w[:3, 1], dtype=np.float32)
+    norm = float(np.linalg.norm(axis))
+    return axis / max(norm, 1e-12)
+
+def ensure_target_chunk_manifest():
+    target_path = chunk_manifest_dir / "chunk_index_target.csv"
+    if target_path.exists():
+        return pd.read_csv(target_path)
+    all_path = chunk_manifest_dir / "chunk_index_all.csv"
+    assert all_path.exists(), all_path
+    all_chunks_df = pd.read_csv(all_path)
+    cfg = json.loads((pipeline_root / "pipeline_config.json").read_text(encoding="utf-8"))
+    if cfg.get("USE_TARGET_CHUNK_WINDOW", False):
+        start_0 = max(0, int(cfg.get("TARGET_CHUNK_WINDOW_START_1BASED", 1)) - 1)
+        end_0 = min(start_0 + int(cfg.get("TARGET_CHUNK_WINDOW_COUNT", 3)), len(all_chunks_df))
+        target_chunks_df = all_chunks_df.iloc[start_0:end_0].copy().reset_index(drop=True)
+    else:
+        target_chunks_df = all_chunks_df.copy().reset_index(drop=True)
+    target_chunks_df.to_csv(target_path, index=False, encoding="utf-8")
+    return target_chunks_df
+
+def resolve_chunk_input_dir(chunk_name: str) -> Path:
+    primary = chunk_runs_dir / chunk_name
+    assert (primary / "pred_extrinsics.npy").exists() and (primary / "chunk_input_frames.csv").exists(), {
+        "chunk_name": chunk_name,
+        "missing_dir": str(primary),
+        "reason": "run #10-1 before #10-5",
+    }
+    return primary
+
 def estimate_pose_aware_similarity(local_c2w_list, global_c2w_list, estimate_scale=True):
     assert len(local_c2w_list) == len(global_c2w_list) >= 2
     src_dirs, dst_dirs, src_centers, dst_centers = [], [], [], []
     for local_c2w, global_c2w in zip(local_c2w_list, global_c2w_list):
-        src_dirs.extend([local_c2w[:3, 0], local_c2w[:3, 1], local_c2w[:3, 2]])
-        dst_dirs.extend([global_c2w[:3, 0], global_c2w[:3, 1], global_c2w[:3, 2]])
+        src_dirs.append(lens_direction_from_c2w(local_c2w))
+        src_dirs.append(up_direction_from_c2w(local_c2w))
+        dst_dirs.append(lens_direction_from_c2w(global_c2w))
+        dst_dirs.append(up_direction_from_c2w(global_c2w))
         src_centers.append(local_c2w[:3, 3])
         dst_centers.append(global_c2w[:3, 3])
     src_dirs = np.asarray(src_dirs, dtype=np.float64)
@@ -2301,20 +4364,32 @@ def estimate_pose_aware_similarity(local_c2w_list, global_c2w_list, estimate_sca
     }
 
 global_camera_matrix_df = pd.read_csv(global_pose_dir / "camera_matrix_full.csv")
+global_anchor_df = pd.read_csv(global_pose_dir / "camera_anchor_full.csv")
 global_camera_map = c2w_rows_to_map(global_camera_matrix_df)
-all_chunks_df = pd.read_csv(chunk_manifest_dir / "chunk_index_all.csv")
+assert global_anchor_df["record_index"].is_unique, "global anchor record_index must be unique"
+target_chunks_df = ensure_target_chunk_manifest()
 
 rows = []
-for row in all_chunks_df.itertuples(index=False):
-    chunk_dir = chunk_runs_dir / row.chunk_name
+for row in target_chunks_df.itertuples(index=False):
+    chunk_dir = resolve_chunk_input_dir(row.chunk_name)
     pred_path = chunk_dir / "pred_extrinsics.npy"
     frames_path = chunk_dir / "chunk_input_frames.csv"
     assert pred_path.exists(), f"pred_extrinsics missing: {row.chunk_name}"
     assert frames_path.exists(), f"chunk_input_frames missing: {row.chunk_name}"
     pred_extrinsics = np.load(pred_path)
     chunk_frames_df = pd.read_csv(frames_path)
+    assert chunk_frames_df["record_index"].is_unique, f"duplicate record_index in chunk_input_frames: {row.chunk_name}"
+    assert pred_extrinsics.shape[0] == len(chunk_frames_df), {"chunk_name": row.chunk_name, "pred_len": int(pred_extrinsics.shape[0]), "chunk_len": int(len(chunk_frames_df))}
     local_c2w_list = c2w_list_from_extrinsics(pred_extrinsics)
-    global_c2w_list = [global_camera_map[int(record_index)] for record_index in chunk_frames_df["record_index"].tolist()]
+    merged_anchor_df = chunk_frames_df.merge(
+        global_anchor_df,
+        on=["record_index", "image_file_name", "image_path", "frame_timestamp_ns", "capture_timestamp_ns"],
+        how="left",
+        validate="one_to_one",
+    )
+    assert len(merged_anchor_df) == len(chunk_frames_df), {"chunk_name": row.chunk_name, "merged_anchor_len": len(merged_anchor_df), "chunk_len": len(chunk_frames_df)}
+    assert not merged_anchor_df[["cx_world", "cy_world", "cz_world", "anchor_lens_x", "anchor_lens_y", "anchor_lens_z", "anchor_up_x", "anchor_up_y", "anchor_up_z"]].isnull().any().any(), f"anchor merge missing: {row.chunk_name}"
+    global_c2w_list = [build_anchor_c2w(global_camera_map[int(rec.record_index)], rec) for rec in merged_anchor_df.itertuples(index=False)]
     diag = estimate_pose_aware_similarity(local_c2w_list, global_c2w_list, estimate_scale=True)
     scale = float(diag["scale"])
     center_rmse = float(diag["center_rmse"])
@@ -2370,65 +4445,294 @@ print(json.dumps(summary, indent=2, ensure_ascii=False))
 assert hard_fail_df.empty, hard_fail_df[["chunk_name", "scale", "center_rmse", "rotation_dir_residual"]].to_dict(orient="records")
 ```
 
-### #10-6 Merge dependency preflight
-
-- `#11 merge` の直前に、merge 依存 package の導入状態だけを独立確認する。
-- 既存 notebook が古く、`#11` に自己補完が入っていない runtime でも、この cell を先に実行すれば `trimesh` / `plyfile` / `scipy` 不足を解消できる。
 
 ```python
-#10-6
-import importlib
+# #5-5-t anchor 残差計算 (test-aware)
+# center は tx/ty/tz も許容し、lens は yaw/pitch から再構成する。
+
+from pathlib import Path
 import json
-import subprocess
-import sys
+import numpy as np
+import pandas as pd
 
-merge_deps = [
-    ("trimesh", "trimesh"),
-    ("plyfile", "plyfile"),
-    ("scipy", "scipy"),
-]
-missing_merge_deps = []
-for module_name, package_name in merge_deps:
-    try:
-        importlib.import_module(module_name)
-    except ModuleNotFoundError:
-        missing_merge_deps.append(package_name)
+ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
 
-if missing_merge_deps:
-    subprocess.run(
-        [sys.executable, "-m", "pip", "install", "--quiet", *missing_merge_deps],
-        check=True,
-    )
+probe_root = Path(ctx["probe_root"])
+pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_seq_anchor_batch_v02")
+chunk_manifest_dir = pipeline_root / "manifests"
+chunk_runs_dir = pipeline_root / "chunk_runs"
 
-status_doc = {
+final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
+final_outputs_diagnostics_dir.mkdir(parents=True, exist_ok=True)
+
+batch_execution_items_path = chunk_manifest_dir / "batch_execution_items_test.csv"
+assert batch_execution_items_path.exists(), batch_execution_items_path
+
+items_df = pd.read_csv(batch_execution_items_path)
+assert not items_df.empty, batch_execution_items_path
+
+required_cols = ["batch_name", "chunk_name", "chunk_sequence_anchor_csv", "batch_work_dir"]
+missing_cols = [c for c in required_cols if c not in items_df.columns]
+assert not missing_cols, {"missing_columns": missing_cols, "available": items_df.columns.tolist()}
+
+def normalize_rows(x: np.ndarray, eps: float = 1e-12) -> np.ndarray:
+    n = np.linalg.norm(x, axis=1, keepdims=True)
+    n = np.maximum(n, eps)
+    return x / n
+
+def angle_deg(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    a = normalize_rows(a)
+    b = normalize_rows(b)
+    d = np.sum(a * b, axis=1)
+    d = np.clip(d, -1.0, 1.0)
+    return np.degrees(np.arccos(d))
+
+def resolve_center_cols(df: pd.DataFrame):
+    candidates = [
+        ("cam_cx", "cam_cy", "cam_cz"),
+        ("cx_world", "cy_world", "cz_world"),
+        ("tx", "ty", "tz"),
+        ("cx", "cy", "cz"),
+    ]
+    return next((cols for cols in candidates if all(c in df.columns for c in cols)), None)
+
+def resolve_ypr_cols(df: pd.DataFrame):
+    candidates = [
+        ("yaw_deg", "pitch_deg", "roll_deg"),
+        ("yaw_deg_record", "pitch_deg_record", "roll_deg_record"),
+    ]
+    return next((cols for cols in candidates if all(c in df.columns for c in cols)), None)
+
+def resolve_lens_cols(df: pd.DataFrame):
+    candidates = [
+        ("lens_x", "lens_y", "lens_z"),
+        ("anchor_lens_x", "anchor_lens_y", "anchor_lens_z"),
+        ("forward_x", "forward_y", "forward_z"),
+    ]
+    return next((cols for cols in candidates if all(c in df.columns for c in cols)), None)
+
+def lens_from_yaw_pitch_deg(yaw_deg: np.ndarray, pitch_deg: np.ndarray) -> np.ndarray:
+    yaw = np.deg2rad(yaw_deg.astype(float))
+    pitch = np.deg2rad(pitch_deg.astype(float))
+    fx = np.sin(yaw) * np.cos(pitch)
+    fy = -np.sin(pitch)
+    fz = np.cos(yaw) * np.cos(pitch)
+    return normalize_rows(np.stack([fx, fy, fz], axis=1))
+
+residual_rows = []
+missing_pred_chunks = []
+
+for row in items_df.itertuples(index=False):
+    batch_name = str(row.batch_name)
+    chunk_name = str(row.chunk_name)
+    batch_work_dir = Path(row.batch_work_dir)
+    chunk_anchor_csv = Path(row.chunk_sequence_anchor_csv)
+
+    assert chunk_anchor_csv.exists(), {"chunk_name": chunk_name, "missing_anchor_csv": str(chunk_anchor_csv)}
+    anchor_df = pd.read_csv(chunk_anchor_csv)
+    assert not anchor_df.empty, {"chunk_name": chunk_name, "reason": "empty anchor csv"}
+
+    center_cols = resolve_center_cols(anchor_df)
+    lens_cols = resolve_lens_cols(anchor_df)
+    ypr_cols = resolve_ypr_cols(anchor_df)
+
+    assert center_cols is not None, {
+        "chunk_name": chunk_name,
+        "reason": "center cols not found",
+        "available_columns": anchor_df.columns.tolist(),
+    }
+    assert (lens_cols is not None) or (ypr_cols is not None), {
+        "chunk_name": chunk_name,
+        "reason": "neither lens cols nor yaw/pitch/roll cols found",
+        "available_columns": anchor_df.columns.tolist(),
+    }
+
+    pred_candidates = [
+        batch_work_dir / chunk_name / "pred_extrinsics.npy",
+        chunk_runs_dir / chunk_name / "pred_extrinsics.npy",
+        batch_work_dir / f"{chunk_name}_pred_extrinsics.npy",
+    ]
+    pred_path = next((p for p in pred_candidates if p.exists()), None)
+
+    if pred_path is None:
+        missing_pred_chunks.append({
+            "batch_name": batch_name,
+            "chunk_name": chunk_name,
+            "reason": "pred_extrinsics.npy not found yet",
+        })
+        continue
+
+    pred = np.load(pred_path)
+    assert pred.ndim == 3 and pred.shape[1:] == (4, 4), {
+        "chunk_name": chunk_name,
+        "pred_shape": tuple(pred.shape),
+    }
+
+    n = min(len(anchor_df), pred.shape[0])
+    if n <= 0:
+        continue
+
+    pred = pred[:n]
+    a = anchor_df.iloc[:n].copy()
+
+    pred_c2w = np.linalg.inv(pred)
+    pred_center = pred_c2w[:, :3, 3]
+    pred_lens = -pred_c2w[:, :3, 2]
+
+    anchor_center = a[list(center_cols)].to_numpy(float)
+
+    if lens_cols is not None:
+        anchor_lens = a[list(lens_cols)].to_numpy(float)
+    else:
+        yaw_col, pitch_col, _ = ypr_cols
+        anchor_lens = lens_from_yaw_pitch_deg(
+            a[yaw_col].to_numpy(float),
+            a[pitch_col].to_numpy(float),
+        )
+
+    center_error = np.linalg.norm(pred_center - anchor_center, axis=1)
+    lens_error_deg = angle_deg(pred_lens, anchor_lens)
+
+    for i in range(n):
+        residual_rows.append({
+            "batch_name": batch_name,
+            "chunk_name": chunk_name,
+            "local_index": int(i),
+            "record_index": int(a.iloc[i]["record_index"]) if "record_index" in a.columns and pd.notna(a.iloc[i]["record_index"]) else None,
+            "sequence_index": int(a.iloc[i]["sequence_index"]) if "sequence_index" in a.columns and pd.notna(a.iloc[i]["sequence_index"]) else None,
+            "center_error": float(center_error[i]),
+            "lens_error_deg": float(lens_error_deg[i]),
+            "anchor_center_cols": "|".join(center_cols),
+            "anchor_lens_cols": "|".join(lens_cols) if lens_cols is not None else None,
+            "anchor_ypr_cols": "|".join(ypr_cols) if ypr_cols is not None else None,
+            "pred_extrinsics_path": str(pred_path),
+        })
+
+residual_df = pd.DataFrame(residual_rows)
+residual_csv = chunk_manifest_dir / "pred_vs_anchor_pose_residual_test.csv"
+residual_df.to_csv(residual_csv, index=False, encoding="utf-8")
+
+missing_pred_df = pd.DataFrame(missing_pred_chunks)
+missing_pred_csv = chunk_manifest_dir / "pred_vs_anchor_pose_residual_missing_pred_test.csv"
+missing_pred_df.to_csv(missing_pred_csv, index=False, encoding="utf-8")
+
+summary = {
     "status": "ok",
-    "route": "continuous-gs-v06-chunk18-overlap6-adopt12-merge-dependency-preflight",
-    "missing_before_install": missing_merge_deps,
-    "tested_modules": [module_name for module_name, _ in merge_deps],
+    "residual_row_count": int(len(residual_df)),
+    "missing_pred_chunk_count": int(len(missing_pred_df)),
+    "residual_csv": str(residual_csv),
+    "missing_pred_csv": str(missing_pred_csv),
 }
-with open("/content/runbook_merge_dependency_status.json", "w", encoding="utf-8") as f:
-    json.dump(status_doc, f, indent=2, ensure_ascii=False)
-print(json.dumps(status_doc, indent=2, ensure_ascii=False))
+
+if len(residual_df) > 0:
+    summary["center_error_mean"] = float(residual_df["center_error"].mean())
+    summary["center_error_p95"] = float(residual_df["center_error"].quantile(0.95))
+    summary["lens_error_deg_mean"] = float(residual_df["lens_error_deg"].mean())
+    summary["lens_error_deg_p95"] = float(residual_df["lens_error_deg"].quantile(0.95))
+
+(final_outputs_diagnostics_dir / "pred_vs_anchor_pose_residual_test_summary.json").write_text(
+    json.dumps(summary, indent=2, ensure_ascii=False),
+    encoding="utf-8",
+)
+
+print(json.dumps(summary, indent=2, ensure_ascii=False))
+if len(residual_df) > 0:
+    display(residual_df.head())
+if len(missing_pred_df) > 0:
+    display(missing_pred_df.head())
 ```
 
-### #11 Final rebuild merge + bundle
 
-- final merge でも `Block 4` と同じ owner_record 判定を使う。`PCA 1軸帯 keep` と terminal の `all keep fallback` は使わない。
-- `keep_zero_chunk` は warning ではなく hard error とし、owner-based merge が崩れた chunk を見逃さない。
-- `#11` の前に `#10-5 pre-merge pose gate` を必ず通し、`merged` または `merged_add**` 配下の `premerge_pose_validation.json` の `status == ok` を満たした時だけ merge を許可する。
-- `#11` の前に `#10-6 merge dependency preflight` を通し、`/content/runbook_merge_dependency_status.json` を作っておく。`#11` 自体にも不足 package の自己補完は残す。
-- `#11` は `trimesh`、`plyfile`、`scipy` を merge 依存 package とし、未導入なら cell 冒頭で不足分だけ install してから継続する。
-- `MAKE_DRIVE_BUNDLE = True` の時も、Drive 上で新しい複製 directory は作らない。Drive 正本は最初から `probe_root` 配下だけに集約し、bundle summary にはその root を `drive_visible_dir` として残す。
-- `#11` は Drive 正本への保存完了をもって完了とする。local zip 作成と browser download は別段 `#11-1` に切り出し、merge 成否と混在させない。
-- `probe_root/final_outputs/` は `#6-1` の時点で先に作り、`#11` で確定出力と最低限の付随情報を必ずここへ保存する。local zip 作成や download を行わなくても Drive 側の最終 tree は残る。
-- `#11` は現状 1 cell でも、`#11-2 gs_ply merge` 相当の成果物を `probe_root/final_outputs/stage_11_2/` へ、`#11-3 glb merge` 相当の成果物を `probe_root/final_outputs/stage_11_3/` へ保存する。これにより runtime 切断後も Drive 側 artifact から途中再開できる。
-- `#11-2` 相当では `merged_gs.ply`、`chunk_global_transforms.csv`、`chunk_keep_summary.csv`、`chunk_transform_quality.csv`、`owner_record_histogram.csv`、`chunk_assignment_summary.csv`、`merge_warning_summary.json` を Drive 側へ保存する。
-- `#11-3` 相当では、上記に加えて `merged_scene.glb` と `merge_resume_state.json` を Drive 側へ保存し、後段はその resume state と stage artifact だけを読んで再開できる構成にする。
-- cleanup 後も merge 根拠を再確認できるよう、`final_outputs/chunk_evidence/<chunk_name>/` に `vertex_assignment_summary.csv`、`chunk_input_frames.csv`、`pred_extrinsics.npy`、`pred_intrinsics.npy` を残す。
-- cleanup は `#12 inventory` と `#13 apply` に分離する。`#12` は全 block を対象に「保持対象」と「削除候補」を一覧化し、`#13` はその一覧を読んで yes 入力時だけ削除する。
+### 5-6
+
 
 ```python
-#11
+#5-6
+from pathlib import Path
+import json
+import numpy as np
+import pandas as pd
+
+ctx = load_ctx()
+pipeline_root = Path(ctx['probe_root']) / ctx.get('pipeline_slug', 'da3_seq_anchor_batch_v02')
+chunk_runs_dir = pipeline_root / 'chunk_runs'
+managed_dirs = json.loads(Path('/content/runbook_managed_dirs.json').read_text(encoding='utf-8'))
+anchor_df = pd.read_csv(Path(managed_dirs['01_anchor']) / 'full_anchor_pose_diag.csv')
+anchor_seq = anchor_df.set_index('sequence_index') if 'sequence_index' in anchor_df.columns else None
+rows=[]
+for pred_path in sorted(chunk_runs_dir.glob('*/pred_extrinsics.npy')):
+    chunk_dir = pred_path.parent
+    seq_csv = chunk_dir / 'chunk_input_frames.csv'
+    if not seq_csv.exists() or anchor_seq is None:
+        continue
+    cdf = pd.read_csv(seq_csv)
+    if 'sequence_index' not in cdf.columns:
+        continue
+    pred = np.load(pred_path)
+    n = min(len(cdf), len(pred))
+    for local_i in range(n):
+        seq_idx = int(cdf.iloc[local_i]['sequence_index'])
+        if seq_idx not in anchor_seq.index:
+            continue
+        rows.append({
+            'chunk_name': chunk_dir.name,
+            'local_index': int(local_i),
+            'sequence_index': seq_idx,
+            'anchor_roll_deg': float(anchor_seq.loc[seq_idx]['roll_deg']) if 'roll_deg' in anchor_seq.columns else np.nan,
+            'anchor_pitch_deg': float(anchor_seq.loc[seq_idx]['pitch_deg']) if 'pitch_deg' in anchor_seq.columns else np.nan,
+            'anchor_yaw_deg': float(anchor_seq.loc[seq_idx]['yaw_deg']) if 'yaw_deg' in anchor_seq.columns else np.nan,
+        })
+res_df = pd.DataFrame(rows)
+out = pipeline_root / 'merged' / 'batch_residual_stub.csv'
+out.parent.mkdir(parents=True, exist_ok=True)
+res_df.to_csv(out, index=False, encoding='utf-8')
+print({'batch_residual_stub_csv': str(out), 'rows': len(res_df)})
+```
+
+
+### #5-9 batch成果物要約保存  
+新設。batch summary を保存する。
+
+
+```python
+#5-9
+from pathlib import Path
+import json
+import pandas as pd
+
+ctx = load_ctx()
+pipeline_root = Path(ctx['probe_root']) / ctx.get('pipeline_slug', 'da3_seq_anchor_batch_v02')
+merged_dir = pipeline_root / 'merged'
+summary = {
+    'target_batch_reset_done': (pipeline_root / 'chunk_runs').exists(),
+    'premerge_pose_gate_exists': (merged_dir / 'premerge_pose_gate_summary.json').exists(),
+    'batch_residual_stub_exists': (merged_dir / 'batch_residual_stub.csv').exists(),
+}
+save_json(merged_dir / 'batch_gate_summary.json', summary)
+print(json.dumps(summary, indent=2, ensure_ascii=False))
+```
+
+
+```python
+from pathlib import Path
+
+root = Path("/content/drive/MyDrive/trajectreview/modeling_3chunk_2/trajectreview-modeling-session-20260403-194043/da3_seq_anchor_batch_v02/chunk_runs")
+preds = sorted(root.rglob("pred_extrinsics.npy"))
+print("pred_count =", len(preds))
+for p in preds[:20]:
+    print(p)
+```
+
+
+## #6 統合処理
+
+
+### #6-1 統合入力の収集 / #6-2 local→global 整列 / #6-3 owner 判定と point 採用 / #6-4 seam 検証 / #6-5 final merge 出力  
+旧 #10-6 #11 と目的は類似。依存確認後に final merge を実行する。
+
+
+```python
+#6-2
 from pathlib import Path
 import json
 import shutil
@@ -2460,9 +4764,9 @@ import trimesh
 from plyfile import PlyData, PlyElement
 from scipy.spatial import cKDTree
 
-merge_dependency_status_path = Path("/content/runbook_merge_dependency_status.json")
-if not merge_dependency_status_path.exists():
-    print("# warning: #10-6 merge dependency preflight was not run; continued by #11 self-heal path")
+batch_preflight_status_path = Path("/content/runbook_batch_preflight_status.json")
+if not batch_preflight_status_path.exists():
+    print("# warning: batch execution preflight was not run; continued by self-heal path")
 
 ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
 probe_root = Path(ctx["probe_root"])
@@ -2475,7 +4779,7 @@ final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
 final_outputs_manifests_dir = Path(ctx["final_outputs_manifests_dir"])
 final_outputs_chunk_evidence_dir = Path(ctx["final_outputs_chunk_evidence_dir"])
 
-pipeline_root = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12"
+pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_seq_anchor_batch_v02")
 global_pose_dir = pipeline_root / "global_pose_bootstrap"
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
@@ -2498,7 +4802,7 @@ else:
         "STEP": 12,
         "ADOPT_SIZE": 12,
         "CHUNKS_PER_BATCH": 3,
-        "GLOBAL_CAMERA_SOURCE": "extrinsics_w2c_prod.npy",
+        "GLOBAL_CAMERA_SOURCE": "extrinsics_w2c.npy",
     }
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(json.dumps(config, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -2536,6 +4840,31 @@ else:
     chunk_manifest_dir.mkdir(parents=True, exist_ok=True)
     all_chunks_df.to_csv(chunk_index_all_path, index=False, encoding="utf-8")
 
+def ensure_target_chunk_manifest():
+    target_path = chunk_manifest_dir / "chunk_index_target.csv"
+    if target_path.exists():
+        return pd.read_csv(target_path)
+    all_path = chunk_manifest_dir / "chunk_index_all.csv"
+    assert all_path.exists(), all_path
+    base_df = pd.read_csv(all_path)
+    if config.get("USE_TARGET_CHUNK_WINDOW", False):
+        start_0 = max(0, int(config.get("TARGET_CHUNK_WINDOW_START_1BASED", 1)) - 1)
+        end_0 = min(start_0 + int(config.get("TARGET_CHUNK_WINDOW_COUNT", 3)), len(base_df))
+        target_chunks_df = base_df.iloc[start_0:end_0].copy().reset_index(drop=True)
+    else:
+        target_chunks_df = base_df.copy().reset_index(drop=True)
+    target_chunks_df.to_csv(target_path, index=False, encoding="utf-8")
+    return target_chunks_df
+
+def resolve_chunk_input_dir(chunk_name: str) -> Path:
+    primary = chunk_runs_dir / chunk_name
+    assert (primary / "pred_extrinsics.npy").exists() and (primary / "chunk_input_frames.csv").exists(), {
+        "chunk_name": chunk_name,
+        "missing_dir": str(primary),
+        "reason": "run #10-1 before #11",
+    }
+    return primary
+
 completed_chunk_names = sorted({
     p.parent.name
     for p in chunk_runs_dir.glob("*/_SUCCESS.json")
@@ -2544,10 +4873,15 @@ ply_ready_chunk_names = sorted({
     p.parent.name
     for p in chunk_runs_dir.glob("*/gs_ply/0000.ply")
 })
-completed_chunks_df = all_chunks_df[all_chunks_df["chunk_name"].isin(completed_chunk_names)].copy()
+all_chunks_df = pd.read_csv(chunk_manifest_dir / "chunk_index_all.csv")
+target_chunks_df = ensure_target_chunk_manifest()
+completed_chunks_df = target_chunks_df[target_chunks_df["chunk_name"].isin(completed_chunk_names)].copy()
+ply_ready_target_chunk_names = sorted(set(ply_ready_chunk_names) & set(target_chunks_df["chunk_name"].tolist()))
 
-batch_summaries = sorted(chunk_runs_dir.glob("batch_*/batch_summary.json"))
-summary_rows = [json.loads(p.read_text(encoding="utf-8")) for p in batch_summaries]
+batch_summaries = sorted({
+    str(p) for p in chunk_runs_dir.glob("batch_*/batch_summary.json")
+})
+summary_rows = [json.loads(Path(p).read_text(encoding="utf-8")) for p in batch_summaries]
 (merged_dir / "all_batch_summary.json").write_text(json.dumps(summary_rows, indent=2, ensure_ascii=False), encoding="utf-8")
 premerge_pose_validation_path = merged_dir / "premerge_pose_validation.json"
 
@@ -2578,14 +4912,14 @@ if premerge_pose_validation.get("status") != "ok":
     print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
     raise AssertionError(premerge_pose_validation)
 
-if REQUIRE_ALL_CHUNKS and len(completed_chunks_df) < len(all_chunks_df):
+if REQUIRE_ALL_CHUNKS and len(completed_chunks_df) < len(target_chunks_df):
     merge_summary = {
         "route": "continuous-gs-v06-chunk18-overlap6-adopt12-merge",
         "status": "skipped",
         "reason": "waiting_for_all_chunks",
         "completed_chunk_count": int(len(completed_chunks_df)),
-        "ply_ready_chunk_count": int(len(ply_ready_chunk_names)),
-        "all_chunk_count": int(len(all_chunks_df)),
+        "ply_ready_chunk_count": int(len(ply_ready_target_chunk_names)),
+        "all_chunk_count": int(len(target_chunks_df)),
         "all_batch_summary_path": str(merged_dir / "all_batch_summary.json"),
     }
     (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -2593,7 +4927,11 @@ if REQUIRE_ALL_CHUNKS and len(completed_chunks_df) < len(all_chunks_df):
 else:
     global_centers_df = pd.read_csv(global_pose_dir / "camera_center_matrix.csv")
     global_camera_matrix_df = pd.read_csv(global_pose_dir / "camera_matrix_full.csv")
-    prod_manifest_df = pd.read_csv(manifest_dir / "da3_input_manifest_prod.csv")
+    global_anchor_df = pd.read_csv(global_pose_dir / "camera_anchor_full.csv")
+    input_manifest_path = manifest_dir / "da3_input_manifest.csv"
+    assert input_manifest_path.exists(), input_manifest_path
+    input_manifest_df = pd.read_csv(input_manifest_path)
+    assert global_anchor_df["record_index"].is_unique, "global anchor record_index must be unique"
     OWNER_TOPK = 6
     OWNER_W_DIST = 1.0
     OWNER_W_DIR = 0.35
@@ -2615,6 +4953,25 @@ else:
             scene.add_geometry(loaded)
         return scene
 
+    def iter_baked_scene_geometry(scene: trimesh.Scene):
+        dumped = None
+        if hasattr(scene, "dump"):
+            try:
+                dumped = scene.dump(concatenate=False)
+            except TypeError:
+                dumped = scene.dump()
+        if isinstance(dumped, (list, tuple)) and len(dumped) > 0:
+            for idx, geom in enumerate(dumped):
+                if geom is None:
+                    continue
+                if hasattr(geom, "copy"):
+                    geom = geom.copy()
+                yield f"dump_{idx:04d}", geom
+            return
+        for gname, geom in scene.geometry.items():
+            geom2 = geom.copy() if hasattr(geom, "copy") else geom
+            yield str(gname), geom2
+
     def to_4x4(ext):
         ext = np.asarray(ext).astype(np.float32)
         if ext.shape == (4, 4):
@@ -2633,10 +4990,49 @@ else:
             out[int(row.record_index)] = M
         return out
 
-    def optical_axis_from_c2w(c2w: np.ndarray):
-        axis = np.asarray(c2w[:3, 2], dtype=np.float32)
+    def lens_direction_from_c2w(c2w: np.ndarray):
+        axis = -np.asarray(c2w[:3, 2], dtype=np.float32)
         norm = float(np.linalg.norm(axis))
         return axis / max(norm, 1e-12)
+
+    def up_direction_from_c2w(c2w: np.ndarray):
+        axis = -np.asarray(c2w[:3, 1], dtype=np.float32)
+        norm = float(np.linalg.norm(axis))
+        return axis / max(norm, 1e-12)
+
+    def normalize_vec(vec: np.ndarray, fallback: np.ndarray):
+        vec = np.asarray(vec, dtype=np.float32)
+        norm = float(np.linalg.norm(vec))
+        if norm <= 1e-12:
+            fallback = np.asarray(fallback, dtype=np.float32)
+            fallback_norm = float(np.linalg.norm(fallback))
+            assert fallback_norm > 1e-12, "fallback vector must be non-zero"
+            return fallback / fallback_norm
+        return vec / norm
+
+    def build_anchor_c2w(fallback_c2w: np.ndarray, rec) -> np.ndarray:
+        M = np.asarray(fallback_c2w, dtype=np.float32).copy()
+        center = np.array([float(rec.cx_world), float(rec.cy_world), float(rec.cz_world)], dtype=np.float32)
+        anchor_lens = normalize_vec(
+            np.array([float(rec.anchor_lens_x), float(rec.anchor_lens_y), float(rec.anchor_lens_z)], dtype=np.float32),
+            lens_direction_from_c2w(M),
+        )
+        anchor_up = normalize_vec(
+            np.array([float(rec.anchor_up_x), float(rec.anchor_up_y), float(rec.anchor_up_z)], dtype=np.float32),
+            up_direction_from_c2w(M),
+        )
+        z_col = normalize_vec(-anchor_lens, M[:3, 2])
+        x_seed = np.cross(-anchor_up, z_col)
+        x_col = normalize_vec(x_seed, M[:3, 0])
+        y_col = normalize_vec(np.cross(z_col, x_col), M[:3, 1])
+        if float(np.dot(y_col, -anchor_up)) < 0.0:
+            x_col = -x_col
+            y_col = -y_col
+        M[:3, 0] = x_col
+        M[:3, 1] = y_col
+        M[:3, 2] = z_col
+        M[:3, 3] = center
+        return M
 
     def c2w_list_from_extrinsics(extrinsics):
         mats = []
@@ -2653,8 +5049,10 @@ else:
         src_centers = []
         dst_centers = []
         for local_c2w, global_c2w in zip(local_c2w_list, global_c2w_list):
-            src_dirs.extend([local_c2w[:3, 0], local_c2w[:3, 1], local_c2w[:3, 2]])
-            dst_dirs.extend([global_c2w[:3, 0], global_c2w[:3, 1], global_c2w[:3, 2]])
+            src_dirs.append(lens_direction_from_c2w(local_c2w))
+            src_dirs.append(up_direction_from_c2w(local_c2w))
+            dst_dirs.append(lens_direction_from_c2w(global_c2w))
+            dst_dirs.append(up_direction_from_c2w(global_c2w))
             src_centers.append(local_c2w[:3, 3])
             dst_centers.append(global_c2w[:3, 3])
 
@@ -2711,14 +5109,14 @@ else:
         return T.astype(np.float32), diag
 
     global_camera_map = c2w_rows_to_map(global_camera_matrix_df)
-    global_frame_meta_df = global_centers_df.merge(
-        prod_manifest_df[["record_index", "qc_blur_ok", "blur_score"]],
+    global_frame_meta_df = global_anchor_df.merge(
+        input_manifest_df[["record_index", "qc_blur_ok", "blur_score"]],
         on="record_index",
         how="left",
     )
-    global_frame_meta_df["opt_x"] = global_frame_meta_df["record_index"].map(lambda x: float(optical_axis_from_c2w(global_camera_map[int(x)])[0]))
-    global_frame_meta_df["opt_y"] = global_frame_meta_df["record_index"].map(lambda x: float(optical_axis_from_c2w(global_camera_map[int(x)])[1]))
-    global_frame_meta_df["opt_z"] = global_frame_meta_df["record_index"].map(lambda x: float(optical_axis_from_c2w(global_camera_map[int(x)])[2]))
+    global_frame_meta_df["lens_x"] = global_frame_meta_df["anchor_lens_x"].astype(float)
+    global_frame_meta_df["lens_y"] = global_frame_meta_df["anchor_lens_y"].astype(float)
+    global_frame_meta_df["lens_z"] = global_frame_meta_df["anchor_lens_z"].astype(float)
     global_frame_meta_df["qc_blur_ok"] = global_frame_meta_df["qc_blur_ok"].fillna(False).astype(bool)
     global_frame_meta_df["blur_score"] = global_frame_meta_df["blur_score"].fillna(0.0)
     global_frame_meta_df = global_frame_meta_df.sort_values("record_index").reset_index(drop=True)
@@ -2750,7 +5148,7 @@ else:
 
         candidate_meta = candidate_df.iloc[idxs.reshape(-1)].reset_index(drop=True)
         candidate_centers = candidate_meta[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32).reshape(len(xyz_w), k, 3)
-        candidate_axes = candidate_meta[["opt_x", "opt_y", "opt_z"]].to_numpy(dtype=np.float32).reshape(len(xyz_w), k, 3)
+        candidate_axes = candidate_meta[["lens_x", "lens_y", "lens_z"]].to_numpy(dtype=np.float32).reshape(len(xyz_w), k, 3)
         candidate_blur_ok = candidate_meta["qc_blur_ok"].to_numpy(dtype=bool).reshape(len(xyz_w), k)
         candidate_records = candidate_meta["record_index"].to_numpy(dtype=np.int64).reshape(len(xyz_w), k)
 
@@ -2797,27 +5195,34 @@ else:
 
     for row in completed_chunks_df.itertuples(index=False):
         out_dir = chunk_runs_dir / row.chunk_name
-        ply_path = out_dir / "gs_ply" / "0000.ply"
-        pred_ext_path = out_dir / "pred_extrinsics.npy"
-        chunk_input_path = out_dir / "chunk_input_frames.csv"
-        glb_path = out_dir / "scene.glb"
+        input_dir = resolve_chunk_input_dir(row.chunk_name)
+        ply_path = input_dir / "gs_ply" / "0000.ply"
+        pred_ext_path = input_dir / "pred_extrinsics.npy"
+        chunk_input_path = input_dir / "chunk_input_frames.csv"
+        glb_path = input_dir / "scene.glb"
         if not (ply_path.exists() and pred_ext_path.exists() and chunk_input_path.exists()):
             continue
+
+        out_dir.mkdir(parents=True, exist_ok=True)
 
         chunk_df = pd.read_csv(chunk_input_path)
         pred_extrinsics = np.load(pred_ext_path)
         chunk_df.attrs["chunk_name"] = row.chunk_name
+        assert chunk_df["record_index"].is_unique, f"duplicate record_index in chunk_input_frames: {row.chunk_name}"
+        assert pred_extrinsics.shape[0] == len(chunk_df), {"chunk_name": row.chunk_name, "pred_len": int(pred_extrinsics.shape[0]), "chunk_len": int(len(chunk_df))}
 
         local_c2w_list = c2w_list_from_extrinsics(pred_extrinsics)
         local_centers = np.stack([m[:3, 3] for m in local_c2w_list], axis=0).astype(np.float32)
 
         merged = chunk_df.merge(
-            global_centers_df[["record_index", "cx_world", "cy_world", "cz_world"]],
-            on="record_index",
+            global_anchor_df,
+            on=["record_index", "image_file_name", "image_path", "frame_timestamp_ns", "capture_timestamp_ns"],
             how="left",
+            validate="one_to_one",
         )
-        assert not merged[["cx_world", "cy_world", "cz_world"]].isnull().any().any(), f"global center missing: {row.chunk_name}"
-        global_c2w_list = [global_camera_map[int(record_index)] for record_index in merged["record_index"].tolist()]
+        assert len(merged) == len(chunk_df), {"chunk_name": row.chunk_name, "merged_len": len(merged), "chunk_len": len(chunk_df)}
+        assert not merged[["cx_world", "cy_world", "cz_world", "anchor_lens_x", "anchor_lens_y", "anchor_lens_z", "anchor_up_x", "anchor_up_y", "anchor_up_z"]].isnull().any().any(), f"global anchor missing: {row.chunk_name}"
+        global_c2w_list = [build_anchor_c2w(global_camera_map[int(rec.record_index)], rec) for rec in merged.itertuples(index=False)]
 
         T_c_to_w0, align_diag = estimate_pose_aware_similarity(local_c2w_list, global_c2w_list, estimate_scale=True)
 
@@ -2922,8 +5327,8 @@ else:
 
         if glb_path.exists():
             scene = load_scene_any(glb_path)
-            for gname, geom in scene.geometry.items():
-                geom2 = geom.copy()
+            for gname, geom in iter_baked_scene_geometry(scene):
+                geom2 = geom.copy() if hasattr(geom, "copy") else geom
                 if hasattr(geom2, "apply_transform"):
                     geom2.apply_transform(T_c_to_w0)
                 master_scene.add_geometry(geom2, node_name=f"{row.chunk_name}_{gname}")
@@ -2975,7 +5380,7 @@ else:
         "route": "continuous-gs-v06-chunk18-overlap6-adopt12-merge",
         "stage": "11-2-complete",
         "completed_chunk_count": int(len(completed_chunks_df)),
-        "all_chunk_count": int(len(all_chunks_df)),
+        "all_chunk_count": int(len(target_chunks_df)),
         "stage_11_2_dir": str(stage_11_2_dir),
         "stage_11_2_files": stage_11_2_files,
         "merged_ply_path": str(merged_ply_path) if merged_ply_path.exists() else None,
@@ -3009,9 +5414,10 @@ else:
         (merged_dir / "chunk_assignment_summary.csv", final_outputs_diagnostics_dir / "chunk_assignment_summary.csv"),
         (merged_dir / "merge_warning_summary.json", final_outputs_diagnostics_dir / "merge_warning_summary.json"),
         (merged_dir / "all_batch_summary.json", final_outputs_diagnostics_dir / "all_batch_summary.json"),
-        (manifest_dir / "da3_input_manifest_prod.csv", final_outputs_manifests_dir / "da3_input_manifest_prod.csv"),
+        (input_manifest_path, final_outputs_manifests_dir / "da3_input_manifest.csv"),
         (global_pose_dir / "camera_center_matrix.csv", final_outputs_manifests_dir / "camera_center_matrix.csv"),
         (global_pose_dir / "camera_matrix_full.csv", final_outputs_manifests_dir / "camera_matrix_full.csv"),
+        (global_pose_dir / "camera_anchor_full.csv", final_outputs_manifests_dir / "camera_anchor_full.csv"),
         (chunk_manifest_dir / "chunk_index_all.csv", final_outputs_manifests_dir / "chunk_index_all.csv"),
         (chunk_manifest_dir / "batch_plan.csv", final_outputs_manifests_dir / "batch_plan.csv"),
     ]
@@ -3062,7 +5468,7 @@ else:
         "status": "ok" if all_vertices else "skipped",
         "reason": None if all_vertices else "no kept vertices",
         "completed_chunk_count": int(len(completed_chunks_df)),
-        "all_chunk_count": int(len(all_chunks_df)),
+        "all_chunk_count": int(len(target_chunks_df)),
         "merged_ply_path": str(merged_ply_path) if merged_ply_path.exists() else None,
         "merged_glb_path": str(merged_glb_path) if merged_glb_path.exists() else None,
         "chunk_global_transforms_path": str(chunk_manifest_dir / "chunk_global_transforms.csv"),
@@ -3079,17 +5485,15 @@ else:
     (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
     shutil.copy2(merged_dir / "merge_summary.json", final_outputs_diagnostics_dir / "merge_summary.json")
     print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
-
 ```
 
-### #11-1 Optional local bundle zip + download
 
-- `#11` が `status == ok` で終わった後にだけ実行する任意 block とする。
-- ここでは Drive 正本を変更せず、`/content/...zip` を作って必要なら browser download を起動する。
-- local download は merge 完了条件ではない。download を行わなくても `#11` 完了時点で modeling の主処理は完了とみなす。
+### #6-6 optional bundle/export  
+旧 #11-1 と目的は類似。local bundle zip を必要時だけ作る。
+
 
 ```python
-#11-1
+#6-6
 from pathlib import Path
 import json
 import shutil
@@ -3097,7 +5501,7 @@ import shutil
 merge_summary_path = Path("/content/runbook_session_context.json")
 ctx = json.loads(merge_summary_path.read_text(encoding="utf-8"))
 probe_root = Path(ctx["probe_root"])
-pipeline_root = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12"
+pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_seq_anchor_batch_v02")
 merged_dir = Path(ctx.get("merged_dir", str(pipeline_root / "merged")))
 pipeline_config_path = pipeline_root / "pipeline_config.json"
 bundle_model_slug = "bundle"
@@ -3109,7 +5513,7 @@ assert merge_summary_doc_path.exists(), f"merge_summary not found: {merge_summar
 merge_summary = json.loads(merge_summary_doc_path.read_text(encoding="utf-8"))
 assert merge_summary.get("status") == "ok", merge_summary
 
-local_bundle_base = f"{ctx['modeling_session_id']}_{bundle_model_slug}_continuousgsv06chunk18ov6ad12"
+local_bundle_base = f"{ctx['modeling_session_id']}_{bundle_model_slug}_{ctx.get('pipeline_slug', 'da3_seq_anchor_batch_v02')}"
 local_bundle_zip = Path("/content") / f"{local_bundle_base}.zip"
 if local_bundle_zip.exists():
     local_bundle_zip.unlink()
@@ -3117,7 +5521,7 @@ shutil.make_archive(str(local_bundle_zip.with_suffix("")), "zip", root_dir=str(p
 
 bundle_download_summary = {
     "status": "ok",
-    "route": "continuous-gs-v06-chunk18-overlap6-adopt12-local-bundle-download",
+    "route": "da3-seq-anchor-batch-v02-local-bundle-download",
     "local_bundle_zip": str(local_bundle_zip),
     "manual_download_hint": f"from google.colab import files; files.download(r'{local_bundle_zip}')",
 }
@@ -3130,16 +5534,16 @@ print("# manual_download_hint")
 print(bundle_download_summary["manual_download_hint"])
 ```
 
-### #12 Cleanup inventory
 
-- `#12` は `#1` から `#11` までの生成物を対象に、Drive 正本として保持するものと、merge 完了後に削除候補へ回せる不可視生成物を一覧化する。
-- `#12` 自体は削除しない。`cleanup_plan.json` を作って、admin が内容を見てから `#13` で適用する
-- 全 block 対象の cleanup inventory
-- cleanup_plan.json を作る
-- 何を残し、何を消せるかを一覧表示
+## #7 非永続化対象一覧化
+
+
+### #7-1 全生成物 inventory 収集 / #7-2 非永続候補判定  
+旧 #12 と目的は類似。cleanup inventory を生成する。
+
 
 ```python
-#12
+#7-1
 from pathlib import Path
 import json
 import os
@@ -3148,12 +5552,11 @@ ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encodin
 probe_root = Path(ctx["probe_root"])
 results_root = Path(ctx["results_root"])
 manifest_dir = Path(ctx["manifest_dir"])
-proof_metric_dir = Path(ctx["proof_metric_dir"])
-prod_metric_dir = Path(ctx["prod_metric_dir"])
-proof_giant_dir = Path(ctx["proof_giant_dir"])
+da3_nested_dir = Path(ctx["da3_nested_dir"])
+da3_nested_gs_dir = Path(ctx["da3_nested_gs_dir"])
 world_dir = Path(ctx["world_dir"])
 
-pipeline_root = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12"
+pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_seq_anchor_batch_v02")
 global_pose_dir = pipeline_root / "global_pose_bootstrap"
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
@@ -3185,13 +5588,13 @@ kept_groups = [
     {"block": "#6", "label": "final_outputs_diagnostics_dir", "path": str(final_outputs_diagnostics_dir)},
     {"block": "#6", "label": "final_outputs_manifests_dir", "path": str(final_outputs_manifests_dir)},
     {"block": "#6", "label": "final_outputs_chunk_evidence_dir", "path": str(final_outputs_chunk_evidence_dir)},
-    {"block": "#7", "label": "proof_metric_dir", "path": str(proof_metric_dir)},
-    {"block": "#7", "label": "prod_metric_dir", "path": str(prod_metric_dir)},
+    {"block": "#7", "label": "da3_nested_dir", "path": str(da3_nested_dir)},
+    {"block": "#7", "label": "da3_nested_gs_dir", "path": str(da3_nested_gs_dir)},
     {"block": "#7", "label": "world_dir", "path": str(world_dir)},
     {"block": "#8", "label": "global_pose_dir", "path": str(global_pose_dir)},
     {"block": "#8", "label": "chunk_manifest_dir", "path": str(chunk_manifest_dir)},
     {"block": "#11", "label": "merged_dir", "path": str(merged_dir)},
-    {"block": "#11", "label": "proof_giant_dir", "path": str(proof_giant_dir)},
+    {"block": "#11", "label": "da3_nested_gs_dir", "path": str(da3_nested_gs_dir)},
 ]
 
 delete_candidates = []
@@ -3246,59 +5649,118 @@ print("# cleanup_plan")
 print(json.dumps(cleanup_plan, indent=2, ensure_ascii=False))
 ```
 
-### #13 Cleanup apply
 
-- `#13` は `#12` が作った `cleanup_plan.json` を読んで、yes の時だけ削除する。
-- `#13` は `probe_root` 配下の正本 directory を削除しない。削除するのは `delete_candidates` に載った不可視生成物だけである。
-- cleanup_plan.json を読んで
-- yes の時だけ削除実行
+### #7-3 ユーザー確認用 cleanup csv 出力  
+新設。cleanup_plan.json から CSV を出す。
+
 
 ```python
-#13
+#7-3
+from pathlib import Path
+import json
+import pandas as pd
+
+ctx = load_ctx()
+pipeline_root = Path(ctx['probe_root']) / ctx.get('pipeline_slug', 'da3_seq_anchor_batch_v02')
+merged_dir = Path(ctx.get('merged_dir', str(pipeline_root / 'merged')))
+cleanup_plan_path = merged_dir / 'cleanup_plan.json'
+assert cleanup_plan_path.exists(), cleanup_plan_path
+cleanup_plan = json.loads(cleanup_plan_path.read_text(encoding='utf-8'))
+rows=[]
+for item in cleanup_plan.get('delete_candidates', []):
+    rows.append({
+        'action': 'delete',
+        'path': item['path'],
+        'kind': item.get('kind',''),
+        'reason': item.get('reason',''),
+        'size_bytes': item.get('size_bytes',0),
+    })
+for item in cleanup_plan.get('kept_groups', []):
+    rows.append({
+        'action': 'keep',
+        'path': item['path'],
+        'kind': item.get('kind','keep'),
+        'reason': item.get('reason', item.get('label','keep_group')),
+        'size_bytes': item.get('size_bytes',0),
+    })
+cleanup_csv = merged_dir / 'cleanup_inventory_review_v02.csv'
+pd.DataFrame(rows).to_csv(cleanup_csv, index=False, encoding='utf-8')
+print({'cleanup_inventory_review_csv': str(cleanup_csv), 'row_count': len(rows)})
+```
+
+
+## #8 cleanup apply
+
+
+### #8-1 ユーザー確認済 csv 読込 / #8-2 delete 実行 / #8-3 other 退避 / #8-4 cleanup 結果要約  
+旧 #13 と目的は類似。ただし reviewed CSV を優先し、未記載の非永続候補は `other` へ退避する。
+
+
+```python
+#8-1
 from pathlib import Path
 import json
 import shutil
+import pandas as pd
 
-ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
-probe_root = Path(ctx["probe_root"])
-final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
-pipeline_root = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12"
-merged_dir = Path(ctx.get("merged_dir", str(pipeline_root / "merged")))
-cleanup_plan_path = merged_dir / "cleanup_plan.json"
+ctx = load_ctx()
+probe_root = Path(ctx['probe_root'])
+pipeline_root = probe_root / ctx.get('pipeline_slug', 'da3_seq_anchor_batch_v02')
+merged_dir = Path(ctx.get('merged_dir', str(pipeline_root / 'merged')))
+cleanup_plan_path = merged_dir / 'cleanup_plan.json'
+cleanup_csv_path = merged_dir / 'cleanup_inventory_review_v02.csv'
 assert cleanup_plan_path.exists(), cleanup_plan_path
+assert cleanup_csv_path.exists(), cleanup_csv_path
+cleanup_plan = json.loads(cleanup_plan_path.read_text(encoding='utf-8'))
+review_df = pd.read_csv(cleanup_csv_path)
+review_df['action'] = review_df['action'].astype(str).str.strip().str.lower()
+reviewed_paths = set(review_df['path'].astype(str))
+other_dir = probe_root / 'other'
+other_dir.mkdir(parents=True, exist_ok=True)
 
-cleanup_plan = json.loads(cleanup_plan_path.read_text(encoding="utf-8"))
-print("# cleanup_plan_reloaded")
-print(json.dumps(cleanup_plan, indent=2, ensure_ascii=False))
+deleted=[]
+moved_to_other=[]
+kept=[]
 
-answer = input("Delete cleanup_plan delete_candidates now? type yes to delete: ").strip().lower()
-
-deleted = []
-if answer == "yes":
-    for item in cleanup_plan["delete_candidates"]:
-        p = Path(item["path"])
-        if not p.exists():
-            continue
+# reviewed delete rows
+for row in review_df.itertuples(index=False):
+    p = Path(row.path)
+    action = str(row.action).strip().lower()
+    if action == 'delete' and p.exists():
         if p.is_dir():
             shutil.rmtree(p)
         else:
             p.unlink()
-        deleted.append(item)
-    cleanup_result = {
-        "status": "ok",
-        "reason": "user_confirmed",
-        "deleted": deleted,
-    }
-else:
-    cleanup_result = {
-        "status": "skipped",
-        "reason": "user_declined",
-        "deleted": [],
-    }
+        deleted.append(str(p))
+    elif action in {'keep', 'other'}:
+        kept.append(str(p))
 
-(merged_dir / "cleanup_result.json").write_text(json.dumps(cleanup_result, indent=2, ensure_ascii=False), encoding="utf-8")
-Path(final_outputs_diagnostics_dir).mkdir(parents=True, exist_ok=True)
-(final_outputs_diagnostics_dir / "cleanup_result.json").write_text(json.dumps(cleanup_result, indent=2, ensure_ascii=False), encoding="utf-8")
-print("# cleanup_result")
+# anything in delete_candidates but absent from reviewed csv => move to other
+for item in cleanup_plan.get('delete_candidates', []):
+    src = Path(item['path'])
+    if str(src) in reviewed_paths or not src.exists():
+        continue
+    dst = other_dir / src.name
+    n = 1
+    while dst.exists():
+        dst = other_dir / f'{src.stem}_mv{n:02d}{src.suffix}'
+        n += 1
+    shutil.move(str(src), str(dst))
+    moved_to_other.append({'src': str(src), 'dst': str(dst)})
+
+cleanup_result = {
+    'status': 'ok',
+    'deleted': deleted,
+    'moved_to_other': moved_to_other,
+    'kept': kept,
+}
+(merged_dir / 'cleanup_apply_log.json').write_text(json.dumps(cleanup_result, indent=2, ensure_ascii=False), encoding='utf-8')
+pd.DataFrame([
+    {'action':'deleted','path':p} for p in deleted
+] + [
+    {'action':'moved_to_other','path':x['src'],'dst':x['dst']} for x in moved_to_other
+] + [
+    {'action':'kept','path':p} for p in kept
+]).to_csv(merged_dir / 'cleanup_apply_log.csv', index=False, encoding='utf-8')
 print(json.dumps(cleanup_result, indent=2, ensure_ascii=False))
 ```

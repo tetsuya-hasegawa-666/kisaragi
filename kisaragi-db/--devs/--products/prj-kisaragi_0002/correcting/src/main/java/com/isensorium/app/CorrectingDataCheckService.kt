@@ -320,12 +320,12 @@ class CorrectingDataCheckService {
             }
         val recommendedModelingRoutes =
             buildList {
-                add("route-da3metric-large-5fps-static-intrinsics")
-                add("route-da3metric-large-10fps-static-intrinsics")
+                add("route-da3nested-giant-large-5fps-static-intrinsics")
+                add("route-da3nested-giant-large-10fps-static-intrinsics")
                 if (intrinsicsModeCandidate == "per_frame") {
-                    add("route-da3metric-large-10fps-per-frame-intrinsics")
+                    add("route-da3nested-giant-large-10fps-per-frame-intrinsics")
                 } else if (imageIntrinsicsCount > 0) {
-                    add("route-da3metric-large-10fps-per-frame-intrinsics")
+                    add("route-da3nested-giant-large-10fps-per-frame-intrinsics")
                 }
             }
 

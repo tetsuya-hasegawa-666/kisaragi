@@ -70,14 +70,14 @@
 
 ### PC + Colab block
 
-38. `Colab` runbook の正本は [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_colab_evid_runbook.md) とし、admin が Colab でそのまま実行する notebook は [da3_colab_evid_runbook.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_colab_evid_runbook.ipynb) を使う。canonical route は `MRL-10 record-native DA3 route` であり、`frame_record.jsonl + images` を正に読み、`intrinsics[N,3,3]` と `extrinsics_w2c[N,4,4]` を canonical manifest として生成する。画像は `correcting` 側で `90度右回転` 済みの upright JPEG を受け取る前提で、`Colab` は pixel を再回転しない。legacy session の intrinsics だけ raw 向きだった時は `Block 1` が `k_resize_check.csv` と `orientation_summary.json` に補正結果を残す。`MetricLarge route` は image-only 推論、`Giant route` は `DA3NESTED-GIANT-LARGE-1.1` と `da3_estimated pose` の living spec を使う。`Giant` の production candidate は一括実行ではなく、`continuous_gs_v06_chunk18_overlap6_adopt12` の `Block 3` で `extrinsics_w2c_prod.npy` から全体カメラ行列、全 chunk manifest、`batch_plan.csv` を作り、`Block 4` で helper を読み込んだ後、`Block 5` を `RUN_BATCH_INDEX` を変えながら `3chunk batch` ごとに繰り返し実行して、最後に `Block 6` が completed chunk 全体から merge と bundle を再構築する。各 chunk は `18frame`、chunk 間 overlap は `6frame`、各 chunk の再構成責務は基本 `後半 12frame` である。merge は `pose-aware alignment + owner_record keep` を正とし、`chunk_global_transforms.csv` の `rotation_det`、`center_rmse`、`rotation_dir_residual` に加えて `vertex_assignment_summary.csv`、`owner_record_histogram.csv`、`chunk_assignment_summary.csv`、`merge_warning_summary.json`、`chunk_transform_quality.csv` を確認する。
+38. `Colab` runbook の正本は [da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_colab_evid_runbook.md) とし、admin が Colab でそのまま実行する notebook は [da3_colab_evid_runbook.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_colab_evid_runbook.ipynb) を使う。canonical route は `MRL-10 sequence-anchor record-native DA3 route` であり、`frame_record.jsonl + images` を正に読み、`intrinsics[N,3,3]` と `extrinsics_w2c[N,4,4]` を canonical manifest として生成する。画像は `correcting` 側で `90度右回転` 済みの upright JPEG を受け取る前提で、`Colab` は pixel を再回転しない。legacy session の intrinsics だけ raw 向きだった時は `Block 1` が `k_resize_check.csv` と `orientation_summary.json` に補正結果を残す。camera pose / trajectory の事前推定も `depth-anything/DA3NESTED-GIANT-LARGE-1.1` の official API / CLI 基準で full sequence anchor、anchor QC、adjacent continuity precheck、batch/chunk gate、final merge を行う。
 39. PC browser で [Google Colab](https://colab.research.google.com/) を開き、Google account で sign in する。
-40. `ファイル` -> `ノートブックをアップロード` を選び、[trajectreview_da3metric_large_colab.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\trajectreview_da3metric_large_colab.ipynb) を開く。menu 名が違う時は `Upload notebook` 相当を探す。
+40. `ファイル` -> `ノートブックをアップロード` を選び、[da3_colab_evid_runbook.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_colab_evid_runbook.ipynb) を開く。menu 名が違う時は `Upload notebook` 相当を探す。
 41. `ランタイム` -> `ランタイムのタイプを変更` で `GPU` を選ぶ。候補に `T4`、`L4`、`A100` などが見えた時は、その表示を記録する。
 42. notebook の `CONFIG` cell を開き、`session_root` と `result_root` を今回使う値へ置き換える。値の意味はこの文書の `CONFIG に入れる値` を参照する。
 43. `drive.mount('/content/drive')` の cell を実行し、Google Drive への access 許可画面が出たら許可する。
 44. `session_root/` に、`colab_job_request.json` で要求された file と frame / image 入力を置く。迷った時は、先に file 名だけを Codex へ伝える。
-45. install cell と `DA3Metric-Large` 実行 cell は、1 つずつ順に実行する。失敗したら、その cell の見出しと error message をそのまま控える。
+45. install cell と `DA3NESTED-GIANT-LARGE-1.1` 実行 cell は、1 つずつ順に実行する。失敗したら、その cell の見出しと error message をそのまま控える。
 46. `MRL-10` の giant route は `Block 3` を 1 回、`Block 4` を 1 回実行した後、`Block 5` を `RUN_BATCH_INDEX = 0`、`1`、`2`、`3` ... と変えながら繰り返す。`Block 5` の 1 回は `3chunk` だけを処理する。各 chunk は `18frame`、chunk 間 overlap は `6frame`、再構成責務は基本 `後半 12frame` である。
 47. `Block 3` が出した `batch_plan.csv` を見て、何回 `Block 5` を回すかを決める。`batch_count = N` なら `RUN_BATCH_INDEX = 0` から `N-1` まで順に実行する。
 48. 全 batch を回し終わるまでは `Block 6` を実行しない。途中 batch の確認だけなら `batch_000`、`batch_001` などの `batch_summary.json` を見る。
@@ -110,7 +110,7 @@
   - 間違えやすい点: 出力先の親 folder を入れる。`session_id` や `route_id` は入れない。
 - `route_id`
   - 基本方針: notebook が `selected_route.json` または `colab_job_request.json` から自動取得する。
-  - 手動既定値: `route-da3metric-large-10fps-per-frame-intrinsics`
+  - 手動既定値: `route-da3nested-giant-large-10fps-per-frame-intrinsics`
 - `session_id`
   - 基本方針: notebook が `session_package.json` の `sessionId` から自動取得する。
 - `input_root`

@@ -22,7 +22,7 @@
   - `intrinsics[N,3,3]`
   - `extrinsics_w2c[N,4,4]`
   を manifest として生成する。
-- `DA3Metric-Large` は現行 upstream 制約により image-only 推論とし、`intrinsics` / `extrinsics_w2c` は world projection と評価証跡に使う。
+- `DA3NESTED-GIANT-LARGE-1.1` は現行 upstream 制約により image-only 推論とし、`intrinsics` / `extrinsics_w2c` は world projection と評価証跡に使う。
 - `Giant` proof living route は `DA3NESTED-GIANT-LARGE-1.1`、`da3_estimated pose`、`debug_gs_readback` bundle を canonical とする。
 
 ## Orientation Policy
@@ -49,6 +49,8 @@
 
 ### 実行パターン
 
+- 実行順: fresh runtime の最短本線は `#1 -> #2 -> #3 -> #4 -> #6-1 -> #6-2 -> #7 -> #8 -> #8-1b -> #9 -> #9-1 -> #10-1 -> #10-5 -> #10-6 -> #11`。
+
 1. 全体 camera 軌跡だけを見たい時
    - `#1 -> #2 -> #3 -> #4 -> #5 -> #6-1 -> #6-2 -> #7 -> #8`
 2. 変換 test 実行から merge まで進めたい時
@@ -62,7 +64,7 @@
 2. `install`
 3. `MRL-10 Block 1`
 4. `MRL-10 Block 2`
-5. 必要時のみ `MRL-10 Block 2-1` で `MetricLarge` 由来の global camera 軌跡だけを確認する
+5. 必要時のみ `MRL-10 Block 2-1` で `DA3NESTED-GIANT-LARGE-1.1` 由来の global camera 軌跡だけを確認する
 6. `MRL-10 Block 3` で全 chunk を生成し、既定では `No.6-11` を target に切り出す
 7. 必要時のみ `MRL-10 Block 3`
 8. 必要時のみ `MRL-10 Block 4`
@@ -76,6 +78,8 @@
 ## 準備確認
 
 ### #1 準備確認 1
+
+- 実行順: 最初に必ず `#1` を実行する。
 
 ```python
 #1
@@ -94,6 +98,8 @@ print("shortcut_root_exists", Path("/content/drive/.shortcut-targets-by-id").exi
 ```
 
 ### #2 準備確認 2
+
+- 実行順: `#1 -> #2`。
 
 ```python
 #2
@@ -351,6 +357,8 @@ for idx, item in enumerate(candidate_doc["candidates"]):
 
 ### #3 準備確認 3
 
+- 実行順: `#1 -> #2 -> #3`。
+
 ```python
 #3
 from pathlib import Path
@@ -405,6 +413,8 @@ display(dropdown, button, output)
 - `#3` で選んだ session は、全体 camera 軌跡、chunk 定義、chunk 実体、merge 入力の唯一の source とする。
 
 ### #4 準備確認 4
+
+- 実行順: `#1 -> #2 -> #3 -> #4`。
 
 ```python
 #4
@@ -512,12 +522,16 @@ print("inference_sig", inspect.signature(DepthAnything3.inference))
 
 ### 再利用方法
 
+- 実行順: fresh route は `#6-1`、既存 `probe_root` 再開は `#6-1b` を使う。
+
 - 既存 `probe_root` を再利用して merge 系だけをやり直す場合でも、runtime 初期化と path cache 生成のため `#1` から `#4` は必須とする。
 - `#3` の候補は `modeling` 正本だけとし、この派生 runbook では zip / correcting input から新規 3chunk を起動しない。
 - 既存 modeling data を使う最短順は `#1 -> #2 -> #3 -> #4 -> #10-5 -> #10-6 -> #11` とする。`#10-6` は merge 依存 package の preflight、`#11` は不足が残っていてもその場で補完する。必要なら `#6-1a` / `#6-1b` で候補一覧の再表示や手動切替を行う。
 - cleanup が必要な時だけ `#12` と `#13` を続ける。
 
 ### #6-1 正規化 + context pack
+
+- 実行順: fresh route は `#1 -> #2 -> #3 -> #4 -> #6-1`。
 
 ```python
 #6-1
@@ -600,6 +614,8 @@ print(json.dumps(context_doc, indent=2, ensure_ascii=False))
 ```
 
 ### #6-1b 既存 probe_root 参照で再開
+
+- 実行順: 再開 route は `#1 -> #2 -> #3 -> #4 -> #6-1b`。
 
 - すでに Drive 上に `probe_root` があり、chunk 実行結果や manifest を再利用して `#10-5` または `#11` から再開したい時はこの cell を使う。
 - ただし再開時も `#1` から `#4` は省略せず先に実行し、Drive mount、selected input、`runbook_paths.json` をそろえる。
@@ -786,6 +802,8 @@ print(json.dumps(context_doc, indent=2, ensure_ascii=False))
 ```
 
 ### #6-2 QC と manifest 化
+
+- 実行順: fresh route は `#1 -> #2 -> #3 -> #4 -> #6-1 -> #6-2`。
 
 ```python
 #6-2
@@ -1175,9 +1193,11 @@ summary = {
 print(json.dumps(summary, indent=2, ensure_ascii=False))
 ```
 
-### #7 MetricLarge proof + production + world export
+### #7 NESTED-GIANT-LARGE proof + production + world export
 
-- この派生 runbook では、全体 camera 軌跡は `prod` 全 frame を保持するが、`MetricLarge` の production inference と world export は対象 `3chunk` 相当の frame だけに絞る。
+- 実行順: fresh route は `#1 -> #2 -> #3 -> #4 -> #6-1 -> #6-2 -> #7`。
+
+- この派生 runbook では、全体 camera 軌跡は `prod` 全 frame を保持するが、`DA3NESTED-GIANT-LARGE-1.1` の production inference と world export は対象 `3chunk` 相当の frame だけに絞る。
 - 対象 `3chunk` は `chunk_0005_00060_00077`、`chunk_0006_00072_00089`、`chunk_0007_00084_00101` とする。
 
 ```python
@@ -1431,7 +1451,7 @@ preview[799 - py, px] = 255
 Image.fromarray(preview).save(world_dir / "world_points_multiframe_preview.png")
 
 proof_summary = {
-    "route": "MetricLarge-proof",
+    "route": "NestedGiantLarge-proof",
     "image_count": len(proof_images),
     "proof_metric_dir": str(proof_metric_dir),
     "prediction_type": str(type(proof_prediction).__name__),
@@ -1440,7 +1460,7 @@ proof_summary = {
     "intrinsics_case_counts": proof_df["intrinsics_case"].value_counts().to_dict(),
 }
 prod_summary = {
-    "route": "MetricLarge-production-3chunk-focus",
+    "route": "NestedGiantLarge-production-3chunk-focus",
     "image_count": len(prod_images),
     "full_camera_frame_count": int(len(prod_df)),
     "focus_global_start": int(focus_global_start),
@@ -1453,7 +1473,7 @@ prod_summary = {
     "intrinsics_case_counts": prod_focus_df["intrinsics_case"].value_counts().to_dict(),
 }
 world_summary = {
-    "route": "MetricLarge-production-world-3chunk-focus",
+    "route": "NestedGiantLarge-production-world-3chunk-focus",
     "processed_frames": len(per_frame),
     "skipped_frames": skipped_frames,
     "total_points": int(len(merged)),
@@ -1482,6 +1502,8 @@ print(json.dumps({
 ```
 
 ### #8 Global camera matrix + batch plan
+
+- 実行順: fresh route は `#1 -> #2 -> #3 -> #4 -> #6-1 -> #6-2 -> #7 -> #8`。
 
 ```python
 #8
@@ -1739,9 +1761,11 @@ print("\n# batch_plan")
 print(batch_plan_df.to_string(index=False))
 ```
 
-### #8-1 MetricLarge camera trajectory only
+### #8-1 NESTED-GIANT-LARGE camera trajectory only
 
-- chunk 実行前に、`MetricLarge` 由来の global camera 軌跡だけを独立確認したい時の専用 block とする。
+- 実行順: camera 軌跡の再生成確認が必要な時だけ `#8` の後で `#8-1` を実行する。
+
+- chunk 実行前に、`DA3NESTED-GIANT-LARGE-1.1` 由来の global camera 軌跡だけを独立確認したい時の専用 block とする。
 - source はこの runbook で生成した `manifests/extrinsics_w2c_prod.npy` と `da3_input_manifest_prod.csv` とし、生成した可視化 CSV は `modeling_3chunk_2` 側へ保存する。
 - 向きは `camera_matrix_full.csv` に含まれるが、読みやすいように `right / up / forward` を展開した `camera_orientation_full.csv` も併せて出力する。
 - 指定した chunk 名から対象 frame 範囲を自動解釈し、対象 3 chunk 相当の focus CSV も併せて出す。
@@ -1949,8 +1973,10 @@ print(pd.DataFrame(focus_ranges).to_string(index=False))
 
 ### #8-1b Canonical full camera trajectory preview
 
-- `#3` で選んだ raw correcting source から生成済みの canonical full camera 軌跡を、そのまま source-of-truth として確認する専用 block とする。
-- source は `selected_path/continuous_gs_v06_chunk18_overlap6_adopt12/global_pose_bootstrap/` の `camera_matrix_full.csv` / `camera_center_matrix.csv` とする。
+- 実行順: canonical anchor を source から反映するため、`#8` の後に `#8-1b` を実行する。
+
+- `#3` で選んだ source に modeling 側の canonical full camera 軌跡があればそれを優先して使う。無ければ、この runbook の `#8` で target 側に生成した `global_pose_bootstrap` を source-of-truth として使う。
+- source は `source_probe_root/continuous_gs_v06_chunk18_overlap6_adopt12/global_pose_bootstrap/`、無ければ `probe_root/continuous_gs_v06_chunk18_overlap6_adopt12/global_pose_bootstrap/` の `camera_matrix_full.csv` / `camera_center_matrix.csv` とする。
 - 対象 `3chunk` に対応する focus 範囲も source 側 `chunk_index_all.csv` から切り出して出力する。
 - source に orientation CSV が無い時は `camera_matrix_full.csv` から復元して `camera_orientation_*` を出力する。
 - この block を通すと、target `modeling_3chunk_2` 側の canonical `camera_anchor_full.csv` は、位置は proper な全体軌跡、姿勢は `flip_xyz` の見え方に合わせた lens/up anchor preview として更新される。
@@ -1971,10 +1997,12 @@ probe_root = Path(ctx["probe_root"])
 source_root_candidates = [
     source_probe_root,
     selected_path,
+    probe_root,
 ]
 source_root = next((p for p in source_root_candidates if (p / "continuous_gs_v06_chunk18_overlap6_adopt12" / "global_pose_bootstrap" / "camera_matrix_full.csv").exists()), None)
 assert source_root is not None, {
-    "source_root_candidates": [str(p) for p in source_root_candidates]
+    "source_root_candidates": [str(p) for p in source_root_candidates],
+    "hint": "zip/correcting route では先に #8 を実行して target probe_root に global_pose_bootstrap を作成してください",
 }
 
 source_pipeline_root = source_root / "continuous_gs_v06_chunk18_overlap6_adopt12"
@@ -2114,7 +2142,7 @@ summary = {
     "route": "canonical-full-camera-trajectory-preview",
     "source_probe_root": str(source_root),
     "target_probe_root": str(probe_root),
-    "camera_source": "selected_modeling/global_pose_bootstrap",
+    "camera_source": "selected_modeling/global_pose_bootstrap" if source_root != probe_root else "target_probe_root/global_pose_bootstrap",
     "full_frame_count": int(len(camera_matrix_df)),
     "full_camera_matrix_source_path": str(source_camera_matrix_path),
     "full_camera_centers_source_path": str(source_camera_centers_path),
@@ -2143,6 +2171,8 @@ print(focus_rows[["chunk_name", "global_start", "global_end"]].to_string(index=F
 ```
 
 ### #9 chunk helper for 18frame / overlap6 / adopt12
+
+- 実行順: merge / pose gate / batch 実行の前に `#8-1b` の後で `#9` を 1 回実行する。
 
 - この helper は `Block 3` の `camera_matrix_full.csv` と各 chunk の `pred_extrinsics.npy` を合わせて pose-aware alignment を解く。
 - global anchor は `camera_anchor_full.csv` を正本として使う。位置は proper な全体軌跡を保ち、姿勢だけ `lens = -c2w[:3,2]`、`up = -c2w[:3,1]` を anchor として扱う。
@@ -2776,7 +2806,98 @@ def process_batch(run_batch_index: int):
     print(json.dumps(batch_summary, indent=2, ensure_ascii=False))
 ```
 
+### #9-1 Target output reset
+
+- 実行順: clean rerun では `#9` の直後、`#10-1` の前に必ず `#9-1` を実行する。
+
+- 実行順: clean rerun では `#1 -> #2 -> #3 -> #4 -> #6-1 -> #6-2 -> #7 -> #8 -> #8-1b -> #9 -> #9-1 -> #10-1`、既存 `probe_root` 再開では `#1 -> #2 -> #3 -> #4 -> #6-1b -> #8-1b -> #9 -> #9-1 -> #10-1`。
+- 既存 Drive 上の target chunk 実体、batch summary、`merged`、`final_outputs` が残っていると、同じ見え方のまま再利用されることがある。
+- この block は target chunk window と、その merge 出力だけを削除して clean rerun 状態へ戻す。source correcting / source modeling / global manifest は消さない。
+- `#10-1` を本当にやり直したい時は、`#9-1` を先に実行する。
+
+```python
+#9-1
+from pathlib import Path
+import json
+import shutil
+import pandas as pd
+
+ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
+probe_root = Path(ctx["probe_root"])
+pipeline_root = probe_root / "continuous_gs_v06_chunk18_overlap6_adopt12"
+chunk_manifest_dir = pipeline_root / "manifests"
+chunk_runs_dir = pipeline_root / "chunk_runs"
+merged_dir = Path(ctx["merged_dir"])
+final_outputs_dir = Path(ctx["final_outputs_dir"])
+final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
+final_outputs_manifests_dir = Path(ctx["final_outputs_manifests_dir"])
+final_outputs_chunk_evidence_dir = Path(ctx["final_outputs_chunk_evidence_dir"])
+final_outputs_merged_dir = Path(ctx["final_outputs_merged_dir"])
+
+target_chunks_df = pd.read_csv(chunk_manifest_dir / "chunk_index_target.csv")
+batch_plan_df = pd.read_csv(chunk_manifest_dir / "batch_plan.csv")
+
+delete_targets = []
+for row in target_chunks_df.itertuples(index=False):
+    delete_targets.append(chunk_runs_dir / row.chunk_name)
+    delete_targets.append(chunk_manifest_dir / f"{row.chunk_name}_to_w0.npy")
+
+if "batch_name" in batch_plan_df.columns:
+    batch_names = sorted(batch_plan_df["batch_name"].astype(str).tolist())
+else:
+    batch_index_col = "batch_index" if "batch_index" in batch_plan_df.columns else None
+    assert batch_index_col is not None, {"available_columns": batch_plan_df.columns.tolist()}
+    batch_names = [f"batch_{int(v):03d}" for v in batch_plan_df[batch_index_col].tolist()]
+
+for batch_name in batch_names:
+    delete_targets.append(chunk_runs_dir / batch_name)
+
+delete_targets.extend([
+    merged_dir,
+    final_outputs_dir,
+])
+
+deleted = []
+missing = []
+for path in delete_targets:
+    if not path.exists():
+        missing.append(str(path))
+        continue
+    if path.is_dir():
+        shutil.rmtree(path)
+    else:
+        path.unlink()
+    deleted.append(str(path))
+
+for p in [
+    merged_dir,
+    final_outputs_dir,
+    final_outputs_diagnostics_dir,
+    final_outputs_manifests_dir,
+    final_outputs_chunk_evidence_dir,
+    final_outputs_merged_dir,
+]:
+    p.mkdir(parents=True, exist_ok=True)
+
+reset_summary = {
+    "status": "ok",
+    "route": "continuous-gs-v06-chunk18-overlap6-adopt12-target-output-reset",
+    "probe_root": str(probe_root),
+    "deleted_count": int(len(deleted)),
+    "deleted": deleted,
+    "missing_count": int(len(missing)),
+    "missing": missing,
+}
+(final_outputs_diagnostics_dir / "target_output_reset_summary.json").write_text(
+    json.dumps(reset_summary, indent=2, ensure_ascii=False),
+    encoding="utf-8",
+)
+print(json.dumps(reset_summary, indent=2, ensure_ascii=False))
+```
+
 ### #10 batch run
+
+- 実行順: clean rerun の chunk 実行は `#9-1` の後に `#10-1` を実行する。
 
 - この派生 runbook では `chunk_index_target.csv` に入れた target chunk window だけを処理する。
 - global camera matrix と world 系は全 frame / 全体情報を使うが、chunk 実行対象だけを target window に限定する。
@@ -2812,6 +2933,8 @@ print("unused in 3chunk runbook; run only #10-1")
 ```
 
 ### #10-5 Pre-merge pose gate
+
+- 実行順: target chunk 実行後に `#10-5` を実行し、pass の時だけ `#11` へ進む。
 
 - `#11 merge` の前に、`chunk_index_target.csv` に入れた対象 `3chunk` に対して camera-only の pose validation を必ず実行する。
 - この cell は `pred_extrinsics.npy` を `w2c` とみなし、local camera basis を `perm_yxz_sign_ppn` へ固定したうえで、global center と補正後 lens / up anchor に対する positive similarity 制約を対象 window で確認する。
@@ -3037,6 +3160,8 @@ assert hard_fail_df.empty, hard_fail_df[["chunk_name", "scale", "center_rmse", "
 
 ### #10-6 Merge dependency preflight
 
+- 実行順: `#10-5` pass 後、`#11` の直前に `#10-6` を実行する。
+
 - `#11 merge` の直前に、merge 依存 package の導入状態だけを独立確認する。
 - 既存 notebook が古く、`#11` に自己補完が入っていない runtime でも、この cell を先に実行すれば `trimesh` / `plyfile` / `scipy` 不足を解消できる。
 
@@ -3077,6 +3202,8 @@ print(json.dumps(status_doc, indent=2, ensure_ascii=False))
 ```
 
 ### #11 Final rebuild merge + bundle
+
+- 実行順: `#10-5 -> #10-6` を通した後で `#11` を実行する。
 
 - final merge でも `Block 4` と同じ owner_record 判定を使う。`PCA 1軸帯 keep` と terminal の `all keep fallback` は使わない。
 - `keep_zero_chunk` は warning ではなく hard error とし、owner-based merge が崩れた chunk を見逃さない。
@@ -3851,6 +3978,8 @@ else:
 
 ### #11-1 Optional local bundle zip + download
 
+- 実行順: local download が必要な時だけ、`#11` 完了後に `#11-1` を実行する。
+
 - `#11` が `status == ok` で終わった後にだけ実行する任意 block とする。
 - ここでは Drive 正本を変更せず、`/content/...zip` を作って必要なら browser download を起動する。
 - local download は merge 完了条件ではない。download を行わなくても `#11` 完了時点で modeling の主処理は完了とみなす。
@@ -3898,6 +4027,8 @@ print(bundle_download_summary["manual_download_hint"])
 ```
 
 ### #12 Cleanup inventory
+
+- 実行順: cleanup が必要な時だけ、`#11` 完了後に `#12` を実行する。
 
 - `#12` は `#1` から `#11` までの生成物を対象に、Drive 正本として保持するものと、merge 完了後に削除候補へ回せる不可視生成物を一覧化する。
 - `#12` 自体は削除しない。`cleanup_plan.json` を作って、admin が内容を見てから `#13` で適用する
@@ -4014,6 +4145,8 @@ print(json.dumps(cleanup_plan, indent=2, ensure_ascii=False))
 ```
 
 ### #13 Cleanup apply
+
+- 実行順: `#12` の plan 確認後にだけ `#13` を実行する。
 
 - `#13` は `#12` が作った `cleanup_plan.json` を読んで、yes の時だけ削除する。
 - `#13` は `probe_root` 配下の正本 directory を削除しない。削除するのは `delete_candidates` に載った不可視生成物だけである。

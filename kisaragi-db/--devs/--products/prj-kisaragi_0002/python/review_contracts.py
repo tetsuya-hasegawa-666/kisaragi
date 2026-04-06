@@ -74,7 +74,7 @@ def build_stage_handoff_contracts() -> list[StageHandoffContract]:
             ],
             handoff_conditions=[
                 "主空間基準が一意に決まっている",
-                "ARCore pose と intrinsics が DA3Metric-Large 入力として同期済みである",
+                "ARCore pose と intrinsics が DA3NESTED-GIANT-LARGE-1.1 の sequence-anchor 入力として同期済みである",
                 "比較対象 route の quality と failure reason が同一形式で読める",
             ],
         ),

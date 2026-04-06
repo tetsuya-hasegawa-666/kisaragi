@@ -22,7 +22,7 @@
   - `intrinsics[N,3,3]`
   - `extrinsics_w2c[N,4,4]`
   を manifest として生成する。
-- `DA3Metric-Large` は現行 upstream 制約により image-only 推論とし、`intrinsics` / `extrinsics_w2c` は world projection と評価証跡に使う。
+- `DA3NESTED-GIANT-LARGE-1.1` は現行 upstream 制約により image-only 推論とし、`intrinsics` / `extrinsics_w2c` は world projection と評価証跡に使う。
 - `Giant` proof living route は `DA3NESTED-GIANT-LARGE-1.1`、`da3_estimated pose`、`debug_gs_readback` bundle を canonical とする。
 
 ## Orientation Policy
@@ -51,7 +51,7 @@
 
 1. 全体 camera 軌跡だけを見たい時
    - `#1 -> #2 -> #3 -> #4 -> #8-1b`
-2. `MetricLarge` 由来の camera 軌跡を source manifest から再生成して見たい時
+2. `DA3NESTED-GIANT-LARGE-1.1` 由来の camera 軌跡を source manifest から再生成して見たい時
    - `#1 -> #2 -> #3 -> #4 -> #8-1`
 3. 3chunk 実行から merge まで進めたい時
    - `#1 -> #2 -> #3 -> #4 -> #6-1 -> #6-2 -> #7 -> #8 -> #10-1 -> #10-5 -> #10-6 -> #11`
@@ -64,7 +64,7 @@
 2. `install`
 3. `MRL-10 Block 1`
 4. `MRL-10 Block 2`
-5. 必要時のみ `MRL-10 Block 2-1` で `MetricLarge` 由来の global camera 軌跡だけを確認する
+5. 必要時のみ `MRL-10 Block 2-1` で `DA3NESTED-GIANT-LARGE-1.1` 由来の global camera 軌跡だけを確認する
 6. 必要時のみ `MRL-10 Block 2-2` で選択した `modeling` source から全体 camera 軌跡を再確認する
 7. 必要時のみ `MRL-10 Block 3`
 8. 必要時のみ `MRL-10 Block 4`
@@ -1120,9 +1120,9 @@ summary = {
 print(json.dumps(summary, indent=2, ensure_ascii=False))
 ```
 
-### #7 MetricLarge proof + production + world export
+### #7 NESTED-GIANT-LARGE proof + production + world export
 
-- この派生 runbook では、全体 camera 軌跡は `prod` 全 frame を保持するが、`MetricLarge` の production inference と world export は対象 `3chunk` 相当の frame だけに絞る。
+- この派生 runbook では、全体 camera 軌跡は `prod` 全 frame を保持するが、`DA3NESTED-GIANT-LARGE-1.1` の production inference と world export は対象 `3chunk` 相当の frame だけに絞る。
 - 対象 `3chunk` は `chunk_0005_00060_00077`、`chunk_0006_00072_00089`、`chunk_0007_00084_00101` とする。
 
 ```python
@@ -1366,7 +1366,7 @@ preview[799 - py, px] = 255
 Image.fromarray(preview).save(world_dir / "world_points_multiframe_preview.png")
 
 proof_summary = {
-    "route": "MetricLarge-proof",
+    "route": "NestedGiantLarge-proof",
     "image_count": len(proof_images),
     "proof_metric_dir": str(proof_metric_dir),
     "prediction_type": str(type(proof_prediction).__name__),
@@ -1375,7 +1375,7 @@ proof_summary = {
     "intrinsics_case_counts": proof_df["intrinsics_case"].value_counts().to_dict(),
 }
 prod_summary = {
-    "route": "MetricLarge-production-3chunk-focus",
+    "route": "NestedGiantLarge-production-3chunk-focus",
     "image_count": len(prod_images),
     "full_camera_frame_count": int(len(prod_df)),
     "focus_global_start": int(focus_global_start),
@@ -1388,7 +1388,7 @@ prod_summary = {
     "intrinsics_case_counts": prod_focus_df["intrinsics_case"].value_counts().to_dict(),
 }
 world_summary = {
-    "route": "MetricLarge-production-world-3chunk-focus",
+    "route": "NestedGiantLarge-production-world-3chunk-focus",
     "processed_frames": len(per_frame),
     "skipped_frames": skipped_frames,
     "total_points": int(len(merged)),
@@ -1600,9 +1600,9 @@ print("\n# batch_plan")
 print(batch_plan_df.to_string(index=False))
 ```
 
-### #8-1 MetricLarge camera trajectory only
+### #8-1 NESTED-GIANT-LARGE camera trajectory only
 
-- chunk 実行前に、`MetricLarge` 由来の global camera 軌跡だけを独立確認したい時の専用 block とする。
+- chunk 実行前に、`DA3NESTED-GIANT-LARGE-1.1` 由来の global camera 軌跡だけを独立確認したい時の専用 block とする。
 - source は選択した `modeling` 正本の `manifests/extrinsics_w2c_prod.npy` と `da3_input_manifest_prod.csv` とし、生成した可視化 CSV は `modeling_3chunk` 側へ保存する。
 - 向きは `camera_matrix_full.csv` に含まれるが、読みやすいように `right / up / forward` を展開した `camera_orientation_full.csv` も併せて出力する。
 - 指定した chunk 名から対象 frame 範囲を自動解釈し、対象 3 chunk 相当の focus CSV も併せて出す。

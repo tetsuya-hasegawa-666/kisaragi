@@ -32,7 +32,7 @@ pwsh -File .\scripts\run_python_tests.ps1
 ## 揮発 runtime runbook
 
 - `Colab`、remote notebook、揮発 container の bootstrap 手順は、shared worklog ではなく product 側の runbook に昇格して保持する。
-- `prj-kisaragi_0002` の `DA3Metric-Large` `Colab bootstrap` 正本は [colab/da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_colab_evid_runbook.md) とする。
+- `prj-kisaragi_0002` の `DA3 sequence-anchor` `Colab bootstrap` 正本は [colab/da3_colab_evid_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_colab_evid_runbook.md) とする。
 - admin が Colab でそのまま実行する notebook companion は [colab/da3_colab_evid_runbook.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_colab_evid_runbook.ipynb) とする。
 - `Colab` で実行する notebook と runbook は [colab](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab) を canonical source とし、[modeling/evidence](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\modeling\evidence) には新規 script を保存しない。
 - runbook は `candidate` と `adopted` を分け、admin 実測で end-to-end が通った手順だけを `truly pass` として昇格する。

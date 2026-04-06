@@ -111,7 +111,7 @@ class LocalModelingService {
                                 .put("samplingProfile", it.samplingProfile)
                                 .put("intrinsicsMode", it.intrinsicsMode)
                                 .put("projectionMode", it.projectionMode)
-                                .put("modelId", "depth-anything/da3metric-large")
+                                .put("modelId", "depth-anything/DA3NESTED-GIANT-LARGE-1.1")
                         },
                     ),
                 )
@@ -144,20 +144,20 @@ class LocalModelingService {
         val colabRequest =
             JSONObject()
                 .put("sessionId", sessionId)
-                .put("targetEngine", "colab_da3metric_large")
+                .put("targetEngine", "colab_da3nested_giant_large")
                 .put("accountStatus", "pending_admin_account")
                 .put("localVerification", "pass")
                 .put("requiredUploadArtifacts", JSONArray(listOf("video.mp4", "session_package.json", "frame_pose_index.csv", "sensor_quality.json", "space_handoff_manifest.json", "camera_calibration_summary.json", "frame_record.jsonl", "trajectreview/image")))
-                .put("recommendedNotebookId", "trajectreview-da3metric-large")
-                .put("recommendedNotebookPath", "colab/trajectreview_da3metric_large_colab.ipynb")
+                .put("recommendedNotebookId", "trajectreview-da3nested-giant-large")
+                .put("recommendedNotebookPath", "colab/da3_colab_evid_runbook.ipynb")
                 .put("defaultRouteId", defaultRoute.routeId)
                 .put("routeIds", JSONArray(routeProfiles.map { it.routeId }))
                 .put(
                     "runtimeContract",
                     JSONObject()
-                        .put("modelId", "depth-anything/da3metric-large")
+                        .put("modelId", "depth-anything/DA3NESTED-GIANT-LARGE-1.1")
                         .put("poseBackend", "ARCore_pose")
-                        .put("depthBackend", "DA3Metric-Large")
+                        .put("depthBackend", "DA3NESTED-GIANT-LARGE-1.1")
                         .put("intrinsicsMode", "per_frame_or_session"),
                 )
                 .put(
@@ -257,7 +257,7 @@ class LocalModelingService {
     ): List<RouteProfile> =
         listOf(
             RouteProfile(
-                routeId = "route-da3metric-large-5fps-static-intrinsics",
+                routeId = "route-da3nested-giant-large-5fps-static-intrinsics",
                 samplingProfile = "5fps",
                 intrinsicsMode = "session_fixed",
                 projectionMode = "depth_to_world_pointcloud",
@@ -267,10 +267,10 @@ class LocalModelingService {
                 predictedRuntimeMinutes = 9 + frames / 30,
                 predictedVramGb = 11.0,
                 predictedQualityScore = 0.72 + completeness * 0.11 + poseCoverage * 0.08,
-                selectionReason = "5fps は Colab 負荷が軽く、DA3Metric-Large の初回検証に向く",
+                selectionReason = "5fps は Colab 負荷が軽く、DA3NESTED-GIANT-LARGE-1.1 の初回検証に向く",
             ),
             RouteProfile(
-                routeId = "route-da3metric-large-10fps-static-intrinsics",
+                routeId = "route-da3nested-giant-large-10fps-static-intrinsics",
                 samplingProfile = "10fps",
                 intrinsicsMode = "session_fixed",
                 projectionMode = "depth_to_world_pointcloud",
@@ -283,7 +283,7 @@ class LocalModelingService {
                 selectionReason = "10fps は review 用の空間密度と Colab 負荷のバランスがよい",
             ),
             RouteProfile(
-                routeId = "route-da3metric-large-10fps-per-frame-intrinsics",
+                routeId = "route-da3nested-giant-large-10fps-per-frame-intrinsics",
                 samplingProfile = "10fps",
                 intrinsicsMode = "per_frame",
                 projectionMode = "depth_to_world_pointcloud",
@@ -316,7 +316,7 @@ private data class RouteProfile(
             .put("routeId", routeId)
             .put("samplingProfile", samplingProfile)
             .put("poseBackend", JSONObject().put("engine", "ARCore").put("mode", "recorded_pose"))
-            .put("depthBackend", JSONObject().put("engine", "DA3Metric-Large").put("intrinsicsMode", intrinsicsMode))
+            .put("depthBackend", JSONObject().put("engine", "DA3NESTED-GIANT-LARGE-1.1").put("intrinsicsMode", intrinsicsMode))
             .put("projectionMode", projectionMode)
             .put("resourceBudget", JSONObject().put("runtimeMinutes", predictedRuntimeMinutes).put("vramGb", predictedVramGb))
 

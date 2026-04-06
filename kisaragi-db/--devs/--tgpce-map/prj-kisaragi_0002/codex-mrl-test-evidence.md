@@ -317,4 +317,14 @@
   recurrence prevention: `gs_ply` route を close する時は、export 成功だけでなく viewer 側の opening evidence も同じ日付で残す
   remaining work: top camera renderer、path overlay、request / status UX は後続 `MRL-**` へ送る
   evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-evidence.md`
+- record date: `2026-04-06`
+  target MRL: `MRL-10`
+  target mRL: `mRL-10.5`、`mRL-10.5a`、`mRL-10.5b`
+  gate change: `active route pivot`
+  issue: main `Colab` route が旧系の route 名、preflight、reference notebook 非反映、notebook companion 未同期を抱えたままで、`1 record = image + pose + intrinsics + timestamp` を anchor とする canonical route が docs と code で揃っていなかった
+  cause: `record-native` 方針の採用後も、main runbook pair と周辺文書、preflight route 名、handoff 契約が部分的に旧 route のまま残っていた
+  resolution: `da3_record_sequence_anchor_rebuild7.ipynb` を `--exsams` へ read-only reference として追加し、その precheck、可視化、adjacent continuity、pre-merge gate 構成を main [da3_colab_evid_runbook.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_colab_evid_runbook.md) へ昇格した。canonical route は `sequence-anchor first`、`1 frame = 1 record`、`strict one-to-one join`、`depth-anything/DA3NESTED-GIANT-LARGE-1.1` の official API / CLI 基準へ固定し、`.md` 正本から `.ipynb` companion を再生成した。あわせて `project-truth.md`、`hi-ai-unified-blueprint.md`、`resume-startup-plan.md`、`admin-mrl-test-method.md`、`session_parser.py`、`review_contracts.py`、`CorrectingDataCheckService.kt` の route / contract を同期した
+  recurrence prevention: route pivot 時は、reference notebook を `--exsams` へ取り込み、main runbook `.md` を先に更新してから companion `.ipynb` を再生成する。current-truth 文書、preflight route、handoff contract、app 既定値の grep 残骸確認を同じ task で行う
+  remaining work: existing session data で main route の end-to-end 実測を継続し、chunk/merge 品質の open issue を `mRL-10.4` 系で閉じる
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_colab_evid_runbook.md`, `kisaragi-db/--exsams/prj-kisaragi_0002/colab-inputs/da3_record_sequence_anchor_rebuild7.ipynb`
 

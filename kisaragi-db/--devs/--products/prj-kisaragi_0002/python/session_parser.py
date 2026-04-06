@@ -494,9 +494,9 @@ class SessionParser:
                 "lensDistortionSuccessCount": lens_distortion_success_count,
             },
             "recommendedModelingRoutes": [
-                "route-da3metric-large-5fps-static-intrinsics",
-                "route-da3metric-large-10fps-static-intrinsics",
-                "route-da3metric-large-10fps-per-frame-intrinsics",
+                "route-da3nested-giant-large-5fps-static-intrinsics",
+                "route-da3nested-giant-large-10fps-static-intrinsics",
+                "route-da3nested-giant-large-10fps-per-frame-intrinsics",
             ],
             "imageOrientation": self._image_orientation_summary(pose_rows),
             "warnings": warnings,

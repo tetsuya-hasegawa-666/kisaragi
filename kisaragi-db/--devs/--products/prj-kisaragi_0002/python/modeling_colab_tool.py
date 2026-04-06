@@ -21,7 +21,7 @@ def build_notebook_document(job_request: dict[str, Any], selected_route: dict[st
     notebook_cells = [
         markdown_cell(
             "# trajectreview modeling notebook\n"
-            "この notebook は `DA3Metric-Large` による metric depth 推定と、`ARCore pose` / intrinsics による world projection を行う。"
+            "この notebook は `DA3NESTED-GIANT-LARGE-1.1` の official API / CLI 基準で、sequence-anchor first の modeling を行う。"
         ),
         code_cell(
             "CONFIG = {\n"
@@ -116,8 +116,8 @@ def build_notebook_document(job_request: dict[str, Any], selected_route: dict[st
             "    'da3', 'auto', str(sampled_dir),\n"
             "    '--export-format', 'ply',\n"
             "    '--export-dir', str(da3_export_dir),\n"
-            "    '--model-dir', 'depth-anything/da3metric-large',\n"
-            "])"
+            "    '--model-dir', 'depth-anything/DA3NESTED-GIANT-LARGE-1.1',\n"
+        "])"
         ),
         code_cell(
             "summary = {\n"
@@ -167,7 +167,7 @@ def build_notebook(job_request_path: Path, selected_route_path: Path, output_dir
     job_request = load_json(job_request_path)
     selected_route = load_json(selected_route_path)
     notebook = build_notebook_document(job_request, selected_route)
-    notebook_path = output_dir / "trajectreview_da3metric_large_colab.ipynb"
+    notebook_path = output_dir / "trajectreview_da3nested_giant_large_colab.ipynb"
     upload_manifest_path = output_dir / "upload_manifest.json"
     notebook_path.write_text(json.dumps(notebook, ensure_ascii=False, indent=2), encoding="utf-8")
     upload_manifest = {
