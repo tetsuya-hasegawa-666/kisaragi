@@ -13,6 +13,17 @@
 
 ## Entries
 
+- record date: `2026-04-08`
+  target MRL: `MRL-2R`、`MRL-10`
+  target mRL: `mRL-2R.3`、`mRL-10.5c`
+  gate change: `active documentation contract expanded`
+  issue: `HAUB` の後段一覧表は実質的に `modeling` 用 `DA3` inventory へ寄っており、`correcting` 側の local product script / source は同じ思想で追えなかった。このままだと Colab で起きた不整合を防ぐ inventory 運用を `correcting` 側へ横展開できず、local product の script 管理が chat 依存のまま残る
+  cause: `modeling` 側は `da3_runbook_sources/`、design contract、source inventory がそろっていた一方、`correcting` 側には `HAUB` から辿れる inventory 正本がなく、PowerShell helper と Kotlin orchestration / handoff source の責務面が一覧化されていなかった
+  resolution: [correcting_script_manifest.json](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/correcting_script_manifest.json) と [build_correcting_inventory.py](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/build_correcting_inventory.py) を追加し、[correcting_script_source_inventory.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/correcting_script_source_inventory.md) を生成する形へ切り替えた。あわせて [hi-ai-unified-blueprint.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/hi-ai-unified-blueprint.md) の一覧表を `correcting` 用 / `modeling` 用の 2 本へ分離し、admin 手順、resume、runbook 設計契約も同じ inventory 参照へ更新した
+  recurrence prevention: local product script / source を更新した時は、`correcting_script_manifest.json` と `correcting_script_source_inventory.md` を同じ task で更新する。`modeling` だけに inventory 規律を閉じず、`HAUB` の入口表も phase ごとに分離したまま維持する
+  remaining work: `correcting` 側 inventory は現状をありのまま記載した段階であり、責務再編や粒度最適化は後段で行う。`BLK-1`、`BLK-2`、`BLK-10` は引き続き `big-open` のまま残る
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/correcting_script_source_inventory.md`, `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/hi-ai-unified-blueprint.md`
+
 - record date: `2026-04-07`
   target MRL: `MRL-10`
   target mRL: `mRL-10.5`、`mRL-10.5b`、`mRL-10.5c`

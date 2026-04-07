@@ -11,6 +11,8 @@
 - plan / current / gate は [hi-ai-unified-blueprint.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\hi-ai-unified-blueprint.md)
 - record-native `Colab` 正本は [da3_ngl_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook.md)
 - record-native `Colab` の実行 notebook は [da3_ngl_runbook.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook.ipynb)
+- `correcting` の local product script / source inventory は [correcting_script_source_inventory.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\correcting\correcting_script_source_inventory.md)
+- `modeling` の canonical pair source inventory は [da3_ngl_runbook_source_inventory.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook_source_inventory.md)
 - `MRL-10` は同 runbook の `.md/.ipynb` pair の `MRL-10 record-native DA3 route` section を使う
 - notebook cell、error、admin 実行結果の往復 log は [sharedlogs_da3-colab.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\sharedlogs_da3-colab.md)
 - admin UX 手順は [admin-mrl-test-method.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\admin-mrl-test-method.md)
@@ -25,6 +27,7 @@
 - `MRL-7` は `multi-frame` densify と gaussian short optimization まで `p-done` である。
 - `MRL-8` は `p-done` であり、`DA3 Colab` runbook 本体の前段で Drive 上の任意 session zip / session folder を script だけで選び、selected input を bootstrap 本体と `MRL-7` one-block の両方へ渡せる状態を閉じた。
 - 現在の main target は `MRL-2S` と `MRL-10` であり、`correcting` の `10min` 実収録安定化と、`frame_record.jsonl + images` を正にした record-native `Colab` route を canonical 化し、`90度右回転` upright image 契約、legacy intrinsics 補正、`orientation_summary.json`、sequence anchor、adjacent continuity precheck、pre-merge gate を main runbook の `.md/.ipynb` pair に固定することである。camera pose / trajectory の事前推定も `DA3NESTED-GIANT-LARGE-1.1` の official API / CLI 基準へ統一する。
+- script inventory は `correcting` 用と `modeling` 用を分離し、`correcting` 側は現状をありのまま記録する。`HAUB` は統合入口、product 側 inventory は詳細参照面とする。
 - `MRL-**` は細かく固定せず大まかな順番だけを置き、実測で見えた課題の大小に応じて `MRL` / `mRL` を切り直す。
 - ただし後続 `MRL` でも UX 到達品質は元の目標に沿わせる。特に modeling では、利用者が主空間の見え方、主カメラ経路、処理状態、次 action を迷わず把握できる方向を維持する。
 - 後続 `MRL-**` で最低限残る項目は、`multi-route` 比較、`selected_route.json` 固定、request 起点 UX、`job_status.json` と waiting ring、download URL を含む result 返却、`SpacePackage` / `TrajectoryPackage` / `ReviewArtifact` handoff、reviewing viewer 実装、`gs_ply` を使う top camera renderer である。

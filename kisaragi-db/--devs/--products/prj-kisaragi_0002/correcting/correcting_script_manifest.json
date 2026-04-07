@@ -1,0 +1,370 @@
+[
+  {
+    "token": "CR-01",
+    "source_file": "src/main/java/com/isensorium/app/MainActivity.kt",
+    "kind": "kotlin",
+    "heading": "correcting UI orchestration",
+    "role": "recording、data-check、保存先同期、転送、session 一覧を 1 画面で束ねる",
+    "key_data_names": [
+      "currentSession",
+      "latestDataCheckResult",
+      "selectedTransferGroupsState",
+      "transferDestinationDocumentUri",
+      "frameRecordEveryNUpdatesState",
+      "saveOnlyWhenTrackingState"
+    ],
+    "reference_directories": [
+      "correcting/src/main/res/layout",
+      "session_root",
+      "trajectreview/",
+      "Google Drive destination"
+    ],
+    "main_outputs_handoff": [
+      "record start/stop UI",
+      "data-check trigger",
+      "zip transfer trigger",
+      "stored session selection"
+    ],
+    "docs_id": "DOC-R01-01"
+  },
+  {
+    "token": "CR-02",
+    "source_file": "src/main/java/com/isensorium/app/MainScreenController.kt",
+    "kind": "kotlin",
+    "heading": "correcting form normalization",
+    "role": "recording form を config へ正規化し、issue と status 文言を返す",
+    "key_data_names": [
+      "MainScreenFormState",
+      "RecordingConfigResolution",
+      "SessionPresentation",
+      "RecordingConfig"
+    ],
+    "reference_directories": [
+      "correcting/src/main/res/values",
+      "MainActivity state"
+    ],
+    "main_outputs_handoff": [
+      "RecordingConfig",
+      "RecordingIssue",
+      "status summary"
+    ],
+    "docs_id": "DOC-R02-01"
+  },
+  {
+    "token": "CR-03",
+    "source_file": "src/main/java/com/isensorium/app/RecordingCoordinator.kt",
+    "kind": "kotlin",
+    "heading": "correcting session lifecycle",
+    "role": "preview、recording、collector、session manifest 書込、flush/close を束ねる",
+    "key_data_names": [
+      "RecordingSession",
+      "RecordingConfig",
+      "SessionManager",
+      "frame_record.jsonl",
+      "session_manifest.json",
+      "video.mp4",
+      "imu.csv",
+      "gnss.csv",
+      "ble_scan.jsonl",
+      "video_frame_timestamps.csv",
+      "video_events.jsonl"
+    ],
+    "reference_directories": [
+      "session_root",
+      "trajectreview/image",
+      "trajectreview/"
+    ],
+    "main_outputs_handoff": [
+      "session files",
+      "frame_record.jsonl",
+      "trajectreview/image",
+      "session_manifest.json"
+    ],
+    "docs_id": "DOC-R03-01"
+  },
+  {
+    "token": "CR-04",
+    "source_file": "src/main/java/com/isensorium/app/CoreCameraTrialRuntime.kt",
+    "kind": "kotlin",
+    "heading": "core camera trial runtime",
+    "role": "shared-camera trial、video encoder、offscreen ARCore pose sampler の runtime を持つ",
+    "key_data_names": [
+      "TrialSharedCameraLifecycleMachine",
+      "TrialCpuImageVideoRecorder",
+      "OffscreenArCorePoseSampler",
+      "FrameRecordSamplerDiagnostics",
+      "OffscreenArCorePoseFrame"
+    ],
+    "reference_directories": [
+      "session_root",
+      "video output",
+      "ARCore session"
+    ],
+    "main_outputs_handoff": [
+      "video frame timestamps",
+      "sample diagnostics",
+      "preview callback",
+      "frame sampler result"
+    ],
+    "docs_id": "DOC-R04-01"
+  },
+  {
+    "token": "CR-05",
+    "source_file": "src/main/java/com/isensorium/app/FrameRecordImageIo.kt",
+    "kind": "kotlin",
+    "heading": "frame record image persistence",
+    "role": "camera image snapshot、JPEG persist、save queue を分離する",
+    "key_data_names": [
+      "SavedFrameImage",
+      "FrameImagePayload",
+      "FrameImagePlanePayload",
+      "FrameRecordImageSaveQueue"
+    ],
+    "reference_directories": [
+      "trajectreview/image",
+      "session_root"
+    ],
+    "main_outputs_handoff": [
+      "upright JPEG",
+      "saved image metadata",
+      "save queue diagnostics"
+    ],
+    "docs_id": "DOC-R05-01"
+  },
+  {
+    "token": "CR-06",
+    "source_file": "src/main/java/com/isensorium/app/FrameRecordOrientation.kt",
+    "kind": "kotlin",
+    "heading": "frame orientation normalization",
+    "role": "raw frame を upright 基準へそろえ、intrinsics と geometry を同時補正する",
+    "key_data_names": [
+      "NormalizedFrameImageGeometry",
+      "NormalizedFrameIntrinsics",
+      "FrameRecordOrientationPolicy",
+      "POLICY_ID",
+      "ROTATION_CLOCKWISE_DEGREES"
+    ],
+    "reference_directories": [
+      "frame_record.jsonl",
+      "trajectreview/image"
+    ],
+    "main_outputs_handoff": [
+      "upright geometry",
+      "normalized intrinsics",
+      "NV21 rotated payload"
+    ],
+    "docs_id": "DOC-R06-01"
+  },
+  {
+    "token": "CR-07",
+    "source_file": "src/main/java/com/isensorium/app/CorrectingDataCheckService.kt",
+    "kind": "kotlin",
+    "heading": "data-check and handoff artifact",
+    "role": "session を読み、derived artifact と modeling handoff 契約を生成する",
+    "key_data_names": [
+      "CorrectingDataCheckResult",
+      "input_readiness.json",
+      "sensor_quality.json",
+      "frame_pose_index.csv",
+      "camera_calibration_summary.json",
+      "member_identity_map.json",
+      "session_package.json",
+      "space_handoff_manifest.json"
+    ],
+    "reference_directories": [
+      "session_root",
+      "trajectreview/",
+      "trajectreview/image"
+    ],
+    "main_outputs_handoff": [
+      "data-check result",
+      "derived artifact set",
+      "modeling-ready handoff manifest"
+    ],
+    "docs_id": "DOC-R07-01"
+  },
+  {
+    "token": "CR-08",
+    "source_file": "src/main/java/com/isensorium/app/PcTransferService.kt",
+    "kind": "kotlin",
+    "heading": "pc transfer packaging",
+    "role": "PC target discovery、zip packaging、HTTP upload を行う",
+    "key_data_names": [
+      "PcTransferTarget",
+      "PcTransferResult",
+      "DEFAULT_BOOTSTRAP_PORT",
+      "DEFAULT_TRANSFER_PORT"
+    ],
+    "reference_directories": [
+      "session_root",
+      "pc-transfer inbox",
+      "local subnet"
+    ],
+    "main_outputs_handoff": [
+      "session zip",
+      "uploaded session",
+      "selectable PC target list"
+    ],
+    "docs_id": "DOC-R08-01"
+  },
+  {
+    "token": "CR-09",
+    "source_file": "src/main/java/com/isensorium/app/GuardedUpstreamTrial.kt",
+    "kind": "kotlin",
+    "heading": "route gate contract",
+    "role": "frozen route と shared-camera trial route の切替境界を固定する",
+    "key_data_names": [
+      "CameraStackRoute",
+      "RouteResolution",
+      "SessionAdapterMetadata",
+      "preservedOperations",
+      "requiredArtifacts"
+    ],
+    "reference_directories": [
+      "session_manifest.json",
+      "frame_record.jsonl",
+      "trajectreview/image"
+    ],
+    "main_outputs_handoff": [
+      "route resolution",
+      "session adapter metadata",
+      "guarded trial JSON"
+    ],
+    "docs_id": "DOC-R09-01"
+  },
+  {
+    "token": "CR-10",
+    "source_file": "src/main/java/com/isensorium/app/RecordingMode.kt",
+    "kind": "kotlin",
+    "heading": "recording mode enum",
+    "role": "handheld / pocket recording の mode 境界を固定する",
+    "key_data_names": [
+      "RecordingMode",
+      "STANDARD_HANDHELD",
+      "POCKET_RECORDING"
+    ],
+    "reference_directories": [
+      "MainScreenController",
+      "MainActivity"
+    ],
+    "main_outputs_handoff": [
+      "mode selection",
+      "modeId normalization"
+    ],
+    "docs_id": "DOC-R10-01"
+  },
+  {
+    "token": "CR-11",
+    "source_file": "src/main/java/com/isensorium/app/RecordingIssue.kt",
+    "kind": "kotlin",
+    "heading": "recording issue contract",
+    "role": "UI に返す severity / message / suggestedAction を共通化する",
+    "key_data_names": [
+      "RecordingIssueSeverity",
+      "RecordingIssue"
+    ],
+    "reference_directories": [
+      "MainScreenController",
+      "MainActivity"
+    ],
+    "main_outputs_handoff": [
+      "issue severity",
+      "user-facing issue payload"
+    ],
+    "docs_id": "DOC-R11-01"
+  },
+  {
+    "token": "CR-12",
+    "source_file": "scripts/capture_preview_log.ps1",
+    "kind": "powershell",
+    "heading": "preview log capture",
+    "role": "preview logcat を短時間採取し、recording 前後の挙動を切り出す",
+    "key_data_names": [
+      "DurationSeconds",
+      "adb",
+      "isensorium-preview",
+      "AndroidRuntime"
+    ],
+    "reference_directories": [
+      "adb logcat",
+      "preview runtime"
+    ],
+    "main_outputs_handoff": [
+      "terminal log output",
+      "preview diagnostic capture"
+    ],
+    "docs_id": "DOC-R12-01"
+  },
+  {
+    "token": "CR-13",
+    "source_file": "scripts/pc-transfer-bootstrap.ps1",
+    "kind": "powershell",
+    "heading": "pc transfer bootstrap responder",
+    "role": "UDP bootstrap を受け、receiver 起動と READY 応答を返す",
+    "key_data_names": [
+      "BootstrapPort",
+      "TransferPort",
+      "IdleSeconds",
+      "TargetRoot"
+    ],
+    "reference_directories": [
+      "local subnet",
+      "pc-transfer inbox",
+      "receiver script"
+    ],
+    "main_outputs_handoff": [
+      "READY bootstrap reply",
+      "receiver process launch"
+    ],
+    "docs_id": "DOC-R13-01"
+  },
+  {
+    "token": "CR-14",
+    "source_file": "scripts/pc-transfer-receiver.ps1",
+    "kind": "powershell",
+    "heading": "pc transfer receiver",
+    "role": "HTTP upload を受けて zip を保存し、session root へ展開する",
+    "key_data_names": [
+      "Port",
+      "TargetRoot",
+      "IdleSeconds",
+      "sessionId",
+      "zipPath"
+    ],
+    "reference_directories": [
+      "pc-transfer inbox",
+      "expanded session root"
+    ],
+    "main_outputs_handoff": [
+      "stored zip",
+      "expanded session directory",
+      "health response"
+    ],
+    "docs_id": "DOC-R14-01"
+  },
+  {
+    "token": "CR-15",
+    "source_file": "scripts/run_short_session_harness.ps1",
+    "kind": "powershell",
+    "heading": "short session harness",
+    "role": "ADB で短時間 start/stop を繰り返し、session 生成を簡易確認する",
+    "key_data_names": [
+      "AdbPath",
+      "Runs",
+      "RecordSeconds",
+      "TapX",
+      "TapY",
+      "PackageName",
+      "ActivityName"
+    ],
+    "reference_directories": [
+      "adb shell",
+      "/sdcard/Android/data/.../sessions"
+    ],
+    "main_outputs_handoff": [
+      "short recording loop",
+      "recent sessions listing"
+    ],
+    "docs_id": "DOC-R15-01"
+  }
+]

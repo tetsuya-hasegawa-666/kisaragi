@@ -45,6 +45,7 @@
 - `modeling` の final merge 後に確定出力として残す file と、その最低限の再解釈情報は `probe_root/final_outputs/` へ必ず保存する。少なくとも `merged_gs_arc.ply`、`merged_scene_arc.glb`、`chunk_global_transforms_arc.csv`、`chunk_keep_summary_arc.csv`、`chunk_transform_quality_arc.csv`、`owner_record_histogram_arc.csv`、`chunk_assignment_summary_arc.csv`、`merge_warning_summary_arc.json`、`all_batch_summary_arc.json`、`da3_input_manifest_prod.csv`、`camera_center_matrix_arc.csv`、`camera_matrix_full_arc.csv`、`chunk_index_all.csv`、`batch_plan.csv`、`final_output_manifest_arc.json` を Drive 側に固定してから local zip / download を行う。さらに cleanup 後も merge 根拠を再確認できるよう、`final_outputs/chunk_evidence/<chunk_name>/` に `vertex_assignment_summary.csv`、`chunk_input_frames.csv`、`pred_extrinsics.npy`、`pred_intrinsics.npy` を残す。
 - `Colab` で実行する notebook、runbook、補助 script の product 側正本は `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/` とする。`modeling/evidence/` は legacy evidence の保持先としてのみ扱い、新しい `Colab` script / notebook の保存先にしない。
 - final merge 後の cleanup は `#12 inventory` と `#13 apply` に分ける。`#12` は全 block を対象に保持対象と削除候補を列挙し、`#13` は yes/no を受けて Drive 側では `chunk_runs/`、local 側では runbook tmp JSON、展開 input、local zip などの不可視生成物だけを削除する。`probe_root` 配下の final / proof / manifest / merged 証跡は保持する。
+- script inventory は `correcting` 用と `modeling` 用を別表で持つ。`correcting` 側は `correcting_script_source_inventory.md` に local product script / source の現状をありのまま記載し、最適化は後段で扱う。`modeling` 側は `da3_ngl_runbook_source_inventory.md` に canonical pair の詳細を置き、`HAUB` には両者の統合入口だけを残す。
 
 ### 次の一手
 
@@ -327,13 +328,38 @@
 | `td21` | `bd19` | selected route decision artifact | 暫定採用 route、不採用理由、research route、再評価条件を `selected_route.json` に保存できる | active | `kisaragi-db/--devs/--products/prj-kisaragi_0002/app/src/main/java/com/reviework/app/LocalModelingService.kt` |
 | `td23` | `bd20` | gate classification rule trace | `UX-only`、contract、sample、本機能の区別が `hi-ai-unified-blueprint.md`、`admin-mrl-test-method.md`、`admin-mrl-test-evidence.md` で矛盾なく追える | ready | `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/` |
 
-### DA3 script 一覧表
+### correcting / modeling script 一覧表
 
-この節は `HAUB` の `TDD` 後段に置く `DA3` script inventory の管理表とし、cell の役割、主要関数、主要データ名、参照 directory、主要出力を 1 表で追えるようにする。
+この節は `HAUB` の `TDD` 後段に置く script inventory の統合入口とし、correct 用と modeling 用を別表で管理する。
 
-- 全件詳細は `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook_source_inventory.md` とし、`Cell Inventory`、`Function And Class Inventory`、`Variable Inventory` の 3 section を持つ。
-- この `HAUB` の表は、stage / cell 単位の責務、主要データ、directory 参照面を一度に確認するための統合入口とする。
-- `camera trajectory`、`pose`、`intrinsics`、`anchor basis` の共通契約は `#6 Shared Helpers` に集約し、`#7`、`#9`、`#13`、`#14` はその helper と `01_anchor` / `manifests` / `chunk_runs` / `merged` / `final_outputs` の同一参照面で動く。
+- 旧 `DA3 script 一覧表` は `modeling` 用一覧表として残し、`Colab` canonical pair の stage / cell 責務を追う。
+- `correcting` 用一覧表は local product script / source の現状をそのまま記載し、最適化は後段作業とする。
+- correct 詳細は `kisaragi-db/--devs/--products/prj-kisaragi_0002/correcting/correcting_script_source_inventory.md`、modeling 詳細は `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook_source_inventory.md` を正とし、どちらも `Source Inventory`、`Function And Class Inventory`、`Variable Inventory` を持つ。
+- どちらの表でも `role`、`key data names`、`reference directories`、`main outputs / handoff` の 4 列を維持し、参照面の取り違えを防ぐ。
+
+#### correct用 script 一覧表
+
+| token | source_file | role | key functions / classes | key data names | reference directories | main outputs / handoff | docs_id |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `CR-01` | `correcting/src/main/java/com/isensorium/app/MainActivity.kt` | recording、data-check、保存先同期、転送、session 一覧を 1 画面で束ねる | `MainActivity` | `currentSession`, `latestDataCheckResult`, `selectedTransferGroupsState` | `correcting/src/main/res/layout`, `session_root`, `trajectreview/` | record start/stop UI、data-check trigger、zip transfer trigger | `DOC-R01-01` |
+| `CR-02` | `correcting/src/main/java/com/isensorium/app/MainScreenController.kt` | recording form を config へ正規化し、issue と status 文言を返す | `MainScreenController` | `MainScreenFormState`, `RecordingConfigResolution`, `SessionPresentation` | `correcting/src/main/res/values`, `MainActivity state` | `RecordingConfig`、`RecordingIssue`、status summary | `DOC-R02-01` |
+| `CR-03` | `correcting/src/main/java/com/isensorium/app/RecordingCoordinator.kt` | preview、recording、collector、session manifest 書込、flush/close を束ねる | `RecordingCoordinator`, `SessionManager` | `RecordingSession`, `RecordingConfig`, `frame_record.jsonl`, `session_manifest.json` | `session_root`, `trajectreview/image`, `trajectreview/` | session files、`frame_record.jsonl`、`trajectreview/image`、`session_manifest.json` | `DOC-R03-01` |
+| `CR-04` | `correcting/src/main/java/com/isensorium/app/CoreCameraTrialRuntime.kt` | shared-camera trial、video encoder、offscreen ARCore pose sampler の runtime を持つ | `TrialCpuImageVideoRecorder`, `OffscreenArCorePoseSampler` | `TrialSharedCameraLifecycleMachine`, `FrameRecordSamplerDiagnostics` | `session_root`, `video output`, `ARCore session` | video frame timestamps、sample diagnostics、preview callback | `DOC-R04-01` |
+| `CR-05` | `correcting/src/main/java/com/isensorium/app/FrameRecordImageIo.kt` | camera image snapshot、JPEG persist、save queue を分離する | `Yuv420FrameImageSnapshotter`, `JpegFrameImagePersister`, `FrameRecordImageSaveQueue` | `SavedFrameImage`, `FrameImagePayload` | `trajectreview/image`, `session_root` | upright JPEG、saved image metadata、save queue diagnostics | `DOC-R05-01` |
+| `CR-06` | `correcting/src/main/java/com/isensorium/app/FrameRecordOrientation.kt` | raw frame を upright 基準へそろえ、intrinsics と geometry を同時補正する | `FrameRecordOrientationPolicy` | `NormalizedFrameImageGeometry`, `NormalizedFrameIntrinsics`, `POLICY_ID` | `frame_record.jsonl`, `trajectreview/image` | upright geometry、normalized intrinsics、rotated payload | `DOC-R06-01` |
+| `CR-07` | `correcting/src/main/java/com/isensorium/app/CorrectingDataCheckService.kt` | session を読み、derived artifact と modeling handoff 契約を生成する | `CorrectingDataCheckService` | `CorrectingDataCheckResult`, `input_readiness.json`, `space_handoff_manifest.json` | `session_root`, `trajectreview/`, `trajectreview/image` | data-check result、derived artifact set、modeling-ready handoff manifest | `DOC-R07-01` |
+| `CR-08` | `correcting/src/main/java/com/isensorium/app/PcTransferService.kt` | PC target discovery、zip packaging、HTTP upload を行う | `PcTransferService` | `PcTransferTarget`, `PcTransferResult`, `DEFAULT_BOOTSTRAP_PORT`, `DEFAULT_TRANSFER_PORT` | `session_root`, `pc-transfer inbox`, `local subnet` | session zip、uploaded session、selectable PC target list | `DOC-R08-01` |
+| `CR-09` | `correcting/src/main/java/com/isensorium/app/GuardedUpstreamTrial.kt` | frozen route と shared-camera trial route の切替境界を固定する | `GuardedUpstreamTrialContract` | `CameraStackRoute`, `RouteResolution`, `SessionAdapterMetadata`, `requiredArtifacts` | `session_manifest.json`, `frame_record.jsonl`, `trajectreview/image` | route resolution、session adapter metadata、guarded trial JSON | `DOC-R09-01` |
+| `CR-10` | `correcting/src/main/java/com/isensorium/app/RecordingMode.kt` | handheld / pocket recording の mode 境界を固定する | `RecordingMode` | `STANDARD_HANDHELD`, `POCKET_RECORDING` | `MainScreenController`, `MainActivity` | mode selection、modeId normalization | `DOC-R10-01` |
+| `CR-11` | `correcting/src/main/java/com/isensorium/app/RecordingIssue.kt` | UI に返す severity / message / suggestedAction を共通化する | `RecordingIssue`, `RecordingIssueSeverity` | `RecordingIssueSeverity`, `RecordingIssue` | `MainScreenController`, `MainActivity` | issue severity、user-facing issue payload | `DOC-R11-01` |
+| `CR-12` | `correcting/scripts/capture_preview_log.ps1` | preview logcat を短時間採取し、recording 前後の挙動を切り出す | - | `DurationSeconds`, `adb`, `isensorium-preview` | `adb logcat`, `preview runtime` | terminal log output、preview diagnostic capture | `DOC-R12-01` |
+| `CR-13` | `correcting/scripts/pc-transfer-bootstrap.ps1` | UDP bootstrap を受け、receiver 起動と READY 応答を返す | `Test-SameSubnet24`, `Get-LocalIpv4Address`, `Start-ReceiverIfNeeded` | `BootstrapPort`, `TransferPort`, `IdleSeconds`, `TargetRoot` | `local subnet`, `pc-transfer inbox`, `receiver script` | READY bootstrap reply、receiver process launch | `DOC-R13-01` |
+| `CR-14` | `correcting/scripts/pc-transfer-receiver.ps1` | HTTP upload を受けて zip を保存し、session root へ展開する | `Read-HttpRequest`, `Write-HttpJson`, `Expand-ZipToTarget` | `Port`, `TargetRoot`, `IdleSeconds`, `sessionId` | `pc-transfer inbox`, `expanded session root` | stored zip、expanded session directory、health response | `DOC-R14-01` |
+| `CR-15` | `correcting/scripts/run_short_session_harness.ps1` | ADB で短時間 start/stop を繰り返し、session 生成を簡易確認する | `Invoke-Adb` | `AdbPath`, `Runs`, `RecordSeconds`, `TapX`, `TapY`, `PackageName` | `adb shell`, `/sdcard/Android/data/.../sessions` | short recording loop、recent sessions listing | `DOC-R15-01` |
+
+#### modeling用 script 一覧表
+
+旧 `DA3 script 一覧表` を `modeling` 用一覧表として扱う。`camera trajectory`、`pose`、`intrinsics`、`anchor basis` の共通契約は `#6 Shared Helpers` に集約し、`#7`、`#9`、`#13`、`#14` はその helper と `01_anchor` / `manifests` / `chunk_runs` / `merged` / `final_outputs` の同一参照面で動く。
 
 | token | source_file | role | key functions / classes | key data names | reference directories | main outputs / handoff | docs_id |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -432,7 +458,7 @@
 | `MRL-2R` | `-` | `trajectreview-correcting` で<br>採択 frame record を canonical input にし、<br>recording runtime、popup、transfer、handoff script を<br>同じ契約へ揃える | `su6`,`su6b`,<br>`sd3a`,`sd11` | `bu10`,`bu10b`,<br>`bd5a`,`bd17a`,<br>`bd20` | `tu14c`,`tu14d`,<br>`tu14e`,`td1`,<br>`td8a`,`td8b`,<br>`td8c` | `active` | `active` | 操作手順 4,21,32 | `未収載` |
 | `MRL-2R` | `mRL-2R.1` | 採択 frame の image、`camera.pose`、intrinsics、timestamp を<br>recording 中に同時保存し、image 不在 update を主記録へ入れないことを確認する | `su6` | `bu10` | `tu14c` | `active` | `active` | 操作手順 11-15,21 | `未収載` |
 | `MRL-2R` | `mRL-2R.2` | `Sampling条件` popup で adopted frame 条件を設定でき、<br>`送信Dataset` と transfer UX が保存済み採択 frame 群を前提に動くことを確認する | `su5`,`su6b` | `bu8`,`bu10b`,<br>`bd5a` | `tu14d`,`tu14e` | `active` | `active` | 操作手順 4,23-32 | `未収載` |
-| `MRL-2R` | `mRL-2R.3` | parser、handoff manifest、modeling preflight、script が<br>`frame_record.jsonl` と採択 frame image 群を primary に読み、<br>転送時 image 抽出と thinning logic を canonical route から外すことを確認する | `sd3a`,`sd11` | `bd5a`,`bd17a`,<br>`bd20` | `td1`,`td8a`,<br>`td8b`,`td8c` | `active` | `active` | modeling batch 前提確認 1-4 | `未収載` |
+| `MRL-2R` | `mRL-2R.3` | parser、handoff manifest、modeling preflight、local product script inventory が<br>`frame_record.jsonl` と採択 frame image 群を primary に読み、<br>転送時 image 抽出と thinning logic を canonical route から外すことを確認する | `sd3a`,`sd11` | `bd5a`,`bd17a`,<br>`bd20` | `td1`,`td8a`,<br>`td8b`,`td8c` | `active` | `active` | modeling batch 前提確認 1-4 | `未収載` |
 | `MRL-3` | `-` | `Colab` 実行前の<br>package / config / runbook 導線と<br>bootstrap / install を<br>たどれることを確認する | `sd7`,`su12` | `bd14`,`bu16` | `td13`,`tu20` | `p-done` | `p-done` | modeling batch<br>操作手順 4-6<br>da3_colab_<br>clean_bootstrap_<br>runbook.md | modeling batch 定義,<br>2026-03-29 modeling bootstrap candidate evidence |
 | `MRL-3` | `mRL-3.1` | `Colab` 実行前の package / config / runbook 導線を手動でたどれることを確認する | `sd7`,`su12` | `bd14`,`bu16` | `td13`,`tu20` | `p-done` | `p-done` | modeling batch <br>操作手順 4-6 と<br>da3_colab_<br>clean_bootstrap_<br>runbook.md | 2026-03-29 modeling bootstrap candidate evidence |
 | `MRL-4` | `-` | `trajectreview-modeling` で<br>実 bundle 読込、<br>request preflight、<br>review 側 state 組立て、<br>`Google Drive` directory intake までを成立させる | `sd6`,`sd7`,<br>`sd8`,`su12`,<br>`su19`,`sd11` | `bd13`,`bd14`,<br>`bd15`,`bd16`,<br>`bu16`,`bd20` | `td12`,`td13`,<br>`td22`,`td14`,<br>`tu20`,`td23` | `p-done` | `p-done` | modeling batch<br>操作手順 1-9 | modeling batch 定義,<br>2026-03-29 modeling preflight close evidence |
@@ -474,7 +500,7 @@
 | `mRL-10.4g` | admin viewer 再確認で天地反転なし、camera pose との二重像なし、往復経路の混線低下を確認する | `ready` |
 | `mRL-10.5a` | main runbook 冒頭方針、main `.ipynb` companion、app preflight、admin 手順から legacy canonical 記述を除去し、`DA3NESTED-GIANT-LARGE-1.1` の official API / CLI 基準へ統一する | `active` |
 | `mRL-10.5b` | sequence-anchor precheck、adjacent continuity 可視化、pre-merge gate、1-record strict join を main runbook と文書の両方で canonical route として固定する | `active` |
-| `mRL-10.5c` | canonical runbook pair の構成自体を `#1`-`#17` の clean bootstrap runbook として固定し、section 見出しと code cell 番号を一致させ、`extrinsics_w2c_arc.npy` provenance と stage ごとの input / output summary を notebook 上で常時確認できるようにする。さらに `#5-1`、`#6-1`、`#12-2` を `da3_runbook_sources/` から同期できる形にし、`HAUB` TDD 後段の一覧表から追跡可能にする | `active` |
+| `mRL-10.5c` | canonical runbook pair の構成自体を `#1`-`#17` の clean bootstrap runbook として固定し、section 見出しと code cell 番号を一致させ、`extrinsics_w2c_arc.npy` provenance と stage ごとの input / output summary を notebook 上で常時確認できるようにする。さらに `#5-1`、`#6-1`、`#12-2` を `da3_runbook_sources/` から同期できる形にし、`HAUB` TDD 後段の modeling 用一覧表から追跡可能にする | `active` |
 
 ### `mRL-10.5` 設計意図
 

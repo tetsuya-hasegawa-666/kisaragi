@@ -87,8 +87,9 @@
 ### runbook authoring 整合確認
 
 51. Codex が runbook pair の構成変更を含む更新を出した時は、[da3_ngl_runbook_design_contract.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook_design_contract.md) に同じ更新が反映されていることを確認する。
-52. `HAUB` の `TDD` 後段にある `DA3 script 一覧表` に、更新した関数 / クラス / 主要変数が追記されていることを確認する。
-53. `#5-1`、`#6-1`、`#12-2` を変更した task では、`da3_runbook_sources/` 側 source と canonical pair が同時更新されていることを確認する。
+52. `HAUB` の `TDD` 後段にある `correcting / modeling script 一覧表` に、更新した関数 / クラス / 主要変数が追記されていることを確認する。
+53. `correcting` を触った task では [correcting_script_source_inventory.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\correcting\correcting_script_source_inventory.md) と [correcting_script_manifest.json](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\correcting\correcting_script_manifest.json) が同時更新され、現状をありのまま記載していることを確認する。
+54. `#5-1`、`#6-1`、`#12-2` を変更した task では、`da3_runbook_sources/` 側 source と canonical pair が同時更新されていることを確認する。
 
 ## Colab へ入る時の考え方
 
