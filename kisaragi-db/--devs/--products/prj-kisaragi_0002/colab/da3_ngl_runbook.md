@@ -1,11 +1,11 @@
+#No: #1-1
+前: なし
+次: #2-1
+
 # DA3 NGL Canonical Colab Runbook
 
-任意の `correcting` session zip を入力として、`DA3NESTED-GIANT-LARGE-1.1` の公式 API / CLI 基準で sequence anchor、chunk 実行、merge を行う。説明は最小限にし、設定値は #2 に集約する。
-
-
-# 1 Runtime Mount
-
-実行順: #1 -> #2 -> #3 -> #4 -> #5 -> #6 -> #7 -> #8 -> #9 -> #10 -> #11 -> #12 -> #13 -> #14
+この markdown cell は `#1-1` の runtime 導入である。
+Drive mount、GPU 可用性確認、workspace の開始条件をそろえ、後続 `#2-1` の config 固定へつなぐ。
 
 ```python
 #1-1
@@ -23,10 +23,14 @@ print("mydrive_exists", Path("/content/drive/MyDrive").exists())
 print("shortcut_root_exists", Path("/content/drive/.shortcut-targets-by-id").exists())
 ```
 
+#No: #2-1
+前: #1-1
+次: #3-1
 
 # 2 Config
 
-実行順: #2 の値を必要に応じて変更してから #3 へ進む
+この markdown cell は `#2-1` の設定セルを説明する。
+model、chunk、export、cleanup までの run 固有 parameter をここで固定し、入力選択の `#3-1` へ渡す。
 
 ```python
 #2-1
@@ -75,10 +79,14 @@ Path('/content/config_snapshot.json').write_text(json.dumps(CONFIG, indent=2, en
 display(pd.DataFrame([{"item": k, "value": str(v)} for k, v in CONFIG.items()]))
 ```
 
+#No: #3-1
+前: #2-1
+次: #4-1..#4-2
 
 # 3 Input Select And Path Check
 
-実行順: #3 -> #4。ここで入力と保存先の存在・アクセス可否を確定する
+この markdown cell は `#3-1` の入力選択と path 検証を説明する。
+selected input、session root、result root、extract root をここで確定し、tree 初期化の `#4-1..#4-2` へ渡す。
 
 ```python
 #3-1
@@ -307,10 +315,14 @@ print(json.dumps({
 }, indent=2, ensure_ascii=False))
 ```
 
+#No: #4-1..#4-2
+前: #3-1
+次: #5-1
 
 # 4 Tree Init
 
-実行順: #4 -> #5。以降の全 block はここで生成した context と tree を使う
+この markdown cell は `#4-1..#4-2` の tree 初期化を説明する。
+runbook session context、managed dir、pipeline root を確定し、install の `#5-1` に渡す。
 
 ```python
 #4-1
@@ -419,10 +431,14 @@ Path('/content/runbook_managed_dirs.json').write_text(json.dumps({k:str(v) for k
 print(json.dumps({k:str(v) for k,v in managed_dirs.items()}, indent=2, ensure_ascii=False))
 ```
 
+#No: #5-1
+前: #4-1..#4-2
+次: #6-1
 
 # 5 Install
 
-実行順: #5 -> #6。runtime が fresh の時だけ必須
+この markdown cell は `#5-1` の install / import 準備を説明する。
+Depth-Anything-3 repo、`src` import path、runtime dependency をそろえ、shared helper の `#6-1` へつなぐ。
 
 ```python
 #5-1
@@ -462,10 +478,14 @@ print("e3nn_version", getattr(e3nn, "__version__", "unknown"))
 print("inference_sig", inspect.signature(DepthAnything3.inference))
 ```
 
+#No: #6-1
+前: #5-1
+次: #7-1..#7-3
 
 # 6 Shared Helpers
 
-実行順: #6 -> #7。以降の全 block はこの helper を前提にする
+この markdown cell は `#6-1` の共通 helper を説明する。
+`load_ctx`、JSON I/O、sequence 付番、pose / intrinsics / anchor basis の共通契約をここで定義し、`#7-1..#7-3` 以降が同じ参照面を使う。
 
 ```python
 #6-1
@@ -545,10 +565,14 @@ def display_stage_summary(stage_no: str, title: str, inputs=None, outputs=None, 
         display(pd.DataFrame(_summary_rows(outputs, "output")))
 ```
 
+#No: #7-1..#7-3
+前: #6-1
+次: #8-1..#8-2
 
 # 7 Full Anchor Build
 
-実行順: #7 -> #8。全 frame を 1 record 1 row で anchor 化する
+この markdown cell は `#7-1..#7-3` の full anchor 構築を説明する。
+preview inference、`pred_extrinsics / pred_intrinsics`、`camera_anchor_full_ngl.csv`、global pose bootstrap を生成し、QC の `#8-1..#8-2` と後続 merge の参照基準を作る。
 
 ```python
 #7-1
@@ -1349,10 +1373,14 @@ display_stage_summary(
 )
 ```
 
+#No: #8-1..#8-2
+前: #7-1..#7-3
+次: #9-1..#9-5
 
 # 8 Anchor QC And Plot
 
-実行順: #8 -> #9。anchor の fail / warning と可視化を先に確認する
+この markdown cell は `#8-1..#8-2` の anchor QC と plot を説明する。
+camera anchor の連続性、姿勢差分、plotly 可視化を確認し、record-native manifest の `#9-1..#9-5` へ進む。
 
 ```python
 #8-1
@@ -1732,10 +1760,14 @@ display_stage_summary(
 )
 ```
 
+#No: #9-1..#9-5
+前: #8-1..#8-2
+次: #10-1..#10-3
 
 # 9 Record Manifest And Chunk Plan
 
-実行順: #9 -> #10。chunk 条件は #2 の設定値だけを参照する
+この markdown cell は `#9-1..#9-5` の record-native manifest と chunk plan を説明する。
+`frame_record.jsonl` から `da3_input_manifest.csv`、`intrinsics.npy`、`extrinsics_w2c_arc.npy`、`chunk_index_all.csv`、`batch_plan.csv` を統一契約で作り、precheck の `#10-1..#10-3` に渡す。
 
 ```python
 #9-1
@@ -2548,10 +2580,14 @@ display_stage_summary(
 )
 ```
 
+#No: #10-1..#10-3
+前: #9-1..#9-5
+次: #11-1..#11-4
 
 # 10 Precheck
 
-実行順: #10 -> #11。sequence / edge / batch 前 QC を通してから実行する
+この markdown cell は `#10-1..#10-3` の precheck を説明する。
+chunk sequence、edge continuity、anchor QC summary をここで確認し、run preparation の `#11-1..#11-4` へつなぐ。
 
 ```python
 #10-1
@@ -2777,10 +2813,14 @@ display_stage_summary(
 )
 ```
 
+#No: #11-1..#11-4
+前: #10-1..#10-3
+次: #12-1..#12-3
 
 # 11 Run Preparation
 
-実行順: #11 -> #12。reset と execution target 確定を先に行う
+この markdown cell は `#11-1..#11-4` の run preparation を説明する。
+target chunk window、execution batch、chunk run dir、final output tree を固定し、batch 実行の `#12-1..#12-3` に渡す。
 
 ```python
 #11-1
@@ -3149,10 +3189,14 @@ display_stage_summary(
 assert not fatal_issues, preflight
 ```
 
+#No: #12-1..#12-3
+前: #11-1..#11-4
+次: #13-1
 
 # 12 Run Batches
 
-実行順: #12 -> #13。input 生成、official wrapper 生成、chunk 実行を行う
+この markdown cell は `#12-1..#12-3` の batch 実行を説明する。
+`batch_execution_items.csv`、local chunk wrapper、per-batch execution summary をここで動かし、validation の `#13-1` へ渡す。
 
 ```python
 #12-1
@@ -3471,19 +3515,13 @@ if __name__ == "__main__":
     main()
 '''
 
-wrapper_path.write_text(textwrap.dedent(wrapper_code), encoding="utf-8")
-print({"wrapper_path": str(wrapper_path), "exists": wrapper_path.exists()})
+wrapper_path.write_text(textwrap.dedent(wrapper_code).lstrip("\n"), encoding="utf-8")
+print({"wrapper_path": str(wrapper_path), "size_bytes": wrapper_path.stat().st_size})
 display_stage_summary(
     "12-2",
-    "local wrapper generator",
-    inputs=[
-        {"item": "Depth-Anything-3 repo", "path": str(repo_root)},
-    ],
+    "write chunk runner wrapper",
     outputs=[
-        {"item": "run_da3_chunk_local.py", "path": str(wrapper_path)},
-    ],
-    notes=[
-        {"item": "model_api", "value": "depth_anything_3.api.DepthAnything3"},
+        {"item": "wrapper_path", "path": str(wrapper_path)},
     ],
 )
 ```
@@ -3671,10 +3709,14 @@ display_stage_summary(
 )
 ```
 
+#No: #13-1
+前: #12-1..#12-3
+次: #14-1
 
 # 13 Batch Validation
 
-実行順: #13 -> #14。anchor 残差と continuity gate を確認する
+この markdown cell は `#13-1` の batch validation を説明する。
+residual chunk、missing prediction、camera continuity を確認し、merge の `#14-1` に渡す。
 
 ```python
 #13-1
@@ -3902,10 +3944,14 @@ display_stage_summary(
 )
 ```
 
+#No: #14-1
+前: #13-1
+次: #15-1
 
 # 14 Merge
 
-実行順: #14 完了で Drive 正本の main 出力まで終了
+この markdown cell は `#14-1` の merge を説明する。
+chunk ごとの `pred_extrinsics`、camera trajectory、Gaussian を global anchor に整列し、`merged_gs_arc.ply` と final output manifest を生成して `#15-1` と cleanup 後段へ渡す。
 
 ```python
 #14-1
@@ -4689,10 +4735,14 @@ else:
     )
 ```
 
+#No: #15-1
+前: #14-1
+次: #16-1..#16-2
 
 # 15 Optional Bundle
 
-実行順: #15 は任意。Drive 保存後に local zip が必要な時だけ使う
+この markdown cell は `#15-1` の optional bundle を説明する。
+merge summary と local download bundle を必要時だけまとめ、cleanup inventory の `#16-1..#16-2` へ進む。
 
 ```python
 #15-1
@@ -4756,10 +4806,14 @@ display_stage_summary(
 )
 ```
 
+#No: #16-1..#16-2
+前: #15-1
+次: #17-1
 
 # 16 Cleanup Inventory
 
-実行順: #16 -> #17。後片付け前に inventory を確認する
+この markdown cell は `#16-1..#16-2` の cleanup inventory を説明する。
+保持対象、削除候補、cleanup plan を明示し、apply の `#17-1` へ渡す。
 
 ```python
 #16-1
@@ -4934,10 +4988,14 @@ display_stage_summary(
 )
 ```
 
+#No: #17-1
+前: #16-1..#16-2
+次: 終了
 
 # 17 Cleanup Apply
 
-実行順: #17 は reviewed csv を確認後にだけ実行する
+この markdown cell は `#17-1` の cleanup apply を説明する。
+review 済み cleanup plan を適用し、cleanup result を残して runbook の終点とする。
 
 ```python
 #17-1

@@ -15,6 +15,17 @@
 
 - record date: `2026-04-07`
   target MRL: `MRL-10`
+  target mRL: `mRL-10.5`、`mRL-10.5b`、`mRL-10.5c`
+  gate change: `active`
+  issue: 添付 notebook と現行 canonical pair は block 数こそそろっていたが、内部では `repo bootstrap`、`context load`、helper 定義、wrapper source が notebook 内へ繰り返し埋め込まれていた。このままだと `mRL-10.5` の「拡張に開き修正に閉じる」目的に反し、局所修正で閉じられない
+  cause: これまでの runbook は pair そのものの可搬性を優先し、authoring 面の source 分離と docs 契約を後回しにしていた。結果として `#12-2` の wrapper のような重い実装が cell 内 string に閉じ込められ、再利用 helper も notebook 直編集依存になっていた
+  resolution: [da3_ngl_runbook_design_contract.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook_design_contract.md) を追加し、stage 責務、source-sync 対象、docs ID、変更ゲートを固定した。あわせて `da3_runbook_sources/sync_da3_runbook_sources.py` を追加し、`#5-1`、`#6-1`、`#12-2` を source file から canonical pair へ同期できる構成へ切り替える土台を作った。さらに [design-first-script-builder](/C:/Users/tetsuya/kisaragi/kisaragi-skills/design-first-script-builder/SKILL.md) を新設し、設計審査票、関数表、docs ID 契約を先に作る protocol を skill 化した
+  recurrence prevention: runbook / notebook の再構成では、algorithm 修正の前に設計契約書、source-sync 面、`HAUB` の関数 / 変数一覧を同じ task で更新する。再出現する helper や generated wrapper を見つけた時は、cell を直接肥大化させず source file と同期 script へ逃がす
+  remaining work: source-sync 対象はまだ一部であり、anchor / chunk plan / merge の重い stage までは未分離である。次は `#7`、`#9`、`#14` のうち再利用性が高い helper を同じ方式で局所 source 化し、pair と source のズレ検査も追加する必要がある。`BLK-1` と `BLK-2` は継続して `big-open` のまま残る
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook_design_contract.md`
+
+- record date: `2026-04-07`
+  target MRL: `MRL-10`
   target mRL: `mRL-10.5`、`mRL-10.5a`、`mRL-10.5b`、`mRL-10.5c`
   gate change: `active`
   issue: [da3_ngl_runbook.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.md) は canonical pair として使い始めていたが、`HAUB` 上では `mRL-10.5` の意図が「runbook 構成そのものの gate」だと読めず、旧 `da3_colab_evid_runbook.md` 名や `Block 3-6` 記法も残っていた。このままだと、runbook 設計変更の意味が artifact algorithm の一部なのか、運用面の closeout なのかを後から追えない
@@ -338,4 +349,24 @@
   recurrence prevention: route pivot 時は、reference notebook を `--exsams` へ取り込み、main runbook `.md` を先に更新してから companion `.ipynb` を再生成する。current-truth 文書、preflight route、handoff contract、app 既定値の grep 残骸確認を同じ task で行う
   remaining work: existing session data で main route の end-to-end 実測を継続し、chunk/merge 品質の open issue を `mRL-10.4` 系で閉じる
   evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.md`, `kisaragi-db/--exsams/prj-kisaragi_0002/colab-inputs/da3_record_sequence_anchor_rebuild7.ipynb`
+- record date: `2026-04-07`
+  target MRL: `MRL-10`
+  target mRL: `mRL-10.5`
+  gate change: `active authoring contract hardened`
+  issue: refreshed canonical pair は source 分離と設計契約を導入したが、markdown source-sync が `re.sub` replacement により `\\n` を実 newline へ壊し、wrapper cell と docs inventory の全件追跡も弱かった
+  cause: pair 同期 utility が code block を plain replacement string で置換しており、wrapper source 内の backslash sequence を verbatim 保持できていなかった。また inventory は cell 一覧中心で、function / variable 契約の追跡粒度が不足していた
+  resolution: `da3_runbook_sources/sync_da3_runbook_sources.py` を callable replacement へ修正し、`#12-2` wrapper の `lstrip(\"\\n\")` を markdown / ipynb の両方で保持できるようにした。`build_inventory.py` は `Cell Inventory`、`Function And Class Inventory`、`Variable Inventory` を生成する形へ拡張し、`da3_ngl_runbook_source_inventory.md`、`da3_ngl_runbook_design_contract.md`、`hi-ai-unified-blueprint.md` を同期した。`test_da3_runbook_sources.py` には wrapper escape 保持と inventory section の regression test を追加し、`unittest` 5件 pass と skill validator pass を確認した
+  recurrence prevention: canonical pair の直接修正後は必ず source-sync と inventory 再生成を行い、wrapper の backslash sequence と inventory section を test で固定する。設計契約変更時は `HAUB` 側の inventory 入口と source inventory 正本を同じ task で更新する
+  remaining work: `BLK-1` と `BLK-2` を閉じる end-to-end 実測を継続する
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_runbook_sources/sync_da3_runbook_sources.py`, `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook_source_inventory.md`, `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_da3_runbook_sources.py`
+- record date: `2026-04-07`
+  target MRL: `MRL-10`
+  target mRL: `mRL-10.5`
+  gate change: `active shared pose contract consolidated`
+  issue: `#7`、`#9`、`#14` がそれぞれ image dir 解決、intrinsics 正規化、pose 行列化、camera basis 変換を重複実装しており、`DA3` で `3DGS` を成立させるうえで camera trajectory / pose の統一参照が崩れやすかった。加えて `#14-1` には `batch_execution_items_path` 未定義の runtime bug が残っていた
+  cause: canonical pair の stage 分離を先行し、camera / pose の共通契約を `#6 Shared Helpers` へ引き上げ切れていなかった
+  resolution: `06_shared_helpers.py` に `load_frame_records`、`build_image_name_by_record_index`、`ranked_image_dirs`、`normalize_intrinsics_to_upright`、`quat_to_rot`、`pose_to_w2c`、`build_K`、`to_4x4`、`lens_direction_from_c2w`、`build_anchor_c2w`、`c2w_list_from_extrinsics`、`TRANSFORM_*`、`LOCAL_CAMERA_BASIS` を追加し、`#7-1`、`#9-1`、`#14-1` が同じ helper を使う構成へ寄せた。`#14-1` では `batch_execution_items_path` も明示定義した。これにより preview、record-native manifest、merge の 3 段が同じ pose / orientation / anchor basis 契約でつながる
+  recurrence prevention: camera / pose 系ロジックを新設する時はまず `#6 Shared Helpers` へ追加し、stage cell 側へ同種の数式や path 解決を再実装しない。merge stage の summary input は required path を cell 先頭で固定する
+  remaining work: canonical route の end-to-end 実測で `BLK-1`、`BLK-2` の品質 blocker を閉じる
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_runbook_sources/cells/06_shared_helpers.py`, `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_runbook_sources/cells/07_01.py`, `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_runbook_sources/cells/09_01.py`, `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_runbook_sources/cells/14_01.py`
 

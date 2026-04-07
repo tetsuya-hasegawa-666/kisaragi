@@ -6425,3 +6425,37 @@ Moviepy - video ready /content/drive/MyDrive/trajectreview/modeling/trajectrevie
 - `final_outputs/chunk_evidence/<chunk_name>/` に、`vertex_assignment_summary.csv`、`chunk_input_frames.csv`、`pred_extrinsics.npy`、`pred_intrinsics.npy` を複製して残す。
 - これにより `chunk_runs/` を削除しても、各 chunk がどの frame 群を使い、どの owner 判定で keep されたかを Drive 側だけで再確認できる。
 
+# codex v78
+
+- 添付 notebook `da3_ngl_runbook_3c.ipynb` と現行 canonical pair を照合し、block は同じ `#1-#17` でも内部に `repo bootstrap`、helper、wrapper source の再出現が多く、局所修正で閉じにくいことを確認した。
+- `kisaragi-skills/design-first-script-builder/` を新設し、設計審査票、関数 / クラス一覧表、docs ID 契約、validation / error handling を先に固定してから script を書く protocol を skill 化した。
+- `colab/da3_ngl_runbook_design_contract.md` を追加し、stage 責務、source-sync 対象、`HAUB` の `TDD` 後段に置く `クラス / 関数 / 主要変数一覧` の置き場を固定した。
+- `colab/da3_runbook_sources/` を追加し、まず `#5-1`、`#6-1`、`#12-2` を source file 化した。`sync_da3_runbook_sources.py` で source から `da3_ngl_runbook.md` / `.ipynb` へ同期できる。
+- `da3_ngl_runbook.md` / `.ipynb` には `DOC-F05-101`、`DOC-F06-101`、`DOC-F12-201` を入れ、`HAUB` と `codex-mrl-test-evidence.md` へ追跡情報を反映した。
+- skill の `quick_validate.py` は local Python に `yaml` module が無く失敗したため、代わりに `render_design_packet.py` の実行確認で resource script の最低限の動作だけ先に確認した。
+# codex v79
+
+- local validator 用に workspace 内 `_vendor/python` へ `PyYAML` を導入した。
+- `quick_validate.py` は最初 `yaml` module 不在、次に Windows locale 既定 encoding で `SKILL.md` を読んで失敗したため、`PYTHONPATH=C:/Users/tetsuya/kisaragi/_vendor/python` と `PYTHONUTF8=1` を付けて再実行し、`design-first-script-builder` が `Skill is valid!` になることを確認した。
+- `colab/agents.md` と `admin-mrl-test-method.md` も、design contract と `da3_runbook_sources/` の source-sync 面が読めるよう更新した。
+
+# codex v80
+
+- `sync_da3_runbook_sources.py` の markdown 置換を callable replacement に修正し、`#12-2` wrapper cell 内の `lstrip("\\n")` が `da3_ngl_runbook.md` で実 newline に壊れないようにした。
+- `build_inventory.py` を拡張し、`da3_ngl_runbook_source_inventory.md` が `Cell Inventory`、`Function And Class Inventory`、`Variable Inventory` の 3 section を持つようにした。これで関数 / 主要変数の役割、validation、errors、scope を source 正本から追える。
+- `HAUB` の `DA3 script 一覧表` は source inventory 正本への入口として更新し、`da3_ngl_runbook_design_contract.md` も 3 section inventory 前提へ揃えた。
+- `test_da3_runbook_sources.py` は 5 test に増やし、source-sync、docs ID 追跡、inventory section、wrapper escape 保持を検証して `OK` を確認した。
+
+# codex v81
+
+- `#7`、`#9`、`#14` に残っていた helper 重複を `#6 Shared Helpers` へ寄せ、camera trajectory / pose / intrinsics / anchor basis の共通契約を 1 か所に集約した。
+- 追加した共通 helper は `load_frame_records`、`build_image_name_by_record_index`、`ranked_image_dirs`、`normalize_intrinsics_to_upright`、`quat_to_rot`、`pose_to_w2c`、`build_K`、`to_4x4`、`lens_direction_from_c2w`、`build_anchor_c2w`、`c2w_list_from_extrinsics` と `TRANSFORM_*` / `LOCAL_CAMERA_BASIS` で、`#7-1`、`#9-1`、`#14-1` が同じ参照面を使うようにした。
+- `#14-1` の `batch_execution_items_path` 未定義 bug も同時に修正した。
+- `test_da3_runbook_sources.py` は 6 test に増やし、shared helper の intrinsics / pose / anchor 契約も検証して `OK` を確認した。
+
+# codex v82
+
+- notebook 上の markdown cell も source 管理対象へ入れるため、`da3_runbook_sources/markdown_manifest.json` と `markdown/*.md` を追加した。
+- 各 markdown source は先頭に `#No`、`前`、`次` を持ち、複数連番は `#9-1..#9-5` のような最短表現で表すようにした。
+- `sync_da3_runbook_sources.py` は markdown + code を source 正本から順に組み立てて `da3_ngl_runbook.md` / `.ipynb` を再構築する形へ変更した。
+- markdown 本文は現状 cell の実働内容に合わせて書き直し、`test_da3_runbook_sources.py` で markdown manifest と notebook markdown cell の一致も検証して `7 tests OK` を確認した。

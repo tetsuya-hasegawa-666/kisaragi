@@ -1,0 +1,779 @@
+#14-1
+from pathlib import Path
+import json
+import shutil
+import os
+import subprocess
+import sys
+
+import numpy as np
+import pandas as pd
+
+missing_merge_deps = []
+for module_name, package_name in [
+    ("trimesh", "trimesh"),
+    ("plyfile", "plyfile"),
+    ("scipy", "scipy"),
+]:
+    try:
+        __import__(module_name)
+    except ModuleNotFoundError:
+        missing_merge_deps.append(package_name)
+
+if missing_merge_deps:
+    subprocess.run(
+        [sys.executable, "-m", "pip", "install", "--quiet", *missing_merge_deps],
+        check=True,
+    )
+
+import trimesh
+from plyfile import PlyData, PlyElement
+from scipy.spatial import cKDTree
+
+batch_preflight_status_path = Path("/content/runbook_batch_preflight_status.json")
+if not batch_preflight_status_path.exists():
+    print("# warning: batch execution preflight was not run; continued by self-heal path")
+
+ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
+probe_root = Path(ctx["probe_root"])
+results_root = Path(ctx["results_root"])
+modeling_session_id = ctx["modeling_session_id"]
+manifest_dir = Path(ctx["manifest_dir"])
+final_outputs_dir = Path(ctx["final_outputs_dir"])
+final_outputs_merged_dir = Path(ctx["final_outputs_merged_dir"])
+final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
+final_outputs_manifests_dir = Path(ctx["final_outputs_manifests_dir"])
+final_outputs_chunk_evidence_dir = Path(ctx["final_outputs_chunk_evidence_dir"])
+
+pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
+global_pose_dir = pipeline_root / "global_pose_bootstrap"
+chunk_manifest_dir = pipeline_root / "manifests"
+chunk_runs_dir = pipeline_root / "chunk_runs"
+merged_dir = Path(ctx.get("merged_dir", str(pipeline_root / "merged")))
+merged_dir.mkdir(parents=True, exist_ok=True)
+stage_11_2_dir = final_outputs_dir / "stage_11_2"
+stage_11_3_dir = final_outputs_dir / "stage_11_3"
+for p in [final_outputs_dir, final_outputs_merged_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir, final_outputs_chunk_evidence_dir, stage_11_2_dir, stage_11_3_dir]:
+    p.mkdir(parents=True, exist_ok=True)
+
+config_path = pipeline_root / "pipeline_config.json"
+if config_path.exists():
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+else:
+    config = {
+        "MODEL_ID": "depth-anything/DA3NESTED-GIANT-LARGE-1.1",
+        "BUNDLE_MODEL_SLUG": "nestedgiantlarge11",
+        "PROCESS_RES": 504,
+        "CHUNK_SIZE": 18,
+        "STEP": 12,
+        "ADOPT_SIZE": 12,
+        "CHUNKS_PER_BATCH": 3,
+        "GLOBAL_CAMERA_SOURCE": "extrinsics_w2c_arc.npy",
+        "USE_TARGET_CHUNK_WINDOW": False,
+        "TARGET_CHUNK_WINDOW_START_1BASED": 1,
+        "TARGET_CHUNK_WINDOW_COUNT": 0,
+    }
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(json.dumps(config, indent=2, ensure_ascii=False), encoding="utf-8")
+BUNDLE_MODEL_SLUG = config["BUNDLE_MODEL_SLUG"]
+REQUIRE_ALL_CHUNKS = True
+config_snapshot = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8")) if Path("/content/config_snapshot.json").exists() else {}
+MAKE_DRIVE_BUNDLE = bool(config_snapshot.get("MAKE_DRIVE_BUNDLE", False))
+
+chunk_index_all_path = chunk_manifest_dir / "chunk_index_all.csv"
+if chunk_index_all_path.exists():
+    all_chunks_df = pd.read_csv(chunk_index_all_path)
+else:
+    inferred_chunk_names = sorted({
+        p.parent.name
+        for p in chunk_runs_dir.glob("*/_SUCCESS.json")
+    } | {
+        p.parent.parent.name
+        for p in chunk_runs_dir.glob("*/gs_ply/0000.ply")
+    } | {
+        p.parent.parent.name
+        for p in chunk_runs_dir.glob("*/gs_video/0000_extend.mp4")
+    })
+    all_chunks_df = pd.DataFrame([
+        {
+            "chunk_id": i,
+            "chunk_name": name,
+            "global_start": None,
+            "global_end": None,
+            "frame_count": None,
+            "adopt_local_start": None,
+            "adopt_local_end": None,
+            "chunk_csv": None,
+        }
+        for i, name in enumerate(inferred_chunk_names)
+    ])
+    chunk_manifest_dir.mkdir(parents=True, exist_ok=True)
+    all_chunks_df.to_csv(chunk_index_all_path, index=False, encoding="utf-8")
+
+def ensure_target_chunk_manifest():
+    target_path = chunk_manifest_dir / "chunk_index_target.csv"
+    if target_path.exists():
+        return pd.read_csv(target_path)
+    all_path = chunk_manifest_dir / "chunk_index_all.csv"
+    assert all_path.exists(), all_path
+    base_df = pd.read_csv(all_path)
+    if config.get("USE_TARGET_CHUNK_WINDOW", False):
+        start_0 = max(0, int(config.get("TARGET_CHUNK_WINDOW_START_1BASED", 1)) - 1)
+        end_0 = min(start_0 + int(config.get("TARGET_CHUNK_WINDOW_COUNT", 3)), len(base_df))
+        target_chunks_df = base_df.iloc[start_0:end_0].copy().reset_index(drop=True)
+    else:
+        target_chunks_df = base_df.copy().reset_index(drop=True)
+    target_chunks_df.to_csv(target_path, index=False, encoding="utf-8")
+    return target_chunks_df
+
+def resolve_chunk_input_dir(chunk_name: str) -> Path:
+    primary = chunk_runs_dir / chunk_name
+    assert (primary / "pred_extrinsics.npy").exists() and (primary / "chunk_input_frames.csv").exists(), {
+        "chunk_name": chunk_name,
+        "missing_dir": str(primary),
+        "reason": "run #10-1 before #11",
+    }
+    return primary
+
+completed_chunk_names = sorted({
+    p.parent.name
+    for p in chunk_runs_dir.glob("*/_SUCCESS.json")
+})
+ply_ready_chunk_names = sorted({
+    p.parent.name
+    for p in chunk_runs_dir.glob("*/gs_ply/0000.ply")
+})
+all_chunks_df = pd.read_csv(chunk_manifest_dir / "chunk_index_all.csv")
+target_chunks_df = ensure_target_chunk_manifest()
+completed_chunks_df = target_chunks_df[target_chunks_df["chunk_name"].isin(completed_chunk_names)].copy()
+ply_ready_target_chunk_names = sorted(set(ply_ready_chunk_names) & set(target_chunks_df["chunk_name"].tolist()))
+
+batch_summaries = sorted({
+    str(p) for p in chunk_runs_dir.glob("batch_*/batch_summary.json")
+})
+summary_rows = [json.loads(Path(p).read_text(encoding="utf-8")) for p in batch_summaries]
+(merged_dir / "all_batch_summary_arc.json").write_text(json.dumps(summary_rows, indent=2, ensure_ascii=False), encoding="utf-8")
+premerge_pose_validation_path = merged_dir / "premerge_pose_validation.json"
+
+if not premerge_pose_validation_path.exists():
+    merge_summary = {
+        "route": "continuous-gs-v06-chunk18-overlap6-adopt12-merge",
+        "status": "skipped",
+        "reason": "premerge_pose_validation_required",
+        "premerge_pose_validation_path": str(premerge_pose_validation_path),
+        "all_batch_summary_path": str(merged_dir / "all_batch_summary_arc.json"),
+    }
+    (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
+    raise AssertionError("run #10-5 pre-merge pose gate before #11 merge")
+
+premerge_pose_validation = json.loads(premerge_pose_validation_path.read_text(encoding="utf-8"))
+if premerge_pose_validation.get("status") != "ok":
+    merge_summary = {
+        "route": "continuous-gs-v06-chunk18-overlap6-adopt12-merge",
+        "status": "skipped",
+        "reason": "premerge_pose_validation_failed",
+        "premerge_pose_validation_path": str(premerge_pose_validation_path),
+        "hard_fail_count": int(premerge_pose_validation.get("hard_fail_count", 0)),
+        "failed_chunks": premerge_pose_validation.get("failed_chunks", []),
+        "all_batch_summary_path": str(merged_dir / "all_batch_summary_arc.json"),
+    }
+    (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
+    raise AssertionError(premerge_pose_validation)
+
+if REQUIRE_ALL_CHUNKS and len(completed_chunks_df) < len(target_chunks_df):
+    merge_summary = {
+        "route": "continuous-gs-v06-chunk18-overlap6-adopt12-merge",
+        "status": "skipped",
+        "reason": "waiting_for_all_chunks",
+        "completed_chunk_count": int(len(completed_chunks_df)),
+        "ply_ready_chunk_count": int(len(ply_ready_target_chunk_names)),
+        "all_chunk_count": int(len(target_chunks_df)),
+        "all_batch_summary_path": str(merged_dir / "all_batch_summary_arc.json"),
+    }
+    (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
+else:
+    global_centers_df = pd.read_csv(global_pose_dir / "camera_center_matrix_arc.csv")
+    global_camera_matrix_df = pd.read_csv(global_pose_dir / "camera_matrix_full_arc.csv")
+    global_anchor_df = pd.read_csv(global_pose_dir / "camera_anchor_full_arc.csv")
+    input_manifest_path = manifest_dir / "da3_input_manifest.csv"
+    assert input_manifest_path.exists(), input_manifest_path
+    input_manifest_df = pd.read_csv(input_manifest_path)
+    assert global_anchor_df["record_index"].is_unique, "global anchor record_index must be unique"
+    OWNER_TOPK = 6
+    OWNER_W_DIST = 1.0
+    OWNER_W_DIR = 0.35
+    OWNER_W_BLUR = 0.25
+    OWNER_W_INDEX = 0.02
+    OWNER_RECORD_MARGIN = 6
+    TRANSFORM_CENTER_RMSE_WARN = 0.25
+    TRANSFORM_ROT_DIR_WARN = 0.25
+
+    def load_scene_any(path: Path):
+        loaded = trimesh.load(str(path), force="scene")
+        if isinstance(loaded, trimesh.Scene):
+            return loaded
+        scene = trimesh.Scene()
+        if hasattr(loaded, "geometry"):
+            for name, geom in loaded.geometry.items():
+                scene.add_geometry(geom, node_name=name)
+        else:
+            scene.add_geometry(loaded)
+        return scene
+
+    def iter_baked_scene_geometry(scene: trimesh.Scene):
+        dumped = None
+        if hasattr(scene, "dump"):
+            try:
+                dumped = scene.dump(concatenate=False)
+            except TypeError:
+                dumped = scene.dump()
+        if isinstance(dumped, (list, tuple)) and len(dumped) > 0:
+            for idx, geom in enumerate(dumped):
+                if geom is None:
+                    continue
+                if hasattr(geom, "copy"):
+                    geom = geom.copy()
+                yield f"dump_{idx:04d}", geom
+            return
+        for gname, geom in scene.geometry.items():
+            geom2 = geom.copy() if hasattr(geom, "copy") else geom
+            yield str(gname), geom2
+
+    def to_4x4(ext):
+        ext = np.asarray(ext).astype(np.float32)
+        if ext.shape == (4, 4):
+            return ext
+        if ext.shape == (3, 4):
+            M = np.eye(4, dtype=np.float32)
+            M[:3, :] = ext
+            return M
+        raise ValueError(f"unexpected extrinsic shape: {ext.shape}")
+
+    def c2w_rows_to_map(df: pd.DataFrame):
+        out = {}
+        cols = [f"m{i}{j}" for i in range(4) for j in range(4)]
+        for row in df.itertuples(index=False):
+            M = np.array([getattr(row, c) for c in cols], dtype=np.float32).reshape(4, 4)
+            out[int(row.record_index)] = M
+        return out
+
+    def lens_direction_from_c2w(c2w: np.ndarray):
+        axis = -np.asarray(c2w[:3, 2], dtype=np.float32)
+        norm = float(np.linalg.norm(axis))
+        return axis / max(norm, 1e-12)
+
+    def up_direction_from_c2w(c2w: np.ndarray):
+        axis = -np.asarray(c2w[:3, 1], dtype=np.float32)
+        norm = float(np.linalg.norm(axis))
+        return axis / max(norm, 1e-12)
+
+    def normalize_vec(vec: np.ndarray, fallback: np.ndarray):
+        vec = np.asarray(vec, dtype=np.float32)
+        norm = float(np.linalg.norm(vec))
+        if norm <= 1e-12:
+            fallback = np.asarray(fallback, dtype=np.float32)
+            fallback_norm = float(np.linalg.norm(fallback))
+            assert fallback_norm > 1e-12, "fallback vector must be non-zero"
+            return fallback / fallback_norm
+        return vec / norm
+
+    def build_anchor_c2w(fallback_c2w: np.ndarray, rec) -> np.ndarray:
+        M = np.asarray(fallback_c2w, dtype=np.float32).copy()
+        center = np.array([float(rec.cx_world), float(rec.cy_world), float(rec.cz_world)], dtype=np.float32)
+        anchor_lens = normalize_vec(
+            np.array([float(rec.anchor_lens_x), float(rec.anchor_lens_y), float(rec.anchor_lens_z)], dtype=np.float32),
+            lens_direction_from_c2w(M),
+        )
+        anchor_up = normalize_vec(
+            np.array([float(rec.anchor_up_x), float(rec.anchor_up_y), float(rec.anchor_up_z)], dtype=np.float32),
+            up_direction_from_c2w(M),
+        )
+        z_col = normalize_vec(-anchor_lens, M[:3, 2])
+        x_seed = np.cross(-anchor_up, z_col)
+        x_col = normalize_vec(x_seed, M[:3, 0])
+        y_col = normalize_vec(np.cross(z_col, x_col), M[:3, 1])
+        if float(np.dot(y_col, -anchor_up)) < 0.0:
+            x_col = -x_col
+            y_col = -y_col
+        M[:3, 0] = x_col
+        M[:3, 1] = y_col
+        M[:3, 2] = z_col
+        M[:3, 3] = center
+        return M
+
+    def c2w_list_from_extrinsics(extrinsics):
+        mats = []
+        for ext in extrinsics:
+            c2w = np.linalg.inv(to_4x4(ext)).astype(np.float32)
+            mats.append((c2w @ LOCAL_CAMERA_BASIS).astype(np.float32))
+        return mats
+
+    def estimate_pose_aware_similarity(local_c2w_list, global_c2w_list, estimate_scale=True):
+        assert len(local_c2w_list) == len(global_c2w_list) >= 2, {"local_len": len(local_c2w_list), "global_len": len(global_c2w_list)}
+
+        src_dirs = []
+        dst_dirs = []
+        src_centers = []
+        dst_centers = []
+        for local_c2w, global_c2w in zip(local_c2w_list, global_c2w_list):
+            src_dirs.append(lens_direction_from_c2w(local_c2w))
+            src_dirs.append(up_direction_from_c2w(local_c2w))
+            dst_dirs.append(lens_direction_from_c2w(global_c2w))
+            dst_dirs.append(up_direction_from_c2w(global_c2w))
+            src_centers.append(local_c2w[:3, 3])
+            dst_centers.append(global_c2w[:3, 3])
+
+        src_dirs = np.asarray(src_dirs, dtype=np.float64)
+        dst_dirs = np.asarray(dst_dirs, dtype=np.float64)
+        src_centers = np.asarray(src_centers, dtype=np.float64)
+        dst_centers = np.asarray(dst_centers, dtype=np.float64)
+
+        H = dst_dirs.T @ src_dirs
+        U, _, Vt = np.linalg.svd(H)
+        S = np.eye(3, dtype=np.float64)
+        if np.linalg.det(U) * np.linalg.det(Vt) < 0:
+            S[-1, -1] = -1.0
+        R = U @ S @ Vt
+
+        src_mean = src_centers.mean(axis=0)
+        dst_mean = dst_centers.mean(axis=0)
+        src_c = src_centers - src_mean
+        dst_c = dst_centers - dst_mean
+        src_rot = (R @ src_c.T).T
+
+        if estimate_scale:
+            denom = float(np.sum(src_rot ** 2))
+            numer = float(np.sum(dst_c * src_rot))
+            scale = numer / max(denom, 1e-12)
+        else:
+            scale = 1.0
+
+        t = dst_mean - scale * (R @ src_mean)
+        pred = (scale * (R @ src_centers.T)).T + t
+        center_rmse = float(np.sqrt(np.mean(np.sum((pred - dst_centers) ** 2, axis=1))))
+        rot_residual = float(np.mean(np.linalg.norm((R @ src_dirs.T).T - dst_dirs, axis=1)))
+
+        T = np.eye(4, dtype=np.float64)
+        T[:3, :3] = scale * R
+        T[:3, 3] = t
+        diag = {
+            "scale": float(scale),
+            "rotation_det": float(np.linalg.det(R)),
+            "center_rmse": center_rmse,
+            "rotation_dir_residual": rot_residual,
+            "positive_similarity_ok": bool(scale > 0.0),
+            "scale_in_range_ok": bool(TRANSFORM_SCALE_MIN <= scale <= TRANSFORM_SCALE_MAX),
+            "center_rmse_ok": bool(center_rmse <= TRANSFORM_CENTER_RMSE_MAX),
+            "rotation_dir_ok": bool(rot_residual <= TRANSFORM_ROT_DIR_MAX),
+        }
+        diag["hard_fail"] = bool(
+            (scale <= 0.0)
+            or (scale < TRANSFORM_SCALE_MIN)
+            or (scale > TRANSFORM_SCALE_MAX)
+            or (center_rmse > TRANSFORM_CENTER_RMSE_MAX)
+            or (rot_residual > TRANSFORM_ROT_DIR_MAX)
+        )
+        return T.astype(np.float32), diag
+
+    global_camera_map = c2w_rows_to_map(global_camera_matrix_df)
+    global_frame_meta_df = global_anchor_df.merge(
+        input_manifest_df[["record_index", "qc_blur_ok", "blur_score"]],
+        on="record_index",
+        how="left",
+    )
+    global_frame_meta_df["lens_x"] = global_frame_meta_df["anchor_lens_x"].astype(float)
+    global_frame_meta_df["lens_y"] = global_frame_meta_df["anchor_lens_y"].astype(float)
+    global_frame_meta_df["lens_z"] = global_frame_meta_df["anchor_lens_z"].astype(float)
+    global_frame_meta_df["qc_blur_ok"] = global_frame_meta_df["qc_blur_ok"].fillna(False).astype(bool)
+    global_frame_meta_df["blur_score"] = global_frame_meta_df["blur_score"].fillna(0.0)
+    global_frame_meta_df = global_frame_meta_df.sort_values("record_index").reset_index(drop=True)
+    global_center_tree = cKDTree(global_frame_meta_df[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32))
+
+    def assign_vertex_owners(xyz_w: np.ndarray, chunk_df: pd.DataFrame):
+        chunk_record_df = global_frame_meta_df.loc[
+            global_frame_meta_df["record_index"].isin(chunk_df["record_index"].astype(int).tolist())
+        ].copy()
+        record_min = int(chunk_df["record_index"].min())
+        record_max = int(chunk_df["record_index"].max())
+        candidate_mode = "chunk_only"
+        candidate_df = chunk_record_df
+        if len(candidate_df) < 2:
+            candidate_mode = "chunk_with_margin"
+            candidate_df = global_frame_meta_df.loc[
+                global_frame_meta_df["record_index"].between(record_min - OWNER_RECORD_MARGIN, record_max + OWNER_RECORD_MARGIN)
+            ].copy()
+        if len(candidate_df) < 2:
+            candidate_mode = "global_fallback"
+            candidate_df = global_frame_meta_df.copy()
+        candidate_tree = cKDTree(candidate_df[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32))
+
+        k = min(OWNER_TOPK, len(candidate_df))
+        dists, idxs = candidate_tree.query(xyz_w, k=k)
+        if k == 1:
+            dists = dists[:, None]
+            idxs = idxs[:, None]
+
+        candidate_meta = candidate_df.iloc[idxs.reshape(-1)].reset_index(drop=True)
+        candidate_centers = candidate_meta[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32).reshape(len(xyz_w), k, 3)
+        candidate_axes = candidate_meta[["lens_x", "lens_y", "lens_z"]].to_numpy(dtype=np.float32).reshape(len(xyz_w), k, 3)
+        candidate_blur_ok = candidate_meta["qc_blur_ok"].to_numpy(dtype=bool).reshape(len(xyz_w), k)
+        candidate_records = candidate_meta["record_index"].to_numpy(dtype=np.int64).reshape(len(xyz_w), k)
+
+        view_vec = xyz_w[:, None, :] - candidate_centers
+        view_norm = np.linalg.norm(view_vec, axis=2, keepdims=True)
+        view_dir = view_vec / np.maximum(view_norm, 1e-12)
+        dir_cos = np.sum(view_dir * candidate_axes, axis=2)
+        dir_term = 1.0 - np.clip(dir_cos, -1.0, 1.0)
+        blur_penalty = np.where(candidate_blur_ok, 0.0, 1.0)
+
+        chunk_record_center = float(chunk_df["record_index"].median())
+        chunk_record_span = float(max(chunk_df["record_index"].max() - chunk_df["record_index"].min(), 1))
+        index_penalty = np.minimum(np.abs(candidate_records - chunk_record_center) / chunk_record_span, 1.0)
+
+        score = (
+            OWNER_W_DIST * np.asarray(dists, dtype=np.float32)
+            + OWNER_W_DIR * dir_term.astype(np.float32)
+            + OWNER_W_BLUR * blur_penalty.astype(np.float32)
+            + OWNER_W_INDEX * index_penalty.astype(np.float32)
+        )
+
+        best_local = np.argmin(score, axis=1)
+        row_idx = np.arange(len(xyz_w))
+        return pd.DataFrame({
+            "vertex_index": np.arange(len(xyz_w), dtype=np.int64),
+            "owner_record_index": candidate_records[row_idx, best_local].astype(np.int64),
+            "owner_candidate_mode": candidate_mode,
+            "owner_candidate_record_min": int(candidate_df["record_index"].min()),
+            "owner_candidate_record_max": int(candidate_df["record_index"].max()),
+            "owner_score": score[row_idx, best_local].astype(np.float32),
+            "owner_dist": np.asarray(dists, dtype=np.float32)[row_idx, best_local].astype(np.float32),
+            "owner_dir_cos": dir_cos[row_idx, best_local].astype(np.float32),
+            "owner_blur_ok": candidate_blur_ok[row_idx, best_local].astype(bool),
+        })
+
+    transform_rows = []
+    keep_rows = []
+    warning_rows = []
+    all_vertices = []
+    dtype_ref = None
+    master_scene = trimesh.Scene()
+    owner_hist_rows = []
+    chunk_assign_rows = []
+
+    for row in completed_chunks_df.itertuples(index=False):
+        out_dir = chunk_runs_dir / row.chunk_name
+        input_dir = resolve_chunk_input_dir(row.chunk_name)
+        ply_path = input_dir / "gs_ply" / "0000.ply"
+        pred_ext_path = input_dir / "pred_extrinsics.npy"
+        chunk_input_path = input_dir / "chunk_input_frames.csv"
+        glb_path = input_dir / "scene.glb"
+        if not (ply_path.exists() and pred_ext_path.exists() and chunk_input_path.exists()):
+            continue
+
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        chunk_df = pd.read_csv(chunk_input_path)
+        pred_extrinsics = np.load(pred_ext_path)
+        chunk_df.attrs["chunk_name"] = row.chunk_name
+        assert chunk_df["record_index"].is_unique, f"duplicate record_index in chunk_input_frames: {row.chunk_name}"
+        assert pred_extrinsics.shape[0] == len(chunk_df), {"chunk_name": row.chunk_name, "pred_len": int(pred_extrinsics.shape[0]), "chunk_len": int(len(chunk_df))}
+
+        local_c2w_list = c2w_list_from_extrinsics(pred_extrinsics)
+        local_centers = np.stack([m[:3, 3] for m in local_c2w_list], axis=0).astype(np.float32)
+
+        merged = chunk_df.merge(
+            global_anchor_df,
+            on=["record_index", "image_file_name", "image_path", "frame_timestamp_ns", "capture_timestamp_ns"],
+            how="left",
+            validate="one_to_one",
+        )
+        assert len(merged) == len(chunk_df), {"chunk_name": row.chunk_name, "merged_len": len(merged), "chunk_len": len(chunk_df)}
+        assert not merged[["cx_world", "cy_world", "cz_world", "anchor_lens_x", "anchor_lens_y", "anchor_lens_z", "anchor_up_x", "anchor_up_y", "anchor_up_z"]].isnull().any().any(), f"global anchor missing: {row.chunk_name}"
+        global_c2w_list = [build_anchor_c2w(global_camera_map[int(rec.record_index)], rec) for rec in merged.itertuples(index=False)]
+
+        T_c_to_w0, align_diag = estimate_pose_aware_similarity(local_c2w_list, global_c2w_list, estimate_scale=True)
+
+        T_path = chunk_manifest_dir / f"{row.chunk_name}_to_w0.npy"
+        np.save(T_path, T_c_to_w0)
+        transform_rows.append({
+            "chunk_name": row.chunk_name,
+            "frame_count": int(len(chunk_df)),
+            "transform_path": str(T_path),
+            "local_camera_basis": "perm_yxz_sign_ppn",
+            "scale": float(align_diag["scale"]),
+            "rotation_det": float(align_diag["rotation_det"]),
+            "center_rmse": float(align_diag["center_rmse"]),
+            "rotation_dir_residual": float(align_diag["rotation_dir_residual"]),
+            "positive_similarity_ok": bool(align_diag["positive_similarity_ok"]),
+            "scale_in_range_ok": bool(align_diag["scale_in_range_ok"]),
+            "center_rmse_ok": bool(align_diag["center_rmse_ok"]),
+            "rotation_dir_ok": bool(align_diag["rotation_dir_ok"]),
+            "hard_fail": bool(align_diag["hard_fail"]),
+        })
+        assert not align_diag["hard_fail"], {
+            "chunk_name": row.chunk_name,
+            "reason": "invalid_pose_similarity",
+            "align_diag": align_diag,
+        }
+
+        adopted_record_set = set(chunk_df.loc[chunk_df["is_adopted_region"] == True, "record_index"].astype(int).tolist())
+
+        ply = PlyData.read(str(ply_path))
+        df = pd.DataFrame(ply["vertex"].data)
+        xyz = df[["x", "y", "z"]].to_numpy(dtype=np.float32)
+
+        A = T_c_to_w0[:3, :3].astype(np.float32)
+        t32 = T_c_to_w0[:3, 3].astype(np.float32)
+        xyz_w = (A @ xyz.T).T + t32
+        assignment_df = assign_vertex_owners(xyz_w, chunk_df)
+        assignment_df["chunk_name"] = row.chunk_name
+        keep = assignment_df["owner_record_index"].isin(adopted_record_set).to_numpy(dtype=bool)
+        assignment_df["kept"] = keep
+        assignment_df.to_csv(out_dir / "vertex_assignment_summary.csv", index=False, encoding="utf-8")
+
+        chunk_evidence_dir = final_outputs_chunk_evidence_dir / row.chunk_name
+        chunk_evidence_dir.mkdir(parents=True, exist_ok=True)
+        chunk_evidence_copy_plan = [
+            (out_dir / "vertex_assignment_summary.csv", chunk_evidence_dir / "vertex_assignment_summary.csv"),
+            (out_dir / "chunk_input_frames.csv", chunk_evidence_dir / "chunk_input_frames.csv"),
+            (out_dir / "pred_extrinsics.npy", chunk_evidence_dir / "pred_extrinsics.npy"),
+            (out_dir / "pred_intrinsics.npy", chunk_evidence_dir / "pred_intrinsics.npy"),
+        ]
+        for src, dst in chunk_evidence_copy_plan:
+            if src.exists():
+                shutil.copy2(src, dst)
+
+        owner_hist = assignment_df.groupby("owner_record_index", as_index=False).size().rename(columns={"size": "owner_vertex_count"})
+        owner_hist["chunk_name"] = row.chunk_name
+        owner_hist_rows.append(owner_hist)
+
+        chunk_assign = assignment_df.groupby(["owner_record_index", "owner_blur_ok"], as_index=False).agg(
+            owner_vertex_count=("vertex_index", "count"),
+            owner_score_mean=("owner_score", "mean"),
+            owner_dist_mean=("owner_dist", "mean"),
+            owner_dir_cos_mean=("owner_dir_cos", "mean"),
+        )
+        chunk_assign["chunk_name"] = row.chunk_name
+        chunk_assign_rows.append(chunk_assign)
+
+        df["x"] = xyz_w[:, 0]
+        df["y"] = xyz_w[:, 1]
+        df["z"] = xyz_w[:, 2]
+        df = df.loc[keep].copy()
+
+        if len(df) > 0:
+            records = df.to_records(index=False)
+            if dtype_ref is None:
+                dtype_ref = records.dtype
+            else:
+                records = records.astype(dtype_ref, copy=False)
+            all_vertices.append(records)
+
+        transform_warning = bool(
+            align_diag["center_rmse"] > TRANSFORM_CENTER_RMSE_WARN
+            or align_diag["rotation_dir_residual"] > TRANSFORM_ROT_DIR_WARN
+        )
+        keep_zero_chunk = int(len(df)) == 0
+        warning_rows.append({
+            "chunk_name": row.chunk_name,
+            "transform_warning": transform_warning,
+            "keep_zero_chunk": keep_zero_chunk,
+            "fallback_used": False,
+        })
+        keep_rows.append({
+            "chunk_name": row.chunk_name,
+            "kept_vertices": int(len(df)),
+            "owner_record_unique_count": int(assignment_df["owner_record_index"].nunique()),
+            "owner_candidate_mode": str(assignment_df["owner_candidate_mode"].iloc[0]),
+            "owner_record_min": int(assignment_df["owner_record_index"].min()),
+            "owner_record_max": int(assignment_df["owner_record_index"].max()),
+            "owner_blur_ok_ratio": float(assignment_df["owner_blur_ok"].mean()),
+            "owner_score_mean": float(assignment_df["owner_score"].mean()),
+        })
+        assert not keep_zero_chunk, {"chunk_name": row.chunk_name, "reason": "keep_zero_chunk"}
+
+        if glb_path.exists():
+            scene = load_scene_any(glb_path)
+            for gname, geom in iter_baked_scene_geometry(scene):
+                geom2 = geom.copy() if hasattr(geom, "copy") else geom
+                if hasattr(geom2, "apply_transform"):
+                    geom2.apply_transform(T_c_to_w0)
+                master_scene.add_geometry(geom2, node_name=f"{row.chunk_name}_{gname}")
+
+    transform_df = pd.DataFrame(transform_rows)
+    transform_df.to_csv(chunk_manifest_dir / "chunk_global_transforms_arc.csv", index=False, encoding="utf-8")
+
+    keep_df = pd.DataFrame(keep_rows)
+    keep_summary_path = merged_dir / "chunk_keep_summary_arc.csv"
+    keep_df.to_csv(keep_summary_path, index=False, encoding="utf-8")
+    transform_quality_path = merged_dir / "chunk_transform_quality_arc.csv"
+    transform_df.to_csv(transform_quality_path, index=False, encoding="utf-8")
+
+    if owner_hist_rows:
+        pd.concat(owner_hist_rows, ignore_index=True).to_csv(merged_dir / "owner_record_histogram_arc.csv", index=False, encoding="utf-8")
+    if chunk_assign_rows:
+        pd.concat(chunk_assign_rows, ignore_index=True).to_csv(merged_dir / "chunk_assignment_summary_arc.csv", index=False, encoding="utf-8")
+
+    warning_summary = {
+        "transform_warning_count": int(sum(bool(x["transform_warning"]) for x in warning_rows)),
+        "keep_zero_chunk_count": int(sum(bool(x["keep_zero_chunk"]) for x in warning_rows)),
+        "fallback_used_count": 0,
+        "rows": warning_rows,
+    }
+    (merged_dir / "merge_warning_summary_arc.json").write_text(json.dumps(warning_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    merged_ply_path = merged_dir / "merged_gs_arc.ply"
+    if all_vertices:
+        merged_vertices = np.concatenate(all_vertices, axis=0)
+        PlyData([PlyElement.describe(merged_vertices, "vertex")], text=False).write(str(merged_ply_path))
+
+    stage_11_2_copy_plan = [
+        (merged_ply_path, stage_11_2_dir / "merged_gs_arc.ply"),
+        (chunk_manifest_dir / "chunk_global_transforms_arc.csv", stage_11_2_dir / "chunk_global_transforms_arc.csv"),
+        (keep_summary_path, stage_11_2_dir / "chunk_keep_summary_arc.csv"),
+        (transform_quality_path, stage_11_2_dir / "chunk_transform_quality_arc.csv"),
+        (merged_dir / "owner_record_histogram_arc.csv", stage_11_2_dir / "owner_record_histogram_arc.csv"),
+        (merged_dir / "chunk_assignment_summary_arc.csv", stage_11_2_dir / "chunk_assignment_summary_arc.csv"),
+        (merged_dir / "merge_warning_summary_arc.json", stage_11_2_dir / "merge_warning_summary_arc.json"),
+        (merged_dir / "all_batch_summary_arc.json", stage_11_2_dir / "all_batch_summary_arc.json"),
+    ]
+    stage_11_2_files = []
+    for src, dst in stage_11_2_copy_plan:
+        if src.exists():
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dst)
+            stage_11_2_files.append(str(dst))
+    merge_resume_state = {
+        "route": "continuous-gs-v06-chunk18-overlap6-adopt12-merge",
+        "stage": "11-2-complete",
+        "completed_chunk_count": int(len(completed_chunks_df)),
+        "all_chunk_count": int(len(target_chunks_df)),
+        "stage_11_2_dir": str(stage_11_2_dir),
+        "stage_11_2_files": stage_11_2_files,
+        "merged_ply_path": str(merged_ply_path) if merged_ply_path.exists() else None,
+    }
+    (final_outputs_diagnostics_dir / "merge_resume_state.json").write_text(json.dumps(merge_resume_state, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    merged_glb_path = merged_dir / "merged_scene_arc.glb"
+    if len(master_scene.geometry) > 0:
+        master_scene.export(str(merged_glb_path))
+
+    for src in stage_11_2_dir.glob("*"):
+        if src.is_file():
+            shutil.copy2(src, stage_11_3_dir / src.name)
+    if merged_glb_path.exists():
+        shutil.copy2(merged_glb_path, stage_11_3_dir / "merged_scene_arc.glb")
+    merge_resume_state.update({
+        "stage": "11-3-complete",
+        "stage_11_3_dir": str(stage_11_3_dir),
+        "merged_glb_path": str(merged_glb_path) if merged_glb_path.exists() else None,
+    })
+    (final_outputs_diagnostics_dir / "merge_resume_state.json").write_text(json.dumps(merge_resume_state, indent=2, ensure_ascii=False), encoding="utf-8")
+    shutil.copy2(final_outputs_diagnostics_dir / "merge_resume_state.json", stage_11_3_dir / "merge_resume_state.json")
+
+    final_output_copy_plan = [
+        (merged_ply_path, final_outputs_merged_dir / "merged_gs_arc.ply"),
+        (merged_glb_path, final_outputs_merged_dir / "merged_scene_arc.glb"),
+        (chunk_manifest_dir / "chunk_global_transforms_arc.csv", final_outputs_diagnostics_dir / "chunk_global_transforms_arc.csv"),
+        (keep_summary_path, final_outputs_diagnostics_dir / "chunk_keep_summary_arc.csv"),
+        (transform_quality_path, final_outputs_diagnostics_dir / "chunk_transform_quality_arc.csv"),
+        (merged_dir / "owner_record_histogram_arc.csv", final_outputs_diagnostics_dir / "owner_record_histogram_arc.csv"),
+        (merged_dir / "chunk_assignment_summary_arc.csv", final_outputs_diagnostics_dir / "chunk_assignment_summary_arc.csv"),
+        (merged_dir / "merge_warning_summary_arc.json", final_outputs_diagnostics_dir / "merge_warning_summary_arc.json"),
+        (merged_dir / "all_batch_summary_arc.json", final_outputs_diagnostics_dir / "all_batch_summary_arc.json"),
+        (input_manifest_path, final_outputs_manifests_dir / "da3_input_manifest.csv"),
+        (global_pose_dir / "camera_center_matrix_arc.csv", final_outputs_manifests_dir / "camera_center_matrix_arc.csv"),
+        (global_pose_dir / "camera_matrix_full_arc.csv", final_outputs_manifests_dir / "camera_matrix_full_arc.csv"),
+        (global_pose_dir / "camera_anchor_full_arc.csv", final_outputs_manifests_dir / "camera_anchor_full_arc.csv"),
+        (chunk_manifest_dir / "chunk_index_all.csv", final_outputs_manifests_dir / "chunk_index_all.csv"),
+        (chunk_manifest_dir / "batch_plan.csv", final_outputs_manifests_dir / "batch_plan.csv"),
+    ]
+    final_output_files = []
+    for src, dst in final_output_copy_plan:
+        if src.exists():
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dst)
+            final_output_files.append({
+                "label": dst.name,
+                "source_path": str(src),
+                "drive_path": str(dst),
+            })
+
+    bundle_summary = {
+        "status": "drive_only",
+        "reason": "drive_outputs_ready_local_bundle_is_separate_stage",
+    }
+
+    if MAKE_DRIVE_BUNDLE:
+        bundle_summary = {
+            "status": "drive_only",
+            "drive_visible_dir": str(probe_root),
+            "drive_pipeline_root": str(pipeline_root),
+            "drive_results_root": str(results_root),
+            "local_bundle_stage": "#11-1",
+            "download_requested": False,
+        }
+
+    final_output_manifest = {
+        "status": "ok" if final_output_files else "partial",
+        "drive_visible_dir": str(probe_root),
+        "final_outputs_dir": str(final_outputs_dir),
+        "final_outputs_merged_dir": str(final_outputs_merged_dir),
+        "final_outputs_diagnostics_dir": str(final_outputs_diagnostics_dir),
+        "final_outputs_manifests_dir": str(final_outputs_manifests_dir),
+        "final_outputs_chunk_evidence_dir": str(final_outputs_chunk_evidence_dir),
+        "stage_11_2_dir": str(stage_11_2_dir),
+        "stage_11_3_dir": str(stage_11_3_dir),
+        "chunk_evidence_dirs": sorted([str(p) for p in final_outputs_chunk_evidence_dir.glob("*") if p.is_dir()]),
+        "file_count": int(len(final_output_files)),
+        "files": final_output_files,
+    }
+    (final_outputs_dir / "final_output_manifest_arc.json").write_text(json.dumps(final_output_manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    merge_summary = {
+        "route": "continuous-gs-v06-chunk18-overlap6-adopt12-merge",
+        "status": "ok" if all_vertices else "skipped",
+        "reason": None if all_vertices else "no kept vertices",
+        "completed_chunk_count": int(len(completed_chunks_df)),
+        "all_chunk_count": int(len(target_chunks_df)),
+        "merged_ply_path": str(merged_ply_path) if merged_ply_path.exists() else None,
+        "merged_glb_path": str(merged_glb_path) if merged_glb_path.exists() else None,
+        "chunk_global_transforms_path": str(chunk_manifest_dir / "chunk_global_transforms_arc.csv"),
+        "chunk_keep_summary_path": str(keep_summary_path),
+        "chunk_transform_quality_path": str(transform_quality_path),
+        "owner_record_histogram_path": str(merged_dir / "owner_record_histogram_arc.csv"),
+        "chunk_assignment_summary_path": str(merged_dir / "chunk_assignment_summary_arc.csv"),
+        "merge_warning_summary_path": str(merged_dir / "merge_warning_summary_arc.json"),
+        "all_batch_summary_path": str(merged_dir / "all_batch_summary_arc.json"),
+        "final_outputs_dir": str(final_outputs_dir),
+        "final_output_manifest_path": str(final_outputs_dir / "final_output_manifest_arc.json"),
+        "bundle_summary": bundle_summary,
+    }
+    (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+    shutil.copy2(merged_dir / "merge_summary.json", final_outputs_diagnostics_dir / "merge_summary.json")
+    print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
+    display_stage_summary(
+        "14-1",
+        "merge",
+        inputs=[
+            {"item": "batch_execution_items", "path": str(batch_execution_items_path)},
+            {"item": "camera_anchor_full", "path": str(global_pose_dir / "camera_anchor_full_arc.csv")},
+            {"item": "da3_input_manifest", "path": str(input_manifest_path)},
+        ],
+        outputs=[
+            {"item": "merge_summary", "path": str(merged_dir / "merge_summary.json")},
+            {"item": "merged_gs", "path": str(merged_ply_path)},
+            {"item": "merged_scene_glb", "path": str(merged_glb_path)},
+            {"item": "final_output_manifest", "path": str(final_outputs_dir / "final_output_manifest_arc.json")},
+            {"item": "chunk_global_transforms", "path": str(chunk_manifest_dir / "chunk_global_transforms_arc.csv")},
+            {"item": "chunk_keep_summary", "path": str(keep_summary_path)},
+            {"item": "chunk_transform_quality", "path": str(transform_quality_path)},
+        ],
+        notes=[
+            {"item": "completed_chunk_count", "value": int(len(completed_chunks_df))},
+            {"item": "status", "value": merge_summary["status"]},
+        ],
+    )

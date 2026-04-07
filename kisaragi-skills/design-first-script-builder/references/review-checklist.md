@@ -1,0 +1,7 @@
+- 設計審査票が先に更新されているか
+- stage / pipeline ごとの責務境界が残っているか
+- 関数 / クラス一覧表と code が追跡可能か
+- `docs_id` が code comment / docstring / table のいずれかで参照可能か
+- validation が変換直後にあるか
+- error が recoverable / fatal を区別しているか
+- notebook が orchestration に寄り、helper 実装が埋め込み過多になっていないか

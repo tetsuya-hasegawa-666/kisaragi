@@ -8,6 +8,7 @@ dist/
 .vite-temp/
 *.egg-info/
 tmp/
+_vendor/
 kisaragi-db/--exsams/prj-*/**
 kisaragi-tree/prj-*/
 kisaragi-db/--devs/--products/prj-kisaragi_0002/modeling/evidence/GiantLarge1.1-session-20260402/proof_giant/gs_ply/0000.ply

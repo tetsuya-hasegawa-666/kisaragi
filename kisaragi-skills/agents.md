@@ -10,6 +10,7 @@
 
 ## 収録 skill
 
+- `design-first-script-builder`
 - `documentation-watchkeeper`
 - `delivery-planning-keeper`
 - `external-compute-output-keeper`
@@ -19,6 +20,7 @@
 
 ## 役割境界
 
+- `design-first-script-builder` は、設計審査票、責務分離、関数一覧表、docs ID 対応、validation / error handling 契約を先に固定してから script や notebook を書く観点を扱うものとする。
 - `documentation-watchkeeper` は docs drift、文書 topology、version 整合、encoding 健全性をまとめて扱うものとする。
 - `delivery-planning-keeper` は BDD、TDD、release gate、handover をまとめて扱うものとする。
 - `external-compute-output-keeper` は `Colab`、remote notebook、remote GPU job の final output を永続 visible storage へ固定し、cleanup 対象を分離する観点を扱うものとする。

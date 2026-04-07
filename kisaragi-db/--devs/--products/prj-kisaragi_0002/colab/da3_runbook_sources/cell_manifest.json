@@ -1,0 +1,266 @@
+[
+  {
+    "token": "#1-1",
+    "source_file": "cells/01_01.py",
+    "kind": "direct",
+    "docs_id": "DOC-C01-01",
+    "label": "da3-ngl-canonical-colab-runbook",
+    "heading": "DA3 NGL Canonical Colab Runbook"
+  },
+  {
+    "token": "#2-1",
+    "source_file": "cells/02_01.py",
+    "kind": "direct",
+    "docs_id": "DOC-C02-01",
+    "label": "2-config",
+    "heading": "2 Config"
+  },
+  {
+    "token": "#3-1",
+    "source_file": "cells/03_01.py",
+    "kind": "direct",
+    "docs_id": "DOC-C03-01",
+    "label": "3-input-select-and-path-check",
+    "heading": "3 Input Select And Path Check"
+  },
+  {
+    "token": "#4-1",
+    "source_file": "cells/04_01.py",
+    "kind": "direct",
+    "docs_id": "DOC-C04-01",
+    "label": "4-tree-init",
+    "heading": "4 Tree Init"
+  },
+  {
+    "token": "#4-2",
+    "source_file": "cells/04_02.py",
+    "kind": "direct",
+    "docs_id": "DOC-C04-02",
+    "label": "4-tree-init",
+    "heading": "4 Tree Init"
+  },
+  {
+    "token": "#5-1",
+    "source_file": "cells/05_install.py",
+    "kind": "direct",
+    "docs_id": "DOC-C05-01",
+    "label": "install-runtime-bootstrap",
+    "heading": "5 Install"
+  },
+  {
+    "token": "#6-1",
+    "source_file": "cells/06_shared_helpers.py",
+    "kind": "direct",
+    "docs_id": "DOC-C06-01",
+    "label": "shared-helper-set",
+    "heading": "6 Shared Helpers"
+  },
+  {
+    "token": "#7-1",
+    "source_file": "cells/07_01.py",
+    "kind": "direct",
+    "docs_id": "DOC-C07-01",
+    "label": "7-full-anchor-build",
+    "heading": "7 Full Anchor Build"
+  },
+  {
+    "token": "#7-2",
+    "source_file": "cells/07_02.py",
+    "kind": "direct",
+    "docs_id": "DOC-C07-02",
+    "label": "7-full-anchor-build",
+    "heading": "7 Full Anchor Build"
+  },
+  {
+    "token": "#7-3",
+    "source_file": "cells/07_03.py",
+    "kind": "direct",
+    "docs_id": "DOC-C07-03",
+    "label": "7-full-anchor-build",
+    "heading": "7 Full Anchor Build"
+  },
+  {
+    "token": "#8-1",
+    "source_file": "cells/08_01.py",
+    "kind": "direct",
+    "docs_id": "DOC-C08-01",
+    "label": "8-anchor-qc-and-plot",
+    "heading": "8 Anchor QC And Plot"
+  },
+  {
+    "token": "#8-2",
+    "source_file": "cells/08_02.py",
+    "kind": "direct",
+    "docs_id": "DOC-C08-02",
+    "label": "8-anchor-qc-and-plot",
+    "heading": "8 Anchor QC And Plot"
+  },
+  {
+    "token": "#9-1",
+    "source_file": "cells/09_01.py",
+    "kind": "direct",
+    "docs_id": "DOC-C09-01",
+    "label": "9-record-manifest-and-chunk-plan",
+    "heading": "9 Record Manifest And Chunk Plan"
+  },
+  {
+    "token": "#9-2",
+    "source_file": "cells/09_02.py",
+    "kind": "direct",
+    "docs_id": "DOC-C09-02",
+    "label": "9-record-manifest-and-chunk-plan",
+    "heading": "9 Record Manifest And Chunk Plan"
+  },
+  {
+    "token": "#9-3",
+    "source_file": "cells/09_03.py",
+    "kind": "direct",
+    "docs_id": "DOC-C09-03",
+    "label": "9-record-manifest-and-chunk-plan",
+    "heading": "9 Record Manifest And Chunk Plan"
+  },
+  {
+    "token": "#9-4",
+    "source_file": "cells/09_04.py",
+    "kind": "direct",
+    "docs_id": "DOC-C09-04",
+    "label": "9-record-manifest-and-chunk-plan",
+    "heading": "9 Record Manifest And Chunk Plan"
+  },
+  {
+    "token": "#9-5",
+    "source_file": "cells/09_05.py",
+    "kind": "direct",
+    "docs_id": "DOC-C09-05",
+    "label": "9-record-manifest-and-chunk-plan",
+    "heading": "9 Record Manifest And Chunk Plan"
+  },
+  {
+    "token": "#10-1",
+    "source_file": "cells/10_01.py",
+    "kind": "direct",
+    "docs_id": "DOC-C10-01",
+    "label": "10-precheck",
+    "heading": "10 Precheck"
+  },
+  {
+    "token": "#10-2",
+    "source_file": "cells/10_02.py",
+    "kind": "direct",
+    "docs_id": "DOC-C10-02",
+    "label": "10-precheck",
+    "heading": "10 Precheck"
+  },
+  {
+    "token": "#10-3",
+    "source_file": "cells/10_03.py",
+    "kind": "direct",
+    "docs_id": "DOC-C10-03",
+    "label": "10-precheck",
+    "heading": "10 Precheck"
+  },
+  {
+    "token": "#11-1",
+    "source_file": "cells/11_01.py",
+    "kind": "direct",
+    "docs_id": "DOC-C11-01",
+    "label": "11-run-preparation",
+    "heading": "11 Run Preparation"
+  },
+  {
+    "token": "#11-2",
+    "source_file": "cells/11_02.py",
+    "kind": "direct",
+    "docs_id": "DOC-C11-02",
+    "label": "11-run-preparation",
+    "heading": "11 Run Preparation"
+  },
+  {
+    "token": "#11-3",
+    "source_file": "cells/11_03.py",
+    "kind": "direct",
+    "docs_id": "DOC-C11-03",
+    "label": "11-run-preparation",
+    "heading": "11 Run Preparation"
+  },
+  {
+    "token": "#11-4",
+    "source_file": "cells/11_04.py",
+    "kind": "direct",
+    "docs_id": "DOC-C11-04",
+    "label": "11-run-preparation",
+    "heading": "11 Run Preparation"
+  },
+  {
+    "token": "#12-1",
+    "source_file": "cells/12_01.py",
+    "kind": "direct",
+    "docs_id": "DOC-C12-01",
+    "label": "12-run-batches",
+    "heading": "12 Run Batches"
+  },
+  {
+    "token": "#12-2",
+    "source_file": "cells/12_chunk_wrapper.py",
+    "kind": "wrapper_body",
+    "docs_id": "DOC-C12-02",
+    "label": "chunk-runner-wrapper",
+    "heading": "12 Run Batches"
+  },
+  {
+    "token": "#12-3",
+    "source_file": "cells/12_03.py",
+    "kind": "direct",
+    "docs_id": "DOC-C12-03",
+    "label": "12-run-batches",
+    "heading": "12 Run Batches"
+  },
+  {
+    "token": "#13-1",
+    "source_file": "cells/13_01.py",
+    "kind": "direct",
+    "docs_id": "DOC-C13-01",
+    "label": "13-batch-validation",
+    "heading": "13 Batch Validation"
+  },
+  {
+    "token": "#14-1",
+    "source_file": "cells/14_01.py",
+    "kind": "direct",
+    "docs_id": "DOC-C14-01",
+    "label": "14-merge",
+    "heading": "14 Merge"
+  },
+  {
+    "token": "#15-1",
+    "source_file": "cells/15_01.py",
+    "kind": "direct",
+    "docs_id": "DOC-C15-01",
+    "label": "15-optional-bundle",
+    "heading": "15 Optional Bundle"
+  },
+  {
+    "token": "#16-1",
+    "source_file": "cells/16_01.py",
+    "kind": "direct",
+    "docs_id": "DOC-C16-01",
+    "label": "16-cleanup-inventory",
+    "heading": "16 Cleanup Inventory"
+  },
+  {
+    "token": "#16-2",
+    "source_file": "cells/16_02.py",
+    "kind": "direct",
+    "docs_id": "DOC-C16-02",
+    "label": "16-cleanup-inventory",
+    "heading": "16 Cleanup Inventory"
+  },
+  {
+    "token": "#17-1",
+    "source_file": "cells/17_01.py",
+    "kind": "direct",
+    "docs_id": "DOC-C17-01",
+    "label": "17-cleanup-apply",
+    "heading": "17 Cleanup Apply"
+  }
+]

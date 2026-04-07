@@ -1,0 +1,138 @@
+[
+  {
+    "leading_token": "#1-1",
+    "source_file": "markdown/01_01.md",
+    "target_ref": "#1-1",
+    "prev_ref": "なし",
+    "next_ref": "#2-1",
+    "heading": "DA3 NGL Canonical Colab Runbook"
+  },
+  {
+    "leading_token": "#2-1",
+    "source_file": "markdown/02_01.md",
+    "target_ref": "#2-1",
+    "prev_ref": "#1-1",
+    "next_ref": "#3-1",
+    "heading": "2 Config"
+  },
+  {
+    "leading_token": "#3-1",
+    "source_file": "markdown/03_01.md",
+    "target_ref": "#3-1",
+    "prev_ref": "#2-1",
+    "next_ref": "#4-1..#4-2",
+    "heading": "3 Input Select And Path Check"
+  },
+  {
+    "leading_token": "#4-1",
+    "source_file": "markdown/04_01.md",
+    "target_ref": "#4-1..#4-2",
+    "prev_ref": "#3-1",
+    "next_ref": "#5-1",
+    "heading": "4 Tree Init"
+  },
+  {
+    "leading_token": "#5-1",
+    "source_file": "markdown/05_01.md",
+    "target_ref": "#5-1",
+    "prev_ref": "#4-1..#4-2",
+    "next_ref": "#6-1",
+    "heading": "5 Install"
+  },
+  {
+    "leading_token": "#6-1",
+    "source_file": "markdown/06_01.md",
+    "target_ref": "#6-1",
+    "prev_ref": "#5-1",
+    "next_ref": "#7-1..#7-3",
+    "heading": "6 Shared Helpers"
+  },
+  {
+    "leading_token": "#7-1",
+    "source_file": "markdown/07_01.md",
+    "target_ref": "#7-1..#7-3",
+    "prev_ref": "#6-1",
+    "next_ref": "#8-1..#8-2",
+    "heading": "7 Full Anchor Build"
+  },
+  {
+    "leading_token": "#8-1",
+    "source_file": "markdown/08_01.md",
+    "target_ref": "#8-1..#8-2",
+    "prev_ref": "#7-1..#7-3",
+    "next_ref": "#9-1..#9-5",
+    "heading": "8 Anchor QC And Plot"
+  },
+  {
+    "leading_token": "#9-1",
+    "source_file": "markdown/09_01.md",
+    "target_ref": "#9-1..#9-5",
+    "prev_ref": "#8-1..#8-2",
+    "next_ref": "#10-1..#10-3",
+    "heading": "9 Record Manifest And Chunk Plan"
+  },
+  {
+    "leading_token": "#10-1",
+    "source_file": "markdown/10_01.md",
+    "target_ref": "#10-1..#10-3",
+    "prev_ref": "#9-1..#9-5",
+    "next_ref": "#11-1..#11-4",
+    "heading": "10 Precheck"
+  },
+  {
+    "leading_token": "#11-1",
+    "source_file": "markdown/11_01.md",
+    "target_ref": "#11-1..#11-4",
+    "prev_ref": "#10-1..#10-3",
+    "next_ref": "#12-1..#12-3",
+    "heading": "11 Run Preparation"
+  },
+  {
+    "leading_token": "#12-1",
+    "source_file": "markdown/12_01.md",
+    "target_ref": "#12-1..#12-3",
+    "prev_ref": "#11-1..#11-4",
+    "next_ref": "#13-1",
+    "heading": "12 Run Batches"
+  },
+  {
+    "leading_token": "#13-1",
+    "source_file": "markdown/13_01.md",
+    "target_ref": "#13-1",
+    "prev_ref": "#12-1..#12-3",
+    "next_ref": "#14-1",
+    "heading": "13 Batch Validation"
+  },
+  {
+    "leading_token": "#14-1",
+    "source_file": "markdown/14_01.md",
+    "target_ref": "#14-1",
+    "prev_ref": "#13-1",
+    "next_ref": "#15-1",
+    "heading": "14 Merge"
+  },
+  {
+    "leading_token": "#15-1",
+    "source_file": "markdown/15_01.md",
+    "target_ref": "#15-1",
+    "prev_ref": "#14-1",
+    "next_ref": "#16-1..#16-2",
+    "heading": "15 Optional Bundle"
+  },
+  {
+    "leading_token": "#16-1",
+    "source_file": "markdown/16_01.md",
+    "target_ref": "#16-1..#16-2",
+    "prev_ref": "#15-1",
+    "next_ref": "#17-1",
+    "heading": "16 Cleanup Inventory"
+  },
+  {
+    "leading_token": "#17-1",
+    "source_file": "markdown/17_01.md",
+    "target_ref": "#17-1",
+    "prev_ref": "#16-1..#16-2",
+    "next_ref": "終了",
+    "heading": "17 Cleanup Apply"
+  }
+]
