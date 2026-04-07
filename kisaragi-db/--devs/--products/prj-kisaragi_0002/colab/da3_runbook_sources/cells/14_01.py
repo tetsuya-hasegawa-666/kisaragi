@@ -69,6 +69,8 @@ else:
         "ADOPT_SIZE": 12,
         "CHUNKS_PER_BATCH": 3,
         "GLOBAL_CAMERA_SOURCE": "extrinsics_w2c_arc.npy",
+        "TARGET_CHUNK_MODE": "selected_chunk_ids_1based",
+        "TARGET_CHUNK_IDS_1BASED": [6, 7, 8, 9, 10, 11],
         "USE_TARGET_CHUNK_WINDOW": False,
         "TARGET_CHUNK_WINDOW_START_1BASED": 1,
         "TARGET_CHUNK_WINDOW_COUNT": 0,
@@ -117,12 +119,26 @@ def ensure_target_chunk_manifest():
     all_path = chunk_manifest_dir / "chunk_index_all.csv"
     assert all_path.exists(), all_path
     base_df = pd.read_csv(all_path)
-    if config.get("USE_TARGET_CHUNK_WINDOW", False):
+    target_mode = str(config.get("TARGET_CHUNK_MODE", "selected_chunk_ids_1based"))
+    if target_mode == "full_set":
+        target_chunks_df = base_df.copy().reset_index(drop=True)
+    elif target_mode == "selected_chunk_ids_1based":
+        valid_chunk_ids = set(base_df["chunk_id"].astype(int).tolist())
+        selected_chunk_ids = sorted({int(x) - 1 for x in config.get("TARGET_CHUNK_IDS_1BASED", []) if int(x) >= 1})
+        selected_chunk_ids = [x for x in selected_chunk_ids if x in valid_chunk_ids]
+        assert selected_chunk_ids, {
+            "reason": "selected target chunk ids resolved empty",
+            "selected_chunk_ids_1based": config.get("TARGET_CHUNK_IDS_1BASED", []),
+            "valid_chunk_ids_0based": sorted(valid_chunk_ids),
+        }
+        target_chunks_df = base_df.loc[base_df["chunk_id"].astype(int).isin(selected_chunk_ids)].copy()
+        target_chunks_df = target_chunks_df.sort_values("chunk_id", kind="stable").reset_index(drop=True)
+    elif config.get("USE_TARGET_CHUNK_WINDOW", False):
         start_0 = max(0, int(config.get("TARGET_CHUNK_WINDOW_START_1BASED", 1)) - 1)
         end_0 = min(start_0 + int(config.get("TARGET_CHUNK_WINDOW_COUNT", 3)), len(base_df))
         target_chunks_df = base_df.iloc[start_0:end_0].copy().reset_index(drop=True)
     else:
-        target_chunks_df = base_df.copy().reset_index(drop=True)
+        raise AssertionError({"reason": "unsupported target chunk mode", "target_mode": target_mode})
     target_chunks_df.to_csv(target_path, index=False, encoding="utf-8")
     return target_chunks_df
 

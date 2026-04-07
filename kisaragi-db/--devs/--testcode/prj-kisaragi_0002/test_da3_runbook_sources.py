@@ -136,6 +136,30 @@ class Da3RunbookSourcesTest(unittest.TestCase):
         self.assertEqual([0, 1, 2], df["sequence_index"].tolist())
         self.assertEqual(["a", "b", "c"], df["value"].tolist())
 
+    def test_anchor_qc_uses_centered_roll_and_count_aliases(self) -> None:
+        source = (SOURCE_DIR / "cells" / "08_01.py").read_text(encoding="utf-8")
+        self.assertIn("ANCHOR_QC_WARN_ABS_ROLL_CENTERED_DEG", source)
+        self.assertIn('df["roll_deg_centered"]', source)
+        self.assertIn('"fail_count": int(len(fail_df))', source)
+        self.assertIn('"warn_count": int(len(warn_df))', source)
+
+    def test_target_chunk_policy_is_config_driven_and_consistent(self) -> None:
+        config_source = (SOURCE_DIR / "cells" / "02_01.py").read_text(encoding="utf-8")
+        plan_source = (SOURCE_DIR / "cells" / "09_04.py").read_text(encoding="utf-8")
+        merge_source = (SOURCE_DIR / "cells" / "14_01.py").read_text(encoding="utf-8")
+        self.assertIn('"TARGET_CHUNK_MODE": "selected_chunk_ids_1based"', config_source)
+        self.assertIn('"TARGET_CHUNK_IDS_1BASED": [6, 7, 8, 9, 10, 11]', config_source)
+        self.assertIn('target_mode == "selected_chunk_ids_1based"', plan_source)
+        self.assertIn('"target_policy": target_policy', plan_source)
+        self.assertIn('"target_chunk_ids_1based": target_ids_1based', plan_source)
+        self.assertIn('target_mode == "selected_chunk_ids_1based"', merge_source)
+
+    def test_fresh_run_resets_probe_root_at_tree_init(self) -> None:
+        tree_init_source = (SOURCE_DIR / "cells" / "04_01.py").read_text(encoding="utf-8")
+        self.assertIn('reset_before_run = bool(config.get("RESET_TARGET_OUTPUTS_BEFORE_RUN", True))', tree_init_source)
+        self.assertIn("shutil.rmtree(probe_root_resolved)", tree_init_source)
+        self.assertIn('"reset_target_outputs_before_run": reset_before_run', tree_init_source)
+
     def test_sync_and_inventory_scripts_run(self) -> None:
         subprocess.run([sys.executable, str(SYNC_SCRIPT)], check=True, cwd=DB_ROOT.parent)
         subprocess.run([sys.executable, str(INVENTORY_SCRIPT)], check=True, cwd=DB_ROOT.parent)

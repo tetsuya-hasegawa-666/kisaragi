@@ -16,7 +16,7 @@
 | #7-1 | `cells/07_01.py` | `direct` | 7 Full Anchor Build | build_anchor_inputs_from_zip | ctx_path, ctx, manifest_dir, da3_nested_dir, world_dir, final_outputs_dir, final_outputs_merged_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir, final_outputs_chunk_evidence_dir, images_dir, frame_record_path | `DOC-C07-01` |
 | #7-2 | `cells/07_02.py` | `direct` | 7 Full Anchor Build | _existing, _find_manifest_triplet, _normalize_rows | config, search_roots, anchor_dir, manifest_dir, manifest_df, intrinsics, extrinsics_w2c, c2w, camera_centers, right_vecs, up_vecs, lens_vecs | `DOC-C07-02` |
 | #7-3 | `cells/07_03.py` | `direct` | 7 Full Anchor Build | _existing, _find_anchor_root, _normalize, _wrap_deg, _angle_deg | config, search_roots, persist_root, anchor_dir, anchor_path, anchor_df, required_cols, missing, lens, up, right, centers | `DOC-C07-03` |
-| #8-1 | `cells/08_01.py` | `direct` | 8 Anchor QC And Plot | _existing, _find_anchor_diag_root | config, search_roots, persist_root, anchor_dir, diag_path, df, MAX_DELTA_POS, MAX_DELTA_LENS_ANGLE_DEG, MAX_DELTA_UP_ANGLE_DEG, MAX_DELTA2_POS, MAX_DELTA2_ROT, WARN_ABS_ROLL_DEG | `DOC-C08-01` |
+| #8-1 | `cells/08_01.py` | `direct` | 8 Anchor QC And Plot | _existing, _find_anchor_diag_root | config, search_roots, persist_root, anchor_dir, diag_path, df, MAX_DELTA_POS, MAX_DELTA_LENS_ANGLE_DEG, MAX_DELTA_UP_ANGLE_DEG, MAX_DELTA2_POS, MAX_DELTA2_ROT, WARN_ABS_ROLL_CENTERED_DEG | `DOC-C08-01` |
 | #8-2 | `cells/08_02.py` | `direct` | 8 Anchor QC And Plot | _existing, _find_anchor_root, _pick_first_existing, _resolve_center_cols, _resolve_lens_cols | config, search_roots, persist_root, anchor_dir, anchor_csv, df, lens_cols, plotly_html, plotly_png, centers, bbox_min, bbox_max | `DOC-C08-02` |
 | #9-1 | `cells/09_01.py` | `direct` | 9 Record Manifest And Chunk Plan | ranked_image_dirs, lap_var, read_actual_wh, normalize_intrinsics_to_upright, quat_to_rot, pose_to_w2c, build_K | ctx, images_dir, frame_record_path, frame_pose_index_path, manifest_dir, CANONICAL_ORIENTATION_POLICY, BLUR_THRESHOLD, frame_pose_df, image_name_by_record_index, image_dir_ranking, resolved_images_dir, rows | `DOC-C09-01` |
 | #9-2 | `cells/09_02.py` | `direct` | 9 Record Manifest And Chunk Plan | - | ctx, manifest_dir, managed_dirs, record_dir, anchor_diag, anchor_keep_cols, anchor_join, p, df, ts_col, df | `DOC-C09-02` |
@@ -170,6 +170,7 @@
 | final_outputs_diagnostics_dir | #4-1 | 4 Tree Init | `DOC-C04-01` |
 | final_outputs_manifests_dir | #4-1 | 4 Tree Init | `DOC-C04-01` |
 | final_outputs_chunk_evidence_dir | #4-1 | 4 Tree Init | `DOC-C04-01` |
+| reset_before_run | #4-1 | 4 Tree Init | `DOC-C04-01` |
 | context_doc | #4-1 | 4 Tree Init | `DOC-C04-01` |
 | ctx | #4-2 | 4 Tree Init | `DOC-C04-02` |
 | probe_root | #4-2 | 4 Tree Init | `DOC-C04-02` |
@@ -269,7 +270,7 @@
 | MAX_DELTA_UP_ANGLE_DEG | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
 | MAX_DELTA2_POS | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
 | MAX_DELTA2_ROT | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
-| WARN_ABS_ROLL_DEG | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
+| WARN_ABS_ROLL_CENTERED_DEG | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
 | WARN_PITCH_MIN_DEG | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
 | WARN_PITCH_MAX_DEG | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
 | fail_df | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
@@ -359,7 +360,8 @@
 | chunk_id | #9-4 | 9 Record Manifest And Chunk Plan | `DOC-C09-04` |
 | all_chunks_df | #9-4 | 9 Record Manifest And Chunk Plan | `DOC-C09-04` |
 | chunk_index_all_path | #9-4 | 9 Record Manifest And Chunk Plan | `DOC-C09-04` |
-| target_chunks_df | #9-4 | 9 Record Manifest And Chunk Plan | `DOC-C09-04` |
+| target_mode | #9-4 | 9 Record Manifest And Chunk Plan | `DOC-C09-04` |
+| target_ids_1based | #9-4 | 9 Record Manifest And Chunk Plan | `DOC-C09-04` |
 | chunk_index_target_path | #9-4 | 9 Record Manifest And Chunk Plan | `DOC-C09-04` |
 | batch_rows | #9-4 | 9 Record Manifest And Chunk Plan | `DOC-C09-04` |
 | batch_count | #9-4 | 9 Record Manifest And Chunk Plan | `DOC-C09-04` |

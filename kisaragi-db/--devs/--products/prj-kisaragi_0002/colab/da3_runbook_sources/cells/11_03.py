@@ -74,6 +74,7 @@ summary = {
     "execution_chunk_rows": int(len(execution_chunks_df)),
     "execution_batch_rows": int(len(execution_batch_plan_df)),
     "execution_chunk_names_sample": execution_chunks_df[chunk_name_col].astype(str).head(10).tolist(),
+    "execution_chunk_names_all": execution_chunks_df[chunk_name_col].astype(str).tolist(),
     "execution_batch_names": execution_batch_plan_df["batch_name"].astype(str).tolist(),
     "execution_chunk_out": str(execution_chunk_out),
     "execution_batch_out": str(execution_batch_out),

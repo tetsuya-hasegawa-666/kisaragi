@@ -43,8 +43,13 @@ config = {
     "GLOBAL_CAMERA_SOURCE": "manifests/extrinsics_w2c_arc.npy",
     "CANONICAL_ANCHOR_MODE": "lens=-c2w_z, up=c2w_y",
     "PIPELINE_SLUG": pipeline_slug,
-    "TARGET_POLICY": "canonical_full_set",
-    "TEST_EXECUTION_LIMITER_LOCATION": "#11-3",
+    "TARGET_CHUNK_MODE": str(config_snapshot.get("TARGET_CHUNK_MODE", "selected_chunk_ids_1based")),
+    "TARGET_CHUNK_IDS_1BASED": list(config_snapshot.get("TARGET_CHUNK_IDS_1BASED", [6, 7, 8, 9, 10, 11])),
+    "USE_TARGET_CHUNK_WINDOW": bool(config_snapshot.get("USE_TARGET_CHUNK_WINDOW", False)),
+    "TARGET_CHUNK_WINDOW_START_1BASED": int(config_snapshot.get("TARGET_CHUNK_WINDOW_START_1BASED", 1)),
+    "TARGET_CHUNK_WINDOW_COUNT": int(config_snapshot.get("TARGET_CHUNK_WINDOW_COUNT", 0)),
+    "TARGET_POLICY": "config_driven_target_selection",
+    "TEST_EXECUTION_LIMITER_LOCATION": "#11-3 legacy override only",
 }
 
 def sha256_file(path: Path) -> str:
@@ -138,8 +143,36 @@ assert len(all_chunks_df) >= 1, "no chunks generated"
 chunk_index_all_path = chunk_manifest_dir / "chunk_index_all.csv"
 all_chunks_df.to_csv(chunk_index_all_path, index=False, encoding="utf-8")
 
-# ----- 正本 target = 全chunk集合 -----
-target_chunks_df = all_chunks_df.copy().reset_index(drop=True)
+# ----- canonical target = config で選ぶ -----
+target_mode = str(config.get("TARGET_CHUNK_MODE", "selected_chunk_ids_1based"))
+target_ids_1based = [int(x) for x in config.get("TARGET_CHUNK_IDS_1BASED", [])]
+
+if target_mode == "full_set":
+    target_chunks_df = all_chunks_df.copy().reset_index(drop=True)
+    target_policy = "full_set"
+elif target_mode == "selected_chunk_ids_1based":
+    valid_chunk_ids = set(all_chunks_df["chunk_id"].astype(int).tolist())
+    selected_chunk_ids = sorted({int(x) - 1 for x in target_ids_1based if int(x) >= 1})
+    selected_chunk_ids = [x for x in selected_chunk_ids if x in valid_chunk_ids]
+    assert selected_chunk_ids, {
+        "reason": "selected target chunk ids resolved empty",
+        "target_ids_1based": target_ids_1based,
+        "valid_chunk_ids_0based": sorted(valid_chunk_ids),
+    }
+    target_chunks_df = all_chunks_df.loc[all_chunks_df["chunk_id"].astype(int).isin(selected_chunk_ids)].copy()
+    target_chunks_df = target_chunks_df.sort_values("chunk_id", kind="stable").reset_index(drop=True)
+    target_policy = "selected_chunk_ids_1based"
+elif bool(config.get("USE_TARGET_CHUNK_WINDOW", False)):
+    start_0 = max(0, int(config.get("TARGET_CHUNK_WINDOW_START_1BASED", 1)) - 1)
+    count = int(config.get("TARGET_CHUNK_WINDOW_COUNT", 0))
+    assert count > 0, {"reason": "TARGET_CHUNK_WINDOW_COUNT must be > 0 when window mode is enabled", "count": count}
+    end_0 = min(start_0 + count, len(all_chunks_df))
+    target_chunks_df = all_chunks_df.iloc[start_0:end_0].copy().reset_index(drop=True)
+    assert not target_chunks_df.empty, {"reason": "window target resolved empty", "start_0": start_0, "end_0": end_0}
+    target_policy = "window_1based"
+else:
+    raise AssertionError({"reason": "unsupported target chunk mode", "target_mode": target_mode})
+
 target_chunks_df["target_local_chunk_index"] = range(len(target_chunks_df))
 
 chunk_index_target_path = chunk_manifest_dir / "chunk_index_target.csv"
@@ -212,7 +245,7 @@ chunk_sequence_anchor_index_path = chunk_manifest_dir / "chunk_sequence_anchor_i
 chunk_sequence_anchor_index_df.to_csv(chunk_sequence_anchor_index_path, index=False, encoding="utf-8")
 
 summary = {
-    "route": "da3_record_sequence_anchor_batch_plan_full_target",
+    "route": "da3_record_sequence_anchor_batch_plan_config_target",
     "global_camera_source": "manifests/extrinsics_w2c_arc.npy",
     "frame_count": int(len(input_df)),
     "chunk_count": int(len(all_chunks_df)),
@@ -227,8 +260,11 @@ summary = {
     "chunk_index_target_path": str(chunk_index_target_path),
     "chunk_sequence_anchor_index_path": str(chunk_sequence_anchor_index_path),
     "batch_plan_path": str(batch_plan_path),
-    "target_policy": "full_set",
-    "test_execution_limiter_location": "#11-3",
+    "target_policy": target_policy,
+    "target_chunk_mode": target_mode,
+    "target_chunk_ids_1based": target_ids_1based,
+    "target_chunk_names": target_chunks_df["chunk_name"].astype(str).tolist(),
+    "test_execution_limiter_location": "#11-3 legacy override only",
 }
 
 (chunk_manifest_dir / "batch_plan_summary.json").write_text(

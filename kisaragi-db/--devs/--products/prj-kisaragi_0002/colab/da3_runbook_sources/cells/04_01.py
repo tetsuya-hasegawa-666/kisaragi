@@ -1,6 +1,7 @@
 #4-1
 from pathlib import Path
 import json
+import shutil
 
 paths = json.loads(Path("/content/runbook_paths.json").read_text(encoding="utf-8"))
 selected_path = Path(paths["selected_path"])
@@ -32,6 +33,17 @@ final_outputs_merged_dir = Path(paths["final_outputs_merged_dir"])
 final_outputs_diagnostics_dir = Path(paths["final_outputs_diagnostics_dir"])
 final_outputs_manifests_dir = Path(paths["final_outputs_manifests_dir"])
 final_outputs_chunk_evidence_dir = Path(paths["final_outputs_chunk_evidence_dir"])
+
+reset_before_run = bool(config.get("RESET_TARGET_OUTPUTS_BEFORE_RUN", True))
+if reset_before_run and probe_root.exists():
+    probe_root_resolved = probe_root.resolve()
+    results_root_resolved = results_root.resolve()
+    assert str(probe_root_resolved).startswith(str(results_root_resolved)), {
+        "reason": "probe_root_outside_results_root",
+        "probe_root": str(probe_root_resolved),
+        "results_root": str(results_root_resolved),
+    }
+    shutil.rmtree(probe_root_resolved)
 
 for p in [
     probe_root,
@@ -76,6 +88,7 @@ context_doc = {
     "final_outputs_chunk_evidence_dir": str(final_outputs_chunk_evidence_dir),
     "input_mode": "zip_only",
     "add_suffix": "",
+    "reset_target_outputs_before_run": reset_before_run,
 }
 Path("/content/runbook_session_context.json").write_text(json.dumps(context_doc, indent=2, ensure_ascii=False), encoding="utf-8")
 print(json.dumps(context_doc, indent=2, ensure_ascii=False))

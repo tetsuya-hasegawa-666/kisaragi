@@ -60,6 +60,8 @@ CONFIG = {
     "RESET_TARGET_OUTPUTS_BEFORE_RUN": True,
     "MAKE_DRIVE_BUNDLE": False,
     "DOWNLOAD_LOCAL_BUNDLE": False,
+    "TARGET_CHUNK_MODE": "selected_chunk_ids_1based",
+    "TARGET_CHUNK_IDS_1BASED": [6, 7, 8, 9, 10, 11],
     "USE_TARGET_CHUNK_WINDOW": False,
     "TARGET_CHUNK_WINDOW_START_1BASED": 1,
     "TARGET_CHUNK_WINDOW_COUNT": 0,
@@ -328,6 +330,7 @@ runbook session context、managed dir、pipeline root を確定し、install の
 #4-1
 from pathlib import Path
 import json
+import shutil
 
 paths = json.loads(Path("/content/runbook_paths.json").read_text(encoding="utf-8"))
 selected_path = Path(paths["selected_path"])
@@ -359,6 +362,17 @@ final_outputs_merged_dir = Path(paths["final_outputs_merged_dir"])
 final_outputs_diagnostics_dir = Path(paths["final_outputs_diagnostics_dir"])
 final_outputs_manifests_dir = Path(paths["final_outputs_manifests_dir"])
 final_outputs_chunk_evidence_dir = Path(paths["final_outputs_chunk_evidence_dir"])
+
+reset_before_run = bool(config.get("RESET_TARGET_OUTPUTS_BEFORE_RUN", True))
+if reset_before_run and probe_root.exists():
+    probe_root_resolved = probe_root.resolve()
+    results_root_resolved = results_root.resolve()
+    assert str(probe_root_resolved).startswith(str(results_root_resolved)), {
+        "reason": "probe_root_outside_results_root",
+        "probe_root": str(probe_root_resolved),
+        "results_root": str(results_root_resolved),
+    }
+    shutil.rmtree(probe_root_resolved)
 
 for p in [
     probe_root,
@@ -403,6 +417,7 @@ context_doc = {
     "final_outputs_chunk_evidence_dir": str(final_outputs_chunk_evidence_dir),
     "input_mode": "zip_only",
     "add_suffix": "",
+    "reset_target_outputs_before_run": reset_before_run,
 }
 Path("/content/runbook_session_context.json").write_text(json.dumps(context_doc, indent=2, ensure_ascii=False), encoding="utf-8")
 print(json.dumps(context_doc, indent=2, ensure_ascii=False))
@@ -1456,7 +1471,12 @@ MAX_DELTA2_POS = float(config.get("ANCHOR_QC_MAX_DELTA2_POS", 5.0))
 MAX_DELTA2_ROT = float(config.get("ANCHOR_QC_MAX_DELTA2_ROT", 60.0))
 
 # warning 用
-WARN_ABS_ROLL_DEG = float(config.get("ANCHOR_QC_WARN_ABS_ROLL_DEG", 45.0))
+WARN_ABS_ROLL_CENTERED_DEG = float(
+    config.get(
+        "ANCHOR_QC_WARN_ABS_ROLL_CENTERED_DEG",
+        config.get("ANCHOR_QC_WARN_ABS_ROLL_DEG", 45.0),
+    )
+)
 WARN_PITCH_MIN_DEG = float(config.get("ANCHOR_QC_WARN_PITCH_MIN_DEG", -89.0))
 WARN_PITCH_MAX_DEG = float(config.get("ANCHOR_QC_WARN_PITCH_MAX_DEG", 89.0))
 
@@ -1466,6 +1486,13 @@ for col in [
 ]:
     if col not in df.columns:
         df[col] = 0.0
+
+if "roll_deg_raw" not in df.columns:
+    df["roll_deg_raw"] = df["roll_deg"].astype(float)
+
+if "roll_deg_centered" not in df.columns:
+    roll_base = float(np.nanmedian(df["roll_deg_raw"].to_numpy(dtype=float))) if len(df) > 0 else 0.0
+    df["roll_deg_centered"] = ((df["roll_deg_raw"] - roll_base + 180.0) % 360.0) - 180.0
 
 # ---- fail: 連続性の明確な破綻だけ ----
 df["fail_delta_pos"] = df["delta_pos"].abs() > MAX_DELTA_POS
@@ -1483,7 +1510,7 @@ df["anchor_qc_fail"] = (
 )
 
 # ---- warning: 姿勢帯域。まだ fail に使わない ----
-df["warn_roll_band"] = df["roll_deg"].abs() > WARN_ABS_ROLL_DEG
+df["warn_roll_band"] = df["roll_deg_centered"].abs() > WARN_ABS_ROLL_CENTERED_DEG
 df["warn_pitch_band"] = (df["pitch_deg"] < WARN_PITCH_MIN_DEG) | (df["pitch_deg"] > WARN_PITCH_MAX_DEG)
 
 # 先頭フレームは差分系が 0 or NaN になりやすいので fail解除
@@ -1507,6 +1534,8 @@ summary = {
     "anchor_qc_rows": int(len(df)),
     "fail_rows": int(len(fail_df)),
     "warn_rows": int(len(warn_df)),
+    "fail_count": int(len(fail_df)),
+    "warn_count": int(len(warn_df)),
     "fail_rate": float(len(fail_df) / max(len(df), 1)),
     "warn_rate": float(len(warn_df) / max(len(df), 1)),
     "max_delta_pos": float(df["delta_pos"].abs().max()),
@@ -1516,6 +1545,8 @@ summary = {
     "max_delta2_rot": float(df["delta2_rot"].abs().max()),
     "roll_deg_min": float(df["roll_deg"].min()),
     "roll_deg_max": float(df["roll_deg"].max()),
+    "roll_deg_centered_min": float(df["roll_deg_centered"].min()),
+    "roll_deg_centered_max": float(df["roll_deg_centered"].max()),
     "pitch_deg_min": float(df["pitch_deg"].min()),
     "pitch_deg_max": float(df["pitch_deg"].max()),
     "qc_csv": str(qc_csv),
@@ -2299,8 +2330,13 @@ config = {
     "GLOBAL_CAMERA_SOURCE": "manifests/extrinsics_w2c_arc.npy",
     "CANONICAL_ANCHOR_MODE": "lens=-c2w_z, up=c2w_y",
     "PIPELINE_SLUG": pipeline_slug,
-    "TARGET_POLICY": "canonical_full_set",
-    "TEST_EXECUTION_LIMITER_LOCATION": "#11-3",
+    "TARGET_CHUNK_MODE": str(config_snapshot.get("TARGET_CHUNK_MODE", "selected_chunk_ids_1based")),
+    "TARGET_CHUNK_IDS_1BASED": list(config_snapshot.get("TARGET_CHUNK_IDS_1BASED", [6, 7, 8, 9, 10, 11])),
+    "USE_TARGET_CHUNK_WINDOW": bool(config_snapshot.get("USE_TARGET_CHUNK_WINDOW", False)),
+    "TARGET_CHUNK_WINDOW_START_1BASED": int(config_snapshot.get("TARGET_CHUNK_WINDOW_START_1BASED", 1)),
+    "TARGET_CHUNK_WINDOW_COUNT": int(config_snapshot.get("TARGET_CHUNK_WINDOW_COUNT", 0)),
+    "TARGET_POLICY": "config_driven_target_selection",
+    "TEST_EXECUTION_LIMITER_LOCATION": "#11-3 legacy override only",
 }
 
 def sha256_file(path: Path) -> str:
@@ -2394,8 +2430,36 @@ assert len(all_chunks_df) >= 1, "no chunks generated"
 chunk_index_all_path = chunk_manifest_dir / "chunk_index_all.csv"
 all_chunks_df.to_csv(chunk_index_all_path, index=False, encoding="utf-8")
 
-# ----- 正本 target = 全chunk集合 -----
-target_chunks_df = all_chunks_df.copy().reset_index(drop=True)
+# ----- canonical target = config で選ぶ -----
+target_mode = str(config.get("TARGET_CHUNK_MODE", "selected_chunk_ids_1based"))
+target_ids_1based = [int(x) for x in config.get("TARGET_CHUNK_IDS_1BASED", [])]
+
+if target_mode == "full_set":
+    target_chunks_df = all_chunks_df.copy().reset_index(drop=True)
+    target_policy = "full_set"
+elif target_mode == "selected_chunk_ids_1based":
+    valid_chunk_ids = set(all_chunks_df["chunk_id"].astype(int).tolist())
+    selected_chunk_ids = sorted({int(x) - 1 for x in target_ids_1based if int(x) >= 1})
+    selected_chunk_ids = [x for x in selected_chunk_ids if x in valid_chunk_ids]
+    assert selected_chunk_ids, {
+        "reason": "selected target chunk ids resolved empty",
+        "target_ids_1based": target_ids_1based,
+        "valid_chunk_ids_0based": sorted(valid_chunk_ids),
+    }
+    target_chunks_df = all_chunks_df.loc[all_chunks_df["chunk_id"].astype(int).isin(selected_chunk_ids)].copy()
+    target_chunks_df = target_chunks_df.sort_values("chunk_id", kind="stable").reset_index(drop=True)
+    target_policy = "selected_chunk_ids_1based"
+elif bool(config.get("USE_TARGET_CHUNK_WINDOW", False)):
+    start_0 = max(0, int(config.get("TARGET_CHUNK_WINDOW_START_1BASED", 1)) - 1)
+    count = int(config.get("TARGET_CHUNK_WINDOW_COUNT", 0))
+    assert count > 0, {"reason": "TARGET_CHUNK_WINDOW_COUNT must be > 0 when window mode is enabled", "count": count}
+    end_0 = min(start_0 + count, len(all_chunks_df))
+    target_chunks_df = all_chunks_df.iloc[start_0:end_0].copy().reset_index(drop=True)
+    assert not target_chunks_df.empty, {"reason": "window target resolved empty", "start_0": start_0, "end_0": end_0}
+    target_policy = "window_1based"
+else:
+    raise AssertionError({"reason": "unsupported target chunk mode", "target_mode": target_mode})
+
 target_chunks_df["target_local_chunk_index"] = range(len(target_chunks_df))
 
 chunk_index_target_path = chunk_manifest_dir / "chunk_index_target.csv"
@@ -2468,7 +2532,7 @@ chunk_sequence_anchor_index_path = chunk_manifest_dir / "chunk_sequence_anchor_i
 chunk_sequence_anchor_index_df.to_csv(chunk_sequence_anchor_index_path, index=False, encoding="utf-8")
 
 summary = {
-    "route": "da3_record_sequence_anchor_batch_plan_full_target",
+    "route": "da3_record_sequence_anchor_batch_plan_config_target",
     "global_camera_source": "manifests/extrinsics_w2c_arc.npy",
     "frame_count": int(len(input_df)),
     "chunk_count": int(len(all_chunks_df)),
@@ -2483,8 +2547,11 @@ summary = {
     "chunk_index_target_path": str(chunk_index_target_path),
     "chunk_sequence_anchor_index_path": str(chunk_sequence_anchor_index_path),
     "batch_plan_path": str(batch_plan_path),
-    "target_policy": "full_set",
-    "test_execution_limiter_location": "#11-3",
+    "target_policy": target_policy,
+    "target_chunk_mode": target_mode,
+    "target_chunk_ids_1based": target_ids_1based,
+    "target_chunk_names": target_chunks_df["chunk_name"].astype(str).tolist(),
+    "test_execution_limiter_location": "#11-3 legacy override only",
 }
 
 (chunk_manifest_dir / "batch_plan_summary.json").write_text(
@@ -2853,6 +2920,7 @@ display_stage_summary(
         {"item": "batch_count", "value": int(len(batch_plan_df))},
         {"item": "all_chunk_count", "value": int(len(chunk_all_df))},
         {"item": "target_chunk_count", "value": int(len(chunk_target_df))},
+        {"item": "target_chunk_names", "value": "|".join(chunk_target_df["chunk_name"].astype(str).tolist())},
     ],
 )
 ```
@@ -2975,6 +3043,7 @@ summary = {
     "execution_chunk_rows": int(len(execution_chunks_df)),
     "execution_batch_rows": int(len(execution_batch_plan_df)),
     "execution_chunk_names_sample": execution_chunks_df[chunk_name_col].astype(str).head(10).tolist(),
+    "execution_chunk_names_all": execution_chunks_df[chunk_name_col].astype(str).tolist(),
     "execution_batch_names": execution_batch_plan_df["batch_name"].astype(str).tolist(),
     "execution_chunk_out": str(execution_chunk_out),
     "execution_batch_out": str(execution_batch_out),
@@ -4025,6 +4094,8 @@ else:
         "ADOPT_SIZE": 12,
         "CHUNKS_PER_BATCH": 3,
         "GLOBAL_CAMERA_SOURCE": "extrinsics_w2c_arc.npy",
+        "TARGET_CHUNK_MODE": "selected_chunk_ids_1based",
+        "TARGET_CHUNK_IDS_1BASED": [6, 7, 8, 9, 10, 11],
         "USE_TARGET_CHUNK_WINDOW": False,
         "TARGET_CHUNK_WINDOW_START_1BASED": 1,
         "TARGET_CHUNK_WINDOW_COUNT": 0,
@@ -4073,12 +4144,26 @@ def ensure_target_chunk_manifest():
     all_path = chunk_manifest_dir / "chunk_index_all.csv"
     assert all_path.exists(), all_path
     base_df = pd.read_csv(all_path)
-    if config.get("USE_TARGET_CHUNK_WINDOW", False):
+    target_mode = str(config.get("TARGET_CHUNK_MODE", "selected_chunk_ids_1based"))
+    if target_mode == "full_set":
+        target_chunks_df = base_df.copy().reset_index(drop=True)
+    elif target_mode == "selected_chunk_ids_1based":
+        valid_chunk_ids = set(base_df["chunk_id"].astype(int).tolist())
+        selected_chunk_ids = sorted({int(x) - 1 for x in config.get("TARGET_CHUNK_IDS_1BASED", []) if int(x) >= 1})
+        selected_chunk_ids = [x for x in selected_chunk_ids if x in valid_chunk_ids]
+        assert selected_chunk_ids, {
+            "reason": "selected target chunk ids resolved empty",
+            "selected_chunk_ids_1based": config.get("TARGET_CHUNK_IDS_1BASED", []),
+            "valid_chunk_ids_0based": sorted(valid_chunk_ids),
+        }
+        target_chunks_df = base_df.loc[base_df["chunk_id"].astype(int).isin(selected_chunk_ids)].copy()
+        target_chunks_df = target_chunks_df.sort_values("chunk_id", kind="stable").reset_index(drop=True)
+    elif config.get("USE_TARGET_CHUNK_WINDOW", False):
         start_0 = max(0, int(config.get("TARGET_CHUNK_WINDOW_START_1BASED", 1)) - 1)
         end_0 = min(start_0 + int(config.get("TARGET_CHUNK_WINDOW_COUNT", 3)), len(base_df))
         target_chunks_df = base_df.iloc[start_0:end_0].copy().reset_index(drop=True)
     else:
-        target_chunks_df = base_df.copy().reset_index(drop=True)
+        raise AssertionError({"reason": "unsupported target chunk mode", "target_mode": target_mode})
     target_chunks_df.to_csv(target_path, index=False, encoding="utf-8")
     return target_chunks_df
 

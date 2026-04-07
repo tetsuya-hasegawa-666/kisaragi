@@ -71,7 +71,12 @@ MAX_DELTA2_POS = float(config.get("ANCHOR_QC_MAX_DELTA2_POS", 5.0))
 MAX_DELTA2_ROT = float(config.get("ANCHOR_QC_MAX_DELTA2_ROT", 60.0))
 
 # warning 用
-WARN_ABS_ROLL_DEG = float(config.get("ANCHOR_QC_WARN_ABS_ROLL_DEG", 45.0))
+WARN_ABS_ROLL_CENTERED_DEG = float(
+    config.get(
+        "ANCHOR_QC_WARN_ABS_ROLL_CENTERED_DEG",
+        config.get("ANCHOR_QC_WARN_ABS_ROLL_DEG", 45.0),
+    )
+)
 WARN_PITCH_MIN_DEG = float(config.get("ANCHOR_QC_WARN_PITCH_MIN_DEG", -89.0))
 WARN_PITCH_MAX_DEG = float(config.get("ANCHOR_QC_WARN_PITCH_MAX_DEG", 89.0))
 
@@ -81,6 +86,13 @@ for col in [
 ]:
     if col not in df.columns:
         df[col] = 0.0
+
+if "roll_deg_raw" not in df.columns:
+    df["roll_deg_raw"] = df["roll_deg"].astype(float)
+
+if "roll_deg_centered" not in df.columns:
+    roll_base = float(np.nanmedian(df["roll_deg_raw"].to_numpy(dtype=float))) if len(df) > 0 else 0.0
+    df["roll_deg_centered"] = ((df["roll_deg_raw"] - roll_base + 180.0) % 360.0) - 180.0
 
 # ---- fail: 連続性の明確な破綻だけ ----
 df["fail_delta_pos"] = df["delta_pos"].abs() > MAX_DELTA_POS
@@ -98,7 +110,7 @@ df["anchor_qc_fail"] = (
 )
 
 # ---- warning: 姿勢帯域。まだ fail に使わない ----
-df["warn_roll_band"] = df["roll_deg"].abs() > WARN_ABS_ROLL_DEG
+df["warn_roll_band"] = df["roll_deg_centered"].abs() > WARN_ABS_ROLL_CENTERED_DEG
 df["warn_pitch_band"] = (df["pitch_deg"] < WARN_PITCH_MIN_DEG) | (df["pitch_deg"] > WARN_PITCH_MAX_DEG)
 
 # 先頭フレームは差分系が 0 or NaN になりやすいので fail解除
@@ -122,6 +134,8 @@ summary = {
     "anchor_qc_rows": int(len(df)),
     "fail_rows": int(len(fail_df)),
     "warn_rows": int(len(warn_df)),
+    "fail_count": int(len(fail_df)),
+    "warn_count": int(len(warn_df)),
     "fail_rate": float(len(fail_df) / max(len(df), 1)),
     "warn_rate": float(len(warn_df) / max(len(df), 1)),
     "max_delta_pos": float(df["delta_pos"].abs().max()),
@@ -131,6 +145,8 @@ summary = {
     "max_delta2_rot": float(df["delta2_rot"].abs().max()),
     "roll_deg_min": float(df["roll_deg"].min()),
     "roll_deg_max": float(df["roll_deg"].max()),
+    "roll_deg_centered_min": float(df["roll_deg_centered"].min()),
+    "roll_deg_centered_max": float(df["roll_deg_centered"].max()),
     "pitch_deg_min": float(df["pitch_deg"].min()),
     "pitch_deg_max": float(df["pitch_deg"].max()),
     "qc_csv": str(qc_csv),

@@ -12,6 +12,20 @@
 
 ## 更新履歴
 
+### 2026-04-08 AGENTS.md `正本` 用語の使用域を管理文書へ限定
+
+- 日時: `2026-04-08`
+- 文書名: `AGENTS.md`
+- 標題: `正本` は governance / truth 系管理文書だけに使う rule を追加
+- 背景: `prj-kisaragi_0002` の `colab` では source file、runbook pair、Drive 保存先にも `正本` が混在し、shared governance の管理文書と実装補助物の境界が読み取りにくくなっていた。
+- 目的: `正本` を shared governance と truth 系管理文書だけに限定し、script、runbook、notebook、source file、manifest、保存先では別語へ置き換えて誤読を防ぐ。
+- 対処方法: `AGENTS.md` の `文書規則` に `正本` の定義と、管理文書以外では `根拠情報`、`管理文書`、`基準 file`、`保持先`、`参照元` などを使う rule を追記した。
+- 対応内容: shared rule 追加に合わせて `prj-kisaragi_0002/colab` の設計契約、source 管理文書、runbook 関連表現も同じ task で言い換える前提を固定した。
+- 更新結果: 今後 `正本` は `AGENTS.md` や truth 系の管理文書だけを指し、実装系の file 群や保存先では別語で責務を表す。
+- 新旧比較:
+  - 旧: `正本` が governance 文書、runbook pair、source file、Drive 保存先などへ広く使われ、意味の階層が混ざっていた。
+  - 新: `正本` は管理文書だけに限定し、実装系や保存先は `根拠情報` や `保持先` などで表現する。
+
 ### 2026-04-05 AGENTS.md `Colab` runbook の `md/ipynb` pair 必須化
 
 - 日時: `2026-04-05`

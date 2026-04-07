@@ -321,6 +321,8 @@ kisaragi-tree/
 
 # 文書規則
 ## 中核規則
+- `正本` という語は、`AGENTS.md`、`agents.md`、`project-truth.md`、`hi-ai-unified-blueprint.md`、`admin-mrl-test-method.md`、`admin-mrl-test-evidence.md` などの shared governance と truth 系の管理文書にだけ使う。
+- script、runbook、notebook、source file、manifest、inventory、補助契約書、生成物保存先などには `正本` を使わず、`根拠情報`、`管理文書`、`基準 file`、`保持先`、`参照元` などの語で表現する。
 - 文書体系は最小かつ安定に保つ。
 - 新しい永続文書を増やすより既存正本文書の更新を優先する。
 - shared rule の重要な意思決定は `AGENTS.md` に反映し、変更履歴は `AGENTSmd-RH.md` に置く。

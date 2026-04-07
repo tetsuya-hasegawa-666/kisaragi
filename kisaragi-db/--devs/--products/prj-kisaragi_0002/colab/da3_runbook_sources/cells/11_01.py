@@ -28,5 +28,6 @@ display_stage_summary(
         {"item": "batch_count", "value": int(len(batch_plan_df))},
         {"item": "all_chunk_count", "value": int(len(chunk_all_df))},
         {"item": "target_chunk_count", "value": int(len(chunk_target_df))},
+        {"item": "target_chunk_names", "value": "|".join(chunk_target_df["chunk_name"].astype(str).tolist())},
     ],
 )

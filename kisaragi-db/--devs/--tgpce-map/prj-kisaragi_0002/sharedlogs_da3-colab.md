@@ -6459,3 +6459,25 @@ Moviepy - video ready /content/drive/MyDrive/trajectreview/modeling/trajectrevie
 - 各 markdown source は先頭に `#No`、`前`、`次` を持ち、複数連番は `#9-1..#9-5` のような最短表現で表すようにした。
 - `sync_da3_runbook_sources.py` は markdown + code を source 正本から順に組み立てて `da3_ngl_runbook.md` / `.ipynb` を再構築する形へ変更した。
 - markdown 本文は現状 cell の実働内容に合わせて書き直し、`test_da3_runbook_sources.py` で markdown manifest と notebook markdown cell の一致も検証して `7 tests OK` を確認した。
+
+# codex v83
+
+- `#8-1 anchor qc` の runtime error は、`summary` へ `fail_rows` / `warn_rows` しか入れていないのに `display_stage_summary` 側で `fail_count` / `warn_count` を参照していた単純不整合だった。source 側で count alias を追加し、`KeyError: 'fail_count'` を解消した。
+- ただし本質的には warning 判定が不適切で、`CONFIG` は `ANCHOR_QC_WARN_ABS_ROLL_CENTERED_DEG` を持つのに `#8-1` は `ANCHOR_QC_WARN_ABS_ROLL_DEG` を読み、さらに `roll_deg` を 90 度中心化せず絶対値で見ていたため、正常帯でも `warn_rate=1.0` になりやすかった。
+- `#8-1` は `roll_deg_raw` と `roll_deg_centered` を出し、warning は centered roll と pitch band を使う形へ修正した。これで `#10-3` の precheck が見ている centered roll 概念と一致する。
+- `test_da3_runbook_sources.py` に `#8-1` regression を追加し、`ANCHOR_QC_WARN_ABS_ROLL_CENTERED_DEG`、`roll_deg_centered`、`fail_count` / `warn_count` alias の存在を固定した。local test は `8 tests OK`。
+
+# codex v84
+
+- chunk target 解釈のぶれは `#9-4` が全 chunk を `chunk_index_target.csv` へそのまま流し、実行時だけ `#11-3` の test-only file で別制限する二段構えにあった。これでは full target と subset target が別ロジックになり、`DA3 -> 3DGS` の route 解釈が stage ごとにずれやすい。
+- `#2-1` に `TARGET_CHUNK_MODE` と `TARGET_CHUNK_IDS_1BASED` を追加し、現時点の canonical target は `selected_chunk_ids_1based = [6,7,8,9,10,11]` に固定した。full 再開時は mode を `full_set` へ戻せば同じ selection ロジックのまま全件へ戻る。
+- `#9-4` は全 chunk の生成自体は維持しつつ、canonical target を config から選ぶ形へ変更した。`chunk_index_all.csv` は全件、`chunk_index_target.csv` と `batch_plan.csv` は target 集合だけを持つ。summary には `target_policy`、`target_chunk_mode`、`target_chunk_ids_1based`、`target_chunk_names` を残す。
+- `#11-3` は canonical target 解決結果を `execution_target_chunks.csv` / `execution_target_batch_plan.csv` へ写し、`execution_chunk_names_all` を summary へ残す。`#12-1` と `#14-1` はその同じ target contract を読むので、subset 中の chunk だけで batch 実行と merge 判定が閉じる。
+- `#14-1` の self-heal path も同じ `TARGET_CHUNK_MODE` / `TARGET_CHUNK_IDS_1BASED` を使うように合わせた。local test は `9 tests OK`。
+
+# codex v85
+
+- fresh run を `#2` から回す時に既存 output tree が混ざると chunk / merge / final output の重複が残るため、reset 点を `#11-4` ではなく `#4-1 tree init` へ前倒しした。
+- `RESET_TARGET_OUTPUTS_BEFORE_RUN = True` の時は `probe_root` が `results_root` 配下にあることを確認したうえで丸ごと削除し、その後に `01_anchor`、`manifests`、`final_outputs` などを再作成する。これで fresh run は常に空 tree から始まる。
+- `runbook_session_context.json` には `reset_target_outputs_before_run` も残すようにし、後段でどの mode で起動したかを追えるようにした。
+- `test_da3_runbook_sources.py` に tree init reset regression を追加し、local test は `10 tests OK`。
