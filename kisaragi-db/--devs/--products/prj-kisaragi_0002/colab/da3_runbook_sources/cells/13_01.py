@@ -6,6 +6,8 @@ probe_root = Path(ctx["probe_root"])
 pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
+merged_dir = Path(ctx.get("merged_dir", str(pipeline_root / "merged")))
+merged_dir.mkdir(parents=True, exist_ok=True)
 
 final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
 final_outputs_diagnostics_dir.mkdir(parents=True, exist_ok=True)
@@ -173,21 +175,74 @@ gate_df = pd.DataFrame(gate_rows)
 gate_csv = chunk_manifest_dir / "premerge_pose_gate.csv"
 gate_df.to_csv(gate_csv, index=False, encoding="utf-8")
 
+PREMERGE_CENTER_ERROR_P95_MAX = 0.25
+PREMERGE_LENS_ERROR_DEG_P95_MAX = 12.0
+PREMERGE_DELTA_CENTER_ERROR_MAX = 0.15
+PREMERGE_DELTA_LENS_ERROR_DEG_MAX = 8.0
+
+validation_rows = []
+if len(gate_df):
+    for row in gate_df.itertuples(index=False):
+        center_error_p95 = float(row.center_error_p95)
+        lens_error_deg_p95 = float(row.lens_error_deg_p95)
+        delta_center_error_max = float(row.delta_center_error_max)
+        delta_lens_error_deg_max = float(row.delta_lens_error_deg_max)
+        validation_rows.append({
+            "chunk_name": str(row.chunk_name),
+            "row_count": int(row.row_count),
+            "center_error_mean": float(row.center_error_mean),
+            "center_error_p95": center_error_p95,
+            "lens_error_deg_mean": float(row.lens_error_deg_mean),
+            "lens_error_deg_p95": lens_error_deg_p95,
+            "delta_center_error_max": delta_center_error_max,
+            "delta_lens_error_deg_max": delta_lens_error_deg_max,
+            "center_error_p95_ok": bool(center_error_p95 <= PREMERGE_CENTER_ERROR_P95_MAX),
+            "lens_error_deg_p95_ok": bool(lens_error_deg_p95 <= PREMERGE_LENS_ERROR_DEG_P95_MAX),
+            "delta_center_error_ok": bool(delta_center_error_max <= PREMERGE_DELTA_CENTER_ERROR_MAX),
+            "delta_lens_error_deg_ok": bool(delta_lens_error_deg_max <= PREMERGE_DELTA_LENS_ERROR_DEG_MAX),
+            "hard_fail": bool(
+                (center_error_p95 > PREMERGE_CENTER_ERROR_P95_MAX)
+                or (lens_error_deg_p95 > PREMERGE_LENS_ERROR_DEG_P95_MAX)
+                or (delta_center_error_max > PREMERGE_DELTA_CENTER_ERROR_MAX)
+                or (delta_lens_error_deg_max > PREMERGE_DELTA_LENS_ERROR_DEG_MAX)
+            ),
+        })
+validation_df = pd.DataFrame(validation_rows)
+validation_csv = merged_dir / "premerge_pose_validation.csv"
+validation_df.to_csv(validation_csv, index=False, encoding="utf-8")
+hard_fail_df = validation_df[validation_df["hard_fail"]].copy() if len(validation_df) else validation_df.copy()
+validation_json = merged_dir / "premerge_pose_validation.json"
+
 if len(residual_df) == 0:
     status = "not_run"
 elif len(missing_pred_df) > 0:
     status = "partial"
+elif len(hard_fail_df) > 0:
+    status = "fail"
 else:
     status = "ok"
 
 summary = {
     "status": status,
+    "route": "continuous-gs-v06-chunk18-overlap6-adopt12-premerge-pose-gate",
     "residual_row_count": int(len(residual_df)),
     "missing_pred_chunk_count": int(len(missing_pred_df)),
     "gate_chunk_count": int(len(gate_df)),
     "residual_csv": str(residual_csv),
     "missing_pred_csv": str(missing_pred_csv),
     "gate_csv": str(gate_csv),
+    "validation_csv": str(validation_csv),
+    "thresholds": {
+        "center_error_p95_max": PREMERGE_CENTER_ERROR_P95_MAX,
+        "lens_error_deg_p95_max": PREMERGE_LENS_ERROR_DEG_P95_MAX,
+        "delta_center_error_max": PREMERGE_DELTA_CENTER_ERROR_MAX,
+        "delta_lens_error_deg_max": PREMERGE_DELTA_LENS_ERROR_DEG_MAX,
+    },
+    "tested_chunk_count": int(len(validation_df)),
+    "hard_fail_count": int(len(hard_fail_df)),
+    "failed_chunks": hard_fail_df[
+        ["chunk_name", "center_error_p95", "lens_error_deg_p95", "delta_center_error_max", "delta_lens_error_deg_max"]
+    ].to_dict(orient="records") if len(hard_fail_df) else [],
 }
 if len(residual_df) > 0:
     summary["center_error_mean"] = float(residual_df["center_error"].mean())
@@ -195,8 +250,10 @@ if len(residual_df) > 0:
     summary["lens_error_deg_mean"] = float(residual_df["lens_error_deg"].mean())
     summary["lens_error_deg_p95"] = float(residual_df["lens_error_deg"].quantile(0.95))
 
+save_json(validation_json, summary)
 save_json(final_outputs_diagnostics_dir / "premerge_pose_gate_summary.json", summary)
 save_json(final_outputs_diagnostics_dir / "batch_residual_summary.json", summary)
+save_json(final_outputs_diagnostics_dir / "premerge_pose_validation.json", summary)
 
 print(json.dumps(summary, indent=2, ensure_ascii=False))
 if len(gate_df):
@@ -214,10 +271,12 @@ display_stage_summary(
         {"item": "pred_vs_anchor_pose_residual_missing_pred", "path": str(missing_pred_csv)},
         {"item": "premerge_pose_gate", "path": str(gate_csv)},
         {"item": "premerge_pose_gate_summary", "path": str(final_outputs_diagnostics_dir / "premerge_pose_gate_summary.json")},
+        {"item": "premerge_pose_validation", "path": str(validation_json)},
         {"item": "batch_residual_summary", "path": str(final_outputs_diagnostics_dir / "batch_residual_summary.json")},
     ],
     notes=[
         {"item": "status", "value": status},
         {"item": "missing_pred_chunk_count", "value": int(len(missing_pred_df))},
+        {"item": "hard_fail_count", "value": int(len(hard_fail_df))},
     ],
 )

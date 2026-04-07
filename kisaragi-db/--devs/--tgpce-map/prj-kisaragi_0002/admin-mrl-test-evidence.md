@@ -91,7 +91,7 @@
   - status card の `経過時間` は停止要求時点で凍結し、その後に増え続けなかった
   - したがって `1min15s` 前後の `OOM` と、停止後 finalize hang の両方について、短中時間帯の主導線は改善を確認できた
 - 未完:
-  - `10min` 連続収録での keep-awake 維持と finalize 完了は未確認
+  - `3min` 連続収録を現行 admin 手順どおりに再現し、keep-awake 維持と finalize 完了を gate close 条件として記録し直す作業は未完
   - そのため `MRL-2S` と `mRL-2S.1` / `mRL-2S.2` はまだ `active`
 - evidence path:
   - `kisaragi-db/--exsams/prj-kisaragi_0002/device-debug/20260331-stop-hang/`

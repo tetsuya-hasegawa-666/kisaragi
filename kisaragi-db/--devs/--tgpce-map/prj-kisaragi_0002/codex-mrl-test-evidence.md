@@ -99,7 +99,7 @@
   cause: 実機 crash log で `isensorium-shared-camera-trial` thread の `OutOfMemoryError` を確認した。`TrialCpuImageVideoRecorder` が収録中の全 YUV frame を RAM に保持し、停止時にまとめて encode していた
   resolution: `MainActivity` 側で keep-awake を追加済みの前提で、`TrialCpuImageVideoRecorder` を逐次 encode 方式へ変更し、収録中に `MediaCodec` / `MediaMuxer` へ流し込む構成へ切り替えた。frame をメモリへ蓄積しないため、長時間側は frame drop 許容で連続稼働を優先する
   recurrence prevention: `correcting` の長時間収録問題は screen off と crash を分離して扱い、実機 crash 時は `exit-info` と crash buffer を必ず取得してから route 切替や sampling 仮説へ進む
-  remaining work: 修正 build を実機で `10min` 収録し、落ちないこと、session が `finalized` になること、`video.mp4` が残ることを admin 手順で確認する
+  remaining work: 修正 build を実機で `3min` 収録し、落ちないこと、session が `finalized` になること、`video.mp4` が残ることを admin 手順で確認する
   evidence path: `kisaragi-db/--exsams/prj-kisaragi_0002/device-debug/`
 
 - record date: `2026-03-31`
@@ -110,7 +110,7 @@
   cause: 実機 session `session-20260331-044636` では `video.mp4` が `26MB` まで伸びていた一方、`session_manifest.json` は `status=recording` のまま、`video_events.jsonl` も空だった。`TrialCpuImageVideoRecorder.finishEncoding()` は `MediaCodec.INFO_TRY_AGAIN_LATER` が続いた時に終端 drain の抜け条件がなく、`stopAndRelease()` が無限待ちになる経路を持っていた
   resolution: `CoreCameraTrialRuntime.kt` の `drainCodec(endOfStream=true)` に `5s` の `STOP_DRAIN_TIMEOUT_NS` を追加し、`EOS` が返らない時は timeout で抜けて finalize を進める bounded stop に変更した
   recurrence prevention: 停止不良は `video.mp4` の成長有無、`session_manifest.json` の `status`、`video_events.jsonl` の有無を同時に見て、crash と finalize hang を分離して扱う
-  remaining work: bounded stop 版を実機へ入れ直し、`2min30s` 以上と `10min` の両方で `撮影停止` 後に session が `finalized` まで進むかを admin 手順で確認する
+  remaining work: bounded stop 版を実機へ入れ直し、`3min` 収録で `撮影停止` 後に session が `finalized` まで進むかを admin 手順で確認する
   evidence path: `kisaragi-db/--exsams/prj-kisaragi_0002/device-debug/`
 
 - record date: `2026-03-29`

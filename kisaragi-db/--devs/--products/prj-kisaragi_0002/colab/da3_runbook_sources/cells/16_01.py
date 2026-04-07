@@ -6,6 +6,7 @@ import os
 ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
 probe_root = Path(ctx["probe_root"])
 results_root = Path(ctx["results_root"])
+persist_root = Path(ctx.get("persist_root", probe_root))
 manifest_dir = Path(ctx["manifest_dir"])
 da3_nested_dir = Path(ctx["da3_nested_dir"])
 da3_nested_gs_dir = Path(ctx["da3_nested_gs_dir"])
@@ -17,7 +18,7 @@ final_outputs_manifests_dir = Path(ctx["final_outputs_manifests_dir"])
 final_outputs_chunk_evidence_dir = Path(ctx["final_outputs_chunk_evidence_dir"])
 
 pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
-global_pose_dir = pipeline_root / "global_pose_bootstrap"
+anchor_dir = persist_root / "01_anchor"
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
 merged_dir = Path(ctx.get("merged_dir", str(pipeline_root / "merged")))
@@ -51,7 +52,7 @@ kept_groups = [
     {"block": "#7", "label": "da3_nested_dir", "path": str(da3_nested_dir)},
     {"block": "#7", "label": "da3_nested_gs_dir", "path": str(da3_nested_gs_dir)},
     {"block": "#7", "label": "world_dir", "path": str(world_dir)},
-    {"block": "#8", "label": "global_pose_dir", "path": str(global_pose_dir)},
+    {"block": "#8", "label": "anchor_dir", "path": str(anchor_dir)},
     {"block": "#8", "label": "chunk_manifest_dir", "path": str(chunk_manifest_dir)},
     {"block": "#11", "label": "merged_dir", "path": str(merged_dir)},
     {"block": "#11", "label": "da3_nested_gs_dir", "path": str(da3_nested_gs_dir)},

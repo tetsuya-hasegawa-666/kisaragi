@@ -37,6 +37,7 @@ if not batch_preflight_status_path.exists():
 ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
 probe_root = Path(ctx["probe_root"])
 results_root = Path(ctx["results_root"])
+persist_root = Path(ctx.get("persist_root", probe_root))
 modeling_session_id = ctx["modeling_session_id"]
 manifest_dir = Path(ctx["manifest_dir"])
 final_outputs_dir = Path(ctx["final_outputs_dir"])
@@ -46,7 +47,7 @@ final_outputs_manifests_dir = Path(ctx["final_outputs_manifests_dir"])
 final_outputs_chunk_evidence_dir = Path(ctx["final_outputs_chunk_evidence_dir"])
 
 pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
-global_pose_dir = pipeline_root / "global_pose_bootstrap"
+anchor_dir = persist_root / "01_anchor"
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
 merged_dir = Path(ctx.get("merged_dir", str(pipeline_root / "merged")))
@@ -81,6 +82,18 @@ BUNDLE_MODEL_SLUG = config["BUNDLE_MODEL_SLUG"]
 REQUIRE_ALL_CHUNKS = True
 config_snapshot = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8")) if Path("/content/config_snapshot.json").exists() else {}
 MAKE_DRIVE_BUNDLE = bool(config_snapshot.get("MAKE_DRIVE_BUNDLE", False))
+batch_execution_items_path = chunk_manifest_dir / "batch_execution_items.csv"
+
+TRANSFORM_SCALE_MIN = 0.8
+TRANSFORM_SCALE_MAX = 1.3
+TRANSFORM_CENTER_RMSE_MAX = 0.05
+TRANSFORM_ROT_DIR_MAX = 0.05
+LOCAL_CAMERA_BASIS = np.eye(4, dtype=np.float32)
+LOCAL_CAMERA_BASIS[:3, :3] = np.array([
+    [0.0, 1.0, 0.0],
+    [1.0, 0.0, 0.0],
+    [0.0, 0.0, -1.0],
+], dtype=np.float32)
 
 chunk_index_all_path = chunk_manifest_dir / "chunk_index_all.csv"
 if chunk_index_all_path.exists():
@@ -181,21 +194,37 @@ if not premerge_pose_validation_path.exists():
     }
     (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
     print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
-    raise AssertionError("run #10-5 pre-merge pose gate before #11 merge")
+    raise AssertionError("run #13-1 pre-merge pose gate before #14-1 merge")
 
 premerge_pose_validation = json.loads(premerge_pose_validation_path.read_text(encoding="utf-8"))
 if premerge_pose_validation.get("status") != "ok":
+    premerge_pose_probe_path = merged_dir / "premerge_pose_probe_summary.json"
     merge_summary = {
         "route": "continuous-gs-v06-chunk18-overlap6-adopt12-merge",
         "status": "skipped",
         "reason": "premerge_pose_validation_failed",
         "premerge_pose_validation_path": str(premerge_pose_validation_path),
+        "premerge_pose_probe_path": str(premerge_pose_probe_path) if premerge_pose_probe_path.exists() else None,
         "hard_fail_count": int(premerge_pose_validation.get("hard_fail_count", 0)),
         "failed_chunks": premerge_pose_validation.get("failed_chunks", []),
         "all_batch_summary_path": str(merged_dir / "all_batch_summary_arc.json"),
     }
     (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
     print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
+    if not premerge_pose_probe_path.exists():
+        raise AssertionError("run #13-2 pre-merge pose probe before #14-1 merge")
+    premerge_pose_probe_split_path = merged_dir / "premerge_pose_probe_split_summary.json"
+    if not premerge_pose_probe_split_path.exists():
+        raise AssertionError("run #13-3 pre-merge pose split probe before #14-1 merge")
+    premerge_pose_raw_inspection_path = merged_dir / "premerge_pose_raw_orientation_inspection_summary.json"
+    if not premerge_pose_raw_inspection_path.exists():
+        raise AssertionError("run #13-4 pre-merge raw orientation inspection before #14-1 merge")
+    arcore_anchor_validation_path = merged_dir / "arcore_anchor_trajectory_validation_summary.json"
+    if not arcore_anchor_validation_path.exists():
+        raise AssertionError("run #13-5 arcore anchor trajectory validation before #14-1 merge")
+    premerge_pose_join_ready_path = merged_dir / "premerge_pose_join_ready_summary.json"
+    if not premerge_pose_join_ready_path.exists():
+        raise AssertionError("run #13-6 pre-merge join-ready data build before #14-1 merge")
     raise AssertionError(premerge_pose_validation)
 
 if REQUIRE_ALL_CHUNKS and len(completed_chunks_df) < len(target_chunks_df):
@@ -211,12 +240,31 @@ if REQUIRE_ALL_CHUNKS and len(completed_chunks_df) < len(target_chunks_df):
     (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
     print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
 else:
-    global_centers_df = pd.read_csv(global_pose_dir / "camera_center_matrix_arc.csv")
-    global_camera_matrix_df = pd.read_csv(global_pose_dir / "camera_matrix_full_arc.csv")
-    global_anchor_df = pd.read_csv(global_pose_dir / "camera_anchor_full_arc.csv")
+    global_centers_df = pd.read_csv(anchor_dir / "camera_center_matrix_arc.csv")
+    global_camera_matrix_df = pd.read_csv(anchor_dir / "camera_matrix_full_arc.csv")
+    global_anchor_df = pd.read_csv(anchor_dir / "camera_anchor_full_arc.csv")
     input_manifest_path = manifest_dir / "da3_input_manifest.csv"
     assert input_manifest_path.exists(), input_manifest_path
     input_manifest_df = pd.read_csv(input_manifest_path)
+    if "cx_world" not in global_anchor_df.columns and "cam_cx" in global_anchor_df.columns:
+        global_anchor_df["cx_world"] = global_anchor_df["cam_cx"]
+        global_anchor_df["cy_world"] = global_anchor_df["cam_cy"]
+        global_anchor_df["cz_world"] = global_anchor_df["cam_cz"]
+    if "anchor_lens_x" not in global_anchor_df.columns and "lens_x" in global_anchor_df.columns:
+        global_anchor_df["anchor_lens_x"] = global_anchor_df["lens_x"]
+        global_anchor_df["anchor_lens_y"] = global_anchor_df["lens_y"]
+        global_anchor_df["anchor_lens_z"] = global_anchor_df["lens_z"]
+    if "anchor_up_x" not in global_anchor_df.columns and "up_x" in global_anchor_df.columns:
+        global_anchor_df["anchor_up_x"] = global_anchor_df["up_x"]
+        global_anchor_df["anchor_up_y"] = global_anchor_df["up_y"]
+        global_anchor_df["anchor_up_z"] = global_anchor_df["up_z"]
+    if "record_index" not in global_camera_matrix_df.columns and {"sequence_index", "record_index"}.issubset(global_anchor_df.columns):
+        global_camera_matrix_df = global_camera_matrix_df.merge(
+            global_anchor_df[["sequence_index", "record_index"]].drop_duplicates(),
+            on="sequence_index",
+            how="left",
+            validate="many_to_one",
+        )
     assert global_anchor_df["record_index"].is_unique, "global anchor record_index must be unique"
     OWNER_TOPK = 6
     OWNER_W_DIST = 1.0
@@ -701,9 +749,9 @@ else:
         (merged_dir / "merge_warning_summary_arc.json", final_outputs_diagnostics_dir / "merge_warning_summary_arc.json"),
         (merged_dir / "all_batch_summary_arc.json", final_outputs_diagnostics_dir / "all_batch_summary_arc.json"),
         (input_manifest_path, final_outputs_manifests_dir / "da3_input_manifest.csv"),
-        (global_pose_dir / "camera_center_matrix_arc.csv", final_outputs_manifests_dir / "camera_center_matrix_arc.csv"),
-        (global_pose_dir / "camera_matrix_full_arc.csv", final_outputs_manifests_dir / "camera_matrix_full_arc.csv"),
-        (global_pose_dir / "camera_anchor_full_arc.csv", final_outputs_manifests_dir / "camera_anchor_full_arc.csv"),
+        (anchor_dir / "camera_center_matrix_arc.csv", final_outputs_manifests_dir / "camera_center_matrix_arc.csv"),
+        (anchor_dir / "camera_matrix_full_arc.csv", final_outputs_manifests_dir / "camera_matrix_full_arc.csv"),
+        (anchor_dir / "camera_anchor_full_arc.csv", final_outputs_manifests_dir / "camera_anchor_full_arc.csv"),
         (chunk_manifest_dir / "chunk_index_all.csv", final_outputs_manifests_dir / "chunk_index_all.csv"),
         (chunk_manifest_dir / "batch_plan.csv", final_outputs_manifests_dir / "batch_plan.csv"),
     ]
@@ -776,7 +824,7 @@ else:
         "merge",
         inputs=[
             {"item": "batch_execution_items", "path": str(batch_execution_items_path)},
-            {"item": "camera_anchor_full", "path": str(global_pose_dir / "camera_anchor_full_arc.csv")},
+            {"item": "camera_anchor_full", "path": str(anchor_dir / "camera_anchor_full_arc.csv")},
             {"item": "da3_input_manifest", "path": str(input_manifest_path)},
         ],
         outputs=[

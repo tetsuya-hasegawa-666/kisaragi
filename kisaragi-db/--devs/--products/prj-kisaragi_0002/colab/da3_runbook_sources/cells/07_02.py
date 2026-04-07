@@ -131,13 +131,18 @@ else:
     manifest_df = manifest_df.sort_values("sequence_index", kind="stable").reset_index(drop=True)
 
 camera_center_df = pd.DataFrame({
+    "record_index": manifest_df["record_index"].astype(int),
     "sequence_index": manifest_df["sequence_index"].astype(int),
     "cam_cx": camera_centers[:, 0],
     "cam_cy": camera_centers[:, 1],
     "cam_cz": camera_centers[:, 2],
+    "cx_world": camera_centers[:, 0],
+    "cy_world": camera_centers[:, 1],
+    "cz_world": camera_centers[:, 2],
 })
 
 camera_orientation_df = pd.DataFrame({
+    "record_index": manifest_df["record_index"].astype(int),
     "sequence_index": manifest_df["sequence_index"].astype(int),
     "right_x": right_vecs[:, 0],
     "right_y": right_vecs[:, 1],
@@ -154,15 +159,24 @@ camera_anchor_full_df = manifest_df.copy()
 camera_anchor_full_df["cam_cx"] = camera_centers[:, 0]
 camera_anchor_full_df["cam_cy"] = camera_centers[:, 1]
 camera_anchor_full_df["cam_cz"] = camera_centers[:, 2]
+camera_anchor_full_df["cx_world"] = camera_centers[:, 0]
+camera_anchor_full_df["cy_world"] = camera_centers[:, 1]
+camera_anchor_full_df["cz_world"] = camera_centers[:, 2]
 camera_anchor_full_df["right_x"] = right_vecs[:, 0]
 camera_anchor_full_df["right_y"] = right_vecs[:, 1]
 camera_anchor_full_df["right_z"] = right_vecs[:, 2]
 camera_anchor_full_df["up_x"] = up_vecs[:, 0]
 camera_anchor_full_df["up_y"] = up_vecs[:, 1]
 camera_anchor_full_df["up_z"] = up_vecs[:, 2]
+camera_anchor_full_df["anchor_up_x"] = up_vecs[:, 0]
+camera_anchor_full_df["anchor_up_y"] = up_vecs[:, 1]
+camera_anchor_full_df["anchor_up_z"] = up_vecs[:, 2]
 camera_anchor_full_df["lens_x"] = lens_vecs[:, 0]
 camera_anchor_full_df["lens_y"] = lens_vecs[:, 1]
 camera_anchor_full_df["lens_z"] = lens_vecs[:, 2]
+camera_anchor_full_df["anchor_lens_x"] = lens_vecs[:, 0]
+camera_anchor_full_df["anchor_lens_y"] = lens_vecs[:, 1]
+camera_anchor_full_df["anchor_lens_z"] = lens_vecs[:, 2]
 
 camera_matrix_full_csv = anchor_dir / "camera_matrix_full_arc.csv"
 camera_center_matrix_csv = anchor_dir / "camera_center_matrix_arc.csv"
@@ -172,7 +186,10 @@ camera_anchor_full_csv = anchor_dir / "camera_anchor_full_arc.csv"
 pd.DataFrame(
     extrinsics_w2c.reshape(extrinsics_w2c.shape[0], -1),
     columns=[f"w2c_{r}{c}" for r in range(4) for c in range(4)]
-).assign(sequence_index=manifest_df["sequence_index"].astype(int)).to_csv(camera_matrix_full_csv, index=False)
+).assign(
+    record_index=manifest_df["record_index"].astype(int),
+    sequence_index=manifest_df["sequence_index"].astype(int),
+).to_csv(camera_matrix_full_csv, index=False)
 
 camera_center_df.to_csv(camera_center_matrix_csv, index=False)
 camera_orientation_df.to_csv(camera_orientation_full_csv, index=False)

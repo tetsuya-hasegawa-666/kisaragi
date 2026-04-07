@@ -6481,3 +6481,68 @@ Moviepy - video ready /content/drive/MyDrive/trajectreview/modeling/trajectrevie
 - `RESET_TARGET_OUTPUTS_BEFORE_RUN = True` の時は `probe_root` が `results_root` 配下にあることを確認したうえで丸ごと削除し、その後に `01_anchor`、`manifests`、`final_outputs` などを再作成する。これで fresh run は常に空 tree から始まる。
 - `runbook_session_context.json` には `reset_target_outputs_before_run` も残すようにし、後段でどの mode で起動したかを追えるようにした。
 - `test_da3_runbook_sources.py` に tree init reset regression を追加し、local test は `10 tests OK`。
+
+# codex v86
+
+- `BLK-5` の実用目標を `10min` から `3min` へ変更する判断を project 文書へ反映した。
+- `HAUB` の current state、`BLK-5`、`MRL-2S`、`bu10a`、`su6a`、`tu14b`、`次の一手` を `3min` 基準へそろえ、`admin-mrl-test-method.md` の操作手順 19-20 も `3min` 収録確認へ更新した。
+- `admin-mrl-test-evidence.md` と `codex-mrl-test-evidence.md` は既存実測事実を残したまま、未完条件と remaining work を `3min` 基準へ寄せた。
+
+# codex v87
+
+- `#14-1` の `premerge_pose_validation_required` error は、merge 側が `merged/premerge_pose_validation.json` を必須としているのに、現行 `#13-1` が `premerge_pose_gate_summary.json` しか出していなかった contract 断線だった。
+- `#13-1` は `merged/premerge_pose_validation.csv` と `merged/premerge_pose_validation.json` を生成し、同 summary を `final_outputs/diagnostics/premerge_pose_validation.json` にも保存するように修正した。chunk ごとに `center_error_p95`、`lens_error_deg_p95`、`delta_center_error_max`、`delta_lens_error_deg_max` を見て `hard_fail` を計算する。
+- `#14-1` の assertion 文言は現行 cell 番号に合わせて `run #13-1 pre-merge pose gate before #14-1 merge` へ修正した。runbook pair と inventory も再同期し、local test は `11 tests OK`。
+
+# codex v88
+
+- `#14-1` を通し点検したところ、pre-merge gate 通過後に merge 本体へ入った時点で未定義参照が残っていた。具体的には `batch_execution_items_path`、`LOCAL_CAMERA_BASIS`、`TRANSFORM_SCALE_MIN/MAX`、`TRANSFORM_CENTER_RMSE_MAX`、`TRANSFORM_ROT_DIR_MAX` が source から抜けていた。
+- `#14-1` にこれらの定義を戻し、`#12-1` では `/content/runbook_batch_preflight_status.json` を保存するようにして、`#14-1` の preflight warning 参照面も生成側と接続した。
+- runbook pair と inventory を再同期し、`test_da3_runbook_sources.py` は `11 tests OK` を維持した。なお admin が見ている現在の `AssertionError(premerge_pose_validation)` は参照エラーではなく、実データ上の pose gate fail である。
+
+# codex v89
+
+- `#14-1` へ入る前に別セルで検討できるよう、`#13-2 pre-merge pose probe` を追加した。`#13-2` は failed chunk ごとに `w2c/c2w` と local camera basis 候補を比較し、`premerge_pose_probe_candidates.csv` と `premerge_pose_probe_summary.json` を生成する。
+- `#13` の markdown は `#13-1..#13-2` をまとめて説明する形へ更新し、`HAUB` の `DA3 script 一覧表` に `DOC-C13-02` を追記した。
+- `#14-1` は `premerge_pose_validation_failed` 時に `premerge_pose_probe_summary.json` が無ければ `run #13-2 pre-merge pose probe before #14-1 merge` で止めるようにし、pair / inventory 再同期後の local test は `11 tests OK`。
+
+# codex v90
+
+- `#13-2` は最初 `anchor_lens_*` / `anchor_up_*` を前提にしていたため、実際の `chunk_sequence_anchor.csv` が持つ `tx/ty/tz` と `yaw/pitch/roll_record` 系だけでは落ちていた。
+- `#13-2` を ypr fallback 対応にし、lens は `yaw/pitch` から再構成、up は world-up 基準の local frame に `roll` を適用して再構成するように修正した。
+- pair / inventory を再同期し、local test は引き続き `11 tests OK`。
+
+# codex v91
+
+- `#13-2` は一部 candidate で `np.linalg.svd()` が非収束になっていたため、probe cell が途中で落ちていた。
+- `normalize_rows()` に `np.nan_to_num()` を入れ、`estimate_pose_aware_similarity()` では finite sample 数を確認したうえで `LinAlgError` を `probe_error` 付きの failed candidate として吸収するようにした。これで退化候補があっても cell 全体は止まらない。
+- pair / inventory を再同期し、local test は `11 tests OK`。
+
+# codex v92
+
+- `#13-2` の結果では `lens_error_deg_p95=90deg` と `rotation_dir_residual=1.0` が候補差を潰していたため、merge 直前の追加検討用に `#13-3 pre-merge pose split probe` を追加した。
+- `#13-3` は failed chunk ごとに `center_error`、`forward_error_deg`、`up_error_deg` を分離して評価し、`premerge_pose_probe_split_metrics.csv` と `premerge_pose_probe_split_summary.json` を生成する。これで center は近いが forward/up が退化しているのか、basis 差が効いているのかを切り分けられる。
+- `#14-1` は `premerge_pose_validation_failed` 時に `#13-2` だけでなく `#13-3` の summary も要求するように変更した。pair / inventory 再同期後の local test は `11 tests OK`。
+
+# codex v93
+
+- `#13-3` の結果でも `forward/up = 90deg` が全候補固定だったため、raw 値を直接読む `#13-4 pre-merge raw orientation inspection` を追加した。
+- `#13-4` は failed chunk ごとに先頭 `5 frame` までの anchor / prediction の `center`、`forward`、`up` を `w2c` と `c2w` の両解釈でそのまま並べ、`premerge_pose_raw_orientation_inspection.csv` と summary JSON を出す。これで候補スコアではなく生値を見て軸入れ替えや符号反転を判定できる。
+- `#14-1` は `premerge_pose_validation_failed` 時に `#13-4` の summary も要求するようにした。pair / inventory 再同期後の local test は `11 tests OK`。
+
+# codex v94
+
+- admin 指示に合わせて `#13-5` と `#13-6` を追加した。`#13-5` は full anchor 側の ARCore trajectory / orientation 自体の妥当性を検査し、`#13-6` は failed chunk の `record_index` と `camera_anchor_full_arc.csv` / `camera_matrix_full_arc.csv` を join した準備データを生成する。
+- `#13` markdown は `#13-1..#13-6` をまとめて説明する形へ更新し、`HAUB` の `DA3 script 一覧表` に `DOC-C13-05` と `DOC-C13-06` を追記した。
+- `#14-1` は `premerge_pose_validation_failed` 時に `#13-5 arcore anchor trajectory validation` と `#13-6 pre-merge join-ready data build` の summary も要求するようにした。pair / inventory 再同期後の local test は `11 tests OK`。
+# codex v95
+
+- `#13-5` の `camera_anchor_full_arc.csv` 不在 error は、`#13-5` / `#13-6` / `#14-1` / `#16-1` が `pipeline_root/global_pose_bootstrap` を見ていたのに、現行 `#7-2` / `#7-3` が full anchor artifact を `persist_root/01_anchor` へ出している contract 断線だった。
+- runbook source を修正し、上記 4 cell は `persist_root / "01_anchor"` を full anchor root として参照するようにそろえた。これで `camera_anchor_full_arc.csv`、`camera_matrix_full_arc.csv`、`camera_center_matrix_arc.csv` の探索面が `#7` 系と一致する。
+- あわせて full anchor schema の互換層も追加した。`#7-2` は `camera_matrix_full_arc.csv` へ `record_index` を保存し、`camera_anchor_full_arc.csv` へ `cx_world/cy_world/cz_world`、`anchor_lens_*`、`anchor_up_*` alias を併記する。`#13-5` / `#13-6` / `#14-1` は既存 file に対しても `cam_cx -> cx_world`、`lens_x -> anchor_lens_*`、`up_x -> anchor_up_*` を補完し、`camera_matrix_full_arc.csv` に `record_index` が無い旧 run でも `sequence_index` から復元するようにした。
+- source-sync と inventory を再実行し、`test_da3_runbook_sources.py` は `11 tests OK`。Colab 側は最新 pair を開き直したうえで、少なくとも `#7-2` を再実行して full anchor CSV を新 schema で再出力してから `#13-5`、`#13-6`、`#14-1` へ進めるのが最短 clean route。
+# codex v96
+
+- `HAUB` の `DA3 script 一覧表` を全面更新し、cell ごとの `role`、`key functions / classes`、`key data names`、`reference directories`、`main outputs / handoff` を 1 表で追える形へ変更した。これにより、今回の `01_anchor` と `global_pose_bootstrap` の参照混線を `HAUB` 上でも読めるようにした。
+- `da3_ngl_runbook_design_contract.md` には、`HAUB` の統合表が runbook authoring 契約の一部であり、少なくとも `role`、`key data names`、`reference directories`、`main outputs / handoff` を維持すること、さらに row ごとに `persist_root/01_anchor` のような具体 path で reference directory を書くことを明記した。
+- `da3_ngl_runbook_source_inventory.md` も、`HAUB` 側が directory 参照面と output handoff を縮約管理する入口であることを追記した。`test_da3_runbook_sources.py` はこの契約を固定する check を追加済みで、sync / inventory 再実行後も `11 tests OK` を確認した。

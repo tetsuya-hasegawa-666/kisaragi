@@ -33,10 +33,15 @@
 | #12-1 | `cells/12_01.py` | `direct` | 12 Run Batches | - | ctx, probe_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, final_outputs_diagnostics_dir, execution_chunks_path, execution_batch_plan_path, execution_chunks_df, execution_batch_plan_df, batch_execution_items_df, batch_execution_items_path | `DOC-C12-01` |
 | #12-2 | `cells/12_chunk_wrapper.py` | `wrapper_body` | 12 Run Batches | _resolve_device, _pick_pred_array, main | REPO_ROOT, SRC_ROOT | `DOC-C12-02` |
 | #12-3 | `cells/12_03.py` | `direct` | 12 Run Batches | - | ctx, probe_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, final_outputs_diagnostics_dir, wrapper_path, batch_execution_items_path, items_df, config_snapshot, DRY_RUN, DEVICE | `DOC-C12-03` |
-| #13-1 | `cells/13_01.py` | `direct` | 13 Batch Validation | resolve_center_cols, resolve_ypr_cols, resolve_lens_cols, lens_from_yaw_pitch_deg | ctx, probe_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, final_outputs_diagnostics_dir, batch_execution_items_path, items_df, residual_rows, missing_pred_chunks, residual_df, residual_csv | `DOC-C13-01` |
-| #14-1 | `cells/14_01.py` | `direct` | 14 Merge | ensure_target_chunk_manifest, resolve_chunk_input_dir | missing_merge_deps, batch_preflight_status_path, ctx, probe_root, results_root, modeling_session_id, manifest_dir, final_outputs_dir, final_outputs_merged_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir, final_outputs_chunk_evidence_dir | `DOC-C14-01` |
+| #13-1 | `cells/13_01.py` | `direct` | 13 Batch Validation | resolve_center_cols, resolve_ypr_cols, resolve_lens_cols, lens_from_yaw_pitch_deg | ctx, probe_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, merged_dir, final_outputs_diagnostics_dir, batch_execution_items_path, items_df, residual_rows, missing_pred_chunks, residual_df | `DOC-C13-01` |
+| #13-2 | `cells/13_02.py` | `direct` | 13 Batch Validation | to_4x4_batch, normalize_rows, angle_deg, lens_from_yaw_pitch_deg, resolve_cols, rotate_about_axis, build_anchor_c2w_list, basis_matrix, lens_direction_from_c2w, up_direction_from_c2w, local_c2w_candidates, estimate_pose_aware_similarity | ctx, probe_root, pipeline_root, chunk_manifest_dir, merged_dir, final_outputs_diagnostics_dir, batch_execution_items_path, premerge_pose_validation_path, items_df, premerge_pose_validation, failed_chunks, failed_chunk_names | `DOC-C13-02` |
+| #13-3 | `cells/13_03.py` | `direct` | 13 Batch Validation | to_4x4_batch, normalize_rows, angle_deg, lens_from_yaw_pitch_deg, rotate_about_axis, build_anchor_arrays, basis_matrix, local_arrays | ctx, probe_root, pipeline_root, chunk_manifest_dir, merged_dir, final_outputs_diagnostics_dir, batch_execution_items_path, premerge_pose_validation_path, premerge_pose_probe_path, items_df, premerge_pose_validation, failed_chunks | `DOC-C13-03` |
+| #13-4 | `cells/13_04.py` | `direct` | 13 Batch Validation | normalize_rows, lens_from_yaw_pitch_deg, rotate_about_axis, to_4x4_batch, basis_matrix, resolve_anchor_arrays, local_arrays | ctx, probe_root, pipeline_root, chunk_manifest_dir, merged_dir, final_outputs_diagnostics_dir, batch_execution_items_path, premerge_pose_validation_path, items_df, premerge_pose_validation, failed_chunks, failed_chunk_names | `DOC-C13-04` |
+| #13-5 | `cells/13_05.py` | `direct` | 13 Batch Validation | normalize_rows, angle_deg | ctx, probe_root, persist_root, pipeline_root, anchor_dir, merged_dir, final_outputs_diagnostics_dir, camera_anchor_full_path, anchor_df, required_cols, missing, centers | `DOC-C13-05` |
+| #13-6 | `cells/13_06.py` | `direct` | 13 Batch Validation | - | ctx, probe_root, persist_root, pipeline_root, chunk_manifest_dir, anchor_dir, merged_dir, final_outputs_diagnostics_dir, batch_execution_items_path, premerge_pose_validation_path, camera_anchor_full_path, camera_matrix_full_path | `DOC-C13-06` |
+| #14-1 | `cells/14_01.py` | `direct` | 14 Merge | ensure_target_chunk_manifest, resolve_chunk_input_dir | missing_merge_deps, batch_preflight_status_path, ctx, probe_root, results_root, persist_root, modeling_session_id, manifest_dir, final_outputs_dir, final_outputs_merged_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir | `DOC-C14-01` |
 | #15-1 | `cells/15_01.py` | `direct` | 15 Optional Bundle | - | merge_summary_path, ctx, probe_root, pipeline_root, merged_dir, pipeline_config_path, bundle_model_slug, merge_summary_doc_path, merge_summary, config_snapshot, download_local_bundle, local_bundle_base | `DOC-C15-01` |
-| #16-1 | `cells/16_01.py` | `direct` | 16 Cleanup Inventory | path_size_bytes | ctx, probe_root, results_root, manifest_dir, da3_nested_dir, da3_nested_gs_dir, world_dir, final_outputs_dir, final_outputs_merged_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir, final_outputs_chunk_evidence_dir | `DOC-C16-01` |
+| #16-1 | `cells/16_01.py` | `direct` | 16 Cleanup Inventory | path_size_bytes | ctx, probe_root, results_root, persist_root, manifest_dir, da3_nested_dir, da3_nested_gs_dir, world_dir, final_outputs_dir, final_outputs_merged_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir | `DOC-C16-01` |
 | #16-2 | `cells/16_02.py` | `direct` | 16 Cleanup Inventory | - | ctx, pipeline_root, merged_dir, cleanup_plan_path, cleanup_plan, rows, cleanup_csv | `DOC-C16-02` |
 | #17-1 | `cells/17_01.py` | `direct` | 17 Cleanup Apply | - | ctx, probe_root, pipeline_root, merged_dir, cleanup_plan_path, cleanup_csv_path, cleanup_plan, review_df, reviewed_paths, other_dir, deleted, moved_to_other | `DOC-C17-01` |
 
@@ -56,7 +61,7 @@
 | #10-1 | `markdown/10_01.md` | #10-1..#10-3 | #9-1..#9-5 | #11-1..#11-4 | 10 Precheck |
 | #11-1 | `markdown/11_01.md` | #11-1..#11-4 | #10-1..#10-3 | #12-1..#12-3 | 11 Run Preparation |
 | #12-1 | `markdown/12_01.md` | #12-1..#12-3 | #11-1..#11-4 | #13-1 | 12 Run Batches |
-| #13-1 | `markdown/13_01.md` | #13-1 | #12-1..#12-3 | #14-1 | 13 Batch Validation |
+| #13-1 | `markdown/13_01.md` | #13-1..#13-6 | #12-1..#12-3 | #14-1 | 13 Batch Validation |
 | #14-1 | `markdown/14_01.md` | #14-1 | #13-1 | #15-1 | 14 Merge |
 | #15-1 | `markdown/15_01.md` | #15-1 | #14-1 | #16-1..#16-2 | 15 Optional Bundle |
 | #16-1 | `markdown/16_01.md` | #16-1..#16-2 | #15-1 | #17-1 | 16 Cleanup Inventory |
@@ -116,6 +121,35 @@
 | resolve_ypr_cols | #13-1 | 13 Batch Validation | `DOC-C13-01` |
 | resolve_lens_cols | #13-1 | 13 Batch Validation | `DOC-C13-01` |
 | lens_from_yaw_pitch_deg | #13-1 | 13 Batch Validation | `DOC-C13-01` |
+| to_4x4_batch | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| normalize_rows | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| angle_deg | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| lens_from_yaw_pitch_deg | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| resolve_cols | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| rotate_about_axis | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| build_anchor_c2w_list | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| basis_matrix | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| lens_direction_from_c2w | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| up_direction_from_c2w | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| local_c2w_candidates | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| estimate_pose_aware_similarity | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| to_4x4_batch | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| normalize_rows | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| angle_deg | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| lens_from_yaw_pitch_deg | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| rotate_about_axis | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| build_anchor_arrays | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| basis_matrix | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| local_arrays | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| normalize_rows | #13-4 | 13 Batch Validation | `DOC-C13-04` |
+| lens_from_yaw_pitch_deg | #13-4 | 13 Batch Validation | `DOC-C13-04` |
+| rotate_about_axis | #13-4 | 13 Batch Validation | `DOC-C13-04` |
+| to_4x4_batch | #13-4 | 13 Batch Validation | `DOC-C13-04` |
+| basis_matrix | #13-4 | 13 Batch Validation | `DOC-C13-04` |
+| resolve_anchor_arrays | #13-4 | 13 Batch Validation | `DOC-C13-04` |
+| local_arrays | #13-4 | 13 Batch Validation | `DOC-C13-04` |
+| normalize_rows | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| angle_deg | #13-5 | 13 Batch Validation | `DOC-C13-05` |
 | ensure_target_chunk_manifest | #14-1 | 14 Merge | `DOC-C14-01` |
 | resolve_chunk_input_dir | #14-1 | 14 Merge | `DOC-C14-01` |
 | path_size_bytes | #16-1 | 16 Cleanup Inventory | `DOC-C16-01` |
@@ -538,6 +572,7 @@
 | pipeline_root | #13-1 | 13 Batch Validation | `DOC-C13-01` |
 | chunk_manifest_dir | #13-1 | 13 Batch Validation | `DOC-C13-01` |
 | chunk_runs_dir | #13-1 | 13 Batch Validation | `DOC-C13-01` |
+| merged_dir | #13-1 | 13 Batch Validation | `DOC-C13-01` |
 | final_outputs_diagnostics_dir | #13-1 | 13 Batch Validation | `DOC-C13-01` |
 | batch_execution_items_path | #13-1 | 13 Batch Validation | `DOC-C13-01` |
 | items_df | #13-1 | 13 Batch Validation | `DOC-C13-01` |
@@ -550,12 +585,139 @@
 | gate_rows | #13-1 | 13 Batch Validation | `DOC-C13-01` |
 | gate_df | #13-1 | 13 Batch Validation | `DOC-C13-01` |
 | gate_csv | #13-1 | 13 Batch Validation | `DOC-C13-01` |
+| PREMERGE_CENTER_ERROR_P95_MAX | #13-1 | 13 Batch Validation | `DOC-C13-01` |
+| PREMERGE_LENS_ERROR_DEG_P95_MAX | #13-1 | 13 Batch Validation | `DOC-C13-01` |
+| PREMERGE_DELTA_CENTER_ERROR_MAX | #13-1 | 13 Batch Validation | `DOC-C13-01` |
+| PREMERGE_DELTA_LENS_ERROR_DEG_MAX | #13-1 | 13 Batch Validation | `DOC-C13-01` |
+| validation_rows | #13-1 | 13 Batch Validation | `DOC-C13-01` |
+| validation_df | #13-1 | 13 Batch Validation | `DOC-C13-01` |
+| validation_csv | #13-1 | 13 Batch Validation | `DOC-C13-01` |
+| hard_fail_df | #13-1 | 13 Batch Validation | `DOC-C13-01` |
+| validation_json | #13-1 | 13 Batch Validation | `DOC-C13-01` |
 | summary | #13-1 | 13 Batch Validation | `DOC-C13-01` |
+| ctx | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| probe_root | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| pipeline_root | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| chunk_manifest_dir | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| merged_dir | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| final_outputs_diagnostics_dir | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| batch_execution_items_path | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| premerge_pose_validation_path | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| items_df | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| premerge_pose_validation | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| failed_chunks | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| failed_chunk_names | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| basis_candidates | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| candidate_rows | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| best_rows | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| candidate_df | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| probe_csv | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| probe_json | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| summary | #13-2 | 13 Batch Validation | `DOC-C13-02` |
+| ctx | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| probe_root | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| pipeline_root | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| chunk_manifest_dir | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| merged_dir | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| final_outputs_diagnostics_dir | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| batch_execution_items_path | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| premerge_pose_validation_path | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| premerge_pose_probe_path | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| items_df | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| premerge_pose_validation | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| failed_chunks | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| failed_chunk_names | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| basis_candidates | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| rows | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| split_df | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| best_df | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| split_csv | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| split_json | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| summary | #13-3 | 13 Batch Validation | `DOC-C13-03` |
+| ctx | #13-4 | 13 Batch Validation | `DOC-C13-04` |
+| probe_root | #13-4 | 13 Batch Validation | `DOC-C13-04` |
+| pipeline_root | #13-4 | 13 Batch Validation | `DOC-C13-04` |
+| chunk_manifest_dir | #13-4 | 13 Batch Validation | `DOC-C13-04` |
+| merged_dir | #13-4 | 13 Batch Validation | `DOC-C13-04` |
+| final_outputs_diagnostics_dir | #13-4 | 13 Batch Validation | `DOC-C13-04` |
+| batch_execution_items_path | #13-4 | 13 Batch Validation | `DOC-C13-04` |
+| premerge_pose_validation_path | #13-4 | 13 Batch Validation | `DOC-C13-04` |
+| items_df | #13-4 | 13 Batch Validation | `DOC-C13-04` |
+| premerge_pose_validation | #13-4 | 13 Batch Validation | `DOC-C13-04` |
+| failed_chunks | #13-4 | 13 Batch Validation | `DOC-C13-04` |
+| failed_chunk_names | #13-4 | 13 Batch Validation | `DOC-C13-04` |
+| basis_candidates | #13-4 | 13 Batch Validation | `DOC-C13-04` |
+| rows | #13-4 | 13 Batch Validation | `DOC-C13-04` |
+| inspection_df | #13-4 | 13 Batch Validation | `DOC-C13-04` |
+| inspection_csv | #13-4 | 13 Batch Validation | `DOC-C13-04` |
+| inspection_json | #13-4 | 13 Batch Validation | `DOC-C13-04` |
+| summary | #13-4 | 13 Batch Validation | `DOC-C13-04` |
+| ctx | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| probe_root | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| persist_root | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| pipeline_root | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| anchor_dir | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| merged_dir | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| final_outputs_diagnostics_dir | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| camera_anchor_full_path | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| anchor_df | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| required_cols | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| missing | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| centers | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| lens | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| up | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| right | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| up_ortho | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| lens_norm | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| up_norm | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| right_norm | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| lens_up_dot | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| lens_right_dot | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| up_right_dot | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| ortho_up_error_deg | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| delta_pos | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| delta_lens_deg | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| delta_up_deg | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| valid_df | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| validation_csv | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| summary_json | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| summary | #13-5 | 13 Batch Validation | `DOC-C13-05` |
+| ctx | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| probe_root | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| persist_root | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| pipeline_root | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| chunk_manifest_dir | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| anchor_dir | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| merged_dir | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| final_outputs_diagnostics_dir | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| batch_execution_items_path | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| premerge_pose_validation_path | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| camera_anchor_full_path | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| camera_matrix_full_path | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| items_df | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| premerge_pose_validation | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| failed_chunks | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| failed_chunk_names | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| anchor_full_df | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| matrix_full_df | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| required_anchor_cols | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| missing_anchor_cols | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| matrix_cols | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| missing_matrix_cols | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| join_rows | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| chunk_anchor_df | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| join_df | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| join_ready_csv | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| join_ready_summary_json | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| missing_anchor_rows | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| missing_matrix_rows | #13-6 | 13 Batch Validation | `DOC-C13-06` |
+| summary | #13-6 | 13 Batch Validation | `DOC-C13-06` |
 | missing_merge_deps | #14-1 | 14 Merge | `DOC-C14-01` |
 | batch_preflight_status_path | #14-1 | 14 Merge | `DOC-C14-01` |
 | ctx | #14-1 | 14 Merge | `DOC-C14-01` |
 | probe_root | #14-1 | 14 Merge | `DOC-C14-01` |
 | results_root | #14-1 | 14 Merge | `DOC-C14-01` |
+| persist_root | #14-1 | 14 Merge | `DOC-C14-01` |
 | modeling_session_id | #14-1 | 14 Merge | `DOC-C14-01` |
 | manifest_dir | #14-1 | 14 Merge | `DOC-C14-01` |
 | final_outputs_dir | #14-1 | 14 Merge | `DOC-C14-01` |
@@ -564,7 +726,7 @@
 | final_outputs_manifests_dir | #14-1 | 14 Merge | `DOC-C14-01` |
 | final_outputs_chunk_evidence_dir | #14-1 | 14 Merge | `DOC-C14-01` |
 | pipeline_root | #14-1 | 14 Merge | `DOC-C14-01` |
-| global_pose_dir | #14-1 | 14 Merge | `DOC-C14-01` |
+| anchor_dir | #14-1 | 14 Merge | `DOC-C14-01` |
 | chunk_manifest_dir | #14-1 | 14 Merge | `DOC-C14-01` |
 | chunk_runs_dir | #14-1 | 14 Merge | `DOC-C14-01` |
 | merged_dir | #14-1 | 14 Merge | `DOC-C14-01` |
@@ -575,6 +737,12 @@
 | REQUIRE_ALL_CHUNKS | #14-1 | 14 Merge | `DOC-C14-01` |
 | config_snapshot | #14-1 | 14 Merge | `DOC-C14-01` |
 | MAKE_DRIVE_BUNDLE | #14-1 | 14 Merge | `DOC-C14-01` |
+| batch_execution_items_path | #14-1 | 14 Merge | `DOC-C14-01` |
+| TRANSFORM_SCALE_MIN | #14-1 | 14 Merge | `DOC-C14-01` |
+| TRANSFORM_SCALE_MAX | #14-1 | 14 Merge | `DOC-C14-01` |
+| TRANSFORM_CENTER_RMSE_MAX | #14-1 | 14 Merge | `DOC-C14-01` |
+| TRANSFORM_ROT_DIR_MAX | #14-1 | 14 Merge | `DOC-C14-01` |
+| LOCAL_CAMERA_BASIS | #14-1 | 14 Merge | `DOC-C14-01` |
 | chunk_index_all_path | #14-1 | 14 Merge | `DOC-C14-01` |
 | completed_chunk_names | #14-1 | 14 Merge | `DOC-C14-01` |
 | ply_ready_chunk_names | #14-1 | 14 Merge | `DOC-C14-01` |
@@ -603,6 +771,7 @@
 | ctx | #16-1 | 16 Cleanup Inventory | `DOC-C16-01` |
 | probe_root | #16-1 | 16 Cleanup Inventory | `DOC-C16-01` |
 | results_root | #16-1 | 16 Cleanup Inventory | `DOC-C16-01` |
+| persist_root | #16-1 | 16 Cleanup Inventory | `DOC-C16-01` |
 | manifest_dir | #16-1 | 16 Cleanup Inventory | `DOC-C16-01` |
 | da3_nested_dir | #16-1 | 16 Cleanup Inventory | `DOC-C16-01` |
 | da3_nested_gs_dir | #16-1 | 16 Cleanup Inventory | `DOC-C16-01` |
@@ -613,7 +782,7 @@
 | final_outputs_manifests_dir | #16-1 | 16 Cleanup Inventory | `DOC-C16-01` |
 | final_outputs_chunk_evidence_dir | #16-1 | 16 Cleanup Inventory | `DOC-C16-01` |
 | pipeline_root | #16-1 | 16 Cleanup Inventory | `DOC-C16-01` |
-| global_pose_dir | #16-1 | 16 Cleanup Inventory | `DOC-C16-01` |
+| anchor_dir | #16-1 | 16 Cleanup Inventory | `DOC-C16-01` |
 | chunk_manifest_dir | #16-1 | 16 Cleanup Inventory | `DOC-C16-01` |
 | chunk_runs_dir | #16-1 | 16 Cleanup Inventory | `DOC-C16-01` |
 | merged_dir | #16-1 | 16 Cleanup Inventory | `DOC-C16-01` |

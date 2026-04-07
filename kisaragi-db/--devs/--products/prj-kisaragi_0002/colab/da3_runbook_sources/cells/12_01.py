@@ -105,6 +105,17 @@ summary = {
     "batch_names": batch_manifests_df["batch_name"].astype(str).tolist(),
 }
 save_json(final_outputs_diagnostics_dir / "batch_input_generation_summary.json", summary)
+save_json(
+    Path("/content/runbook_batch_preflight_status.json"),
+    {
+        "status": "ok",
+        "route": "da3_record_sequence_anchor_batch_plan_execution_preflight",
+        "batch_execution_items_path": str(batch_execution_items_path),
+        "batch_manifests_path": str(batch_manifests_path),
+        "execution_chunks_path": str(execution_chunks_path),
+        "execution_batch_plan_path": str(execution_batch_plan_path),
+    },
+)
 
 print(json.dumps(summary, indent=2, ensure_ascii=False))
 display(batch_execution_items_df)

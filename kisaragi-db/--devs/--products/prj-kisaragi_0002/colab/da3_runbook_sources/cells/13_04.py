@@ -1,0 +1,238 @@
+#13-4
+
+from pathlib import Path
+import json
+
+import numpy as np
+import pandas as pd
+
+ctx = load_ctx()
+
+probe_root = Path(ctx["probe_root"])
+pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
+chunk_manifest_dir = pipeline_root / "manifests"
+merged_dir = Path(ctx.get("merged_dir", str(pipeline_root / "merged")))
+merged_dir.mkdir(parents=True, exist_ok=True)
+
+final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
+final_outputs_diagnostics_dir.mkdir(parents=True, exist_ok=True)
+
+batch_execution_items_path = chunk_manifest_dir / "batch_execution_items.csv"
+premerge_pose_validation_path = merged_dir / "premerge_pose_validation.json"
+
+assert batch_execution_items_path.exists(), batch_execution_items_path
+assert premerge_pose_validation_path.exists(), premerge_pose_validation_path
+
+items_df = pd.read_csv(batch_execution_items_path)
+premerge_pose_validation = json.loads(premerge_pose_validation_path.read_text(encoding="utf-8"))
+failed_chunks = premerge_pose_validation.get("failed_chunks", [])
+failed_chunk_names = [str(row["chunk_name"]) for row in failed_chunks]
+
+
+def normalize_rows(arr: np.ndarray, eps: float = 1e-12) -> np.ndarray:
+    arr = np.asarray(arr, dtype=np.float64)
+    arr = np.nan_to_num(arr, nan=0.0, posinf=0.0, neginf=0.0)
+    norm = np.linalg.norm(arr, axis=1, keepdims=True)
+    return arr / np.maximum(norm, eps)
+
+
+def lens_from_yaw_pitch_deg(yaw_deg: np.ndarray, pitch_deg: np.ndarray) -> np.ndarray:
+    yaw = np.deg2rad(yaw_deg.astype(float))
+    pitch = np.deg2rad(pitch_deg.astype(float))
+    fx = np.sin(yaw) * np.cos(pitch)
+    fy = -np.sin(pitch)
+    fz = np.cos(yaw) * np.cos(pitch)
+    return normalize_rows(np.stack([fx, fy, fz], axis=1))
+
+
+def rotate_about_axis(vec: np.ndarray, axis: np.ndarray, angle_rad: float) -> np.ndarray:
+    axis = np.asarray(axis, dtype=np.float64)
+    axis = axis / max(float(np.linalg.norm(axis)), 1e-12)
+    vec = np.asarray(vec, dtype=np.float64)
+    c = float(np.cos(angle_rad))
+    s = float(np.sin(angle_rad))
+    return vec * c + np.cross(axis, vec) * s + axis * np.dot(axis, vec) * (1.0 - c)
+
+
+def to_4x4_batch(arr: np.ndarray) -> np.ndarray:
+    arr = np.asarray(arr)
+    assert arr.ndim == 3, {"pred_shape": tuple(arr.shape)}
+    if arr.shape[1:] == (4, 4):
+        return arr.astype(np.float32)
+    if arr.shape[1:] == (3, 4):
+        out = np.repeat(np.eye(4, dtype=np.float32)[None, :, :], arr.shape[0], axis=0)
+        out[:, :3, :] = arr.astype(np.float32)
+        return out
+    raise AssertionError({"pred_shape": tuple(arr.shape), "expected": "(N,4,4) or (N,3,4)"})
+
+
+def basis_matrix(diag: tuple[int, int, int], signs: tuple[int, int, int]) -> np.ndarray:
+    base = np.eye(4, dtype=np.float32)
+    rot = np.zeros((3, 3), dtype=np.float32)
+    for row_i, axis_i in enumerate(diag):
+        rot[row_i, axis_i] = float(signs[row_i])
+    base[:3, :3] = rot
+    return base
+
+
+def resolve_anchor_arrays(anchor_df: pd.DataFrame) -> dict[str, np.ndarray]:
+    center_cols = next(
+        (c for c in [("cam_cx", "cam_cy", "cam_cz"), ("cx_world", "cy_world", "cz_world"), ("tx", "ty", "tz")] if all(name in anchor_df.columns for name in c)),
+        None,
+    )
+    assert center_cols is not None, {"reason": "center cols not found", "available_columns": anchor_df.columns.tolist()}
+
+    lens_cols = next(
+        (c for c in [("anchor_lens_x", "anchor_lens_y", "anchor_lens_z"), ("lens_x", "lens_y", "lens_z"), ("forward_x", "forward_y", "forward_z")] if all(name in anchor_df.columns for name in c)),
+        None,
+    )
+    up_cols = next(
+        (c for c in [("anchor_up_x", "anchor_up_y", "anchor_up_z"), ("up_x", "up_y", "up_z")] if all(name in anchor_df.columns for name in c)),
+        None,
+    )
+    ypr_cols = next(
+        (c for c in [("yaw_deg_record", "pitch_deg_record", "roll_deg_record"), ("yaw_deg", "pitch_deg", "roll_deg")] if all(name in anchor_df.columns for name in c)),
+        None,
+    )
+
+    centers = anchor_df[list(center_cols)].to_numpy(dtype=np.float64)
+    if lens_cols is not None:
+        lens = normalize_rows(anchor_df[list(lens_cols)].to_numpy(dtype=np.float64))
+    else:
+        assert ypr_cols is not None, {"reason": "lens cols not found", "available_columns": anchor_df.columns.tolist()}
+        yaw_col, pitch_col, _ = ypr_cols
+        lens = lens_from_yaw_pitch_deg(anchor_df[yaw_col].to_numpy(float), anchor_df[pitch_col].to_numpy(float))
+
+    if up_cols is not None:
+        up = normalize_rows(anchor_df[list(up_cols)].to_numpy(dtype=np.float64))
+    else:
+        assert ypr_cols is not None, {"reason": "up cols not found", "available_columns": anchor_df.columns.tolist()}
+        _, _, roll_col = ypr_cols
+        world_up = np.array([0.0, 1.0, 0.0], dtype=np.float64)
+        up_rows = []
+        for lens_vec, roll_deg in zip(lens, anchor_df[roll_col].to_numpy(float)):
+            z_col = -np.asarray(lens_vec, dtype=np.float64)
+            x_seed = np.cross(-world_up, z_col)
+            if float(np.linalg.norm(x_seed)) <= 1e-12:
+                x_seed = np.array([1.0, 0.0, 0.0], dtype=np.float64)
+            x_col = x_seed / max(float(np.linalg.norm(x_seed)), 1e-12)
+            y_seed = np.cross(z_col, x_col)
+            y_col = y_seed / max(float(np.linalg.norm(y_seed)), 1e-12)
+            up_rows.append(rotate_about_axis(y_col, lens_vec, np.deg2rad(float(roll_deg))))
+        up = normalize_rows(np.asarray(up_rows, dtype=np.float64))
+
+    return {"centers": centers, "lens": lens, "up": up}
+
+
+def local_arrays(pred_extrinsics: np.ndarray, extrinsic_mode: str, basis: np.ndarray) -> dict[str, np.ndarray]:
+    centers, lens, up = [], [], []
+    for ext in to_4x4_batch(pred_extrinsics):
+        if extrinsic_mode == "w2c":
+            c2w = np.linalg.inv(ext).astype(np.float32)
+        elif extrinsic_mode == "c2w":
+            c2w = ext.astype(np.float32)
+        else:
+            raise AssertionError({"unsupported_extrinsic_mode": extrinsic_mode})
+        c2w = (c2w @ basis).astype(np.float32)
+        centers.append(c2w[:3, 3])
+        lens.append(-c2w[:3, 2])
+        up.append(-c2w[:3, 1])
+    return {
+        "centers": np.asarray(centers, dtype=np.float64),
+        "lens": normalize_rows(np.asarray(lens, dtype=np.float64)),
+        "up": normalize_rows(np.asarray(up, dtype=np.float64)),
+    }
+
+
+basis_candidates = {
+    "identity": np.eye(4, dtype=np.float32),
+    "perm_yxz_sign_ppn": basis_matrix((1, 0, 2), (1, 1, -1)),
+}
+
+rows = []
+for failed in failed_chunk_names:
+    hit = items_df.loc[items_df["chunk_name"].astype(str) == failed].copy()
+    assert not hit.empty, {"chunk_name": failed, "reason": "missing batch_execution_items row"}
+    row = hit.iloc[0]
+    anchor_csv = Path(row["chunk_sequence_anchor_csv"])
+    batch_work_dir = Path(row["batch_work_dir"])
+    pred_candidates = [
+        batch_work_dir / failed / "pred_extrinsics.npy",
+        pipeline_root / "chunk_runs" / failed / "pred_extrinsics.npy",
+        batch_work_dir / f"{failed}_pred_extrinsics.npy",
+    ]
+    pred_path = next((p for p in pred_candidates if p.exists()), None)
+    assert pred_path is not None, {"chunk_name": failed, "reason": "pred_extrinsics.npy not found"}
+
+    anchor_df = pd.read_csv(anchor_csv)
+    pred_extrinsics = to_4x4_batch(np.load(pred_path))
+    n = min(len(anchor_df), pred_extrinsics.shape[0], 5)
+    assert n >= 1, {"chunk_name": failed, "reason": "no rows for raw orientation inspection"}
+    anchor_df = anchor_df.iloc[:n].copy().reset_index(drop=True)
+    pred_extrinsics = pred_extrinsics[:n]
+    anchor = resolve_anchor_arrays(anchor_df)
+
+    for extrinsic_mode, (basis_label, basis) in itertools.product(["w2c", "c2w"], basis_candidates.items()):
+        local = local_arrays(pred_extrinsics, extrinsic_mode, basis)
+        for i in range(n):
+            rows.append({
+                "chunk_name": failed,
+                "sample_index": int(i),
+                "record_index": int(anchor_df.iloc[i]["record_index"]) if "record_index" in anchor_df.columns and pd.notna(anchor_df.iloc[i]["record_index"]) else None,
+                "extrinsic_mode": extrinsic_mode,
+                "basis_label": basis_label,
+                "anchor_cx": float(anchor["centers"][i, 0]),
+                "anchor_cy": float(anchor["centers"][i, 1]),
+                "anchor_cz": float(anchor["centers"][i, 2]),
+                "anchor_fx": float(anchor["lens"][i, 0]),
+                "anchor_fy": float(anchor["lens"][i, 1]),
+                "anchor_fz": float(anchor["lens"][i, 2]),
+                "anchor_ux": float(anchor["up"][i, 0]),
+                "anchor_uy": float(anchor["up"][i, 1]),
+                "anchor_uz": float(anchor["up"][i, 2]),
+                "pred_cx": float(local["centers"][i, 0]),
+                "pred_cy": float(local["centers"][i, 1]),
+                "pred_cz": float(local["centers"][i, 2]),
+                "pred_fx": float(local["lens"][i, 0]),
+                "pred_fy": float(local["lens"][i, 1]),
+                "pred_fz": float(local["lens"][i, 2]),
+                "pred_ux": float(local["up"][i, 0]),
+                "pred_uy": float(local["up"][i, 1]),
+                "pred_uz": float(local["up"][i, 2]),
+            })
+
+inspection_df = pd.DataFrame(rows)
+inspection_csv = merged_dir / "premerge_pose_raw_orientation_inspection.csv"
+inspection_json = merged_dir / "premerge_pose_raw_orientation_inspection_summary.json"
+inspection_df.to_csv(inspection_csv, index=False, encoding="utf-8")
+
+summary = {
+    "status": "ok" if len(inspection_df) else "not_run",
+    "route": "continuous-gs-v06-chunk18-overlap6-adopt12-premerge-pose-raw-inspection",
+    "failed_chunk_count": int(len(failed_chunk_names)),
+    "row_count": int(len(inspection_df)),
+    "sample_count_per_chunk_max": 5,
+    "inspection_csv": str(inspection_csv),
+}
+save_json(inspection_json, summary)
+save_json(final_outputs_diagnostics_dir / "premerge_pose_raw_orientation_inspection_summary.json", summary)
+
+print(json.dumps(summary, indent=2, ensure_ascii=False))
+if len(inspection_df):
+    display(inspection_df)
+display_stage_summary(
+    "13-4",
+    "pre-merge raw orientation inspection",
+    inputs=[
+        {"item": "premerge_pose_validation", "path": str(premerge_pose_validation_path)},
+        {"item": "batch_execution_items", "path": str(batch_execution_items_path)},
+    ],
+    outputs=[
+        {"item": "premerge_pose_raw_orientation_inspection", "path": str(inspection_csv)},
+        {"item": "premerge_pose_raw_orientation_inspection_summary", "path": str(inspection_json)},
+    ],
+    notes=[
+        {"item": "failed_chunk_count", "value": int(len(failed_chunk_names))},
+        {"item": "row_count", "value": int(len(inspection_df))},
+    ],
+)
