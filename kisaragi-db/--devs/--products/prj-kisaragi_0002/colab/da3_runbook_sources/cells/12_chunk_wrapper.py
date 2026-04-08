@@ -159,8 +159,12 @@ def main():
         "use_pose_conditioning": bool(use_pose_conditioning),
         "align_to_input_ext_scale": bool(args.align_to_input_ext_scale),
         "infer_gs": bool(args.infer_gs),
+        "export_format": str(args.export_format),
         "pred_extrinsics_saved": bool((out_dir / "pred_extrinsics.npy").exists()),
         "pred_intrinsics_saved": bool((out_dir / "pred_intrinsics.npy").exists()),
+        "gs_ply_saved": bool((out_dir / "gs_ply" / "0000.ply").exists()),
+        "gs_video_saved": bool((out_dir / "gs_video" / "0000_extend.mp4").exists()),
+        "scene_glb_saved": bool((out_dir / "scene.glb").exists()),
     }
     (out_dir / "_SUCCESS.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(summary, ensure_ascii=False, indent=2))

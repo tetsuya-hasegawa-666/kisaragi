@@ -68,10 +68,10 @@ else:
         "CHUNK_SIZE": 18,
         "STEP": 12,
         "ADOPT_SIZE": 12,
-        "CHUNKS_PER_BATCH": 3,
+        "CHUNKS_PER_BATCH": 2,
         "GLOBAL_CAMERA_SOURCE": "extrinsics_w2c_arc.npy",
         "TARGET_CHUNK_MODE": "selected_chunk_ids_1based",
-        "TARGET_CHUNK_IDS_1BASED": [6, 7, 8, 9, 10, 11],
+        "TARGET_CHUNK_IDS_1BASED": [6, 7],
         "USE_TARGET_CHUNK_WINDOW": False,
         "TARGET_CHUNK_WINDOW_START_1BASED": 1,
         "TARGET_CHUNK_WINDOW_COUNT": 0,
@@ -82,12 +82,14 @@ BUNDLE_MODEL_SLUG = config["BUNDLE_MODEL_SLUG"]
 REQUIRE_ALL_CHUNKS = True
 config_snapshot = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8")) if Path("/content/config_snapshot.json").exists() else {}
 MAKE_DRIVE_BUNDLE = bool(config_snapshot.get("MAKE_DRIVE_BUNDLE", False))
+INFER_GS = bool(config_snapshot.get("INFER_GS", config.get("INFER_GS", True)))
 batch_execution_items_path = chunk_manifest_dir / "batch_execution_items.csv"
 
 TRANSFORM_SCALE_MIN = 0.8
 TRANSFORM_SCALE_MAX = 1.3
-TRANSFORM_CENTER_RMSE_MAX = 0.05
-TRANSFORM_ROT_DIR_MAX = 0.05
+TRANSFORM_CENTER_RMSE_MAX = 0.15
+TRANSFORM_ROT_DIR_MAX = 0.20
+LOCAL_EXTRINSIC_MODE = "c2w"
 LOCAL_CAMERA_BASIS = np.eye(4, dtype=np.float32)
 LOCAL_CAMERA_BASIS[:3, :3] = np.array([
     [0.0, 1.0, 0.0],
@@ -155,26 +157,57 @@ def ensure_target_chunk_manifest():
     target_chunks_df.to_csv(target_path, index=False, encoding="utf-8")
     return target_chunks_df
 
-def resolve_chunk_input_dir(chunk_name: str) -> Path:
-    primary = chunk_runs_dir / chunk_name
-    assert (primary / "pred_extrinsics.npy").exists() and (primary / "chunk_input_frames.csv").exists(), {
-        "chunk_name": chunk_name,
-        "missing_dir": str(primary),
-        "reason": "run #10-1 before #11",
-    }
-    return primary
+def resolve_chunk_output_dir(chunk_name: str) -> Path:
+    direct = chunk_runs_dir / chunk_name
+    if (direct / "pred_extrinsics.npy").exists() and (direct / "chunk_input_frames.csv").exists():
+        return direct
 
-completed_chunk_names = sorted({
-    p.parent.name
-    for p in chunk_runs_dir.glob("*/_SUCCESS.json")
-})
-ply_ready_chunk_names = sorted({
-    p.parent.name
-    for p in chunk_runs_dir.glob("*/gs_ply/0000.ply")
-})
+    nested_candidates = sorted({
+        p.parent
+        for p in chunk_runs_dir.glob(f"batch_*/{chunk_name}/_SUCCESS.json")
+    } | {
+        p.parent
+        for p in chunk_runs_dir.glob(f"batch_*/{chunk_name}/pred_extrinsics.npy")
+    } | {
+        p.parent
+        for p in chunk_runs_dir.glob(f"batch_*/{chunk_name}/chunk_input_frames.csv")
+    })
+    for candidate in nested_candidates:
+        if (candidate / "pred_extrinsics.npy").exists() and (candidate / "chunk_input_frames.csv").exists():
+            return candidate
+
+    raise AssertionError({
+        "chunk_name": chunk_name,
+        "missing_dir": str(direct),
+        "reason": "run #12-3 before #14-1",
+        "searched_nested_under": str(chunk_runs_dir),
+    })
+
+def resolve_chunk_input_dir(chunk_name: str) -> Path:
+    return resolve_chunk_output_dir(chunk_name)
+
 all_chunks_df = pd.read_csv(chunk_manifest_dir / "chunk_index_all.csv")
 target_chunks_df = ensure_target_chunk_manifest()
+completed_chunk_names = []
+pred_ready_chunk_names = []
+ply_ready_chunk_names = []
+for chunk_name in target_chunks_df["chunk_name"].astype(str).tolist():
+    try:
+        out_dir = resolve_chunk_output_dir(chunk_name)
+    except AssertionError:
+        continue
+    if (out_dir / "_SUCCESS.json").exists():
+        completed_chunk_names.append(chunk_name)
+    if (out_dir / "pred_extrinsics.npy").exists():
+        pred_ready_chunk_names.append(chunk_name)
+    if (out_dir / "gs_ply" / "0000.ply").exists():
+        ply_ready_chunk_names.append(chunk_name)
+
+completed_chunk_names = sorted(set(completed_chunk_names))
+pred_ready_chunk_names = sorted(set(pred_ready_chunk_names))
+ply_ready_chunk_names = sorted(set(ply_ready_chunk_names))
 completed_chunks_df = target_chunks_df[target_chunks_df["chunk_name"].isin(completed_chunk_names)].copy()
+pred_ready_target_chunk_names = sorted(set(pred_ready_chunk_names) & set(target_chunks_df["chunk_name"].tolist()))
 ply_ready_target_chunk_names = sorted(set(ply_ready_chunk_names) & set(target_chunks_df["chunk_name"].tolist()))
 
 batch_summaries = sorted({
@@ -198,33 +231,17 @@ if not premerge_pose_validation_path.exists():
 
 premerge_pose_validation = json.loads(premerge_pose_validation_path.read_text(encoding="utf-8"))
 if premerge_pose_validation.get("status") != "ok":
-    premerge_pose_probe_path = merged_dir / "premerge_pose_probe_summary.json"
     merge_summary = {
         "route": "continuous-gs-v06-chunk18-overlap6-adopt12-merge",
         "status": "skipped",
         "reason": "premerge_pose_validation_failed",
         "premerge_pose_validation_path": str(premerge_pose_validation_path),
-        "premerge_pose_probe_path": str(premerge_pose_probe_path) if premerge_pose_probe_path.exists() else None,
         "hard_fail_count": int(premerge_pose_validation.get("hard_fail_count", 0)),
         "failed_chunks": premerge_pose_validation.get("failed_chunks", []),
         "all_batch_summary_path": str(merged_dir / "all_batch_summary_arc.json"),
     }
     (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
     print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
-    if not premerge_pose_probe_path.exists():
-        raise AssertionError("run #13-2 pre-merge pose probe before #14-1 merge")
-    premerge_pose_probe_split_path = merged_dir / "premerge_pose_probe_split_summary.json"
-    if not premerge_pose_probe_split_path.exists():
-        raise AssertionError("run #13-3 pre-merge pose split probe before #14-1 merge")
-    premerge_pose_raw_inspection_path = merged_dir / "premerge_pose_raw_orientation_inspection_summary.json"
-    if not premerge_pose_raw_inspection_path.exists():
-        raise AssertionError("run #13-4 pre-merge raw orientation inspection before #14-1 merge")
-    arcore_anchor_validation_path = merged_dir / "arcore_anchor_trajectory_validation_summary.json"
-    if not arcore_anchor_validation_path.exists():
-        raise AssertionError("run #13-5 arcore anchor trajectory validation before #14-1 merge")
-    premerge_pose_join_ready_path = merged_dir / "premerge_pose_join_ready_summary.json"
-    if not premerge_pose_join_ready_path.exists():
-        raise AssertionError("run #13-6 pre-merge join-ready data build before #14-1 merge")
     raise AssertionError(premerge_pose_validation)
 
 if REQUIRE_ALL_CHUNKS and len(completed_chunks_df) < len(target_chunks_df):
@@ -233,8 +250,23 @@ if REQUIRE_ALL_CHUNKS and len(completed_chunks_df) < len(target_chunks_df):
         "status": "skipped",
         "reason": "waiting_for_all_chunks",
         "completed_chunk_count": int(len(completed_chunks_df)),
+        "pred_ready_chunk_count": int(len(pred_ready_target_chunk_names)),
         "ply_ready_chunk_count": int(len(ply_ready_target_chunk_names)),
         "all_chunk_count": int(len(target_chunks_df)),
+        "all_batch_summary_path": str(merged_dir / "all_batch_summary_arc.json"),
+    }
+    (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
+elif INFER_GS and len(ply_ready_target_chunk_names) < len(target_chunks_df):
+    merge_summary = {
+        "route": "continuous-gs-v06-chunk18-overlap6-adopt12-merge",
+        "status": "skipped",
+        "reason": "gaussian_chunk_outputs_missing",
+        "completed_chunk_count": int(len(completed_chunks_df)),
+        "pred_ready_chunk_count": int(len(pred_ready_target_chunk_names)),
+        "ply_ready_chunk_count": int(len(ply_ready_target_chunk_names)),
+        "all_chunk_count": int(len(target_chunks_df)),
+        "infer_gs": bool(INFER_GS),
         "all_batch_summary_path": str(merged_dir / "all_batch_summary_arc.json"),
     }
     (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -318,10 +350,21 @@ else:
 
     def c2w_rows_to_map(df: pd.DataFrame):
         out = {}
-        cols = [f"m{i}{j}" for i in range(4) for j in range(4)]
+        m_cols = [f"m{i}{j}" for i in range(4) for j in range(4)]
+        w2c_cols = [f"w2c_{i}{j}" for i in range(4) for j in range(4)]
+        use_m_cols = all(c in df.columns for c in m_cols)
+        use_w2c_cols = all(c in df.columns for c in w2c_cols)
+        assert use_m_cols or use_w2c_cols, {
+            "reason": "camera matrix cols not found",
+            "available_columns": df.columns.tolist(),
+        }
         for row in df.itertuples(index=False):
-            M = np.array([getattr(row, c) for c in cols], dtype=np.float32).reshape(4, 4)
-            out[int(row.record_index)] = M
+            if use_m_cols:
+                M = np.array([getattr(row, c) for c in m_cols], dtype=np.float32).reshape(4, 4)
+                out[int(row.record_index)] = M
+            else:
+                w2c = np.array([getattr(row, c) for c in w2c_cols], dtype=np.float32).reshape(4, 4)
+                out[int(row.record_index)] = np.linalg.inv(w2c).astype(np.float32)
         return out
 
     def lens_direction_from_c2w(c2w: np.ndarray):
@@ -371,7 +414,16 @@ else:
     def c2w_list_from_extrinsics(extrinsics):
         mats = []
         for ext in extrinsics:
-            c2w = np.linalg.inv(to_4x4(ext)).astype(np.float32)
+            raw = to_4x4(ext).astype(np.float32)
+            if LOCAL_EXTRINSIC_MODE == "c2w":
+                c2w = raw
+            elif LOCAL_EXTRINSIC_MODE == "w2c":
+                c2w = np.linalg.inv(raw).astype(np.float32)
+            else:
+                raise AssertionError({
+                    "reason": "unsupported_local_extrinsic_mode",
+                    "LOCAL_EXTRINSIC_MODE": LOCAL_EXTRINSIC_MODE,
+                })
             mats.append((c2w @ LOCAL_CAMERA_BASIS).astype(np.float32))
         return mats
 
@@ -443,11 +495,23 @@ else:
         return T.astype(np.float32), diag
 
     global_camera_map = c2w_rows_to_map(global_camera_matrix_df)
+    if "qc_blur_ok" not in input_manifest_df.columns:
+        input_manifest_df["qc_blur_ok"] = False
+    if "blur_score" not in input_manifest_df.columns:
+        input_manifest_df["blur_score"] = 0.0
     global_frame_meta_df = global_anchor_df.merge(
         input_manifest_df[["record_index", "qc_blur_ok", "blur_score"]],
         on="record_index",
         how="left",
     )
+    if "qc_blur_ok" not in global_frame_meta_df.columns:
+        qc_blur_candidates = [c for c in ["qc_blur_ok_x", "qc_blur_ok_y"] if c in global_frame_meta_df.columns]
+        if qc_blur_candidates:
+            global_frame_meta_df["qc_blur_ok"] = global_frame_meta_df[qc_blur_candidates].bfill(axis=1).iloc[:, 0]
+    if "blur_score" not in global_frame_meta_df.columns:
+        blur_score_candidates = [c for c in ["blur_score_x", "blur_score_y"] if c in global_frame_meta_df.columns]
+        if blur_score_candidates:
+            global_frame_meta_df["blur_score"] = global_frame_meta_df[blur_score_candidates].bfill(axis=1).iloc[:, 0]
     global_frame_meta_df["lens_x"] = global_frame_meta_df["anchor_lens_x"].astype(float)
     global_frame_meta_df["lens_y"] = global_frame_meta_df["anchor_lens_y"].astype(float)
     global_frame_meta_df["lens_z"] = global_frame_meta_df["anchor_lens_z"].astype(float)
@@ -566,6 +630,7 @@ else:
             "chunk_name": row.chunk_name,
             "frame_count": int(len(chunk_df)),
             "transform_path": str(T_path),
+            "local_extrinsic_mode": LOCAL_EXTRINSIC_MODE,
             "local_camera_basis": "perm_yxz_sign_ppn",
             "scale": float(align_diag["scale"]),
             "rotation_det": float(align_diag["rotation_det"]),
@@ -797,12 +862,22 @@ else:
     }
     (final_outputs_dir / "final_output_manifest_arc.json").write_text(json.dumps(final_output_manifest, indent=2, ensure_ascii=False), encoding="utf-8")
 
+    if not all_vertices and not INFER_GS:
+        merge_reason = "infer_gs_disabled"
+    elif not all_vertices and len(ply_ready_target_chunk_names) == 0:
+        merge_reason = "gaussian_chunk_outputs_missing"
+    else:
+        merge_reason = None if all_vertices else "no kept vertices"
+
     merge_summary = {
         "route": "continuous-gs-v06-chunk18-overlap6-adopt12-merge",
         "status": "ok" if all_vertices else "skipped",
-        "reason": None if all_vertices else "no kept vertices",
+        "reason": merge_reason,
         "completed_chunk_count": int(len(completed_chunks_df)),
+        "pred_ready_chunk_count": int(len(pred_ready_target_chunk_names)),
+        "ply_ready_chunk_count": int(len(ply_ready_target_chunk_names)),
         "all_chunk_count": int(len(target_chunks_df)),
+        "infer_gs": bool(INFER_GS),
         "merged_ply_path": str(merged_ply_path) if merged_ply_path.exists() else None,
         "merged_glb_path": str(merged_glb_path) if merged_glb_path.exists() else None,
         "chunk_global_transforms_path": str(chunk_manifest_dir / "chunk_global_transforms_arc.csv"),

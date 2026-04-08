@@ -98,7 +98,7 @@
   {
     "leading_token": "#13-1",
     "source_file": "markdown/13_01.md",
-    "target_ref": "#13-1..#13-6",
+    "target_ref": "#13-1",
     "prev_ref": "#12-1..#12-3",
     "next_ref": "#14-1",
     "heading": "13 Batch Validation"

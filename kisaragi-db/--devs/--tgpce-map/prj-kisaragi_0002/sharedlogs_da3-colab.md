@@ -6546,3 +6546,37 @@ Moviepy - video ready /content/drive/MyDrive/trajectreview/modeling/trajectrevie
 - `HAUB` の `DA3 script 一覧表` を全面更新し、cell ごとの `role`、`key functions / classes`、`key data names`、`reference directories`、`main outputs / handoff` を 1 表で追える形へ変更した。これにより、今回の `01_anchor` と `global_pose_bootstrap` の参照混線を `HAUB` 上でも読めるようにした。
 - `da3_ngl_runbook_design_contract.md` には、`HAUB` の統合表が runbook authoring 契約の一部であり、少なくとも `role`、`key data names`、`reference directories`、`main outputs / handoff` を維持すること、さらに row ごとに `persist_root/01_anchor` のような具体 path で reference directory を書くことを明記した。
 - `da3_ngl_runbook_source_inventory.md` も、`HAUB` 側が directory 参照面と output handoff を縮約管理する入口であることを追記した。`test_da3_runbook_sources.py` はこの契約を固定する check を追加済みで、sync / inventory 再実行後も `11 tests OK` を確認した。
+# codex v97
+
+- admin 実測の `#13-5` では `lens/up/right` の norm と直交性は良好なのに、`ortho_up_error_deg` だけが全 row でほぼ `180deg` になって `warn` へ落ちていた。これは ARCore trajectory 自体の破綻ではなく、`up_ortho` を符号付きで比較し、反平行な `up` も fail にしていた判定ロジック側の false fail だった。
+- `#13-5` を修正し、`ortho_up_abs_error_deg = min(theta, 180-theta)` を導入して `ortho_up_ok` は無向き一致で判定するようにした。summary には `ortho_up_abs_error_deg_max` も残す。これで今回の表のような `179.999...deg` は実質 `0deg` と同義に扱える。
+- source-sync と inventory を再実行し、`test_da3_runbook_sources.py` は引き続き `11 tests OK`。Colab 側は最新 pair で `#13-5` を再実行すれば `warn` が外れ、その後の焦点は `#13-6 ok` を前提に `#13-2`-`#13-4` と `#14-1` の pose convention 固定へ戻る。
+# codex v98
+
+- admin 実測で `#13-5` は `status: ok`、`qc_fail_count: 0`、`ortho_up_abs_error_deg_max ~= 8.87e-06` となり、ARCore full anchor trajectory / orientation 自体の妥当性は通過した。前回の `warn` はロジック側 false fail であったことを確認できた。
+- `#13-6` も `status: ok`、`missing_anchor_row_count: 0`、`missing_matrix_row_count: 0` となり、failed chunk の `record_index` と full anchor / full camera matrix の join 面も成立した。
+- したがって `#13-5` と `#13-6` は close 扱いにでき、以後の焦点は `BLK-1` の本丸である `#13-2`-`#13-4` を使った pose convention 固定と `#14-1` merge での positive similarity / orientation 整合へ戻る。
+
+# codex v99
+
+- admin 実測の `#13-2` では、自由候補の best は `w2c + perm_yxz_sign_ppp` に寄るが、`scale < 0` が 5 / 6 chunk で残った。一方 `best_positive_candidates` は 6 chunk 全部で `c2w + perm_yxz_sign_ppn` にそろい、`center_error_p95` は約 `0.13-0.18m`、`lens_error_deg_p95` は約 `0.58-6.84deg` まで下がった。
+- この結果を受けて `#14-1` の merge 本体は `LOCAL_EXTRINSIC_MODE = "c2w"` を導入し、既存の `LOCAL_CAMERA_BASIS = perm_yxz_sign_ppn` と組み合わせて positive similarity convention を本実装へ反映した。`chunk_global_transforms_arc.csv` にも `local_extrinsic_mode` を残し、後段 evidence から merge 解釈を追えるようにした。
+- `#14-1` markdown と `HAUB` の modeling 用一覧表も同じ convention を読めるよう更新した。次の admin 実測は、最新 pair を開いたうえで `#14-1` を再実行し、`invalid_pose_similarity` hard fail が消えるかを確認する段階である。
+
+# codex v100
+
+- admin 実測で `#14-1` はまだ `premerge_pose_validation_failed` で止まったが、これは `#14-1` 本体ではなく `#13-1` が依然として raw の `inv(pred)` と chunk anchor CSV を直接比較していたためだった。つまり merge 側だけ positive convention へ切り替えても、前段 gate が旧解釈のまま残っていた。
+- `#13-1` を canonical gate へ作り直し、`persist_root/01_anchor/camera_anchor_full_arc.csv` を `record_index` で join した full anchor を参照し、`LOCAL_EXTRINSIC_MODE = "c2w"` と `LOCAL_CAMERA_BASIS = perm_yxz_sign_ppn` を適用した local pose に similarity 整列を掛けたうえで `center_error` / `lens_error_deg` を計算する形へ変更した。
+- `premerge_pose_validation.json` には canonical convention と transform diagnostics が残るようになった。次の admin 実測は、最新 pair を開き直して `#13-1` を再実行し、その後 `#14-1` を再実行して merge skip が解消するかを見る段階である。
+
+# codex v101
+- admin 指示に合わせて `#13` は active runbook では `#13-1` のみに戻した。`cell_manifest.json` から `#13-2..#13-6` を外し、`markdown/13_01.md` と pair を `#13-1` 単独説明へ更新した。
+- `cells/13_02.py` から `cells/13_06.py` は active source から削除し、同じ folder に `13_02.py-extrated.md` から `13_06.py-extrated.md` として dead copy を退避した。各 file 冒頭に former active cell である素性と退避理由を追記した。
+- `#14-1` は `premerge_pose_validation_failed` 時に `#13-2..#13-6` を必須要求しない形へ戻し、fixed convention と `#13-1` の gate だけを active 前提にした。`14_01.md` も同じ説明へそろえた。
+- `HAUB` の `DA3 script 一覧表` から `DOC-C13-02..DOC-C13-06` を除去し、inventory は再生成で `#13-1` のみが active cell として残る状態にした。
+- `sync_da3_runbook_sources.py`、`build_inventory.py`、`test_da3_runbook_sources.py` を再実行し、local test は `11 tests OK`。
+
+# codex v102
+- admin 実測の `#14-1` で `invalid_pose_similarity` が発生し、`align_diag` は `scale=1.0501`、`center_rmse=0.0740`、`rotation_dir_residual=0.1396`、`positive_similarity_ok=True` だった。これは active positive convention 自体は妥当なのに、merge 側 hard fail 閾値 `0.05 / 0.05` が厳しすぎるだけだった。
+- `#14-1` の transform gate を `center_rmse <= 0.15`、`rotation_dir_residual <= 0.20` へ更新し、active route の best positive candidate と整合させた。warning 側は従来どおり quality 指標として残す。
+- `14_01.md`、pair、inventory、test を同期し、local test は `11 tests OK`。

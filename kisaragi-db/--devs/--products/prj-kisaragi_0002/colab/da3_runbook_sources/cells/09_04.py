@@ -30,7 +30,7 @@ PROCESS_RES = int(config_snapshot.get("PROCESS_RES", 504))
 CHUNK_SIZE = int(config_snapshot.get("CHUNK_SIZE", 18))
 CHUNK_STEP = int(config_snapshot.get("CHUNK_STEP", 12))
 ADOPT_SIZE = int(config_snapshot.get("ADOPT_SIZE", 12))
-BATCH_SIZE = int(config_snapshot.get("BATCH_SIZE", 3))
+BATCH_SIZE = int(config_snapshot.get("BATCH_SIZE", 2))
 
 config = {
     "MODEL_ID": MODEL_ID,
@@ -44,7 +44,7 @@ config = {
     "CANONICAL_ANCHOR_MODE": "lens=-c2w_z, up=c2w_y",
     "PIPELINE_SLUG": pipeline_slug,
     "TARGET_CHUNK_MODE": str(config_snapshot.get("TARGET_CHUNK_MODE", "selected_chunk_ids_1based")),
-    "TARGET_CHUNK_IDS_1BASED": list(config_snapshot.get("TARGET_CHUNK_IDS_1BASED", [6, 7, 8, 9, 10, 11])),
+    "TARGET_CHUNK_IDS_1BASED": list(config_snapshot.get("TARGET_CHUNK_IDS_1BASED", [6, 7])),
     "USE_TARGET_CHUNK_WINDOW": bool(config_snapshot.get("USE_TARGET_CHUNK_WINDOW", False)),
     "TARGET_CHUNK_WINDOW_START_1BASED": int(config_snapshot.get("TARGET_CHUNK_WINDOW_START_1BASED", 1)),
     "TARGET_CHUNK_WINDOW_COUNT": int(config_snapshot.get("TARGET_CHUNK_WINDOW_COUNT", 0)),

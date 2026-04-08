@@ -28,17 +28,21 @@ assert not items_df.empty, batch_execution_items_path
 # 実行設定
 config_snapshot = load_json("/content/config_snapshot.json")
 DRY_RUN = False
-DEVICE = "auto"   # "auto" / "cuda" / "cpu"
+DEVICE = str(config_snapshot.get("DEVICE", "cuda")).strip().lower()
+assert DEVICE in {"auto", "cuda", "cpu"}, {"DEVICE": DEVICE, "reason": "unsupported device"}
 MODEL_ID = config_snapshot.get("MODEL_ID", "depth-anything/DA3NESTED-GIANT-LARGE-1.1")
 PROCESS_RES = int(config_snapshot.get("PROCESS_RES", 504))
 PROCESS_RES_METHOD = str(config_snapshot.get("PROCESS_RES_METHOD", "upper_bound_resize"))
 EXPORT_FORMAT = str(config_snapshot.get("EXPORT_FORMAT", "mini_npz"))
 ALIGN_TO_INPUT_EXT_SCALE = bool(config_snapshot.get("ALIGN_TO_INPUT_EXT_SCALE", True))
-INFER_GS = bool(config_snapshot.get("INFER_GS", False))
+INFER_GS = bool(config_snapshot.get("INFER_GS", True))
 SHOW_CAMERAS = bool(config_snapshot.get("SHOW_CAMERAS", False))
 CONF_THRESH_PERCENTILE = float(config_snapshot.get("CONF_THRESH_PERCENTILE", 40.0))
 NUM_MAX_POINTS = int(config_snapshot.get("NUM_MAX_POINTS", 1_000_000))
 SKIP_ALREADY_SUCCESS = bool(config_snapshot.get("SKIP_ALREADY_SUCCESS", True))
+
+if INFER_GS and "gs_ply" not in EXPORT_FORMAT:
+    EXPORT_FORMAT = "npz-glb-gs_ply-gs_video"
 
 required_cols = ["batch_name", "chunk_name", "chunk_csv", "batch_work_dir"]
 missing_cols = [c for c in required_cols if c not in items_df.columns]
@@ -98,31 +102,33 @@ for row in items_df.itertuples(index=False):
             "status": "dry_run",
             "returncode": None,
             "outputs_exist": False,
+            "export_format": EXPORT_FORMAT,
+            "infer_gs": bool(INFER_GS),
             "command": " ".join(cmd),
             "out_dir": str(out_dir),
         })
         continue
 
-    proc = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        cwd="/content/Depth-Anything-3",
-    )
-
-    stdout_txt.write_text(proc.stdout or "", encoding="utf-8")
-    stderr_txt.write_text(proc.stderr or "", encoding="utf-8")
+    with stdout_txt.open("w", encoding="utf-8") as stdout_fh, stderr_txt.open("w", encoding="utf-8") as stderr_fh:
+        proc = subprocess.Popen(
+            cmd,
+            stdout=stdout_fh,
+            stderr=stderr_fh,
+            text=True,
+            cwd="/content/Depth-Anything-3",
+        )
+        returncode = int(proc.wait())
 
     outputs_exist = (out_dir / "pred_extrinsics.npy").exists()
 
-    if proc.returncode == 0 and outputs_exist:
+    if returncode == 0 and outputs_exist:
         status = "ok"
     else:
         status = "failed"
         failed_json = out_dir / "_FAILED.json"
         failed_json.write_text(json.dumps({
             "status": "failed",
-            "returncode": proc.returncode,
+            "returncode": returncode,
             "command": cmd,
             "stdout_path": str(stdout_txt),
             "stderr_path": str(stderr_txt),
@@ -133,8 +139,10 @@ for row in items_df.itertuples(index=False):
         "batch_name": batch_name,
         "chunk_name": chunk_name,
         "status": status,
-        "returncode": int(proc.returncode),
+        "returncode": returncode,
         "outputs_exist": bool(outputs_exist),
+        "export_format": EXPORT_FORMAT,
+        "infer_gs": bool(INFER_GS),
         "command": " ".join(cmd),
         "out_dir": str(out_dir),
     })
