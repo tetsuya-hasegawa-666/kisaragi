@@ -8,8 +8,8 @@
 
 - `Colab` に貼り付ける `runbook`、upload する notebook、補助 script はこの directory に集約する。
 - `runbook` は `.md` と `.ipynb` の pair を必須とし、`.md` を説明付き runbook、`.ipynb` を同内容の実行 notebook として同じ task で同期する。
-- 現行 canonical pair は `da3_ngl_runbook.md` と `da3_ngl_runbook.ipynb` とする。
-- `da3_ngl_runbook` の設計契約書は `da3_ngl_runbook_design_contract.md` とし、stage 責務、source-sync 対象、変更ゲートを定義する管理文書とする。
+- 現行 canonical pair は `da3_ngl_prepose_RB.md` と `da3_ngl_prepose_RB.ipynb` とする。
+- `da3_ngl_prepose_RB` の設計契約書は `da3_ngl_runbook_design_contract.md` とし、stage 責務、source-sync 対象、変更ゲートを定義する管理文書とする。
 - `da3_runbook_sources/` は canonical pair を局所 source から同期する authoring 面とし、`#5-1`、`#6-1`、`#12-2` のような再出現しやすい source はここから `sync_da3_runbook_sources.py` で pair へ反映する。
 - canonical pair を直接編集した時は、同じ task で `da3_runbook_sources/` 側との整合も戻す。
 - `modeling/evidence/` は legacy evidence の保持先としてのみ扱い、新しい `Colab` script や notebook は保存しない。

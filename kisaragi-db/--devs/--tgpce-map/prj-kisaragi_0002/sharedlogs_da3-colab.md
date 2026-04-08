@@ -6580,3 +6580,54 @@ Moviepy - video ready /content/drive/MyDrive/trajectreview/modeling/trajectrevie
 - admin 実測の `#14-1` で `invalid_pose_similarity` が発生し、`align_diag` は `scale=1.0501`、`center_rmse=0.0740`、`rotation_dir_residual=0.1396`、`positive_similarity_ok=True` だった。これは active positive convention 自体は妥当なのに、merge 側 hard fail 閾値 `0.05 / 0.05` が厳しすぎるだけだった。
 - `#14-1` の transform gate を `center_rmse <= 0.15`、`rotation_dir_residual <= 0.20` へ更新し、active route の best positive candidate と整合させた。warning 側は従来どおり quality 指標として残す。
 - `14_01.md`、pair、inventory、test を同期し、local test は `11 tests OK`。
+
+# codex v103
+- admin 指示に合わせて `design-first-script-builder` を読み直し、`ARCore anchor baseline route` を fallback / judge に残しつつ、`DA3 NGL predicted trajectory experimental route` を merge 主座標候補として比較する計画へ `MRL-10 / mRL-10.4` を組み直した。
+- `HAUB` の `current_state`、`BLK-1`、`project 固有 decision 要約`、`次の一手`、`mRL-10.4` 実装ステップ、modeling 用 script 一覧表を更新し、single chunk 成立済み / multi-frame final 未了という現状と、baseline / experimental の二層設計を明記した。
+- `da3_ngl_runbook_design_contract.md` には `#13` を pre-merge judge 面、`#14` を merge engine 面として扱い、baseline / experimental の両 route で `route_label` と judge 指標を残す authoring 契約を追記した。`da3_ngl_runbook_source_inventory.md` にも `#13-1` と `#14-1` の key data へ `route_label` を加えた。
+
+# codex v104
+- admin 指示に従い `design-first-script-builder` と `documentation-watchkeeper` の観点で `#13-1` / `#14-1` を route-aware 実装へ切り替えた。`#13-1` は `arcore_anchor_baseline` と `da3_predicted_primary` を同一 chunk / 同一 metric で比較し、`premerge_route_compare_arc.csv`、`premerge_route_compare_summary.json`、`premerge_pose_validation.json` に `route_label`、`fallback_used`、judge 指標を残す。
+- `#14-1` は `#13-1` の selected route を読み、chunk overlap の predicted trajectory を優先して merge しつつ、必要時だけ `ARCore` baseline へ fallback する merge engine に更新した。`chunk_global_transforms_arc.csv`、`merge_route_compare_arc.csv`、`merge_summary.json` には route 判定と fallback 発生が出る。
+- markdown source、pair、inventory、`HAUB`、design contract を同じ task で同期し、local では `sync_da3_runbook_sources.py`、`build_inventory.py`、`python -m unittest ...test_da3_runbook_sources.py` を再実行して `11 tests OK` を確認した。
+
+# codex v105
+
+- admin 実測で `chunk_0006` は `da3_predicted_primary` の overlap fit 自体は良いが、global anchor residual で落ちることが見えた。そこで `#13-1` の route compare に overlap / non-overlap 分割診断を追加し、`center_error_overlap_p95` / `center_error_nonoverlap_p95`、`lens_error_deg_overlap_p95` / `lens_error_deg_nonoverlap_p95`、`route_overlap_local_count` / `route_nonoverlap_local_count` を CSV / JSON へ残すようにした。これで `predicted_overlap` が局所整合だけで chunk 後半 drift しているかを直接読める。
+- `#14-1` にも同じ split 指標を `merge_route_compare_arc.csv` と `chunk_global_transforms_arc.csv` へ持たせ、merge summary には `preferred_fallback_used_count` を追加した。従来の `fallback_used_count` は `#13-1` が要求した route からの切替数、`preferred_fallback_used_count` は preferred route `da3_predicted_primary` から baseline へ落ちた chunk 数として読む。
+- markdown source、pair、inventory、`HAUB` を同期し、local では `py_compile`、`sync_da3_runbook_sources.py`、`build_inventory.py`、`python -m unittest ...test_da3_runbook_sources.py` を再実行して `11 tests OK` を確認した。次の admin 実測は `#13-1` の `premerge_route_compare_summary.json` と `#14-1` の `merge_route_compare_arc.csv` / `chunk_global_transforms_arc.csv` を見て、`chunk_0006` の overlap 区間と non-overlap 区間の差を確認する段階である。
+
+# codex v106
+
+- admin 指示に合わせて canonical pair を `da3_ngl_prepose_RB.md` / `da3_ngl_prepose_RB.ipynb` へ切り替えた。`sync_da3_runbook_sources.py` は新 pair 名へ再配線し、旧 `da3_ngl_runbook.md` / `.ipynb` は削除した。`colab/agents.md`、`resume-startup-plan.md`、`admin-mrl-test-method.md`、`admin-mrl-test-evidence.md`、`codex-mrl-test-evidence.md`、`HAUB` も新 canonical 名へ追随させた。
+- `#7`、`#12`、`#13`、`#14` の stage 名と説明を prepose 方針へ更新した。`#7` は `Full Prepose Build`、`#12` は `Chunk DA3 Prepose Build`、`#13` は `Prepose Graph Judge`、`#14` は `Merge From Prepose Graph` とし、`#13-1` が `prepose_chunk_graph_solution_arc.csv`、`prepose_chunk_graph_edges_arc.csv`、`prepose_chunk_graph_summary.json` を生成し、`#14-1` はその graph artifact を優先消費する構成へ固定した。
+- code 側では `13_01.py` が chunk ごとの `chunk_to_world` graph row と edge row を生成し、`14_01.py` は `prepose_graph_solution_by_chunk` があれば on-the-fly route solve をやり直さず既存 graph 解を採用する。`merge_summary.json` には `prepose_chunk_graph_*` path、`selected_route_counts`、`fallback_used_count`、`preferred_fallback_used_count` が残る。
+- `cell_manifest.json`、`markdown_manifest.json`、source markdown、design contract、inventory、`HAUB` を同じ task で更新し、`python -m py_compile`、`sync_da3_runbook_sources.py`、`build_inventory.py`、`python -m unittest ...test_da3_runbook_sources.py` を再実行して `11 tests OK` を確認した。現時点の docs / pair / code は `da3_ngl_prepose_RB` と prepose graph merge 方針で整合している。
+
+# codex v107
+
+- admin 指示の「`#7` と `#12` の責務を近づけ、chunk overlap から相対回転角を事前に求めて後段計算を軽くする」に合わせて、`#13-1` と `#14-1` の graph artifact に chunk 間 relative transform を明示追加した。`06_shared_helpers.py` へ `rotation_angle_deg_from_matrix()` と `summarize_relative_transform()` を追加し、`relative_scale`、`relative_translation_norm`、`relative_rotation_deg` を共通 helper で計算するようにした。
+- `13_01.py` は `prepose_chunk_graph_solution_arc.csv` と `prepose_chunk_graph_edges_arc.csv` に `graph_parent_chunk_name`、`relative_scale`、`relative_translation_norm`、`relative_rotation_deg` を残すよう更新した。これで overlap から解いた chunk 間 relative transform が merge 前の graph artifact として可視化される。
+- `14_01.py` も同じ relative transform 列を `chunk_global_transforms_arc.csv` と `merge_route_compare_arc.csv` へ持ち込み、`preferred_fallback_used_count` と合わせて「どの chunk がどの親 chunk からどれだけ回転 / 平行移動して world へ入ったか」を merged diagnostics で読めるようにした。
+- `07_01.md`、`12_01.md`、`13_01.md`、`14_01.md`、`da3_ngl_runbook_design_contract.md`、`HAUB`、test を同期し、`sync_da3_runbook_sources.py`、`build_inventory.py`、`python -m unittest ...test_da3_runbook_sources.py` を再実行して `11 tests OK` を確認した。以後の Colab 実測では `prepose_chunk_graph_solution_arc.csv` の `relative_rotation_deg` を見れば、chunk overlap から求めた相対回転がそのまま merge 前に固定されているかを確認できる。
+
+# codex v108
+
+- canonical pair rename の consumer 側残骸として `prj-kisaragi_0002/README.md` と `app/src/main/java/com/reviework/app/LocalModelingService.kt` に旧 `da3_ngl_runbook` 参照が残っていたため、新 canonical 名 `da3_ngl_prepose_RB` へ更新した。これで product 側 README、app 側 recommended notebook path、runbook pair の canonical 名が一致した。
+- `rg "da3_ngl_runbook.md|da3_ngl_runbook.ipynb"` を `kisaragi-db` 配下で再確認し、旧名は shared worklog の履歴記述以外には残っていないことを確認した。test も再実行し、引き続き `11 tests OK`。
+
+# codex v109
+
+- admin 実測の `#13-1` で `selected_chunks` 生成時に `relative_rotation_deg`、`relative_translation_norm`、`relative_scale` が `validation_df` に無く `KeyError` になった。原因は `graph_solution_row` には列を入れていたが、`selected_rows` へ転記していなかったこと。
+- `13_01.py` を修正し、`selected_candidate` へ `graph_parent_chunk_name`、`relative_scale`、`relative_translation_norm`、`relative_rotation_deg` を入れてから `selected_rows.append()` する形へ直した。その後 `sync_da3_runbook_sources.py`、`build_inventory.py`、`python -m unittest ...test_da3_runbook_sources.py` を再実行し、`11 tests OK` を確認した。
+# codex v110
+
+- admin 指示の「まず overlap 部分の 2 軌跡を同じ座標系へ再現する」に対応し、`#7` の直後へ新しい診断 stage `#7matching-1` を追加した。source は `cells/07matching_01.py` と `markdown/07matching_01.md` で、2 chunk の `pred_extrinsics.npy` と `chunk_input_frames.csv` から共通 `record_index` を overlap として抽出し、同一座標系での pre/post 可視化、`scale`、`rotation`、`translation`、`relative_rotation_deg`、residual を `persist_root/01_anchor/07matching/` へ出力する。
+- `#7matching-1` は config の explicit path を優先し、未指定時は `final_outputs/chunk_evidence/<chunk_name>/`、ついで `chunk_runs/batch_*/<chunk_name>/` から artifact を自動解決する。input 不足時は `status: skipped` と `reason: matching_inputs_missing` を返し、top-to-bottom 実行を壊さない形にした。
+- `02_01.py` へ `MATCHING_CHUNK_IDS_1BASED` と explicit path 群を追加し、`07_01.md` と `08_01.md` の前後参照を `#7matching-1` 前提へ更新した。`da3_ngl_runbook_design_contract.md` と `HAUB` にも `#7matching` の責務、directory、output contract を追記し、pair と inventory を再生成した。
+- `python -m py_compile ...02_01.py ...07matching_01.py`、`sync_da3_runbook_sources.py`、`build_inventory.py`、`python -m unittest ...test_da3_runbook_sources.py` を再実行し、`11 tests OK` を確認した。最新 pair `da3_ngl_prepose_RB.md` / `.ipynb` と `da3_ngl_runbook_source_inventory.md` に `#7matching-1` が反映済みである。
+# codex v111
+
+- admin 所見の「動かせる html 出力が便利」に合わせて、`#7matching-1` の overlap trajectory 可視化へ `trajectory_match.html` を追加した。`07matching_01.py` に `write_pose_match_html()` を実装し、`chunk_a_raw`、`chunk_b_raw`、`chunk_b_aligned_to_a` の 3 系列を `plotly` の `Scatter3d` で出力するようにした。overlap point は別 trace で強調され、browser 上で回転・拡大できる。
+- summary には `plot_html` を追加し、stage summary 出力にも `matching_plot_html` を載せた。`07matching_01.md` も `trajectory_match.html` を正式出力へ追記した。
+- `py_compile`、`sync_da3_runbook_sources.py`、`build_inventory.py`、`python -m unittest ...test_da3_runbook_sources.py` を再実行し、引き続き `11 tests OK` を確認した。

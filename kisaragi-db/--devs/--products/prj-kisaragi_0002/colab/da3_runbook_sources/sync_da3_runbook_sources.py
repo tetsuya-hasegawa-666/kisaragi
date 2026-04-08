@@ -8,8 +8,8 @@ from pathlib import Path
 
 THIS_DIR = Path(__file__).resolve().parent
 COLAB_DIR = THIS_DIR.parent
-RUNBOOK_MD = COLAB_DIR / "da3_ngl_runbook.md"
-RUNBOOK_IPYNB = COLAB_DIR / "da3_ngl_runbook.ipynb"
+RUNBOOK_MD = COLAB_DIR / "da3_ngl_prepose_RB.md"
+RUNBOOK_IPYNB = COLAB_DIR / "da3_ngl_prepose_RB.ipynb"
 MANIFEST_PATH = THIS_DIR / "cell_manifest.json"
 MARKDOWN_MANIFEST_PATH = THIS_DIR / "markdown_manifest.json"
 

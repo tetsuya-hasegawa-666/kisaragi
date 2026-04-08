@@ -39,12 +39,12 @@
   target MRL: `MRL-10`
   target mRL: `mRL-10.5`、`mRL-10.5a`、`mRL-10.5b`、`mRL-10.5c`
   gate change: `active`
-  issue: [da3_ngl_runbook.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.md) は canonical pair として使い始めていたが、`HAUB` 上では `mRL-10.5` の意図が「runbook 構成そのものの gate」だと読めず、旧 `da3_colab_evid_runbook.md` 名や `Block 3-6` 記法も残っていた。このままだと、runbook 設計変更の意味が artifact algorithm の一部なのか、運用面の closeout なのかを後から追えない
+  issue: [da3_ngl_prepose_RB.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_prepose_RB.md) は canonical pair として使い始めていたが、`HAUB` 上では `mRL-10.5` の意図が「runbook 構成そのものの gate」だと読めず、旧 `da3_colab_evid_runbook.md` 名や `Block 3-6` 記法も残っていた。このままだと、runbook 設計変更の意味が artifact algorithm の一部なのか、運用面の closeout なのかを後から追えない
   cause: `MRL-10` の実装を先に進める中で、runbook pair の正本切替、`#1`-`#17` への再構成、official API / CLI 基準統一、provenance 可視化、stage summary 可視化を同時に入れたが、その設計意図を `MRL` 表と closeout 記録へ十分に昇格していなかった
-  resolution: [hi-ai-unified-blueprint.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/hi-ai-unified-blueprint.md) の `MRL-10` 対応表を更新し、`mRL-10.5` を canonical runbook pair 自体の設計 gate として明記した。あわせて旧 runbook 名と旧 block 記法を [da3_ngl_runbook.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.md) の `#1`-`#17` 基準へ置き換え、`mRL-10.5c` を追加して `extrinsics_w2c_arc.npy` provenance、anchor 以降の input / output summary、section と code cell 番号一致を canonical 条件へ含めた
+  resolution: [hi-ai-unified-blueprint.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/hi-ai-unified-blueprint.md) の `MRL-10` 対応表を更新し、`mRL-10.5` を canonical runbook pair 自体の設計 gate として明記した。あわせて旧 runbook 名と旧 block 記法を [da3_ngl_prepose_RB.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_prepose_RB.md) の `#1`-`#17` 基準へ置き換え、`mRL-10.5c` を追加して `extrinsics_w2c_arc.npy` provenance、anchor 以降の input / output summary、section と code cell 番号一致を canonical 条件へ含めた
   recurrence prevention: runbook 正本の名称、section 構成、admin 実行順、provenance 可視化、`.md/.ipynb` 同期のいずれかを変更した時は、同じ task で `HAUB` の `MRL-10.5` と `codex-mrl-test-evidence.md` を同時更新し、algorithm gate と runbook architecture gate を混在させない
-  remaining work: `mRL-10.5` はまだ `active` であり、admin が fresh runtime から [da3_ngl_runbook.ipynb](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.ipynb) の `#1`-`#17` を使って clean bootstrap し、stage summary と provenance 表示が運用上も十分読めるかを batch で確認する必要がある。加えて `BLK-1` の merge 品質問題は別途残る
-  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.md`
+  remaining work: `mRL-10.5` はまだ `active` であり、admin が fresh runtime から [da3_ngl_prepose_RB.ipynb](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_prepose_RB.ipynb) の `#1`-`#17` を使って clean bootstrap し、stage summary と provenance 表示が運用上も十分読めるかを batch で確認する必要がある。加えて `BLK-1` の merge 品質問題は別途残る
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_prepose_RB.md`
 
 - record date: `2026-04-02`
   target MRL: `MRL-10`
@@ -52,10 +52,10 @@
   gate change: `active`
   issue: `correcting` 側の canonical image が `90度右回転` 済み upright JPEG に変わる前提が固まった一方、main runbook pair と計画文書はまだ `MRL-11` を別立てし、`Colab` 側で orientation をどう扱うかが一貫していなかった。さらに添付 notebook の `DA3NESTED-GIANT-LARGE-1.1` living spec と `debug_gs_readback` 系証跡も、main canonical route へ完全には吸収できていなかった
   cause: これまでの runbook は raw 向き由来の回転論点を `viewer 側の後処理` に寄せており、`frame_record.jsonl`、upright image、legacy intrinsics 補正、manifest 記録を 1 つの canonical contract に束ね切れていなかった
-  resolution: [da3_ngl_runbook.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.md) と [da3_ngl_runbook.ipynb](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.ipynb) を更新し、`correcting` から渡る `90度右回転` 済み upright image を canonical input として固定した。`MRL-10 Block 1` は image pixel を再回転せず、実画像寸法と `imageIntrinsics` の照合で legacy session だけ `K` を upright 基準へ補正し、`input_frame_manifest.csv`、`k_resize_check.csv`、`orientation_summary.json` に残す構成へ変更した。`MetricLarge` / `Giant` の summary も同じ orientation policy と `intrinsics_case_counts` を返すようそろえ、計画側では `MRL-11` を単独 gate にせず `MRL-10` へ吸収する方向へ整理した
+  resolution: [da3_ngl_prepose_RB.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_prepose_RB.md) と [da3_ngl_prepose_RB.ipynb](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_prepose_RB.ipynb) を更新し、`correcting` から渡る `90度右回転` 済み upright image を canonical input として固定した。`MRL-10 Block 1` は image pixel を再回転せず、実画像寸法と `imageIntrinsics` の照合で legacy session だけ `K` を upright 基準へ補正し、`input_frame_manifest.csv`、`k_resize_check.csv`、`orientation_summary.json` に残す構成へ変更した。`MetricLarge` / `Giant` の summary も同じ orientation policy と `intrinsics_case_counts` を返すようそろえ、計画側では `MRL-11` を単独 gate にせず `MRL-10` へ吸収する方向へ整理した
   recurrence prevention: image 向きの問題は `viewer` の見え方だけで処理せず、input image、`K`、manifest、export summary、downloader bundle を同じ task で同時更新する。`correcting` 側 contract が変わった時は runbook の `.md/.ipynb` pair と `hi-ai-unified-blueprint.md` を同日中に更新し、別 `MRL` に残しっぱなしにしない
   remaining work: admin 実測で `MRL-10` を通し、`orientation_summary.json`、`k_resize_check.csv`、`proof_giant` export が upright 基準で整合することを確認して `p-done` / `i-pass` 判定へ進める。後続は top camera renderer と reviewing viewer 接続である
-  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.md`
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_prepose_RB.md`
 
 - record date: `2026-04-01`
   target MRL: `MRL-2R`
@@ -155,7 +155,7 @@
   resolution: `DA3Metric-Large` single-frame depth、world back-projection、point export、`gsplat` rasterization、`gs_model_smoke.json`、`space_quality_smoke.json`、`space_package_smoke.json`、contract 名 artifact 生成までを `Candidate Bootstrap v1` と `admin-mrl-test-evidence.md` へ反映し、`MRL-5` の candidate proof を「correcting 実 data から `3DGS` 系主空間モデル候補を再現できる」水準まで引き上げた
   recurrence prevention: Colab 往復で得た持続価値のある結果は、shared worklog のみへ残さず、runbook、admin evidence、必要なら closeout 記録へ同じ task で反映する
   remaining work: `admin-mrl-test-evidence.md` を根拠に `MRL-5 p-done` 判定を行うか判断し、後続 gate では `trajectreview-modeling` 正式統合と `multi-frame` / `multi-route` を別 MRL として進める
-  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.md`
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_prepose_RB.md`
 
 - record date: `2026-03-30`
   target MRL: `MRL-7`
@@ -188,7 +188,7 @@
   resolution: candidate scan を `session_id + size_bytes` と path rank で canonical 化し、widget で selected input を保存する前段を runbook 正本へ組み込んだ。admin は `[2] trajectreview-correcting-session-20260331-034831 [zip]` を選択し、`Step 8d` で `Step 2` から `Step 4.5`、`Step 8e` で `MRL-7 adopted one-block` を同じ input から end-to-end で実行できた
   recurrence prevention: Drive mount で同一実体が複数 path に見える時は `resolve()` だけに頼らず、session-level key と優先順位で canonical candidate list を作ってから widget UX を確定する
   remaining work: `MRL-8` で確立した selected input handoff を、後続 `job_status.json`、request UX、result download、viewer formalization へ接続する
-  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.md`
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_prepose_RB.md`
 
 - record date: `2026-03-26`
   target MRL: `旧番号時代の全 gate`
@@ -339,7 +339,7 @@
   resolution: `Step 9d` で repo docs / API を再探索し、`da3-giant` + `infer_gs=True` + `export_format=\"npz-glb-gs_ply-gs_video\"` を固定した。`e3nn` install を `DepthAnything3` import 前へ移し、module reload 後に `inference()` を再実行して `gs_ply/0000.ply`、`gs_video/0000_extend.mp4`、`scene.glb`、`exports/npz/results.npz` の生成に成功した
   recurrence prevention: `MRL-9` を統合済みの main runbook pair では、`e3nn` install を import 前に置く。Gaussian branch failure では dependency 追加後の stale import を疑い、module reload または fresh import 順を先に確認する
   remaining work: `mRL-9.2` として `gs_ply` を `SuperSplat` または `PlayCanvas Model Viewer` で開き、自由視点 scene として読めることを admin evidence 化する
-  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.md`
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_prepose_RB.md`
 - record date: `2026-03-31`
   target MRL: `MRL-9`
   target mRL: `mRL-9.2`
@@ -356,10 +356,10 @@
   gate change: `active route pivot`
   issue: main `Colab` route が旧系の route 名、preflight、reference notebook 非反映、notebook companion 未同期を抱えたままで、`1 record = image + pose + intrinsics + timestamp` を anchor とする canonical route が docs と code で揃っていなかった
   cause: `record-native` 方針の採用後も、main runbook pair と周辺文書、preflight route 名、handoff 契約が部分的に旧 route のまま残っていた
-  resolution: `da3_record_sequence_anchor_rebuild7.ipynb` を `--exsams` へ read-only reference として追加し、その precheck、可視化、adjacent continuity、pre-merge gate 構成を main [da3_ngl_runbook.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.md) へ昇格した。canonical route は `sequence-anchor first`、`1 frame = 1 record`、`strict one-to-one join`、`depth-anything/DA3NESTED-GIANT-LARGE-1.1` の official API / CLI 基準へ固定し、`.md` 正本から `.ipynb` companion を再生成した。あわせて `project-truth.md`、`hi-ai-unified-blueprint.md`、`resume-startup-plan.md`、`admin-mrl-test-method.md`、`session_parser.py`、`review_contracts.py`、`CorrectingDataCheckService.kt` の route / contract を同期した
+  resolution: `da3_record_sequence_anchor_rebuild7.ipynb` を `--exsams` へ read-only reference として追加し、その precheck、可視化、adjacent continuity、pre-merge gate 構成を main [da3_ngl_prepose_RB.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_prepose_RB.md) へ昇格した。canonical route は `sequence-anchor first`、`1 frame = 1 record`、`strict one-to-one join`、`depth-anything/DA3NESTED-GIANT-LARGE-1.1` の official API / CLI 基準へ固定し、`.md` 正本から `.ipynb` companion を再生成した。あわせて `project-truth.md`、`hi-ai-unified-blueprint.md`、`resume-startup-plan.md`、`admin-mrl-test-method.md`、`session_parser.py`、`review_contracts.py`、`CorrectingDataCheckService.kt` の route / contract を同期した
   recurrence prevention: route pivot 時は、reference notebook を `--exsams` へ取り込み、main runbook `.md` を先に更新してから companion `.ipynb` を再生成する。current-truth 文書、preflight route、handoff contract、app 既定値の grep 残骸確認を同じ task で行う
   remaining work: existing session data で main route の end-to-end 実測を継続し、chunk/merge 品質の open issue を `mRL-10.4` 系で閉じる
-  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook.md`, `kisaragi-db/--exsams/prj-kisaragi_0002/colab-inputs/da3_record_sequence_anchor_rebuild7.ipynb`
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_prepose_RB.md`, `kisaragi-db/--exsams/prj-kisaragi_0002/colab-inputs/da3_record_sequence_anchor_rebuild7.ipynb`
 - record date: `2026-04-07`
   target MRL: `MRL-10`
   target mRL: `mRL-10.5`
@@ -380,4 +380,5 @@
   recurrence prevention: camera / pose 系ロジックを新設する時はまず `#6 Shared Helpers` へ追加し、stage cell 側へ同種の数式や path 解決を再実装しない。merge stage の summary input は required path を cell 先頭で固定する
   remaining work: canonical route の end-to-end 実測で `BLK-1`、`BLK-2` の品質 blocker を閉じる
   evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_runbook_sources/cells/06_shared_helpers.py`, `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_runbook_sources/cells/07_01.py`, `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_runbook_sources/cells/09_01.py`, `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_runbook_sources/cells/14_01.py`
+
 

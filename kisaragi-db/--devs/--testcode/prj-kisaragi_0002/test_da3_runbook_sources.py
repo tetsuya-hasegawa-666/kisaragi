@@ -20,8 +20,8 @@ COLAB_DIR = DEVS_ROOT / "--products" / "prj-kisaragi_0002" / "colab"
 SOURCE_DIR = COLAB_DIR / "da3_runbook_sources"
 MANIFEST_PATH = SOURCE_DIR / "cell_manifest.json"
 MARKDOWN_MANIFEST_PATH = SOURCE_DIR / "markdown_manifest.json"
-RUNBOOK_MD = COLAB_DIR / "da3_ngl_runbook.md"
-RUNBOOK_IPYNB = COLAB_DIR / "da3_ngl_runbook.ipynb"
+RUNBOOK_MD = COLAB_DIR / "da3_ngl_prepose_RB.md"
+RUNBOOK_IPYNB = COLAB_DIR / "da3_ngl_prepose_RB.ipynb"
 HAUB_PATH = DEVS_ROOT / "--tgpce-map" / "prj-kisaragi_0002" / "hi-ai-unified-blueprint.md"
 DESIGN_CONTRACT_PATH = COLAB_DIR / "da3_ngl_runbook_design_contract.md"
 SYNC_SCRIPT = SOURCE_DIR / "sync_da3_runbook_sources.py"
@@ -103,6 +103,7 @@ class Da3RunbookSourcesTest(unittest.TestCase):
     def test_docs_ids_are_tracked_in_docs(self) -> None:
         self.assertIn("cell_manifest.json", self.contract)
         self.assertIn("da3_ngl_runbook_source_inventory.md", self.contract)
+        self.assertIn("da3_ngl_prepose_RB.md", self.contract)
         self.assertIn("HAUB", self.contract)
         self.assertIn("reference directory", self.contract)
         self.assertIn("## Function And Class Inventory", self.inventory)
@@ -128,6 +129,8 @@ class Da3RunbookSourcesTest(unittest.TestCase):
         self.assertTrue(hasattr(self.shared, "save_json"))
         self.assertTrue(hasattr(self.shared, "append_sequence_columns"))
         self.assertTrue(hasattr(self.shared, "display_stage_summary"))
+        self.assertTrue(hasattr(self.shared, "rotation_angle_deg_from_matrix"))
+        self.assertTrue(hasattr(self.shared, "summarize_relative_transform"))
 
         df = self.shared.append_sequence_columns(
             self.shared.pd.DataFrame(
@@ -141,6 +144,10 @@ class Da3RunbookSourcesTest(unittest.TestCase):
         )
         self.assertEqual([0, 1, 2], df["sequence_index"].tolist())
         self.assertEqual(["a", "b", "c"], df["value"].tolist())
+        angle = self.shared.rotation_angle_deg_from_matrix(np.eye(3, dtype=np.float64))
+        self.assertAlmostEqual(0.0, angle)
+        rel = self.shared.summarize_relative_transform(None, np.eye(4, dtype=np.float64))
+        self.assertEqual(0.0, rel["relative_rotation_deg"])
 
     def test_anchor_qc_uses_centered_roll_and_count_aliases(self) -> None:
         source = (SOURCE_DIR / "cells" / "08_01.py").read_text(encoding="utf-8")
@@ -155,6 +162,9 @@ class Da3RunbookSourcesTest(unittest.TestCase):
         merge_source = (SOURCE_DIR / "cells" / "14_01.py").read_text(encoding="utf-8")
         self.assertIn('"TARGET_CHUNK_MODE": "selected_chunk_ids_1based"', config_source)
         self.assertIn('"TARGET_CHUNK_IDS_1BASED": [6, 7]', config_source)
+        self.assertIn('"MATCHING_CHUNK_IDS_1BASED": [6, 7]', config_source)
+        self.assertIn('"MATCHING_CHUNK_A_INPUT_FRAMES_PATH": ""', config_source)
+        self.assertIn('"MATCHING_CHUNK_B_PRED_EXTRINSICS_PATH": ""', config_source)
         self.assertIn('"BATCH_SIZE": 2', config_source)
         self.assertIn('"INFER_GS": True', config_source)
         self.assertIn('"DEVICE": "cuda"', config_source)
@@ -172,6 +182,8 @@ class Da3RunbookSourcesTest(unittest.TestCase):
         self.assertIn('"reset_target_outputs_before_run": reset_before_run', tree_init_source)
 
     def test_premerge_pose_gate_contract_is_produced_and_consumed(self) -> None:
+        matching_source = (SOURCE_DIR / "cells" / "07matching_01.py").read_text(encoding="utf-8")
+        matching_markdown = (SOURCE_DIR / "markdown" / "07matching_01.md").read_text(encoding="utf-8")
         full_anchor_source = (SOURCE_DIR / "cells" / "07_02.py").read_text(encoding="utf-8")
         validation_source = (SOURCE_DIR / "cells" / "13_01.py").read_text(encoding="utf-8")
         preflight_source = (SOURCE_DIR / "cells" / "12_01.py").read_text(encoding="utf-8")
@@ -183,6 +195,19 @@ class Da3RunbookSourcesTest(unittest.TestCase):
         raw_dead_copy = (SOURCE_DIR / "cells" / "13_04.py-extrated.md").read_text(encoding="utf-8")
         arcore_dead_copy = (SOURCE_DIR / "cells" / "13_05.py-extrated.md").read_text(encoding="utf-8")
         join_dead_copy = (SOURCE_DIR / "cells" / "13_06.py-extrated.md").read_text(encoding="utf-8")
+        self.assertIn('def resolve_matching_chunk_names() -> tuple[str | None, str | None]:', matching_source)
+        self.assertIn('def resolve_chunk_artifact(explicit_path: str, chunk_name: str | None, filename: str) -> Path | None:', matching_source)
+        self.assertIn('estimate_pose_aware_similarity(chunk_b_c2w_overlap, chunk_a_c2w_overlap, estimate_scale=True)', matching_source)
+        self.assertIn('"reason": "matching_inputs_missing"', matching_source)
+        self.assertIn('"relative_rotation_deg"', matching_source)
+        self.assertIn('"trajectory_points_csv": str(points_csv)', matching_source)
+        self.assertIn('def write_pose_match_html(a_df: pd.DataFrame, b_df: pd.DataFrame, b_aligned_df: pd.DataFrame, out_path: Path):', matching_source)
+        self.assertIn('fig.write_html(str(out_path), include_plotlyjs="cdn")', matching_source)
+        self.assertIn('"plot_html": str(plot_html)', matching_source)
+        self.assertIn("# 7matching Overlap Pose Matching", matching_markdown)
+        self.assertIn("`pred_extrinsics.npy`", matching_markdown)
+        self.assertIn("`relative_rotation_deg`", matching_markdown)
+        self.assertIn("`trajectory_match.html`", matching_markdown)
         self.assertIn('"record_index": manifest_df["record_index"].astype(int)', full_anchor_source)
         self.assertIn('camera_anchor_full_df["cx_world"] = camera_centers[:, 0]', full_anchor_source)
         self.assertIn('camera_anchor_full_df["anchor_lens_x"] = lens_vecs[:, 0]', full_anchor_source)
@@ -202,12 +227,21 @@ class Da3RunbookSourcesTest(unittest.TestCase):
         self.assertIn('camera_anchor_full_path = anchor_dir / "camera_anchor_full_arc.csv"', validation_source)
         self.assertIn('LOCAL_EXTRINSIC_MODE = "c2w"', validation_source)
         self.assertIn('LOCAL_CAMERA_BASIS[:3, :3] = np.array([', validation_source)
+        self.assertIn('ROUTE_ARCORE = "arcore_anchor_baseline"', validation_source)
+        self.assertIn('ROUTE_DA3 = "da3_predicted_primary"', validation_source)
         self.assertIn('anchor_df = chunk_df.merge(', validation_source)
-        self.assertIn('T_c_to_w0, align_diag = estimate_pose_aware_similarity(local_rows, global_rows)', validation_source)
-        self.assertIn('transformed_rows = transform_c2w_list(local_rows, T_c_to_w0)', validation_source)
-        self.assertIn('"local_extrinsic_mode": LOCAL_EXTRINSIC_MODE', validation_source)
-        self.assertIn('"local_camera_basis": "perm_yxz_sign_ppn"', validation_source)
-        self.assertIn('"transform_scale_mean"', validation_source)
+        self.assertIn('baseline_T, baseline_align = estimate_pose_aware_similarity(local_rows, global_rows)', validation_source)
+        self.assertIn('experimental_source = "predicted_overlap"', validation_source)
+        self.assertIn('selected_candidate["preferred_route_label"] = PREFERRED_ROUTE_LABEL', validation_source)
+        self.assertIn('"route_label": route_label', validation_source)
+        self.assertIn('route_compare_csv = merged_dir / "premerge_route_compare_arc.csv"', validation_source)
+        self.assertIn('route_compare_json = merged_dir / "premerge_route_compare_summary.json"', validation_source)
+        self.assertIn('relative_transform = summarize_relative_transform(previous_selected_T, selected_T)', validation_source)
+        self.assertIn('"relative_rotation_deg": float(relative_transform["relative_rotation_deg"])', validation_source)
+        self.assertIn('"graph_parent_chunk_name": graph_parent_chunk_name', validation_source)
+        self.assertIn('"selected_route_counts": route_counts', validation_source)
+        self.assertIn('"fallback_count": fallback_count', validation_source)
+        self.assertIn('"preferred_fallback_used_count"', validation_source)
         self.assertIn('"hard_fail_count": int(len(hard_fail_df))', validation_source)
         self.assertIn('save_json(final_outputs_diagnostics_dir / "premerge_pose_validation.json", summary)', validation_source)
         self.assertIn("dead copy", probe_dead_copy)
@@ -243,6 +277,8 @@ class Da3RunbookSourcesTest(unittest.TestCase):
         self.assertIn('TRANSFORM_SCALE_MIN = 0.8', merge_source)
         self.assertIn('TRANSFORM_CENTER_RMSE_MAX = 0.15', merge_source)
         self.assertIn('TRANSFORM_ROT_DIR_MAX = 0.20', merge_source)
+        self.assertIn('ROUTE_ARCORE = "arcore_anchor_baseline"', merge_source)
+        self.assertIn('ROUTE_DA3 = "da3_predicted_primary"', merge_source)
         self.assertIn('INFER_GS = bool(config_snapshot.get("INFER_GS", config.get("INFER_GS", True)))', merge_source)
         self.assertIn('def resolve_chunk_output_dir(chunk_name: str) -> Path:', merge_source)
         self.assertIn('chunk_runs_dir.glob(f"batch_*/{chunk_name}/_SUCCESS.json")', merge_source)
@@ -255,10 +291,24 @@ class Da3RunbookSourcesTest(unittest.TestCase):
         self.assertIn('LOCAL_CAMERA_BASIS = np.eye(4, dtype=np.float32)', merge_source)
         self.assertIn('if LOCAL_EXTRINSIC_MODE == "c2w":', merge_source)
         self.assertIn('"local_extrinsic_mode": LOCAL_EXTRINSIC_MODE', merge_source)
+        self.assertIn('route_compare_rows = []', merge_source)
+        self.assertIn('requested_route_label = str(selected_route_by_chunk.get(row.chunk_name, PREFERRED_ROUTE_LABEL))', merge_source)
+        self.assertIn('selected_candidate, fallback_used = select_route_candidate(', merge_source)
+        self.assertIn('"route_label": str(selected_candidate["route_label"])', merge_source)
+        self.assertIn('relative_transform = summarize_relative_transform(previous_selected_T, T_c_to_w0)', merge_source)
+        self.assertIn('"relative_rotation_deg": float(relative_transform["relative_rotation_deg"])', merge_source)
+        self.assertIn('"graph_parent_chunk_name": graph_parent_chunk_name', merge_source)
+        self.assertIn('route_compare_path = merged_dir / "merge_route_compare_arc.csv"', merge_source)
+        self.assertIn('"selected_route_counts": selected_route_counts', merge_source)
+        self.assertIn('"fallback_used_count": fallback_used_count', merge_source)
+        self.assertIn('"preferred_fallback_used_count": preferred_fallback_used_count', merge_source)
         self.assertIn('run #13-1 pre-merge pose gate before #14-1 merge', merge_source)
         self.assertIn("premerge_pose_validation.json", markdown_source)
-        self.assertIn("`c2w + perm_yxz_sign_ppn`", markdown_source)
-        self.assertIn("`c2w + perm_yxz_sign_ppn`", (SOURCE_DIR / "markdown" / "14_01.md").read_text(encoding="utf-8"))
+        self.assertIn("`arcore_anchor_baseline`", markdown_source)
+        self.assertIn("`da3_predicted_primary`", markdown_source)
+        self.assertIn("`relative_rotation_deg`", markdown_source)
+        self.assertIn("`da3_predicted_primary`", (SOURCE_DIR / "markdown" / "14_01.md").read_text(encoding="utf-8"))
+        self.assertIn("`relative_rotation_deg`", (SOURCE_DIR / "markdown" / "14_01.md").read_text(encoding="utf-8"))
         self.assertIn("`center_rmse <= 0.15`", (SOURCE_DIR / "markdown" / "14_01.md").read_text(encoding="utf-8"))
         self.assertIn("`rotation_dir_residual <= 0.20`", (SOURCE_DIR / "markdown" / "14_01.md").read_text(encoding="utf-8"))
         self.assertNotIn("`#13-2`", markdown_source)

@@ -70,9 +70,9 @@
 
 ### PC + Colab block
 
-38. `Colab` runbook の正本は [da3_ngl_runbook.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook.md) とし、admin が Colab でそのまま実行する notebook は [da3_ngl_runbook.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook.ipynb) を使う。canonical route は `MRL-10 sequence-anchor record-native DA3 route` であり、`frame_record.jsonl + images` を正に読み、`intrinsics[N,3,3]` と `extrinsics_w2c_arc[N,4,4]` を canonical manifest として生成する。画像は `correcting` 側で `90度右回転` 済みの upright JPEG を受け取り、`Colab` は pixel を再回転しない。camera pose / trajectory の事前推定も `depth-anything/DA3NESTED-GIANT-LARGE-1.1` の official API / CLI 基準で full sequence anchor、anchor QC、adjacent continuity precheck、batch/chunk gate、final merge を行う。pair の設計契約は [da3_ngl_runbook_design_contract.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook_design_contract.md) を正本とし、`#5-1`、`#6-1`、`#12-2` の authoring source は `da3_runbook_sources/` から同期する。
+38. `Colab` runbook の正本は [da3_ngl_prepose_RB.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_prepose_RB.md) とし、admin が Colab でそのまま実行する notebook は [da3_ngl_prepose_RB.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_prepose_RB.ipynb) を使う。canonical route は `MRL-10 sequence-anchor record-native DA3 route` であり、`frame_record.jsonl + images` を正に読み、`intrinsics[N,3,3]` と `extrinsics_w2c_arc[N,4,4]` を canonical manifest として生成する。画像は `correcting` 側で `90度右回転` 済みの upright JPEG を受け取り、`Colab` は pixel を再回転しない。camera pose / trajectory の事前推定も `depth-anything/DA3NESTED-GIANT-LARGE-1.1` の official API / CLI 基準で full sequence anchor、anchor QC、adjacent continuity precheck、batch/chunk gate、final merge を行う。pair の設計契約は [da3_ngl_runbook_design_contract.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook_design_contract.md) を正本とし、`#5-1`、`#6-1`、`#12-2` の authoring source は `da3_runbook_sources/` から同期する。
 39. PC browser で [Google Colab](https://colab.research.google.com/) を開き、Google account で sign in する。
-40. `ファイル` -> `ノートブックをアップロード` を選び、[da3_ngl_runbook.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook.ipynb) を開く。menu 名が違う時は `Upload notebook` 相当を探す。
+40. `ファイル` -> `ノートブックをアップロード` を選び、[da3_ngl_prepose_RB.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_prepose_RB.ipynb) を開く。menu 名が違う時は `Upload notebook` 相当を探す。
 41. `ランタイム` -> `ランタイムのタイプを変更` で `GPU` を選ぶ。候補に `T4`、`L4`、`A100` などが見えた時は、その表示を記録する。
 42. notebook の `#2 Config` cell を開き、chunk 条件、保存 policy、target window、入力自動選択条件を今回使う値へ置き換える。
 43. `drive.mount('/content/drive')` の cell を実行し、Google Drive への access 許可画面が出たら許可する。
@@ -251,3 +251,4 @@
   - `Colab` の runtime 表示
   - `ready / active / p-done / i-pass / fail`
   - fail の時だけ、何が起きたかを 1 行で書く
+

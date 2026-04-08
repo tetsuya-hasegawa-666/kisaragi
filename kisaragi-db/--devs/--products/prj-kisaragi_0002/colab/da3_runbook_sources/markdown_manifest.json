@@ -52,14 +52,22 @@
     "source_file": "markdown/07_01.md",
     "target_ref": "#7-1..#7-3",
     "prev_ref": "#6-1",
+    "next_ref": "#7matching-1",
+    "heading": "7 Full Prepose Build"
+  },
+  {
+    "leading_token": "#7matching-1",
+    "source_file": "markdown/07matching_01.md",
+    "target_ref": "#7matching-1",
+    "prev_ref": "#7-1..#7-3",
     "next_ref": "#8-1..#8-2",
-    "heading": "7 Full Anchor Build"
+    "heading": "7matching Overlap Pose Matching"
   },
   {
     "leading_token": "#8-1",
     "source_file": "markdown/08_01.md",
     "target_ref": "#8-1..#8-2",
-    "prev_ref": "#7-1..#7-3",
+    "prev_ref": "#7matching-1",
     "next_ref": "#9-1..#9-5",
     "heading": "8 Anchor QC And Plot"
   },
@@ -93,7 +101,7 @@
     "target_ref": "#12-1..#12-3",
     "prev_ref": "#11-1..#11-4",
     "next_ref": "#13-1",
-    "heading": "12 Run Batches"
+    "heading": "12 Chunk DA3 Prepose Build"
   },
   {
     "leading_token": "#13-1",
@@ -101,7 +109,7 @@
     "target_ref": "#13-1",
     "prev_ref": "#12-1..#12-3",
     "next_ref": "#14-1",
-    "heading": "13 Batch Validation"
+    "heading": "13 Prepose Graph Judge"
   },
   {
     "leading_token": "#14-1",
@@ -109,7 +117,7 @@
     "target_ref": "#14-1",
     "prev_ref": "#13-1",
     "next_ref": "#15-1",
-    "heading": "14 Merge"
+    "heading": "14 Merge From Prepose Graph"
   },
   {
     "leading_token": "#15-1",

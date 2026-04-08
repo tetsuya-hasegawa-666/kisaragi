@@ -64,6 +64,13 @@ CONFIG = {
     "DOWNLOAD_LOCAL_BUNDLE": False,
     "TARGET_CHUNK_MODE": "selected_chunk_ids_1based",
     "TARGET_CHUNK_IDS_1BASED": [6, 7],
+    "MATCHING_CHUNK_IDS_1BASED": [6, 7],
+    "MATCHING_CHUNK_A_NAME": "",
+    "MATCHING_CHUNK_B_NAME": "",
+    "MATCHING_CHUNK_A_INPUT_FRAMES_PATH": "",
+    "MATCHING_CHUNK_A_PRED_EXTRINSICS_PATH": "",
+    "MATCHING_CHUNK_B_INPUT_FRAMES_PATH": "",
+    "MATCHING_CHUNK_B_PRED_EXTRINSICS_PATH": "",
     "USE_TARGET_CHUNK_WINDOW": False,
     "TARGET_CHUNK_WINDOW_START_1BASED": 1,
     "TARGET_CHUNK_WINDOW_COUNT": 0,
@@ -580,16 +587,52 @@ def display_stage_summary(stage_no: str, title: str, inputs=None, outputs=None, 
         display(pd.DataFrame(_summary_rows(inputs, "input")))
     if outputs:
         display(pd.DataFrame(_summary_rows(outputs, "output")))
+
+
+def rotation_angle_deg_from_matrix(R: np.ndarray) -> float:
+    R = np.asarray(R, dtype=np.float64)
+    cos_theta = np.clip((np.trace(R) - 1.0) / 2.0, -1.0, 1.0)
+    return float(np.degrees(np.arccos(cos_theta)))
+
+
+def summarize_relative_transform(parent_T: np.ndarray | None, child_T: np.ndarray) -> dict:
+    child_T = np.asarray(child_T, dtype=np.float64)
+    if parent_T is None:
+        return {
+            "relative_scale": 1.0,
+            "relative_translation_norm": 0.0,
+            "relative_rotation_deg": 0.0,
+        }
+
+    parent_T = np.asarray(parent_T, dtype=np.float64)
+    rel = np.linalg.inv(parent_T) @ child_T
+    rot_scale = rel[:3, :3]
+    det = float(np.linalg.det(rot_scale))
+    if np.isfinite(det) and abs(det) > 1e-12:
+        scale = float(np.sign(det) * (abs(det) ** (1.0 / 3.0)))
+    else:
+        scale = 1.0
+    if abs(scale) > 1e-12:
+        R = rot_scale / scale
+    else:
+        R = rot_scale
+    return {
+        "relative_scale": float(scale),
+        "relative_translation_norm": float(np.linalg.norm(rel[:3, 3])),
+        "relative_rotation_deg": rotation_angle_deg_from_matrix(R),
+    }
 ```
 
 #No: #7-1..#7-3
 前: #6-1
-次: #8-1..#8-2
+次: #7matching-1
 
-# 7 Full Anchor Build
+# 7 Full Prepose Build
 
-この markdown cell は `#7-1..#7-3` の full anchor 構築を説明する。
-preview inference、`pred_extrinsics / pred_intrinsics`、`camera_anchor_full_ngl.csv`、global pose bootstrap を生成し、QC の `#8-1..#8-2` と後続 merge の参照基準を作る。
+この markdown cell は `#7-1..#7-3` の full prepose 構築を説明する。
+full sequence の canonical camera table、`camera_matrix_full_arc.csv`、`camera_anchor_full_arc.csv`、pose continuity diagnostics を生成し、chunk-local `DA3 NGL` pose、prepose graph judge、後続 merge の参照基準を作る。
+ここで作るのは full-sequence 側の canonical prepose 面であり、各 chunk の `DA3 NGL` 推定 pose 自体は `#12-1..#12-3` で作る。`#7` はその後段が迷わないように world 基準、camera basis、diagnostics 基準面を固定する役を持つ。
+2 chunk の overlap pose を同じ座標系へそろえる事前 matching は直後の `#7matching-1` が担う。`#13-1` はその matching 結果と full-sequence 側基準を使って graph judge を行う。
 
 ```python
 #7-1
@@ -1407,14 +1450,538 @@ display_stage_summary(
 )
 ```
 
-#No: #8-1..#8-2
+#No: #7matching-1
 前: #7-1..#7-3
+次: #8-1..#8-2
+
+# 7matching Overlap Pose Matching
+
+この markdown cell は `#7matching-1` の overlap pose matching を説明する。
+2 chunk の `pred_extrinsics.npy` と `chunk_input_frames.csv` を入力にし、共通 `record_index` を overlap 区間として抽出し、2 軌跡を同じ座標系へ再現する。
+ここでは overlap 上の `scale`、`rotation`、`translation`、`relative_rotation_deg` を解き、可視化と residual 検証を同じ stage で残す。出力は `overlap_pair_metrics_arc.csv`、`trajectory_points_arc.csv`、`transform_b_to_a.npy`、`trajectory_match.png`、`trajectory_match.html`、`matching_summary.json` である。
+入力 path は config の explicit path を優先し、未指定時は `final_outputs/chunk_evidence/<chunk_name>/`、ついで `chunk_runs/batch_*/<chunk_name>/` から自動解決する。既定 chunk pair は `MATCHING_CHUNK_IDS_1BASED=[6,7]` を使う。
+
+```python
+#7matching-1
+from pathlib import Path
+import json
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+
+ctx = load_ctx()
+config = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8"))
+
+probe_root = Path(ctx["probe_root"])
+persist_root = Path(ctx.get("persist_root", probe_root))
+pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
+anchor_dir = persist_root / "01_anchor"
+chunk_manifest_dir = pipeline_root / "manifests"
+chunk_runs_dir = pipeline_root / "chunk_runs"
+final_outputs_chunk_evidence_dir = Path(ctx["final_outputs_chunk_evidence_dir"])
+final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
+
+matching_dir = anchor_dir / "07matching"
+matching_dir.mkdir(parents=True, exist_ok=True)
+
+LOCAL_EXTRINSIC_MODE = "c2w"
+LOCAL_CAMERA_BASIS = np.eye(4, dtype=np.float32)
+LOCAL_CAMERA_BASIS[:3, :3] = np.array([
+    [0.0, 1.0, 0.0],
+    [0.0, 0.0, -1.0],
+    [1.0, 0.0, 0.0],
+], dtype=np.float32)
+
+TRANSFORM_SCALE_MIN = 0.8
+TRANSFORM_SCALE_MAX = 1.3
+TRANSFORM_CENTER_RMSE_MAX = 0.15
+TRANSFORM_ROT_DIR_MAX = 0.20
+
+
+def resolve_matching_chunk_names() -> tuple[str | None, str | None]:
+    explicit_a = str(config.get("MATCHING_CHUNK_A_NAME", "")).strip()
+    explicit_b = str(config.get("MATCHING_CHUNK_B_NAME", "")).strip()
+    if explicit_a and explicit_b:
+        return explicit_a, explicit_b
+
+    chunk_index_path = chunk_manifest_dir / "chunk_index_all.csv"
+    if not chunk_index_path.exists():
+        return None, None
+    chunk_index_df = pd.read_csv(chunk_index_path)
+    valid_ids = set(chunk_index_df["chunk_id"].astype(int).tolist())
+    ids_1based = config.get("MATCHING_CHUNK_IDS_1BASED") or config.get("TARGET_CHUNK_IDS_1BASED") or []
+    selected_ids = [int(x) - 1 for x in ids_1based if int(x) >= 1]
+    selected_ids = [x for x in selected_ids if x in valid_ids]
+    if len(selected_ids) < 2:
+        return None, None
+    selected_df = chunk_index_df.loc[chunk_index_df["chunk_id"].astype(int).isin(selected_ids)].copy()
+    selected_df = selected_df.sort_values("chunk_id", kind="stable").reset_index(drop=True)
+    return str(selected_df.iloc[0]["chunk_name"]), str(selected_df.iloc[1]["chunk_name"])
+
+
+def resolve_chunk_artifact(explicit_path: str, chunk_name: str | None, filename: str) -> Path | None:
+    if explicit_path:
+        p = Path(explicit_path)
+        assert p.exists(), {"missing_explicit_path": str(p), "chunk_name": chunk_name, "filename": filename}
+        return p
+    if not chunk_name:
+        return None
+
+    candidates = [
+        final_outputs_chunk_evidence_dir / chunk_name / filename,
+        chunk_runs_dir / chunk_name / filename,
+    ]
+    candidates += [p for p in chunk_runs_dir.glob(f"batch_*/{chunk_name}/{filename}")]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def to_4x4_batch(arr: np.ndarray) -> np.ndarray:
+    arr = np.asarray(arr)
+    assert arr.ndim == 3, {"pred_shape": tuple(arr.shape)}
+    if arr.shape[1:] == (4, 4):
+        return arr.astype(np.float32)
+    if arr.shape[1:] == (3, 4):
+        out = np.repeat(np.eye(4, dtype=np.float32)[None, :, :], arr.shape[0], axis=0)
+        out[:, :3, :] = arr.astype(np.float32)
+        return out
+    raise AssertionError({"pred_shape": tuple(arr.shape), "expected": "(N,4,4) or (N,3,4)"})
+
+
+def normalize_rows(arr: np.ndarray, eps: float = 1e-12) -> np.ndarray:
+    arr = np.asarray(arr, dtype=np.float64)
+    arr = np.nan_to_num(arr, nan=0.0, posinf=0.0, neginf=0.0)
+    norm = np.linalg.norm(arr, axis=1, keepdims=True)
+    return arr / np.maximum(norm, eps)
+
+
+def angle_deg(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    a = normalize_rows(a)
+    b = normalize_rows(b)
+    dot = np.sum(a * b, axis=1)
+    dot = np.clip(dot, -1.0, 1.0)
+    return np.degrees(np.arccos(dot))
+
+
+def lens_direction_from_c2w(c2w: np.ndarray) -> np.ndarray:
+    axis = -np.asarray(c2w[:3, 2], dtype=np.float64)
+    return axis / max(float(np.linalg.norm(axis)), 1e-12)
+
+
+def up_direction_from_c2w(c2w: np.ndarray) -> np.ndarray:
+    axis = -np.asarray(c2w[:3, 1], dtype=np.float64)
+    return axis / max(float(np.linalg.norm(axis)), 1e-12)
+
+
+def c2w_list_from_extrinsics(pred_extrinsics: np.ndarray) -> list[np.ndarray]:
+    mats = []
+    for ext in to_4x4_batch(pred_extrinsics):
+        raw = ext.astype(np.float32)
+        if LOCAL_EXTRINSIC_MODE == "c2w":
+            c2w = raw
+        elif LOCAL_EXTRINSIC_MODE == "w2c":
+            c2w = np.linalg.inv(raw).astype(np.float32)
+        else:
+            raise AssertionError({"unsupported_extrinsic_mode": LOCAL_EXTRINSIC_MODE})
+        mats.append((c2w @ LOCAL_CAMERA_BASIS).astype(np.float32))
+    return mats
+
+
+def estimate_pose_aware_similarity(local_c2w_rows: list[np.ndarray], global_c2w_rows: list[np.ndarray], estimate_scale: bool = True) -> tuple[np.ndarray, dict]:
+    assert len(local_c2w_rows) == len(global_c2w_rows) >= 2, {"local_len": len(local_c2w_rows), "global_len": len(global_c2w_rows)}
+
+    src_dirs, dst_dirs, src_centers, dst_centers = [], [], [], []
+    for local_c2w, global_c2w in zip(local_c2w_rows, global_c2w_rows):
+        src_dirs.append(lens_direction_from_c2w(local_c2w))
+        src_dirs.append(up_direction_from_c2w(local_c2w))
+        dst_dirs.append(lens_direction_from_c2w(global_c2w))
+        dst_dirs.append(up_direction_from_c2w(global_c2w))
+        src_centers.append(local_c2w[:3, 3])
+        dst_centers.append(global_c2w[:3, 3])
+
+    src_dirs = np.asarray(src_dirs, dtype=np.float64)
+    dst_dirs = np.asarray(dst_dirs, dtype=np.float64)
+    src_centers = np.asarray(src_centers, dtype=np.float64)
+    dst_centers = np.asarray(dst_centers, dtype=np.float64)
+
+    H = dst_dirs.T @ src_dirs
+    U, _, Vt = np.linalg.svd(H)
+    S = np.eye(3, dtype=np.float64)
+    if np.linalg.det(U) * np.linalg.det(Vt) < 0:
+        S[-1, -1] = -1.0
+    R = U @ S @ Vt
+
+    src_mean = src_centers.mean(axis=0)
+    dst_mean = dst_centers.mean(axis=0)
+    src_c = src_centers - src_mean
+    dst_c = dst_centers - dst_mean
+    src_rot = (R @ src_c.T).T
+
+    if estimate_scale:
+        denom = float(np.sum(src_rot ** 2))
+        numer = float(np.sum(dst_c * src_rot))
+        scale = numer / max(denom, 1e-12)
+    else:
+        scale = 1.0
+    t = dst_mean - scale * (R @ src_mean)
+
+    pred = (scale * (R @ src_centers.T)).T + t
+    center_rmse = float(np.sqrt(np.mean(np.sum((pred - dst_centers) ** 2, axis=1))))
+    rotation_dir_residual = float(np.mean(np.linalg.norm((R @ src_dirs.T).T - dst_dirs, axis=1)))
+
+    T = np.eye(4, dtype=np.float64)
+    T[:3, :3] = scale * R
+    T[:3, 3] = t
+    diag = {
+        "scale": float(scale),
+        "rotation_det": float(np.linalg.det(R)),
+        "center_rmse": center_rmse,
+        "rotation_dir_residual": rotation_dir_residual,
+        "positive_similarity_ok": bool(scale > 0.0),
+        "scale_in_range_ok": bool(TRANSFORM_SCALE_MIN <= scale <= TRANSFORM_SCALE_MAX),
+        "center_rmse_ok": bool(center_rmse <= TRANSFORM_CENTER_RMSE_MAX),
+        "rotation_dir_ok": bool(rotation_dir_residual <= TRANSFORM_ROT_DIR_MAX),
+    }
+    diag["hard_fail"] = bool(
+        (scale <= 0.0)
+        or (scale < TRANSFORM_SCALE_MIN)
+        or (scale > TRANSFORM_SCALE_MAX)
+        or (center_rmse > TRANSFORM_CENTER_RMSE_MAX)
+        or (rotation_dir_residual > TRANSFORM_ROT_DIR_MAX)
+    )
+    return T.astype(np.float32), diag
+
+
+def transform_c2w_list(c2w_rows: list[np.ndarray], T: np.ndarray) -> list[np.ndarray]:
+    out = []
+    for c2w in c2w_rows:
+        M = np.asarray(c2w, dtype=np.float64).copy()
+        M[:3, :3] = T[:3, :3] @ M[:3, :3]
+        M[:3, 3] = T[:3, :3] @ M[:3, 3] + T[:3, 3]
+        out.append(M.astype(np.float32))
+    return out
+
+
+def pose_rows_to_frame_df(chunk_name: str, frames_df: pd.DataFrame, c2w_rows: list[np.ndarray], variant: str, overlap_records: set[int]) -> pd.DataFrame:
+    rows = []
+    for frame_row, c2w in zip(frames_df.itertuples(index=False), c2w_rows):
+        record_index = int(frame_row.record_index)
+        center = np.asarray(c2w[:3, 3], dtype=np.float64)
+        lens = lens_direction_from_c2w(c2w)
+        up = up_direction_from_c2w(c2w)
+        rows.append({
+            "chunk_name": chunk_name,
+            "variant": variant,
+            "record_index": record_index,
+            "chunk_local_index": int(getattr(frame_row, "chunk_local_index", len(rows))),
+            "is_overlap": bool(record_index in overlap_records),
+            "cx": float(center[0]),
+            "cy": float(center[1]),
+            "cz": float(center[2]),
+            "fx": float(lens[0]),
+            "fy": float(lens[1]),
+            "fz": float(lens[2]),
+            "ux": float(up[0]),
+            "uy": float(up[1]),
+            "uz": float(up[2]),
+        })
+    return pd.DataFrame(rows)
+
+
+def plot_pose_match(a_df: pd.DataFrame, b_df: pd.DataFrame, b_aligned_df: pd.DataFrame, out_path: Path):
+    fig = plt.figure(figsize=(14, 6))
+    ax1 = fig.add_subplot(1, 2, 1, projection="3d")
+    ax2 = fig.add_subplot(1, 2, 2, projection="3d")
+
+    def draw(ax, lhs: pd.DataFrame, rhs: pd.DataFrame, title: str):
+        ax.plot(lhs["cx"], lhs["cy"], lhs["cz"], color="tab:blue", label=f"{lhs['chunk_name'].iloc[0]} raw")
+        ax.plot(rhs["cx"], rhs["cy"], rhs["cz"], color="tab:orange", label=f"{rhs['chunk_name'].iloc[0]} {'aligned' if 'aligned' in rhs['variant'].iloc[0] else 'raw'}")
+        lhs_overlap = lhs[lhs["is_overlap"]]
+        rhs_overlap = rhs[rhs["is_overlap"]]
+        if len(lhs_overlap):
+            ax.scatter(lhs_overlap["cx"], lhs_overlap["cy"], lhs_overlap["cz"], color="tab:cyan", s=24)
+        if len(rhs_overlap):
+            ax.scatter(rhs_overlap["cx"], rhs_overlap["cy"], rhs_overlap["cz"], color="tab:red", s=24)
+        ax.set_title(title)
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        ax.set_zlabel("z")
+        ax.legend(loc="best")
+
+    draw(ax1, a_df, b_df, "pre-align overlap trajectories")
+    draw(ax2, a_df, b_aligned_df, "post-align overlap trajectories")
+    plt.tight_layout()
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
+def write_pose_match_html(a_df: pd.DataFrame, b_df: pd.DataFrame, b_aligned_df: pd.DataFrame, out_path: Path):
+    fig = go.Figure()
+
+    def add_trace(df: pd.DataFrame, name: str, color: str, show_overlap: bool):
+        fig.add_trace(
+            go.Scatter3d(
+                x=df["cx"],
+                y=df["cy"],
+                z=df["cz"],
+                mode="lines+markers",
+                name=name,
+                marker={"size": 3, "color": color},
+                line={"width": 5, "color": color},
+            )
+        )
+        if show_overlap:
+            overlap_df = df[df["is_overlap"]]
+            if len(overlap_df):
+                fig.add_trace(
+                    go.Scatter3d(
+                        x=overlap_df["cx"],
+                        y=overlap_df["cy"],
+                        z=overlap_df["cz"],
+                        mode="markers",
+                        name=f"{name} overlap",
+                        marker={"size": 5, "color": color, "symbol": "diamond"},
+                    )
+                )
+
+    add_trace(a_df, f"{a_df['chunk_name'].iloc[0]} raw", "#1f77b4", True)
+    add_trace(b_df, f"{b_df['chunk_name'].iloc[0]} raw", "#ff7f0e", True)
+    add_trace(b_aligned_df, f"{b_aligned_df['chunk_name'].iloc[0]} aligned", "#2ca02c", True)
+    fig.update_layout(
+        title="overlap trajectory matching",
+        scene={
+            "xaxis_title": "x",
+            "yaxis_title": "y",
+            "zaxis_title": "z",
+            "aspectmode": "data",
+        },
+        legend={"orientation": "h"},
+        margin={"l": 0, "r": 0, "t": 48, "b": 0},
+    )
+    fig.write_html(str(out_path), include_plotlyjs="cdn")
+
+
+chunk_a_name, chunk_b_name = resolve_matching_chunk_names()
+chunk_a_frames_path = resolve_chunk_artifact(str(config.get("MATCHING_CHUNK_A_INPUT_FRAMES_PATH", "")).strip(), chunk_a_name, "chunk_input_frames.csv")
+chunk_a_pred_path = resolve_chunk_artifact(str(config.get("MATCHING_CHUNK_A_PRED_EXTRINSICS_PATH", "")).strip(), chunk_a_name, "pred_extrinsics.npy")
+chunk_b_frames_path = resolve_chunk_artifact(str(config.get("MATCHING_CHUNK_B_INPUT_FRAMES_PATH", "")).strip(), chunk_b_name, "chunk_input_frames.csv")
+chunk_b_pred_path = resolve_chunk_artifact(str(config.get("MATCHING_CHUNK_B_PRED_EXTRINSICS_PATH", "")).strip(), chunk_b_name, "pred_extrinsics.npy")
+
+if not all([chunk_a_name, chunk_b_name, chunk_a_frames_path, chunk_a_pred_path, chunk_b_frames_path, chunk_b_pred_path]):
+    summary = {
+        "status": "skipped",
+        "route": "continuous-gs-v06-chunk18-overlap6-adopt12-overlap-pose-matching",
+        "reason": "matching_inputs_missing",
+        "chunk_a_name": chunk_a_name,
+        "chunk_b_name": chunk_b_name,
+        "chunk_a_frames_path": str(chunk_a_frames_path) if chunk_a_frames_path else None,
+        "chunk_a_pred_extrinsics_path": str(chunk_a_pred_path) if chunk_a_pred_path else None,
+        "chunk_b_frames_path": str(chunk_b_frames_path) if chunk_b_frames_path else None,
+        "chunk_b_pred_extrinsics_path": str(chunk_b_pred_path) if chunk_b_pred_path else None,
+        "hint": "set MATCHING_CHUNK_A/B_* explicit paths or rerun after chunk artifacts exist",
+    }
+    summary_json = matching_dir / "chunk_overlap_pose_matching_summary.json"
+    save_json(summary_json, summary)
+    print(json.dumps(summary, indent=2, ensure_ascii=False))
+    display_stage_summary(
+        "7matching-1",
+        "overlap pose matching",
+        outputs=[
+            {"item": "matching_summary", "path": str(summary_json)},
+        ],
+        notes=[
+            {"item": "status", "value": summary["status"]},
+            {"item": "reason", "value": summary["reason"]},
+        ],
+    )
+else:
+    chunk_a_frames_df = pd.read_csv(chunk_a_frames_path).sort_values("chunk_local_index", kind="stable").reset_index(drop=True)
+    chunk_b_frames_df = pd.read_csv(chunk_b_frames_path).sort_values("chunk_local_index", kind="stable").reset_index(drop=True)
+    chunk_a_pred = np.load(chunk_a_pred_path)
+    chunk_b_pred = np.load(chunk_b_pred_path)
+
+    assert chunk_a_pred.shape[0] == len(chunk_a_frames_df), {"chunk_name": chunk_a_name, "pred_len": int(chunk_a_pred.shape[0]), "frame_len": int(len(chunk_a_frames_df))}
+    assert chunk_b_pred.shape[0] == len(chunk_b_frames_df), {"chunk_name": chunk_b_name, "pred_len": int(chunk_b_pred.shape[0]), "frame_len": int(len(chunk_b_frames_df))}
+
+    overlap_records = sorted(set(chunk_a_frames_df["record_index"].astype(int)) & set(chunk_b_frames_df["record_index"].astype(int)))
+    assert len(overlap_records) >= 2, {"chunk_a_name": chunk_a_name, "chunk_b_name": chunk_b_name, "overlap_record_count": len(overlap_records)}
+    overlap_record_set = set(overlap_records)
+
+    chunk_a_map = {int(row.record_index): idx for idx, row in enumerate(chunk_a_frames_df.itertuples(index=False))}
+    chunk_b_map = {int(row.record_index): idx for idx, row in enumerate(chunk_b_frames_df.itertuples(index=False))}
+    overlap_a_indices = [chunk_a_map[r] for r in overlap_records]
+    overlap_b_indices = [chunk_b_map[r] for r in overlap_records]
+
+    chunk_a_c2w_all = c2w_list_from_extrinsics(chunk_a_pred)
+    chunk_b_c2w_all = c2w_list_from_extrinsics(chunk_b_pred)
+    chunk_a_c2w_overlap = [chunk_a_c2w_all[i] for i in overlap_a_indices]
+    chunk_b_c2w_overlap = [chunk_b_c2w_all[i] for i in overlap_b_indices]
+
+    T_b_to_a, align_diag = estimate_pose_aware_similarity(chunk_b_c2w_overlap, chunk_a_c2w_overlap, estimate_scale=True)
+    chunk_b_c2w_aligned_all = transform_c2w_list(chunk_b_c2w_all, T_b_to_a)
+    chunk_b_c2w_aligned_overlap = [chunk_b_c2w_aligned_all[i] for i in overlap_b_indices]
+
+    centers_a = np.asarray([c[:3, 3] for c in chunk_a_c2w_overlap], dtype=np.float64)
+    centers_b = np.asarray([c[:3, 3] for c in chunk_b_c2w_overlap], dtype=np.float64)
+    centers_b_aligned = np.asarray([c[:3, 3] for c in chunk_b_c2w_aligned_overlap], dtype=np.float64)
+    lens_a = np.asarray([lens_direction_from_c2w(c) for c in chunk_a_c2w_overlap], dtype=np.float64)
+    lens_b = np.asarray([lens_direction_from_c2w(c) for c in chunk_b_c2w_overlap], dtype=np.float64)
+    lens_b_aligned = np.asarray([lens_direction_from_c2w(c) for c in chunk_b_c2w_aligned_overlap], dtype=np.float64)
+    up_a = np.asarray([up_direction_from_c2w(c) for c in chunk_a_c2w_overlap], dtype=np.float64)
+    up_b = np.asarray([up_direction_from_c2w(c) for c in chunk_b_c2w_overlap], dtype=np.float64)
+    up_b_aligned = np.asarray([up_direction_from_c2w(c) for c in chunk_b_c2w_aligned_overlap], dtype=np.float64)
+
+    center_error_pre = np.linalg.norm(centers_b - centers_a, axis=1)
+    center_error_post = np.linalg.norm(centers_b_aligned - centers_a, axis=1)
+    lens_error_pre = angle_deg(lens_b, lens_a)
+    lens_error_post = angle_deg(lens_b_aligned, lens_a)
+    up_error_pre = angle_deg(up_b, up_a)
+    up_error_post = angle_deg(up_b_aligned, up_a)
+
+    pair_rows = []
+    for record_index, a_idx, b_idx, ce_pre, ce_post, le_pre, le_post, ue_pre, ue_post in zip(
+        overlap_records,
+        overlap_a_indices,
+        overlap_b_indices,
+        center_error_pre,
+        center_error_post,
+        lens_error_pre,
+        lens_error_post,
+        up_error_pre,
+        up_error_post,
+    ):
+        pair_rows.append({
+            "chunk_a_name": chunk_a_name,
+            "chunk_b_name": chunk_b_name,
+            "record_index": int(record_index),
+            "chunk_a_local_index": int(a_idx),
+            "chunk_b_local_index": int(b_idx),
+            "center_error_pre": float(ce_pre),
+            "center_error_post": float(ce_post),
+            "lens_error_deg_pre": float(le_pre),
+            "lens_error_deg_post": float(le_post),
+            "up_error_deg_pre": float(ue_pre),
+            "up_error_deg_post": float(ue_post),
+        })
+
+    pair_df = pd.DataFrame(pair_rows)
+    points_df = pd.concat([
+        pose_rows_to_frame_df(chunk_a_name, chunk_a_frames_df, chunk_a_c2w_all, "chunk_a_raw", overlap_record_set),
+        pose_rows_to_frame_df(chunk_b_name, chunk_b_frames_df, chunk_b_c2w_all, "chunk_b_raw", overlap_record_set),
+        pose_rows_to_frame_df(chunk_b_name, chunk_b_frames_df, chunk_b_c2w_aligned_all, "chunk_b_aligned_to_a", overlap_record_set),
+    ], ignore_index=True)
+
+    pair_label = f"{chunk_a_name}__{chunk_b_name}"
+    pair_csv = matching_dir / f"{pair_label}_overlap_pair_metrics_arc.csv"
+    points_csv = matching_dir / f"{pair_label}_trajectory_points_arc.csv"
+    transform_npy = matching_dir / f"{pair_label}_transform_b_to_a.npy"
+    plot_png = matching_dir / f"{pair_label}_trajectory_match.png"
+    plot_html = matching_dir / f"{pair_label}_trajectory_match.html"
+    summary_json = matching_dir / f"{pair_label}_matching_summary.json"
+
+    pair_df.to_csv(pair_csv, index=False, encoding="utf-8")
+    points_df.to_csv(points_csv, index=False, encoding="utf-8")
+    np.save(transform_npy, T_b_to_a.astype(np.float32))
+    plot_pose_match(
+        points_df.loc[points_df["variant"] == "chunk_a_raw"].copy(),
+        points_df.loc[points_df["variant"] == "chunk_b_raw"].copy(),
+        points_df.loc[points_df["variant"] == "chunk_b_aligned_to_a"].copy(),
+        plot_png,
+    )
+    write_pose_match_html(
+        points_df.loc[points_df["variant"] == "chunk_a_raw"].copy(),
+        points_df.loc[points_df["variant"] == "chunk_b_raw"].copy(),
+        points_df.loc[points_df["variant"] == "chunk_b_aligned_to_a"].copy(),
+        plot_html,
+    )
+
+    summary = {
+        "status": "ok",
+        "route": "continuous-gs-v06-chunk18-overlap6-adopt12-overlap-pose-matching",
+        "chunk_a_name": chunk_a_name,
+        "chunk_b_name": chunk_b_name,
+        "chunk_a_frames_path": str(chunk_a_frames_path),
+        "chunk_a_pred_extrinsics_path": str(chunk_a_pred_path),
+        "chunk_b_frames_path": str(chunk_b_frames_path),
+        "chunk_b_pred_extrinsics_path": str(chunk_b_pred_path),
+        "chunk_a_row_count": int(len(chunk_a_frames_df)),
+        "chunk_b_row_count": int(len(chunk_b_frames_df)),
+        "overlap_record_count": int(len(overlap_records)),
+        "overlap_records": overlap_records,
+        "local_extrinsic_mode": LOCAL_EXTRINSIC_MODE,
+        "local_camera_basis": "perm_yxz_sign_ppn",
+        "scale": float(align_diag["scale"]),
+        "rotation_det": float(align_diag["rotation_det"]),
+        "center_rmse": float(align_diag["center_rmse"]),
+        "rotation_dir_residual": float(align_diag["rotation_dir_residual"]),
+        "positive_similarity_ok": bool(align_diag["positive_similarity_ok"]),
+        "scale_in_range_ok": bool(align_diag["scale_in_range_ok"]),
+        "center_rmse_ok": bool(align_diag["center_rmse_ok"]),
+        "rotation_dir_ok": bool(align_diag["rotation_dir_ok"]),
+        "hard_fail": bool(align_diag["hard_fail"]),
+        "relative_scale": float(align_diag["scale"]),
+        "relative_translation_norm": float(np.linalg.norm(T_b_to_a[:3, 3])),
+        "relative_rotation_deg": float(rotation_angle_deg_from_matrix(T_b_to_a[:3, :3] / max(abs(float(align_diag["scale"])), 1e-12))),
+        "center_error_pre_mean": float(center_error_pre.mean()),
+        "center_error_pre_p95": float(np.quantile(center_error_pre, 0.95)),
+        "center_error_post_mean": float(center_error_post.mean()),
+        "center_error_post_p95": float(np.quantile(center_error_post, 0.95)),
+        "lens_error_deg_pre_mean": float(lens_error_pre.mean()),
+        "lens_error_deg_pre_p95": float(np.quantile(lens_error_pre, 0.95)),
+        "lens_error_deg_post_mean": float(lens_error_post.mean()),
+        "lens_error_deg_post_p95": float(np.quantile(lens_error_post, 0.95)),
+        "up_error_deg_pre_mean": float(up_error_pre.mean()),
+        "up_error_deg_pre_p95": float(np.quantile(up_error_pre, 0.95)),
+        "up_error_deg_post_mean": float(up_error_post.mean()),
+        "up_error_deg_post_p95": float(np.quantile(up_error_post, 0.95)),
+        "pair_metrics_csv": str(pair_csv),
+        "trajectory_points_csv": str(points_csv),
+        "transform_npy": str(transform_npy),
+        "plot_png": str(plot_png),
+        "plot_html": str(plot_html),
+    }
+    save_json(summary_json, summary)
+
+    print(json.dumps(summary, indent=2, ensure_ascii=False))
+    display_stage_summary(
+        "7matching-1",
+        "overlap pose matching",
+        inputs=[
+            {"item": "chunk_a_input_frames", "path": str(chunk_a_frames_path)},
+            {"item": "chunk_a_pred_extrinsics", "path": str(chunk_a_pred_path)},
+            {"item": "chunk_b_input_frames", "path": str(chunk_b_frames_path)},
+            {"item": "chunk_b_pred_extrinsics", "path": str(chunk_b_pred_path)},
+        ],
+        outputs=[
+            {"item": "matching_summary", "path": str(summary_json)},
+            {"item": "matching_pair_metrics", "path": str(pair_csv)},
+            {"item": "matching_trajectory_points", "path": str(points_csv)},
+            {"item": "matching_transform", "path": str(transform_npy)},
+            {"item": "matching_plot", "path": str(plot_png)},
+            {"item": "matching_plot_html", "path": str(plot_html)},
+        ],
+        notes=[
+            {"item": "chunk_pair", "value": pair_label},
+            {"item": "overlap_record_count", "value": int(len(overlap_records))},
+            {"item": "relative_rotation_deg", "value": float(summary["relative_rotation_deg"])},
+            {"item": "center_error_post_p95", "value": float(summary["center_error_post_p95"])},
+            {"item": "lens_error_deg_post_p95", "value": float(summary["lens_error_deg_post_p95"])},
+        ],
+    )
+```
+
+#No: #8-1..#8-2
+前: #7matching-1
 次: #9-1..#9-5
 
 # 8 Anchor QC And Plot
 
 この markdown cell は `#8-1..#8-2` の anchor QC と plot を説明する。
-camera anchor の連続性、姿勢差分、plotly 可視化を確認し、record-native manifest の `#9-1..#9-5` へ進む。
+camera anchor の連続性、姿勢差分、plotly 可視化を確認し、必要なら直前の `#7matching-1` で overlap pose matching を見直したうえで、record-native manifest の `#9-1..#9-5` へ進む。
 
 ```python
 #8-1
@@ -3281,11 +3848,12 @@ assert not fatal_issues, preflight
 前: #11-1..#11-4
 次: #13-1
 
-# 12 Run Batches
+# 12 Chunk DA3 Prepose Build
 
-この markdown cell は `#12-1..#12-3` の batch 実行を説明する。
-`batch_execution_items.csv`、local chunk wrapper、per-batch execution summary をここで動かし、validation の `#13-1` へ渡す。
+この markdown cell は `#12-1..#12-3` の chunk-local `DA3 NGL` 実行を説明する。
+`batch_execution_items.csv`、local chunk wrapper、per-batch execution summary をここで動かし、prepose graph judge の `#13-1` へ渡す。
 `INFER_GS=true` の時は `#12-3` が `EXPORT_FORMAT=npz-glb-gs_ply-gs_video` を強制し、chunk ごとに `gs_ply/0000.ply` が merge 前提 artifact になる。
+この段で各 chunk の `pred_extrinsics.npy` を作り、後続 `#13-1` が overlap 区間だけを使って chunk 間の relative transform を解く。つまり `#12` は chunk pose 推定まで、chunk 間の事前整合固定は `#13-1` が担当する。
 
 ```python
 #12-1
@@ -3825,10 +4393,14 @@ display_stage_summary(
 前: #12-1..#12-3
 次: #14-1
 
-# 13 Batch Validation
+# 13 Prepose Graph Judge
 
-この markdown cell は active な `#13-1` の batch validation を説明する。
-`#13-1` では full anchor の `camera_anchor_full_arc.csv` を `record_index` で join し、固定済みの `c2w + perm_yxz_sign_ppn` と similarity 整列後の residual を評価して `premerge_pose_validation.json` を生成する。
+この markdown cell は active な `#13-1` の prepose graph judge を説明する。
+`#13-1` では full prepose anchor の `camera_anchor_full_arc.csv` を `record_index` で join し、`arcore_anchor_baseline` と `da3_predicted_primary` の 2 route を同じ chunk / 同じ metric で比較する。
+`DA3` route は chunk overlap の predicted trajectory を主に使い、最初の seed だけ `arcore_anchor_baseline` を使う。`arcore_anchor_baseline` は fallback / judge と residual 計測の基準に残す。
+出力は `premerge_route_compare_summary.json` と `premerge_pose_validation.json` に加え、`prepose_chunk_graph_solution_arc.csv`、`prepose_chunk_graph_edges_arc.csv`、`prepose_chunk_graph_summary.json` で各 chunk の `chunk_to_world` 候補を固定して `#14-1` へ渡す。
+graph artifact には `graph_parent_chunk_name`、`relative_scale`、`relative_translation_norm`、`relative_rotation_deg` を残し、overlap 区間で解いた chunk 間 relative transform を merge 前に可視化できるようにする。
+加えて overlap 区間と non-overlap 区間を分けた residual 列も残し、`predicted_overlap` が overlap 上では合うのに chunk 後半で drift していないかを `center_error_overlap_p95` / `center_error_nonoverlap_p95`、`lens_error_deg_overlap_p95` / `lens_error_deg_nonoverlap_p95` で読めるようにする。
 以前の追加 probe 群は active runbook から外し、`cells/*-extrated.md` の dead copy として同じ folder に退避した。
 
 ```python
@@ -3856,6 +4428,9 @@ assert camera_anchor_full_path.exists(), camera_anchor_full_path
 
 items_df = pd.read_csv(batch_execution_items_path)
 assert not items_df.empty, batch_execution_items_path
+sort_cols = [c for c in ["chunk_id", "batch_index", "batch_name", "chunk_name"] if c in items_df.columns]
+if sort_cols:
+    items_df = items_df.sort_values(sort_cols, kind="stable").reset_index(drop=True)
 
 anchor_full_df = pd.read_csv(camera_anchor_full_path)
 if "cx_world" not in anchor_full_df.columns and "cam_cx" in anchor_full_df.columns:
@@ -3880,6 +4455,9 @@ required_anchor_cols = [
 missing_anchor_cols = [c for c in required_anchor_cols if c not in anchor_full_df.columns]
 assert not missing_anchor_cols, {"missing_anchor_columns": missing_anchor_cols}
 
+ROUTE_ARCORE = "arcore_anchor_baseline"
+ROUTE_DA3 = "da3_predicted_primary"
+PREFERRED_ROUTE_LABEL = ROUTE_DA3
 LOCAL_EXTRINSIC_MODE = "c2w"
 LOCAL_CAMERA_BASIS = np.eye(4, dtype=np.float32)
 LOCAL_CAMERA_BASIS[:3, :3] = np.array([
@@ -3887,6 +4465,15 @@ LOCAL_CAMERA_BASIS[:3, :3] = np.array([
     [1.0, 0.0, 0.0],
     [0.0, 0.0, -1.0],
 ], dtype=np.float32)
+
+PREMERGE_CENTER_ERROR_P95_MAX = 0.25
+PREMERGE_LENS_ERROR_DEG_P95_MAX = 12.0
+PREMERGE_DELTA_CENTER_ERROR_MAX = 0.15
+PREMERGE_DELTA_LENS_ERROR_DEG_MAX = 8.0
+TRANSFORM_SCALE_MIN = 0.8
+TRANSFORM_SCALE_MAX = 1.3
+TRANSFORM_CENTER_RMSE_MAX = 0.15
+TRANSFORM_ROT_DIR_MAX = 0.20
 
 
 def to_4x4_batch(arr: np.ndarray) -> np.ndarray:
@@ -3914,6 +4501,33 @@ def angle_deg(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     dot = np.sum(a * b, axis=1)
     dot = np.clip(dot, -1.0, 1.0)
     return np.degrees(np.arccos(dot))
+
+
+def summarize_split_metrics(values: np.ndarray, overlap_mask: np.ndarray, prefix: str) -> dict:
+    values = np.asarray(values, dtype=np.float64)
+    overlap_mask = np.asarray(overlap_mask, dtype=bool)
+    nonoverlap_mask = ~overlap_mask
+
+    def pack(mask: np.ndarray, label: str) -> dict:
+        count = int(mask.sum())
+        base = {
+            f"{prefix}_{label}_count": count,
+            f"{prefix}_{label}_mean": None,
+            f"{prefix}_{label}_p95": None,
+            f"{prefix}_{label}_max": None,
+        }
+        if count <= 0:
+            return base
+        subset = values[mask]
+        base[f"{prefix}_{label}_mean"] = float(subset.mean())
+        base[f"{prefix}_{label}_p95"] = float(np.quantile(subset, 0.95))
+        base[f"{prefix}_{label}_max"] = float(subset.max())
+        return base
+
+    out = {}
+    out.update(pack(overlap_mask, "overlap"))
+    out.update(pack(nonoverlap_mask, "nonoverlap"))
+    return out
 
 
 def lens_direction_from_c2w(c2w: np.ndarray) -> np.ndarray:
@@ -3979,7 +4593,7 @@ def local_c2w_list(pred_extrinsics: np.ndarray) -> list[np.ndarray]:
     return mats
 
 
-def estimate_pose_aware_similarity(local_c2w_rows: list[np.ndarray], global_c2w_rows: list[np.ndarray]) -> tuple[np.ndarray, dict]:
+def estimate_pose_aware_similarity(local_c2w_rows: list[np.ndarray], global_c2w_rows: list[np.ndarray], estimate_scale: bool = True) -> tuple[np.ndarray, dict]:
     assert len(local_c2w_rows) == len(global_c2w_rows) >= 2, {"local_len": len(local_c2w_rows), "global_len": len(global_c2w_rows)}
 
     src_dirs, dst_dirs, src_centers, dst_centers = [], [], [], []
@@ -4009,10 +4623,17 @@ def estimate_pose_aware_similarity(local_c2w_rows: list[np.ndarray], global_c2w_
     dst_c = dst_centers - dst_mean
     src_rot = (R @ src_c.T).T
 
-    denom = float(np.sum(src_rot ** 2))
-    numer = float(np.sum(dst_c * src_rot))
-    scale = numer / max(denom, 1e-12)
+    if estimate_scale:
+        denom = float(np.sum(src_rot ** 2))
+        numer = float(np.sum(dst_c * src_rot))
+        scale = numer / max(denom, 1e-12)
+    else:
+        scale = 1.0
     t = dst_mean - scale * (R @ src_mean)
+
+    pred = (scale * (R @ src_centers.T)).T + t
+    center_rmse = float(np.sqrt(np.mean(np.sum((pred - dst_centers) ** 2, axis=1))))
+    rotation_dir_residual = float(np.mean(np.linalg.norm((R @ src_dirs.T).T - dst_dirs, axis=1)))
 
     T = np.eye(4, dtype=np.float64)
     T[:3, :3] = scale * R
@@ -4020,9 +4641,20 @@ def estimate_pose_aware_similarity(local_c2w_rows: list[np.ndarray], global_c2w_
     diag = {
         "scale": float(scale),
         "rotation_det": float(np.linalg.det(R)),
-        "center_rmse": float(np.sqrt(np.mean(np.sum((((scale * (R @ src_centers.T)).T + t) - dst_centers) ** 2, axis=1)))),
-        "rotation_dir_residual": float(np.mean(np.linalg.norm(((R @ src_dirs.T).T - dst_dirs), axis=1))),
+        "center_rmse": center_rmse,
+        "rotation_dir_residual": rotation_dir_residual,
+        "positive_similarity_ok": bool(scale > 0.0),
+        "scale_in_range_ok": bool(TRANSFORM_SCALE_MIN <= scale <= TRANSFORM_SCALE_MAX),
+        "center_rmse_ok": bool(center_rmse <= TRANSFORM_CENTER_RMSE_MAX),
+        "rotation_dir_ok": bool(rotation_dir_residual <= TRANSFORM_ROT_DIR_MAX),
     }
+    diag["hard_fail"] = bool(
+        (scale <= 0.0)
+        or (scale < TRANSFORM_SCALE_MIN)
+        or (scale > TRANSFORM_SCALE_MAX)
+        or (center_rmse > TRANSFORM_CENTER_RMSE_MAX)
+        or (rotation_dir_residual > TRANSFORM_ROT_DIR_MAX)
+    )
     return T.astype(np.float32), diag
 
 
@@ -4036,8 +4668,137 @@ def transform_c2w_list(c2w_rows: list[np.ndarray], T: np.ndarray) -> list[np.nda
     return out
 
 
-residual_rows = []
+def summarize_candidate(
+    *,
+    batch_name: str,
+    chunk_name: str,
+    route_label: str,
+    route_source: str,
+    route_overlap_record_count: int,
+    overlap_record_indices: list[int],
+    transformed_rows: list[np.ndarray],
+    anchor_df: pd.DataFrame,
+    align_diag: dict,
+) -> tuple[dict, pd.DataFrame]:
+    n = len(transformed_rows)
+    pred_center = np.stack([m[:3, 3] for m in transformed_rows], axis=0)
+    pred_lens = np.stack([lens_direction_from_c2w(m) for m in transformed_rows], axis=0)
+    anchor_center = anchor_df[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=float)
+    anchor_lens = anchor_df[["anchor_lens_x", "anchor_lens_y", "anchor_lens_z"]].to_numpy(dtype=float)
+    record_indices = anchor_df["record_index"].astype(int).to_numpy()
+    overlap_index_set = {int(x) for x in overlap_record_indices}
+    overlap_mask = np.array([int(x) in overlap_index_set for x in record_indices], dtype=bool)
+
+    center_error = np.linalg.norm(pred_center - anchor_center, axis=1)
+    lens_error_deg = angle_deg(pred_lens, anchor_lens)
+    delta_center_error = np.zeros(n, dtype=float)
+    delta_lens_error_deg = np.zeros(n, dtype=float)
+    if n >= 2:
+        delta_center_error[1:] = np.abs(np.diff(center_error))
+        delta_lens_error_deg[1:] = np.abs(np.diff(lens_error_deg))
+
+    residual_df = pd.DataFrame({
+        "batch_name": batch_name,
+        "chunk_name": chunk_name,
+        "route_label": route_label,
+        "route_source": route_source,
+        "route_overlap_record_count": int(route_overlap_record_count),
+        "route_overlap_local_count": int(overlap_mask.sum()),
+        "route_nonoverlap_local_count": int((~overlap_mask).sum()),
+        "route_overlap_record_indices": ",".join(str(int(x)) for x in sorted(overlap_index_set)),
+        "local_index": np.arange(n, dtype=np.int64),
+        "record_index": record_indices,
+        "sequence_index": anchor_df["sequence_index"].astype(int).to_numpy() if "sequence_index" in anchor_df.columns else np.arange(n, dtype=np.int64),
+        "is_overlap_record": overlap_mask.astype(bool),
+        "center_error": center_error.astype(float),
+        "lens_error_deg": lens_error_deg.astype(float),
+        "delta_center_error": delta_center_error.astype(float),
+        "delta_lens_error_deg": delta_lens_error_deg.astype(float),
+        "local_extrinsic_mode": LOCAL_EXTRINSIC_MODE,
+        "local_camera_basis": "perm_yxz_sign_ppn",
+        "transform_scale": float(align_diag["scale"]),
+        "transform_rotation_det": float(align_diag["rotation_det"]),
+        "transform_center_rmse": float(align_diag["center_rmse"]),
+        "transform_rotation_dir_residual": float(align_diag["rotation_dir_residual"]),
+    })
+
+    center_error_p95 = float(np.quantile(center_error, 0.95))
+    lens_error_deg_p95 = float(np.quantile(lens_error_deg, 0.95))
+    delta_center_error_max = float(delta_center_error.max())
+    delta_lens_error_deg_max = float(delta_lens_error_deg.max())
+    center_split = summarize_split_metrics(center_error, overlap_mask, "center_error")
+    lens_split = summarize_split_metrics(lens_error_deg, overlap_mask, "lens_error_deg")
+    residual_hard_fail = bool(
+        (center_error_p95 > PREMERGE_CENTER_ERROR_P95_MAX)
+        or (lens_error_deg_p95 > PREMERGE_LENS_ERROR_DEG_P95_MAX)
+        or (delta_center_error_max > PREMERGE_DELTA_CENTER_ERROR_MAX)
+        or (delta_lens_error_deg_max > PREMERGE_DELTA_LENS_ERROR_DEG_MAX)
+    )
+    candidate = {
+        "batch_name": batch_name,
+        "chunk_name": chunk_name,
+        "route_label": route_label,
+        "route_source": route_source,
+        "route_overlap_record_count": int(route_overlap_record_count),
+        "route_overlap_local_count": int(overlap_mask.sum()),
+        "route_nonoverlap_local_count": int((~overlap_mask).sum()),
+        "row_count": int(n),
+        "local_extrinsic_mode": LOCAL_EXTRINSIC_MODE,
+        "local_camera_basis": "perm_yxz_sign_ppn",
+        "scale": float(align_diag["scale"]),
+        "rotation_det": float(align_diag["rotation_det"]),
+        "center_rmse": float(align_diag["center_rmse"]),
+        "rotation_dir_residual": float(align_diag["rotation_dir_residual"]),
+        "positive_similarity_ok": bool(align_diag["positive_similarity_ok"]),
+        "scale_in_range_ok": bool(align_diag["scale_in_range_ok"]),
+        "center_rmse_ok": bool(align_diag["center_rmse_ok"]),
+        "rotation_dir_ok": bool(align_diag["rotation_dir_ok"]),
+        "center_error_mean": float(center_error.mean()),
+        "center_error_p95": center_error_p95,
+        "lens_error_deg_mean": float(lens_error_deg.mean()),
+        "lens_error_deg_p95": lens_error_deg_p95,
+        "delta_center_error_max": delta_center_error_max,
+        "delta_lens_error_deg_max": delta_lens_error_deg_max,
+        "center_error_p95_ok": bool(center_error_p95 <= PREMERGE_CENTER_ERROR_P95_MAX),
+        "lens_error_deg_p95_ok": bool(lens_error_deg_p95 <= PREMERGE_LENS_ERROR_DEG_P95_MAX),
+        "delta_center_error_ok": bool(delta_center_error_max <= PREMERGE_DELTA_CENTER_ERROR_MAX),
+        "delta_lens_error_deg_ok": bool(delta_lens_error_deg_max <= PREMERGE_DELTA_LENS_ERROR_DEG_MAX),
+        "align_hard_fail": bool(align_diag["hard_fail"]),
+        "residual_hard_fail": residual_hard_fail,
+        "hard_fail": bool(align_diag["hard_fail"] or residual_hard_fail),
+    }
+    candidate.update(center_split)
+    candidate.update(lens_split)
+    return candidate, residual_df
+
+
+def pick_selected_candidate(candidates: list[dict]) -> tuple[dict, bool]:
+    by_label = {c["route_label"]: c for c in candidates}
+    preferred = by_label.get(PREFERRED_ROUTE_LABEL)
+    baseline = by_label.get(ROUTE_ARCORE)
+    if preferred is not None and not preferred["hard_fail"]:
+        selected = preferred
+    elif baseline is not None and not baseline["hard_fail"]:
+        selected = baseline
+    elif preferred is not None:
+        selected = preferred
+    elif baseline is not None:
+        selected = baseline
+    else:
+        raise AssertionError({"reason": "no route candidates"})
+    fallback_used = bool(selected["route_label"] != PREFERRED_ROUTE_LABEL)
+    return selected, fallback_used
+
+
+route_world_pose_map: dict[int, np.ndarray] = {}
+candidate_rows = []
+selected_rows = []
+graph_solution_rows = []
+graph_edge_rows = []
+residual_frames = []
 missing_pred_chunks = []
+previous_selected_chunk_name = None
+previous_selected_T = None
 
 for row in items_df.itertuples(index=False):
     batch_name = str(row.batch_name)
@@ -4073,52 +4834,169 @@ for row in items_df.itertuples(index=False):
 
     pred = to_4x4_batch(np.load(pred_path))
     n = min(len(anchor_df), pred.shape[0])
-    if n <= 0:
+    if n <= 1:
         continue
-
     pred = pred[:n]
-    anchor_df = anchor_df.iloc[:n].copy()
+    anchor_df = anchor_df.iloc[:n].copy().reset_index(drop=True)
 
     local_rows = local_c2w_list(pred)
     global_rows = build_anchor_c2w_list(anchor_df)
-    T_c_to_w0, align_diag = estimate_pose_aware_similarity(local_rows, global_rows)
-    transformed_rows = transform_c2w_list(local_rows, T_c_to_w0)
 
-    pred_center = np.stack([m[:3, 3] for m in transformed_rows], axis=0)
-    pred_lens = np.stack([lens_direction_from_c2w(m) for m in transformed_rows], axis=0)
-    anchor_center = anchor_df[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=float)
-    anchor_lens = anchor_df[["anchor_lens_x", "anchor_lens_y", "anchor_lens_z"]].to_numpy(dtype=float)
+    baseline_T, baseline_align = estimate_pose_aware_similarity(local_rows, global_rows)
+    baseline_transformed = transform_c2w_list(local_rows, baseline_T)
+    baseline_candidate, baseline_residual_df = summarize_candidate(
+        batch_name=batch_name,
+        chunk_name=chunk_name,
+        route_label=ROUTE_ARCORE,
+        route_source="anchor_full_sequence",
+        route_overlap_record_count=int(n),
+        overlap_record_indices=anchor_df["record_index"].astype(int).tolist(),
+        transformed_rows=baseline_transformed,
+        anchor_df=anchor_df,
+        align_diag=baseline_align,
+    )
+    candidate_rows.append(baseline_candidate)
+    residual_frames.append(baseline_residual_df)
 
-    center_error = np.linalg.norm(pred_center - anchor_center, axis=1)
-    lens_error_deg = angle_deg(pred_lens, anchor_lens)
+    overlap_local_rows = []
+    overlap_world_rows = []
+    overlap_record_indices = []
+    for idx, record_index in enumerate(anchor_df["record_index"].astype(int).tolist()):
+        if record_index in route_world_pose_map:
+            overlap_local_rows.append(local_rows[idx])
+            overlap_world_rows.append(route_world_pose_map[record_index])
+            overlap_record_indices.append(int(record_index))
 
-    delta_center_error = np.zeros(n, dtype=float)
-    delta_lens_error_deg = np.zeros(n, dtype=float)
-    if n >= 2:
-        delta_center_error[1:] = np.abs(np.diff(center_error))
-        delta_lens_error_deg[1:] = np.abs(np.diff(lens_error_deg))
+    if overlap_world_rows:
+        experimental_source = "predicted_overlap"
+        experimental_overlap_record_count = len(overlap_world_rows)
+        if len(overlap_world_rows) >= 2:
+            experimental_T, experimental_align = estimate_pose_aware_similarity(overlap_local_rows, overlap_world_rows)
+        else:
+            experimental_T = baseline_T.copy()
+            experimental_align = dict(baseline_align)
+            experimental_align["center_rmse"] = float(baseline_align["center_rmse"])
+            experimental_align["rotation_dir_residual"] = float(baseline_align["rotation_dir_residual"])
+            experimental_source = "predicted_overlap_seeded_single_record"
+    else:
+        experimental_source = "seed_from_arcore_baseline"
+        experimental_overlap_record_count = 0
+        experimental_T = baseline_T.copy()
+        experimental_align = dict(baseline_align)
 
-    for i in range(n):
-        residual_rows.append({
-            "batch_name": batch_name,
-            "chunk_name": chunk_name,
-            "local_index": int(i),
-            "record_index": int(anchor_df.iloc[i]["record_index"]) if pd.notna(anchor_df.iloc[i]["record_index"]) else None,
-            "sequence_index": int(anchor_df.iloc[i]["sequence_index"]) if "sequence_index" in anchor_df.columns and pd.notna(anchor_df.iloc[i]["sequence_index"]) else None,
-            "center_error": float(center_error[i]),
-            "lens_error_deg": float(lens_error_deg[i]),
-            "delta_center_error": float(delta_center_error[i]),
-            "delta_lens_error_deg": float(delta_lens_error_deg[i]),
-            "pred_extrinsics_path": str(pred_path),
-            "local_extrinsic_mode": LOCAL_EXTRINSIC_MODE,
-            "local_camera_basis": "perm_yxz_sign_ppn",
-            "transform_scale": float(align_diag["scale"]),
-            "transform_rotation_det": float(align_diag["rotation_det"]),
-            "transform_center_rmse": float(align_diag["center_rmse"]),
-            "transform_rotation_dir_residual": float(align_diag["rotation_dir_residual"]),
-        })
+    experimental_transformed = transform_c2w_list(local_rows, experimental_T)
+    experimental_candidate, experimental_residual_df = summarize_candidate(
+        batch_name=batch_name,
+        chunk_name=chunk_name,
+        route_label=ROUTE_DA3,
+        route_source=experimental_source,
+        route_overlap_record_count=int(experimental_overlap_record_count),
+        overlap_record_indices=overlap_record_indices,
+        transformed_rows=experimental_transformed,
+        anchor_df=anchor_df,
+        align_diag=experimental_align,
+    )
+    candidate_rows.append(experimental_candidate)
+    residual_frames.append(experimental_residual_df)
 
-residual_df = pd.DataFrame(residual_rows)
+    candidates = [baseline_candidate, experimental_candidate]
+    selected_candidate, fallback_used = pick_selected_candidate(candidates)
+    selected_candidate = dict(selected_candidate)
+    selected_candidate["preferred_route_label"] = PREFERRED_ROUTE_LABEL
+    selected_candidate["fallback_used"] = bool(fallback_used)
+    selected_candidate["fallback_reason"] = (
+        None if not fallback_used else "preferred_route_hard_fail_or_unavailable"
+    )
+
+    selected_transformed = experimental_transformed if selected_candidate["route_label"] == ROUTE_DA3 else baseline_transformed
+    selected_T = experimental_T if selected_candidate["route_label"] == ROUTE_DA3 else baseline_T
+    selected_align = experimental_align if selected_candidate["route_label"] == ROUTE_DA3 else baseline_align
+    for record_index, world_pose in zip(anchor_df["record_index"].astype(int).tolist(), selected_transformed):
+        route_world_pose_map[int(record_index)] = world_pose
+
+    graph_parent_chunk_name = previous_selected_chunk_name
+    relative_transform = summarize_relative_transform(previous_selected_T, selected_T)
+    selected_candidate["graph_parent_chunk_name"] = graph_parent_chunk_name
+    selected_candidate["relative_scale"] = float(relative_transform["relative_scale"])
+    selected_candidate["relative_translation_norm"] = float(relative_transform["relative_translation_norm"])
+    selected_candidate["relative_rotation_deg"] = float(relative_transform["relative_rotation_deg"])
+    selected_rows.append(selected_candidate)
+
+    graph_solution_row = {
+        "batch_name": batch_name,
+        "chunk_name": chunk_name,
+        "graph_parent_chunk_name": graph_parent_chunk_name,
+        "route_label": str(selected_candidate["route_label"]),
+        "requested_route_label": str(selected_candidate["route_label"]),
+        "preferred_route_label": PREFERRED_ROUTE_LABEL,
+        "fallback_used": bool(fallback_used),
+        "preferred_fallback_used": bool(str(selected_candidate["route_label"]) != PREFERRED_ROUTE_LABEL),
+        "route_source": str(selected_candidate["route_source"]),
+        "route_overlap_record_count": int(selected_candidate["route_overlap_record_count"]),
+        "route_overlap_local_count": int(selected_candidate.get("route_overlap_local_count", 0)),
+        "route_nonoverlap_local_count": int(selected_candidate.get("route_nonoverlap_local_count", 0)),
+        "row_count": int(n),
+        "local_extrinsic_mode": LOCAL_EXTRINSIC_MODE,
+        "local_camera_basis": "perm_yxz_sign_ppn",
+        "scale": float(selected_align["scale"]),
+        "rotation_det": float(selected_align["rotation_det"]),
+        "center_rmse": float(selected_align["center_rmse"]),
+        "rotation_dir_residual": float(selected_align["rotation_dir_residual"]),
+        "positive_similarity_ok": bool(selected_align["positive_similarity_ok"]),
+        "scale_in_range_ok": bool(selected_align["scale_in_range_ok"]),
+        "center_rmse_ok": bool(selected_align["center_rmse_ok"]),
+        "rotation_dir_ok": bool(selected_align["rotation_dir_ok"]),
+        "align_hard_fail": bool(selected_align["hard_fail"]),
+        "residual_hard_fail": bool(selected_candidate["hard_fail"]),
+        "hard_fail": bool(selected_candidate["hard_fail"]),
+        "center_error_mean": float(selected_candidate["center_error_mean"]),
+        "center_error_p95": float(selected_candidate["center_error_p95"]),
+        "lens_error_deg_mean": float(selected_candidate["lens_error_deg_mean"]),
+        "lens_error_deg_p95": float(selected_candidate["lens_error_deg_p95"]),
+        "delta_center_error_max": float(selected_candidate["delta_center_error_max"]),
+        "delta_lens_error_deg_max": float(selected_candidate["delta_lens_error_deg_max"]),
+        "center_error_overlap_p95": selected_candidate.get("center_error_overlap_p95"),
+        "center_error_nonoverlap_p95": selected_candidate.get("center_error_nonoverlap_p95"),
+        "lens_error_deg_overlap_p95": selected_candidate.get("lens_error_deg_overlap_p95"),
+        "lens_error_deg_nonoverlap_p95": selected_candidate.get("lens_error_deg_nonoverlap_p95"),
+        "relative_scale": float(relative_transform["relative_scale"]),
+        "relative_translation_norm": float(relative_transform["relative_translation_norm"]),
+        "relative_rotation_deg": float(relative_transform["relative_rotation_deg"]),
+    }
+    for r in range(4):
+        for c in range(4):
+            graph_solution_row[f"t{r}{c}"] = float(selected_T[r, c])
+    graph_solution_rows.append(graph_solution_row)
+    graph_edge_rows.append({
+        "batch_name": batch_name,
+        "chunk_name": chunk_name,
+        "graph_parent_chunk_name": graph_parent_chunk_name,
+        "route_label": str(selected_candidate["route_label"]),
+        "route_source": str(selected_candidate["route_source"]),
+        "route_overlap_record_count": int(selected_candidate["route_overlap_record_count"]),
+        "route_overlap_local_count": int(selected_candidate.get("route_overlap_local_count", 0)),
+        "route_nonoverlap_local_count": int(selected_candidate.get("route_nonoverlap_local_count", 0)),
+        "center_error_overlap_p95": selected_candidate.get("center_error_overlap_p95"),
+        "center_error_nonoverlap_p95": selected_candidate.get("center_error_nonoverlap_p95"),
+        "lens_error_deg_overlap_p95": selected_candidate.get("lens_error_deg_overlap_p95"),
+        "lens_error_deg_nonoverlap_p95": selected_candidate.get("lens_error_deg_nonoverlap_p95"),
+        "relative_scale": float(relative_transform["relative_scale"]),
+        "relative_translation_norm": float(relative_transform["relative_translation_norm"]),
+        "relative_rotation_deg": float(relative_transform["relative_rotation_deg"]),
+        "center_rmse": float(selected_align["center_rmse"]),
+        "rotation_dir_residual": float(selected_align["rotation_dir_residual"]),
+        "fallback_used": bool(fallback_used),
+        "preferred_fallback_used": bool(str(selected_candidate["route_label"]) != PREFERRED_ROUTE_LABEL),
+        "hard_fail": bool(selected_candidate["hard_fail"]),
+    })
+    previous_selected_chunk_name = chunk_name
+    previous_selected_T = selected_T.copy()
+
+candidate_df = pd.DataFrame(candidate_rows)
+route_compare_csv = merged_dir / "premerge_route_compare_arc.csv"
+candidate_df.to_csv(route_compare_csv, index=False, encoding="utf-8")
+
+residual_df = pd.concat(residual_frames, ignore_index=True) if residual_frames else pd.DataFrame()
 residual_csv = chunk_manifest_dir / "pred_vs_anchor_pose_residual.csv"
 residual_df.to_csv(residual_csv, index=False, encoding="utf-8")
 
@@ -4126,72 +5004,27 @@ missing_pred_df = pd.DataFrame(missing_pred_chunks)
 missing_pred_csv = chunk_manifest_dir / "pred_vs_anchor_pose_residual_missing_pred.csv"
 missing_pred_df.to_csv(missing_pred_csv, index=False, encoding="utf-8")
 
-gate_rows = []
-if len(residual_df):
-    for chunk_name, cdf in residual_df.groupby("chunk_name", sort=True):
-        gate_rows.append({
-            "chunk_name": chunk_name,
-            "row_count": int(len(cdf)),
-            "local_extrinsic_mode": str(cdf["local_extrinsic_mode"].iloc[0]),
-            "local_camera_basis": str(cdf["local_camera_basis"].iloc[0]),
-            "transform_scale_mean": float(cdf["transform_scale"].mean()),
-            "transform_center_rmse_mean": float(cdf["transform_center_rmse"].mean()),
-            "transform_rotation_dir_residual_mean": float(cdf["transform_rotation_dir_residual"].mean()),
-            "center_error_mean": float(cdf["center_error"].mean()),
-            "center_error_p95": float(cdf["center_error"].quantile(0.95)),
-            "lens_error_deg_mean": float(cdf["lens_error_deg"].mean()),
-            "lens_error_deg_p95": float(cdf["lens_error_deg"].quantile(0.95)),
-            "delta_center_error_max": float(cdf["delta_center_error"].max()),
-            "delta_lens_error_deg_max": float(cdf["delta_lens_error_deg"].max()),
-        })
-gate_df = pd.DataFrame(gate_rows)
-gate_csv = chunk_manifest_dir / "premerge_pose_gate.csv"
-gate_df.to_csv(gate_csv, index=False, encoding="utf-8")
-
-PREMERGE_CENTER_ERROR_P95_MAX = 0.25
-PREMERGE_LENS_ERROR_DEG_P95_MAX = 12.0
-PREMERGE_DELTA_CENTER_ERROR_MAX = 0.15
-PREMERGE_DELTA_LENS_ERROR_DEG_MAX = 8.0
-
-validation_rows = []
-if len(gate_df):
-    for row in gate_df.itertuples(index=False):
-        center_error_p95 = float(row.center_error_p95)
-        lens_error_deg_p95 = float(row.lens_error_deg_p95)
-        delta_center_error_max = float(row.delta_center_error_max)
-        delta_lens_error_deg_max = float(row.delta_lens_error_deg_max)
-        validation_rows.append({
-            "chunk_name": str(row.chunk_name),
-            "row_count": int(row.row_count),
-            "local_extrinsic_mode": str(row.local_extrinsic_mode),
-            "local_camera_basis": str(row.local_camera_basis),
-            "transform_scale_mean": float(row.transform_scale_mean),
-            "transform_center_rmse_mean": float(row.transform_center_rmse_mean),
-            "transform_rotation_dir_residual_mean": float(row.transform_rotation_dir_residual_mean),
-            "center_error_mean": float(row.center_error_mean),
-            "center_error_p95": center_error_p95,
-            "lens_error_deg_mean": float(row.lens_error_deg_mean),
-            "lens_error_deg_p95": lens_error_deg_p95,
-            "delta_center_error_max": delta_center_error_max,
-            "delta_lens_error_deg_max": delta_lens_error_deg_max,
-            "center_error_p95_ok": bool(center_error_p95 <= PREMERGE_CENTER_ERROR_P95_MAX),
-            "lens_error_deg_p95_ok": bool(lens_error_deg_p95 <= PREMERGE_LENS_ERROR_DEG_P95_MAX),
-            "delta_center_error_ok": bool(delta_center_error_max <= PREMERGE_DELTA_CENTER_ERROR_MAX),
-            "delta_lens_error_deg_ok": bool(delta_lens_error_deg_max <= PREMERGE_DELTA_LENS_ERROR_DEG_MAX),
-            "hard_fail": bool(
-                (center_error_p95 > PREMERGE_CENTER_ERROR_P95_MAX)
-                or (lens_error_deg_p95 > PREMERGE_LENS_ERROR_DEG_P95_MAX)
-                or (delta_center_error_max > PREMERGE_DELTA_CENTER_ERROR_MAX)
-                or (delta_lens_error_deg_max > PREMERGE_DELTA_LENS_ERROR_DEG_MAX)
-            ),
-        })
-validation_df = pd.DataFrame(validation_rows)
+validation_df = pd.DataFrame(selected_rows)
 validation_csv = merged_dir / "premerge_pose_validation.csv"
 validation_df.to_csv(validation_csv, index=False, encoding="utf-8")
-hard_fail_df = validation_df[validation_df["hard_fail"]].copy() if len(validation_df) else validation_df.copy()
-validation_json = merged_dir / "premerge_pose_validation.json"
 
-if len(residual_df) == 0:
+gate_csv = chunk_manifest_dir / "premerge_pose_gate.csv"
+validation_df.to_csv(gate_csv, index=False, encoding="utf-8")
+
+graph_solution_df = pd.DataFrame(graph_solution_rows)
+graph_solution_csv = merged_dir / "prepose_chunk_graph_solution_arc.csv"
+graph_solution_df.to_csv(graph_solution_csv, index=False, encoding="utf-8")
+
+graph_edges_df = pd.DataFrame(graph_edge_rows)
+graph_edges_csv = merged_dir / "prepose_chunk_graph_edges_arc.csv"
+graph_edges_df.to_csv(graph_edges_csv, index=False, encoding="utf-8")
+
+validation_json = merged_dir / "premerge_pose_validation.json"
+route_compare_json = merged_dir / "premerge_route_compare_summary.json"
+graph_summary_json = merged_dir / "prepose_chunk_graph_summary.json"
+hard_fail_df = validation_df[validation_df["hard_fail"]].copy() if len(validation_df) else validation_df.copy()
+
+if len(validation_df) == 0:
     status = "not_run"
 elif len(missing_pred_df) > 0:
     status = "partial"
@@ -4200,47 +5033,166 @@ elif len(hard_fail_df) > 0:
 else:
     status = "ok"
 
+route_counts = (
+    validation_df.groupby("route_label", as_index=False).size().rename(columns={"size": "chunk_count"}).to_dict(orient="records")
+    if len(validation_df)
+    else []
+)
+fallback_count = int(validation_df["fallback_used"].fillna(False).astype(bool).sum()) if len(validation_df) else 0
+route_compare_summary = {
+    "status": status,
+    "route": "continuous-gs-v06-chunk18-overlap6-adopt12-route-compare",
+    "candidate_row_count": int(len(candidate_df)),
+    "selected_chunk_count": int(len(validation_df)),
+    "selected_route_counts": route_counts,
+    "fallback_count": fallback_count,
+    "preferred_route_label": PREFERRED_ROUTE_LABEL,
+    "route_compare_csv": str(route_compare_csv),
+    "prepose_chunk_graph_solution_csv": str(graph_solution_csv),
+    "prepose_chunk_graph_edges_csv": str(graph_edges_csv),
+    "selected_chunks": validation_df[
+        [
+            "chunk_name",
+            "route_label",
+            "route_source",
+            "fallback_used",
+            "route_overlap_record_count",
+            "route_overlap_local_count",
+            "route_nonoverlap_local_count",
+            "center_error_p95",
+            "lens_error_deg_p95",
+            "center_error_overlap_p95",
+            "center_error_nonoverlap_p95",
+            "lens_error_deg_overlap_p95",
+            "lens_error_deg_nonoverlap_p95",
+            "relative_rotation_deg",
+            "relative_translation_norm",
+            "relative_scale",
+            "center_rmse",
+            "rotation_dir_residual",
+        ]
+    ].to_dict(orient="records") if len(validation_df) else [],
+}
+
+graph_summary = {
+    "status": status,
+    "route": "continuous-gs-v06-chunk18-overlap6-adopt12-prepose-graph-build",
+    "selected_chunk_count": int(len(graph_solution_df)),
+    "preferred_route_label": PREFERRED_ROUTE_LABEL,
+    "preferred_fallback_used_count": int(graph_solution_df["preferred_fallback_used"].fillna(False).astype(bool).sum()) if len(graph_solution_df) else 0,
+    "graph_solution_csv": str(graph_solution_csv),
+    "graph_edges_csv": str(graph_edges_csv),
+    "selected_chunks": graph_solution_df[
+        [
+            "chunk_name",
+            "graph_parent_chunk_name",
+            "route_label",
+            "route_source",
+            "fallback_used",
+            "preferred_fallback_used",
+            "route_overlap_local_count",
+            "route_nonoverlap_local_count",
+            "center_error_overlap_p95",
+            "center_error_nonoverlap_p95",
+            "lens_error_deg_overlap_p95",
+            "lens_error_deg_nonoverlap_p95",
+            "relative_rotation_deg",
+            "relative_translation_norm",
+            "relative_scale",
+            "center_rmse",
+            "rotation_dir_residual",
+        ]
+    ].to_dict(orient="records") if len(graph_solution_df) else [],
+}
+
 summary = {
     "status": status,
     "route": "continuous-gs-v06-chunk18-overlap6-adopt12-premerge-pose-gate",
     "residual_row_count": int(len(residual_df)),
     "missing_pred_chunk_count": int(len(missing_pred_df)),
-    "gate_chunk_count": int(len(gate_df)),
+    "gate_chunk_count": int(len(validation_df)),
     "residual_csv": str(residual_csv),
     "missing_pred_csv": str(missing_pred_csv),
     "gate_csv": str(gate_csv),
     "validation_csv": str(validation_csv),
-    "local_extrinsic_mode": LOCAL_EXTRINSIC_MODE,
-    "local_camera_basis": "perm_yxz_sign_ppn",
+    "route_compare_csv": str(route_compare_csv),
+    "route_compare_json": str(route_compare_json),
+    "prepose_chunk_graph_solution_csv": str(graph_solution_csv),
+    "prepose_chunk_graph_edges_csv": str(graph_edges_csv),
+    "prepose_chunk_graph_summary_json": str(graph_summary_json),
+    "preferred_route_label": PREFERRED_ROUTE_LABEL,
     "thresholds": {
         "center_error_p95_max": PREMERGE_CENTER_ERROR_P95_MAX,
         "lens_error_deg_p95_max": PREMERGE_LENS_ERROR_DEG_P95_MAX,
         "delta_center_error_max": PREMERGE_DELTA_CENTER_ERROR_MAX,
         "delta_lens_error_deg_max": PREMERGE_DELTA_LENS_ERROR_DEG_MAX,
+        "transform_scale_min": TRANSFORM_SCALE_MIN,
+        "transform_scale_max": TRANSFORM_SCALE_MAX,
+        "transform_center_rmse_max": TRANSFORM_CENTER_RMSE_MAX,
+        "transform_rotation_dir_residual_max": TRANSFORM_ROT_DIR_MAX,
     },
     "tested_chunk_count": int(len(validation_df)),
     "hard_fail_count": int(len(hard_fail_df)),
+    "fallback_count": fallback_count,
+    "selected_route_counts": route_counts,
     "failed_chunks": hard_fail_df[
-        ["chunk_name", "center_error_p95", "lens_error_deg_p95", "delta_center_error_max", "delta_lens_error_deg_max"]
+        [
+            "chunk_name",
+            "route_label",
+            "center_error_p95",
+            "lens_error_deg_p95",
+            "delta_center_error_max",
+            "delta_lens_error_deg_max",
+            "center_rmse",
+            "rotation_dir_residual",
+        ]
     ].to_dict(orient="records") if len(hard_fail_df) else [],
 }
-if len(residual_df) > 0:
-    summary["center_error_mean"] = float(residual_df["center_error"].mean())
-    summary["center_error_p95"] = float(residual_df["center_error"].quantile(0.95))
-    summary["lens_error_deg_mean"] = float(residual_df["lens_error_deg"].mean())
-    summary["lens_error_deg_p95"] = float(residual_df["lens_error_deg"].quantile(0.95))
-    summary["transform_scale_mean"] = float(residual_df["transform_scale"].mean())
-    summary["transform_center_rmse_mean"] = float(residual_df["transform_center_rmse"].mean())
-    summary["transform_rotation_dir_residual_mean"] = float(residual_df["transform_rotation_dir_residual"].mean())
+if len(validation_df):
+    summary["center_error_mean"] = float(validation_df["center_error_mean"].mean())
+    summary["center_error_p95"] = float(validation_df["center_error_p95"].quantile(0.95))
+    summary["lens_error_deg_mean"] = float(validation_df["lens_error_deg_mean"].mean())
+    summary["lens_error_deg_p95"] = float(validation_df["lens_error_deg_p95"].quantile(0.95))
+    summary["transform_scale_mean"] = float(validation_df["scale"].mean())
+    summary["transform_center_rmse_mean"] = float(validation_df["center_rmse"].mean())
+    summary["transform_rotation_dir_residual_mean"] = float(validation_df["rotation_dir_residual"].mean())
+    summary["selected_chunks"] = validation_df[
+        [
+            "chunk_name",
+            "route_label",
+            "route_source",
+            "fallback_used",
+            "route_overlap_record_count",
+            "route_overlap_local_count",
+            "route_nonoverlap_local_count",
+            "center_error_p95",
+            "lens_error_deg_p95",
+            "center_error_overlap_p95",
+            "center_error_nonoverlap_p95",
+            "lens_error_deg_overlap_p95",
+            "lens_error_deg_nonoverlap_p95",
+            "relative_rotation_deg",
+            "relative_translation_norm",
+            "relative_scale",
+            "center_rmse",
+            "rotation_dir_residual",
+        ]
+    ].to_dict(orient="records")
 
+save_json(route_compare_json, route_compare_summary)
+save_json(graph_summary_json, graph_summary)
 save_json(validation_json, summary)
+save_json(final_outputs_diagnostics_dir / "premerge_route_compare_summary.json", route_compare_summary)
+save_json(final_outputs_diagnostics_dir / "prepose_chunk_graph_summary.json", graph_summary)
 save_json(final_outputs_diagnostics_dir / "premerge_pose_gate_summary.json", summary)
 save_json(final_outputs_diagnostics_dir / "batch_residual_summary.json", summary)
 save_json(final_outputs_diagnostics_dir / "premerge_pose_validation.json", summary)
 
 print(json.dumps(summary, indent=2, ensure_ascii=False))
-if len(gate_df):
-    display(gate_df)
+if len(validation_df):
+    display(validation_df)
+if len(candidate_df):
+    display(candidate_df)
 if len(missing_pred_df):
     display(missing_pred_df.head())
 display_stage_summary(
@@ -4254,16 +5206,20 @@ display_stage_summary(
         {"item": "pred_vs_anchor_pose_residual", "path": str(residual_csv)},
         {"item": "pred_vs_anchor_pose_residual_missing_pred", "path": str(missing_pred_csv)},
         {"item": "premerge_pose_gate", "path": str(gate_csv)},
+        {"item": "premerge_route_compare_summary", "path": str(route_compare_json)},
+        {"item": "prepose_chunk_graph_solution", "path": str(graph_solution_csv)},
+        {"item": "prepose_chunk_graph_edges", "path": str(graph_edges_csv)},
+        {"item": "prepose_chunk_graph_summary", "path": str(graph_summary_json)},
         {"item": "premerge_pose_gate_summary", "path": str(final_outputs_diagnostics_dir / "premerge_pose_gate_summary.json")},
         {"item": "premerge_pose_validation", "path": str(validation_json)},
         {"item": "batch_residual_summary", "path": str(final_outputs_diagnostics_dir / "batch_residual_summary.json")},
     ],
     notes=[
         {"item": "status", "value": status},
-        {"item": "local_extrinsic_mode", "value": LOCAL_EXTRINSIC_MODE},
-        {"item": "local_camera_basis", "value": "perm_yxz_sign_ppn"},
+        {"item": "preferred_route_label", "value": PREFERRED_ROUTE_LABEL},
         {"item": "missing_pred_chunk_count", "value": int(len(missing_pred_df))},
         {"item": "hard_fail_count", "value": int(len(hard_fail_df))},
+        {"item": "fallback_count", "value": fallback_count},
     ],
 )
 ```
@@ -4272,10 +5228,14 @@ display_stage_summary(
 前: #13-1
 次: #15-1
 
-# 14 Merge
+# 14 Merge From Prepose Graph
 
 この markdown cell は `#14-1` の merge を説明する。
-chunk ごとの `pred_extrinsics`、camera trajectory、Gaussian を global anchor に整列し、`merged_gs_arc.ply` と final output manifest を生成して `#15-1` と cleanup 後段へ渡す。
+chunk ごとの `pred_extrinsics`、camera trajectory、Gaussian を `#13-1` で固定した `prepose_chunk_graph_solution_arc.csv` の `chunk_to_world` へ整列し、`merged_gs_arc.ply` と final output manifest を生成して `#15-1` と cleanup 後段へ渡す。
+route は `arcore_anchor_baseline` と `da3_predicted_primary` の 2 本を持ち、既定の primary は `da3_predicted_primary`、fallback / judge は baseline とする。merge では `merge_route_compare_arc.csv`、`chunk_global_transforms_arc.csv`、`merge_summary.json` に `route_label` と `fallback_used` を残す。
+`fallback_used` は `#13-1` で要求された route からの切替を示し、`preferred_fallback_used` は preferred route `da3_predicted_primary` から baseline へ落ちたかどうかを示す。これで judge 済み baseline 採用と、merge 中の実 fallback を分けて読める。
+`prepose_chunk_graph_solution_arc.csv` が存在する時は、`#14-1` 自身で route solve をやり直さず、その graph 解を優先して使う。graph artifact が無い時だけ、互換経路として on-the-fly route solve に戻る。
+`chunk_global_transforms_arc.csv` と `merge_route_compare_arc.csv` には `graph_parent_chunk_name`、`relative_scale`、`relative_translation_norm`、`relative_rotation_deg` も残し、merge がどの chunk 間 relative transform を使って global へ入ったかを追えるようにする。
 現時点の positive similarity convention は `c2w + perm_yxz_sign_ppn` とし、`#13-1` と固定済み convention に基づいて merge 本体へ適用する。
 transform の hard fail は active positive route に合わせて `center_rmse <= 0.15`、`rotation_dir_residual <= 0.20` を採用し、それを超えるものだけを merge blocker とする。より小さい値は warning / quality 指標として別に残す。
 chunk 実行結果は `chunk_runs/chunk_*` 直下だけでなく `chunk_runs/batch_*/chunk_*` も受理し、完了判定は `_SUCCESS.json` と `pred_extrinsics.npy` / `chunk_input_frames.csv` を基準に行う。`gs_ply/0000.ply` は `infer_gs=true` のときだけ merge 産物として期待する。
@@ -4374,6 +5334,9 @@ TRANSFORM_SCALE_MIN = 0.8
 TRANSFORM_SCALE_MAX = 1.3
 TRANSFORM_CENTER_RMSE_MAX = 0.15
 TRANSFORM_ROT_DIR_MAX = 0.20
+ROUTE_ARCORE = "arcore_anchor_baseline"
+ROUTE_DA3 = "da3_predicted_primary"
+PREFERRED_ROUTE_LABEL = ROUTE_DA3
 LOCAL_EXTRINSIC_MODE = "c2w"
 LOCAL_CAMERA_BASIS = np.eye(4, dtype=np.float32)
 LOCAL_CAMERA_BASIS[:3, :3] = np.array([
@@ -4515,12 +5478,18 @@ if not premerge_pose_validation_path.exists():
     raise AssertionError("run #13-1 pre-merge pose gate before #14-1 merge")
 
 premerge_pose_validation = json.loads(premerge_pose_validation_path.read_text(encoding="utf-8"))
+premerge_route_compare_path = merged_dir / "premerge_route_compare_summary.json"
+prepose_chunk_graph_solution_path = merged_dir / "prepose_chunk_graph_solution_arc.csv"
+prepose_chunk_graph_edges_path = merged_dir / "prepose_chunk_graph_edges_arc.csv"
+prepose_chunk_graph_summary_path = merged_dir / "prepose_chunk_graph_summary.json"
 if premerge_pose_validation.get("status") != "ok":
     merge_summary = {
         "route": "continuous-gs-v06-chunk18-overlap6-adopt12-merge",
         "status": "skipped",
         "reason": "premerge_pose_validation_failed",
         "premerge_pose_validation_path": str(premerge_pose_validation_path),
+        "premerge_route_compare_path": str(premerge_route_compare_path) if premerge_route_compare_path.exists() else None,
+        "prepose_chunk_graph_solution_path": str(prepose_chunk_graph_solution_path) if prepose_chunk_graph_solution_path.exists() else None,
         "hard_fail_count": int(premerge_pose_validation.get("hard_fail_count", 0)),
         "failed_chunks": premerge_pose_validation.get("failed_chunks", []),
         "all_batch_summary_path": str(merged_dir / "all_batch_summary_arc.json"),
@@ -4560,6 +5529,20 @@ else:
     global_centers_df = pd.read_csv(anchor_dir / "camera_center_matrix_arc.csv")
     global_camera_matrix_df = pd.read_csv(anchor_dir / "camera_matrix_full_arc.csv")
     global_anchor_df = pd.read_csv(anchor_dir / "camera_anchor_full_arc.csv")
+    premerge_validation_df = pd.read_csv(merged_dir / "premerge_pose_validation.csv")
+    prepose_graph_solution_df = (
+        pd.read_csv(prepose_chunk_graph_solution_path)
+        if prepose_chunk_graph_solution_path.exists() and prepose_chunk_graph_solution_path.stat().st_size > 0
+        else pd.DataFrame()
+    )
+    selected_route_by_chunk = dict(zip(
+        premerge_validation_df["chunk_name"].astype(str),
+        premerge_validation_df["route_label"].astype(str),
+    )) if len(premerge_validation_df) else {}
+    prepose_graph_solution_by_chunk = {
+        str(row["chunk_name"]): row.to_dict()
+        for _, row in prepose_graph_solution_df.iterrows()
+    } if len(prepose_graph_solution_df) else {}
     input_manifest_path = manifest_dir / "da3_input_manifest.csv"
     assert input_manifest_path.exists(), input_manifest_path
     input_manifest_df = pd.read_csv(input_manifest_path)
@@ -4650,6 +5633,38 @@ else:
             else:
                 w2c = np.array([getattr(row, c) for c in w2c_cols], dtype=np.float32).reshape(4, 4)
                 out[int(row.record_index)] = np.linalg.inv(w2c).astype(np.float32)
+        return out
+
+    def normalize_rows(arr: np.ndarray, eps: float = 1e-12) -> np.ndarray:
+        arr = np.asarray(arr, dtype=np.float64)
+        arr = np.nan_to_num(arr, nan=0.0, posinf=0.0, neginf=0.0)
+        norm = np.linalg.norm(arr, axis=1, keepdims=True)
+        return arr / np.maximum(norm, eps)
+
+    def summarize_split_metrics(values: np.ndarray, overlap_mask: np.ndarray, prefix: str) -> dict:
+        values = np.asarray(values, dtype=np.float64)
+        overlap_mask = np.asarray(overlap_mask, dtype=bool)
+        nonoverlap_mask = ~overlap_mask
+
+        def pack(mask: np.ndarray, label: str) -> dict:
+            count = int(mask.sum())
+            base = {
+                f"{prefix}_{label}_count": count,
+                f"{prefix}_{label}_mean": None,
+                f"{prefix}_{label}_p95": None,
+                f"{prefix}_{label}_max": None,
+            }
+            if count <= 0:
+                return base
+            subset = values[mask]
+            base[f"{prefix}_{label}_mean"] = float(subset.mean())
+            base[f"{prefix}_{label}_p95"] = float(np.quantile(subset, 0.95))
+            base[f"{prefix}_{label}_max"] = float(subset.max())
+            return base
+
+        out = {}
+        out.update(pack(overlap_mask, "overlap"))
+        out.update(pack(nonoverlap_mask, "nonoverlap"))
         return out
 
     def lens_direction_from_c2w(c2w: np.ndarray):
@@ -4779,6 +5794,72 @@ else:
         )
         return T.astype(np.float32), diag
 
+    def transform_c2w_list(c2w_list, T):
+        out = []
+        for c2w in c2w_list:
+            M = np.asarray(c2w, dtype=np.float64).copy()
+            M[:3, :3] = T[:3, :3] @ M[:3, :3]
+            M[:3, 3] = T[:3, :3] @ M[:3, 3] + T[:3, 3]
+            out.append(M.astype(np.float32))
+        return out
+
+    def summarize_route_candidate(chunk_name: str, route_label: str, route_source: str, route_overlap_record_count: int, overlap_record_indices: list[int], transformed_rows, anchor_rows, align_diag: dict) -> dict:
+        pred_center = np.stack([m[:3, 3] for m in transformed_rows], axis=0)
+        pred_lens = np.stack([lens_direction_from_c2w(m) for m in transformed_rows], axis=0)
+        anchor_center = anchor_rows[["cx_world", "cy_world", "cz_world"]].to_numpy(dtype=np.float32)
+        anchor_lens = anchor_rows[["anchor_lens_x", "anchor_lens_y", "anchor_lens_z"]].to_numpy(dtype=np.float32)
+        record_indices = anchor_rows["record_index"].astype(int).to_numpy()
+        overlap_index_set = {int(x) for x in overlap_record_indices}
+        overlap_mask = np.array([int(x) in overlap_index_set for x in record_indices], dtype=bool)
+        center_error = np.linalg.norm(pred_center - anchor_center, axis=1)
+        lens_error_deg = np.degrees(np.arccos(np.clip(np.sum(normalize_rows(pred_lens) * normalize_rows(anchor_lens), axis=1), -1.0, 1.0)))
+        out = {
+            "chunk_name": chunk_name,
+            "route_label": route_label,
+            "route_source": route_source,
+            "route_overlap_record_count": int(route_overlap_record_count),
+            "route_overlap_local_count": int(overlap_mask.sum()),
+            "route_nonoverlap_local_count": int((~overlap_mask).sum()),
+            "scale": float(align_diag["scale"]),
+            "rotation_det": float(align_diag["rotation_det"]),
+            "center_rmse": float(align_diag["center_rmse"]),
+            "rotation_dir_residual": float(align_diag["rotation_dir_residual"]),
+            "positive_similarity_ok": bool(align_diag["positive_similarity_ok"]),
+            "scale_in_range_ok": bool(align_diag["scale_in_range_ok"]),
+            "center_rmse_ok": bool(align_diag["center_rmse_ok"]),
+            "rotation_dir_ok": bool(align_diag["rotation_dir_ok"]),
+            "hard_fail": bool(align_diag["hard_fail"]),
+            "center_error_mean": float(center_error.mean()),
+            "center_error_p95": float(np.quantile(center_error, 0.95)),
+            "lens_error_deg_mean": float(lens_error_deg.mean()),
+            "lens_error_deg_p95": float(np.quantile(lens_error_deg, 0.95)),
+        }
+        out.update(summarize_split_metrics(center_error, overlap_mask, "center_error"))
+        out.update(summarize_split_metrics(lens_error_deg, overlap_mask, "lens_error_deg"))
+        return out
+
+    def select_route_candidate(chunk_name: str, candidate_rows: list[dict], requested_route_label: str) -> tuple[dict, bool]:
+        by_label = {c["route_label"]: c for c in candidate_rows}
+        requested = by_label.get(requested_route_label)
+        preferred = by_label.get(PREFERRED_ROUTE_LABEL)
+        baseline = by_label.get(ROUTE_ARCORE)
+        if requested is not None and not requested["hard_fail"]:
+            selected = requested
+        elif preferred is not None and not preferred["hard_fail"]:
+            selected = preferred
+        elif baseline is not None and not baseline["hard_fail"]:
+            selected = baseline
+        elif requested is not None:
+            selected = requested
+        elif preferred is not None:
+            selected = preferred
+        elif baseline is not None:
+            selected = baseline
+        else:
+            raise AssertionError({"chunk_name": chunk_name, "reason": "no route candidates"})
+        fallback_used = bool(selected["route_label"] != requested_route_label)
+        return selected, fallback_used
+
     global_camera_map = c2w_rows_to_map(global_camera_matrix_df)
     if "qc_blur_ok" not in input_manifest_df.columns:
         input_manifest_df["qc_blur_ok"] = False
@@ -4875,6 +5956,10 @@ else:
     master_scene = trimesh.Scene()
     owner_hist_rows = []
     chunk_assign_rows = []
+    experimental_world_pose_map = {}
+    route_compare_rows = []
+    previous_selected_chunk_name = None
+    previous_selected_T = None
 
     for row in completed_chunks_df.itertuples(index=False):
         out_dir = chunk_runs_dir / row.chunk_name
@@ -4895,7 +5980,6 @@ else:
         assert pred_extrinsics.shape[0] == len(chunk_df), {"chunk_name": row.chunk_name, "pred_len": int(pred_extrinsics.shape[0]), "chunk_len": int(len(chunk_df))}
 
         local_c2w_list = c2w_list_from_extrinsics(pred_extrinsics)
-        local_centers = np.stack([m[:3, 3] for m in local_c2w_list], axis=0).astype(np.float32)
 
         merged = chunk_df.merge(
             global_anchor_df,
@@ -4907,7 +5991,122 @@ else:
         assert not merged[["cx_world", "cy_world", "cz_world", "anchor_lens_x", "anchor_lens_y", "anchor_lens_z", "anchor_up_x", "anchor_up_y", "anchor_up_z"]].isnull().any().any(), f"global anchor missing: {row.chunk_name}"
         global_c2w_list = [build_anchor_c2w(global_camera_map[int(rec.record_index)], rec) for rec in merged.itertuples(index=False)]
 
-        T_c_to_w0, align_diag = estimate_pose_aware_similarity(local_c2w_list, global_c2w_list, estimate_scale=True)
+        prepose_solution = prepose_graph_solution_by_chunk.get(str(row.chunk_name))
+        if prepose_solution is not None:
+            requested_route_label = str(prepose_solution.get("requested_route_label", prepose_solution.get("route_label", PREFERRED_ROUTE_LABEL)))
+            selected_candidate = dict(prepose_solution)
+            fallback_used = bool(prepose_solution.get("fallback_used", False))
+            preferred_fallback_used = bool(prepose_solution.get("preferred_fallback_used", False))
+            graph_parent_chunk_name = prepose_solution.get("graph_parent_chunk_name")
+            T_c_to_w0 = np.array(
+                [float(prepose_solution[f"t{r}{c}"]) for r in range(4) for c in range(4)],
+                dtype=np.float32,
+            ).reshape(4, 4)
+            align_diag = {
+                "scale": float(prepose_solution["scale"]),
+                "rotation_det": float(prepose_solution["rotation_det"]),
+                "center_rmse": float(prepose_solution["center_rmse"]),
+                "rotation_dir_residual": float(prepose_solution["rotation_dir_residual"]),
+                "positive_similarity_ok": bool(prepose_solution["positive_similarity_ok"]),
+                "scale_in_range_ok": bool(prepose_solution["scale_in_range_ok"]),
+                "center_rmse_ok": bool(prepose_solution["center_rmse_ok"]),
+                "rotation_dir_ok": bool(prepose_solution["rotation_dir_ok"]),
+                "hard_fail": bool(prepose_solution.get("align_hard_fail", prepose_solution.get("hard_fail", False))),
+            }
+            selected_world_rows = transform_c2w_list(local_c2w_list, T_c_to_w0)
+            route_compare_rows.append({
+                "chunk_name": str(row.chunk_name),
+                "graph_parent_chunk_name": graph_parent_chunk_name,
+                "route_label": str(prepose_solution["route_label"]),
+                "requested_route_label": requested_route_label,
+                "preferred_route_label": PREFERRED_ROUTE_LABEL,
+                "fallback_used": fallback_used,
+                "preferred_fallback_used": preferred_fallback_used,
+                "route_source": str(prepose_solution["route_source"]),
+                "route_overlap_record_count": int(prepose_solution.get("route_overlap_record_count", 0)),
+                "route_overlap_local_count": int(prepose_solution.get("route_overlap_local_count", 0)),
+                "route_nonoverlap_local_count": int(prepose_solution.get("route_nonoverlap_local_count", 0)),
+                "center_rmse": float(prepose_solution["center_rmse"]),
+                "rotation_dir_residual": float(prepose_solution["rotation_dir_residual"]),
+                "center_error_p95": float(prepose_solution["center_error_p95"]),
+                "lens_error_deg_p95": float(prepose_solution["lens_error_deg_p95"]),
+                "center_error_overlap_p95": prepose_solution.get("center_error_overlap_p95"),
+                "center_error_nonoverlap_p95": prepose_solution.get("center_error_nonoverlap_p95"),
+                "lens_error_deg_overlap_p95": prepose_solution.get("lens_error_deg_overlap_p95"),
+                "lens_error_deg_nonoverlap_p95": prepose_solution.get("lens_error_deg_nonoverlap_p95"),
+                "relative_scale": prepose_solution.get("relative_scale"),
+                "relative_translation_norm": prepose_solution.get("relative_translation_norm"),
+                "relative_rotation_deg": prepose_solution.get("relative_rotation_deg"),
+                "selected_from_prepose_graph": True,
+            })
+        else:
+            graph_parent_chunk_name = previous_selected_chunk_name
+            baseline_T, baseline_diag = estimate_pose_aware_similarity(local_c2w_list, global_c2w_list, estimate_scale=True)
+            baseline_world_rows = transform_c2w_list(local_c2w_list, baseline_T)
+            baseline_candidate = summarize_route_candidate(
+                row.chunk_name,
+                ROUTE_ARCORE,
+                "anchor_full_sequence",
+                len(merged),
+                merged["record_index"].astype(int).tolist(),
+                baseline_world_rows,
+                merged,
+                baseline_diag,
+            )
+            route_compare_rows.append(baseline_candidate)
+
+            overlap_local_rows = []
+            overlap_world_rows = []
+            overlap_record_indices = []
+            for idx, record_index in enumerate(merged["record_index"].astype(int).tolist()):
+                if record_index in experimental_world_pose_map:
+                    overlap_local_rows.append(local_c2w_list[idx])
+                    overlap_world_rows.append(experimental_world_pose_map[record_index])
+                    overlap_record_indices.append(int(record_index))
+
+            if overlap_world_rows:
+                experimental_source = "predicted_overlap"
+                experimental_overlap_record_count = len(overlap_world_rows)
+                if len(overlap_world_rows) >= 2:
+                    experimental_T, experimental_diag = estimate_pose_aware_similarity(overlap_local_rows, overlap_world_rows, estimate_scale=True)
+                else:
+                    experimental_T = baseline_T.copy()
+                    experimental_diag = dict(baseline_diag)
+                    experimental_source = "predicted_overlap_seeded_single_record"
+            else:
+                experimental_source = "seed_from_arcore_baseline"
+                experimental_overlap_record_count = 0
+                experimental_T = baseline_T.copy()
+                experimental_diag = dict(baseline_diag)
+
+            experimental_world_rows = transform_c2w_list(local_c2w_list, experimental_T)
+            experimental_candidate = summarize_route_candidate(
+                row.chunk_name,
+                ROUTE_DA3,
+                experimental_source,
+                experimental_overlap_record_count,
+                overlap_record_indices,
+                experimental_world_rows,
+                merged,
+                experimental_diag,
+            )
+            route_compare_rows.append(experimental_candidate)
+
+            requested_route_label = str(selected_route_by_chunk.get(row.chunk_name, PREFERRED_ROUTE_LABEL))
+            selected_candidate, fallback_used = select_route_candidate(
+                row.chunk_name,
+                [baseline_candidate, experimental_candidate],
+                requested_route_label,
+            )
+            preferred_fallback_used = bool(selected_candidate["route_label"] != PREFERRED_ROUTE_LABEL)
+            selected_world_rows = experimental_world_rows if selected_candidate["route_label"] == ROUTE_DA3 else baseline_world_rows
+            align_diag = experimental_diag if selected_candidate["route_label"] == ROUTE_DA3 else baseline_diag
+            T_c_to_w0 = experimental_T if selected_candidate["route_label"] == ROUTE_DA3 else baseline_T
+
+        for record_index, world_pose in zip(merged["record_index"].astype(int).tolist(), selected_world_rows):
+            experimental_world_pose_map[int(record_index)] = world_pose
+
+        relative_transform = summarize_relative_transform(previous_selected_T, T_c_to_w0)
 
         T_path = chunk_manifest_dir / f"{row.chunk_name}_to_w0.npy"
         np.save(T_path, T_c_to_w0)
@@ -4915,21 +6114,41 @@ else:
             "chunk_name": row.chunk_name,
             "frame_count": int(len(chunk_df)),
             "transform_path": str(T_path),
+            "graph_parent_chunk_name": graph_parent_chunk_name,
+            "route_label": str(selected_candidate["route_label"]),
+            "requested_route_label": requested_route_label,
+            "preferred_route_label": PREFERRED_ROUTE_LABEL,
+            "fallback_used": bool(fallback_used),
+            "preferred_fallback_used": preferred_fallback_used,
+            "route_source": str(selected_candidate["route_source"]),
+            "route_overlap_record_count": int(selected_candidate["route_overlap_record_count"]),
+            "route_overlap_local_count": int(selected_candidate.get("route_overlap_local_count", 0)),
+            "route_nonoverlap_local_count": int(selected_candidate.get("route_nonoverlap_local_count", 0)),
             "local_extrinsic_mode": LOCAL_EXTRINSIC_MODE,
             "local_camera_basis": "perm_yxz_sign_ppn",
             "scale": float(align_diag["scale"]),
             "rotation_det": float(align_diag["rotation_det"]),
             "center_rmse": float(align_diag["center_rmse"]),
             "rotation_dir_residual": float(align_diag["rotation_dir_residual"]),
+            "relative_scale": float(relative_transform["relative_scale"]),
+            "relative_translation_norm": float(relative_transform["relative_translation_norm"]),
+            "relative_rotation_deg": float(relative_transform["relative_rotation_deg"]),
             "positive_similarity_ok": bool(align_diag["positive_similarity_ok"]),
             "scale_in_range_ok": bool(align_diag["scale_in_range_ok"]),
             "center_rmse_ok": bool(align_diag["center_rmse_ok"]),
             "rotation_dir_ok": bool(align_diag["rotation_dir_ok"]),
             "hard_fail": bool(align_diag["hard_fail"]),
+            "center_error_p95": float(selected_candidate["center_error_p95"]),
+            "lens_error_deg_p95": float(selected_candidate["lens_error_deg_p95"]),
+            "center_error_overlap_p95": selected_candidate.get("center_error_overlap_p95"),
+            "center_error_nonoverlap_p95": selected_candidate.get("center_error_nonoverlap_p95"),
+            "lens_error_deg_overlap_p95": selected_candidate.get("lens_error_deg_overlap_p95"),
+            "lens_error_deg_nonoverlap_p95": selected_candidate.get("lens_error_deg_nonoverlap_p95"),
         })
         assert not align_diag["hard_fail"], {
             "chunk_name": row.chunk_name,
             "reason": "invalid_pose_similarity",
+            "selected_route_label": selected_candidate["route_label"],
             "align_diag": align_diag,
         }
 
@@ -4993,12 +6212,18 @@ else:
         keep_zero_chunk = int(len(df)) == 0
         warning_rows.append({
             "chunk_name": row.chunk_name,
+            "route_label": str(selected_candidate["route_label"]),
             "transform_warning": transform_warning,
             "keep_zero_chunk": keep_zero_chunk,
-            "fallback_used": False,
+            "fallback_used": bool(fallback_used),
+            "preferred_fallback_used": preferred_fallback_used,
         })
         keep_rows.append({
             "chunk_name": row.chunk_name,
+            "route_label": str(selected_candidate["route_label"]),
+            "requested_route_label": requested_route_label,
+            "fallback_used": bool(fallback_used),
+            "preferred_fallback_used": preferred_fallback_used,
             "kept_vertices": int(len(df)),
             "owner_record_unique_count": int(assignment_df["owner_record_index"].nunique()),
             "owner_candidate_mode": str(assignment_df["owner_candidate_mode"].iloc[0]),
@@ -5008,6 +6233,8 @@ else:
             "owner_score_mean": float(assignment_df["owner_score"].mean()),
         })
         assert not keep_zero_chunk, {"chunk_name": row.chunk_name, "reason": "keep_zero_chunk"}
+        previous_selected_chunk_name = str(row.chunk_name)
+        previous_selected_T = T_c_to_w0.copy()
 
         if glb_path.exists():
             scene = load_scene_any(glb_path)
@@ -5019,6 +6246,9 @@ else:
 
     transform_df = pd.DataFrame(transform_rows)
     transform_df.to_csv(chunk_manifest_dir / "chunk_global_transforms_arc.csv", index=False, encoding="utf-8")
+    route_compare_df = pd.DataFrame(route_compare_rows)
+    route_compare_path = merged_dir / "merge_route_compare_arc.csv"
+    route_compare_df.to_csv(route_compare_path, index=False, encoding="utf-8")
 
     keep_df = pd.DataFrame(keep_rows)
     keep_summary_path = merged_dir / "chunk_keep_summary_arc.csv"
@@ -5034,7 +6264,8 @@ else:
     warning_summary = {
         "transform_warning_count": int(sum(bool(x["transform_warning"]) for x in warning_rows)),
         "keep_zero_chunk_count": int(sum(bool(x["keep_zero_chunk"]) for x in warning_rows)),
-        "fallback_used_count": 0,
+        "fallback_used_count": int(sum(bool(x["fallback_used"]) for x in warning_rows)),
+        "preferred_fallback_used_count": int(sum(bool(x.get("preferred_fallback_used")) for x in warning_rows)),
         "rows": warning_rows,
     }
     (merged_dir / "merge_warning_summary_arc.json").write_text(json.dumps(warning_summary, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -5047,6 +6278,7 @@ else:
     stage_11_2_copy_plan = [
         (merged_ply_path, stage_11_2_dir / "merged_gs_arc.ply"),
         (chunk_manifest_dir / "chunk_global_transforms_arc.csv", stage_11_2_dir / "chunk_global_transforms_arc.csv"),
+        (route_compare_path, stage_11_2_dir / "merge_route_compare_arc.csv"),
         (keep_summary_path, stage_11_2_dir / "chunk_keep_summary_arc.csv"),
         (transform_quality_path, stage_11_2_dir / "chunk_transform_quality_arc.csv"),
         (merged_dir / "owner_record_histogram_arc.csv", stage_11_2_dir / "owner_record_histogram_arc.csv"),
@@ -5092,6 +6324,7 @@ else:
         (merged_ply_path, final_outputs_merged_dir / "merged_gs_arc.ply"),
         (merged_glb_path, final_outputs_merged_dir / "merged_scene_arc.glb"),
         (chunk_manifest_dir / "chunk_global_transforms_arc.csv", final_outputs_diagnostics_dir / "chunk_global_transforms_arc.csv"),
+        (route_compare_path, final_outputs_diagnostics_dir / "merge_route_compare_arc.csv"),
         (keep_summary_path, final_outputs_diagnostics_dir / "chunk_keep_summary_arc.csv"),
         (transform_quality_path, final_outputs_diagnostics_dir / "chunk_transform_quality_arc.csv"),
         (merged_dir / "owner_record_histogram_arc.csv", final_outputs_diagnostics_dir / "owner_record_histogram_arc.csv"),
@@ -5154,6 +6387,14 @@ else:
     else:
         merge_reason = None if all_vertices else "no kept vertices"
 
+    selected_route_counts = (
+        transform_df.groupby("route_label", as_index=False).size().rename(columns={"size": "chunk_count"}).to_dict(orient="records")
+        if len(transform_df)
+        else []
+    )
+    fallback_used_count = int(transform_df["fallback_used"].fillna(False).astype(bool).sum()) if len(transform_df) else 0
+    preferred_fallback_used_count = int(transform_df["preferred_fallback_used"].fillna(False).astype(bool).sum()) if len(transform_df) else 0
+
     merge_summary = {
         "route": "continuous-gs-v06-chunk18-overlap6-adopt12-merge",
         "status": "ok" if all_vertices else "skipped",
@@ -5166,12 +6407,20 @@ else:
         "merged_ply_path": str(merged_ply_path) if merged_ply_path.exists() else None,
         "merged_glb_path": str(merged_glb_path) if merged_glb_path.exists() else None,
         "chunk_global_transforms_path": str(chunk_manifest_dir / "chunk_global_transforms_arc.csv"),
+        "merge_route_compare_path": str(route_compare_path),
+        "prepose_chunk_graph_solution_path": str(prepose_chunk_graph_solution_path) if prepose_chunk_graph_solution_path.exists() else None,
+        "prepose_chunk_graph_edges_path": str(prepose_chunk_graph_edges_path) if prepose_chunk_graph_edges_path.exists() else None,
+        "prepose_chunk_graph_summary_path": str(prepose_chunk_graph_summary_path) if prepose_chunk_graph_summary_path.exists() else None,
         "chunk_keep_summary_path": str(keep_summary_path),
         "chunk_transform_quality_path": str(transform_quality_path),
         "owner_record_histogram_path": str(merged_dir / "owner_record_histogram_arc.csv"),
         "chunk_assignment_summary_path": str(merged_dir / "chunk_assignment_summary_arc.csv"),
         "merge_warning_summary_path": str(merged_dir / "merge_warning_summary_arc.json"),
         "all_batch_summary_path": str(merged_dir / "all_batch_summary_arc.json"),
+        "preferred_route_label": PREFERRED_ROUTE_LABEL,
+        "selected_route_counts": selected_route_counts,
+        "fallback_used_count": fallback_used_count,
+        "preferred_fallback_used_count": preferred_fallback_used_count,
         "final_outputs_dir": str(final_outputs_dir),
         "final_output_manifest_path": str(final_outputs_dir / "final_output_manifest_arc.json"),
         "bundle_summary": bundle_summary,
@@ -5193,12 +6442,15 @@ else:
             {"item": "merged_scene_glb", "path": str(merged_glb_path)},
             {"item": "final_output_manifest", "path": str(final_outputs_dir / "final_output_manifest_arc.json")},
             {"item": "chunk_global_transforms", "path": str(chunk_manifest_dir / "chunk_global_transforms_arc.csv")},
+            {"item": "merge_route_compare", "path": str(route_compare_path)},
             {"item": "chunk_keep_summary", "path": str(keep_summary_path)},
             {"item": "chunk_transform_quality", "path": str(transform_quality_path)},
         ],
         notes=[
             {"item": "completed_chunk_count", "value": int(len(completed_chunks_df))},
             {"item": "status", "value": merge_summary["status"]},
+            {"item": "fallback_used_count", "value": fallback_used_count},
+            {"item": "preferred_fallback_used_count", "value": preferred_fallback_used_count},
         ],
     )
 ```

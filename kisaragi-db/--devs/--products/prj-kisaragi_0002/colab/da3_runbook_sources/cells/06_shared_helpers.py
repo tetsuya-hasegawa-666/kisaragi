@@ -73,3 +73,37 @@ def display_stage_summary(stage_no: str, title: str, inputs=None, outputs=None, 
         display(pd.DataFrame(_summary_rows(inputs, "input")))
     if outputs:
         display(pd.DataFrame(_summary_rows(outputs, "output")))
+
+
+def rotation_angle_deg_from_matrix(R: np.ndarray) -> float:
+    R = np.asarray(R, dtype=np.float64)
+    cos_theta = np.clip((np.trace(R) - 1.0) / 2.0, -1.0, 1.0)
+    return float(np.degrees(np.arccos(cos_theta)))
+
+
+def summarize_relative_transform(parent_T: np.ndarray | None, child_T: np.ndarray) -> dict:
+    child_T = np.asarray(child_T, dtype=np.float64)
+    if parent_T is None:
+        return {
+            "relative_scale": 1.0,
+            "relative_translation_norm": 0.0,
+            "relative_rotation_deg": 0.0,
+        }
+
+    parent_T = np.asarray(parent_T, dtype=np.float64)
+    rel = np.linalg.inv(parent_T) @ child_T
+    rot_scale = rel[:3, :3]
+    det = float(np.linalg.det(rot_scale))
+    if np.isfinite(det) and abs(det) > 1e-12:
+        scale = float(np.sign(det) * (abs(det) ** (1.0 / 3.0)))
+    else:
+        scale = 1.0
+    if abs(scale) > 1e-12:
+        R = rot_scale / scale
+    else:
+        R = rot_scale
+    return {
+        "relative_scale": float(scale),
+        "relative_translation_norm": float(np.linalg.norm(rel[:3, 3])),
+        "relative_rotation_deg": rotation_angle_deg_from_matrix(R),
+    }

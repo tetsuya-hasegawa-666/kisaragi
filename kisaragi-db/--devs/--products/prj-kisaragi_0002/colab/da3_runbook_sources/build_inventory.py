@@ -69,9 +69,9 @@ def render_inventory() -> str:
 
     return "\n".join(
         [
-            "# da3_ngl_runbook source inventory",
+            "# da3_ngl_prepose_RB source inventory",
             "",
-            "この文書は `da3_runbook_sources/cell_manifest.json` と `da3_runbook_sources/markdown_manifest.json` を正として、canonical pair の code / markdown source 一覧を示す。",
+            "この文書は `da3_runbook_sources/cell_manifest.json` と `da3_runbook_sources/markdown_manifest.json` を正として、canonical pair `da3_ngl_prepose_RB.md` / `da3_ngl_prepose_RB.ipynb` の code / markdown source 一覧を示す。",
             "",
             "## Cell Inventory",
             "",
