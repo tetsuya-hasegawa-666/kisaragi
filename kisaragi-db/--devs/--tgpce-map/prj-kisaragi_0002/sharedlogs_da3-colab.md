@@ -6631,3 +6631,15 @@ Moviepy - video ready /content/drive/MyDrive/trajectreview/modeling/trajectrevie
 - admin 所見の「動かせる html 出力が便利」に合わせて、`#7matching-1` の overlap trajectory 可視化へ `trajectory_match.html` を追加した。`07matching_01.py` に `write_pose_match_html()` を実装し、`chunk_a_raw`、`chunk_b_raw`、`chunk_b_aligned_to_a` の 3 系列を `plotly` の `Scatter3d` で出力するようにした。overlap point は別 trace で強調され、browser 上で回転・拡大できる。
 - summary には `plot_html` を追加し、stage summary 出力にも `matching_plot_html` を載せた。`07matching_01.md` も `trajectory_match.html` を正式出力へ追記した。
 - `py_compile`、`sync_da3_runbook_sources.py`、`build_inventory.py`、`python -m unittest ...test_da3_runbook_sources.py` を再実行し、引き続き `11 tests OK` を確認した。
+
+# codex v112
+
+- admin 指示に合わせて runbook の責務順を再編し、canonical な流れを `#6 -> #9 -> #10 -> #11 -> #7 -> #8 -> #13 -> #14` に固定した。`#7 Full Prepose Build` は anchor stage として再定義し、old `#12` の chunk-local pose build と `#7matching` の overlap matching、さらに prepose graph build を内包する構成へ移した。
+- source token は `#11-5`=`cells/12_01.py`、`#7-4`=`cells/12_chunk_wrapper.py`、`#7-5`=`cells/12_03.py`、`#7-6`=`cells/07matching_01.py`、`#7-7`=`cells/07_07.py` へ再配線した。`#13-1` は heavy judge / graph build から薄い review gate に変更し、`premerge_pose_validation.json`、`premerge_route_compare_summary.json`、`prepose_chunk_graph_solution_arc.csv`、`prepose_chunk_graph_edges_arc.csv` を読むだけの cell にした。
+- `cell_manifest.json` と `markdown_manifest.json` を並び替え、`07_01.md`、`08_01.md`、`09_01.md`、`10_01.md`、`11_01.md`、`13_01.md` を新責務へ更新した。あわせて `colab/agents.md`、`da3_ngl_runbook_design_contract.md`、`admin-mrl-test-method.md`、`HAUB` を同じ task で更新し、`#7-4` authoring source、`#7-6` matching、`#7-7` graph build、`#13-1` thin review gate を一次参照面に反映した。
+- `14_01.py` の不足 artifact error 文言も `run #7-5 before #14-1` へ更新し、merge 側の stage 呼称を再編後の token に揃えた。`py_compile`、`sync_da3_runbook_sources.py`、`build_inventory.py`、`python -m unittest ...test_da3_runbook_sources.py` を再実行し、`11 tests OK` を確認した。以後の admin 実測は `da3_ngl_prepose_RB.ipynb` 上で新順序そのままに実行できる。
+
+# codex v113
+
+- admin 指示の「nb 内の並びを上から順に並べ替え」に合わせて、現行 manifest 順を正として `sync_da3_runbook_sources.py` を再実行し、`da3_ngl_prepose_RB.md` / `.ipynb` を再生成した。active runbook の順序は `#1` から `#17` までの表示順として `#6 -> #9 -> #10 -> #11 -> #7 -> #8 -> #13 -> #14` を保つ構成で固定されている。
+- `cell_manifest.json` と `markdown_manifest.json` の順序、再生成後 pair、inventory の一致を再確認し、回帰 test `python -m unittest ...test_da3_runbook_sources.py` を再実行して `11 tests OK` を確認した。今回の変更は notebook 並び替えと pair 再同期で、runbook 内容の意味は v112 から変えていない。

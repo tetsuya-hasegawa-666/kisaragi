@@ -182,7 +182,7 @@ def resolve_chunk_output_dir(chunk_name: str) -> Path:
     raise AssertionError({
         "chunk_name": chunk_name,
         "missing_dir": str(direct),
-        "reason": "run #12-3 before #14-1",
+        "reason": "run #7-5 before #14-1",
         "searched_nested_under": str(chunk_runs_dir),
     })
 

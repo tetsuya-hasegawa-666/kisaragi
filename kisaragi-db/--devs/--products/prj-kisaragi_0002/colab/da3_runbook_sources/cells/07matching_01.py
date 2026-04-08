@@ -1,4 +1,4 @@
-#7matching-1
+#7-6
 from pathlib import Path
 import json
 
@@ -324,7 +324,7 @@ if not all([chunk_a_name, chunk_b_name, chunk_a_frames_path, chunk_a_pred_path, 
     save_json(summary_json, summary)
     print(json.dumps(summary, indent=2, ensure_ascii=False))
     display_stage_summary(
-        "7matching-1",
+        "7-6",
         "overlap pose matching",
         outputs=[
             {"item": "matching_summary", "path": str(summary_json)},
@@ -484,7 +484,7 @@ else:
 
     print(json.dumps(summary, indent=2, ensure_ascii=False))
     display_stage_summary(
-        "7matching-1",
+        "7-6",
         "overlap pose matching",
         inputs=[
             {"item": "chunk_a_input_frames", "path": str(chunk_a_frames_path)},

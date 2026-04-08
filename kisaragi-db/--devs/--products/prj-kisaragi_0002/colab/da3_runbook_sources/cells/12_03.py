@@ -1,4 +1,4 @@
-#12-3
+#7-5
 
 from pathlib import Path
 import json
@@ -169,7 +169,7 @@ summary = {
 print(json.dumps(summary, ensure_ascii=False, indent=2))
 display(run_df)
 display_stage_summary(
-    "12-3",
+    "7-5",
     "run batches",
     inputs=[
         {"item": "batch_execution_items", "path": str(batch_execution_items_path)},

@@ -13,12 +13,6 @@
 | #4-2 | `cells/04_02.py` | `direct` | 4 Tree Init | - | ctx, probe_root, managed_dirs | `DOC-C04-02` |
 | #5-1 | `cells/05_install.py` | `direct` | 5 Install | - | repo_root, repo_url, src_root | `DOC-C05-01` |
 | #6-1 | `cells/06_shared_helpers.py` | `direct` | 6 Shared Helpers | load_ctx, save_json, append_sequence_columns, rotmat_to_rpy_deg, _summary_rows, display_stage_summary, rotation_angle_deg_from_matrix, summarize_relative_transform | RUNBOOK_CTX_PATH | `DOC-C06-01` |
-| #7-1 | `cells/07_01.py` | `direct` | 7 Full Prepose Build | build_anchor_inputs_from_zip | ctx_path, ctx, manifest_dir, da3_nested_dir, world_dir, final_outputs_dir, final_outputs_merged_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir, final_outputs_chunk_evidence_dir, images_dir, frame_record_path | `DOC-C07-01` |
-| #7-2 | `cells/07_02.py` | `direct` | 7 Full Prepose Build | _existing, _find_manifest_triplet, _normalize_rows | config, search_roots, anchor_dir, manifest_dir, manifest_df, intrinsics, extrinsics_w2c, c2w, camera_centers, right_vecs, up_vecs, lens_vecs | `DOC-C07-02` |
-| #7-3 | `cells/07_03.py` | `direct` | 7 Full Prepose Build | _existing, _find_anchor_root, _normalize, _wrap_deg, _angle_deg | config, search_roots, persist_root, anchor_dir, anchor_path, anchor_df, required_cols, missing, lens, up, right, centers | `DOC-C07-03` |
-| #7matching-1 | `cells/07matching_01.py` | `direct` | 7matching Overlap Pose Matching | resolve_matching_chunk_names, resolve_chunk_artifact, to_4x4_batch, normalize_rows, angle_deg, lens_direction_from_c2w, up_direction_from_c2w, c2w_list_from_extrinsics, estimate_pose_aware_similarity, transform_c2w_list, pose_rows_to_frame_df, plot_pose_match, write_pose_match_html | ctx, config, probe_root, persist_root, pipeline_root, anchor_dir, chunk_manifest_dir, chunk_runs_dir, final_outputs_chunk_evidence_dir, final_outputs_diagnostics_dir, matching_dir, LOCAL_EXTRINSIC_MODE | `DOC-C07M-01` |
-| #8-1 | `cells/08_01.py` | `direct` | 8 Anchor QC And Plot | _existing, _find_anchor_diag_root | config, search_roots, persist_root, anchor_dir, diag_path, df, MAX_DELTA_POS, MAX_DELTA_LENS_ANGLE_DEG, MAX_DELTA_UP_ANGLE_DEG, MAX_DELTA2_POS, MAX_DELTA2_ROT, WARN_ABS_ROLL_CENTERED_DEG | `DOC-C08-01` |
-| #8-2 | `cells/08_02.py` | `direct` | 8 Anchor QC And Plot | _existing, _find_anchor_root, _pick_first_existing, _resolve_center_cols, _resolve_lens_cols | config, search_roots, persist_root, anchor_dir, anchor_csv, df, lens_cols, plotly_html, plotly_png, centers, bbox_min, bbox_max | `DOC-C08-02` |
 | #9-1 | `cells/09_01.py` | `direct` | 9 Record Manifest And Chunk Plan | ranked_image_dirs, lap_var, read_actual_wh, normalize_intrinsics_to_upright, quat_to_rot, pose_to_w2c, build_K | ctx, images_dir, frame_record_path, frame_pose_index_path, manifest_dir, CANONICAL_ORIENTATION_POLICY, BLUR_THRESHOLD, frame_pose_df, image_name_by_record_index, image_dir_ranking, resolved_images_dir, rows | `DOC-C09-01` |
 | #9-2 | `cells/09_02.py` | `direct` | 9 Record Manifest And Chunk Plan | - | ctx, manifest_dir, managed_dirs, record_dir, anchor_diag, anchor_keep_cols, anchor_join, p, df, ts_col, df | `DOC-C09-02` |
 | #9-3 | `cells/09_03.py` | `direct` | 9 Record Manifest And Chunk Plan | - | config, config_view | `DOC-C09-03` |
@@ -31,10 +25,17 @@
 | #11-2 | `cells/11_02.py` | `direct` | 11 Run Preparation | load_json, save_json, load_ctx, find_first, normalize_rows, angle_deg | - | `DOC-C11-02` |
 | #11-3 | `cells/11_03.py` | `direct` | 11 Run Preparation | - | ctx, probe_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, test_chunk_with_batch_path, test_batch_plan_path, canonical_chunk_with_batch_path, canonical_batch_plan_path, fallback_chunk_target_path, fallback_batch_plan_path, execution_chunks_df | `DOC-C11-03` |
 | #11-4 | `cells/11_04.py` | `direct` | 11 Run Preparation | - | ctx, probe_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, manifest_dir, persist_root, anchor_dir, merged_dir, final_outputs_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir | `DOC-C11-04` |
-| #12-1 | `cells/12_01.py` | `direct` | 12 Chunk DA3 Prepose Build | - | ctx, probe_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, final_outputs_diagnostics_dir, execution_chunks_path, execution_batch_plan_path, execution_chunks_df, execution_batch_plan_df, batch_execution_items_df, batch_execution_items_path | `DOC-C12-01` |
-| #12-2 | `cells/12_chunk_wrapper.py` | `wrapper_body` | 12 Chunk DA3 Prepose Build | _resolve_device, _pick_pred_array, main | REPO_ROOT, SRC_ROOT | `DOC-C12-02` |
-| #12-3 | `cells/12_03.py` | `direct` | 12 Chunk DA3 Prepose Build | - | ctx, probe_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, final_outputs_diagnostics_dir, wrapper_path, batch_execution_items_path, items_df, config_snapshot, DRY_RUN, DEVICE | `DOC-C12-03` |
-| #13-1 | `cells/13_01.py` | `direct` | 13 Prepose Graph Judge | to_4x4_batch, normalize_rows, angle_deg, summarize_split_metrics, lens_direction_from_c2w, up_direction_from_c2w, normalize_vec, build_anchor_c2w_list, local_c2w_list, estimate_pose_aware_similarity, transform_c2w_list, summarize_candidate, pick_selected_candidate | ctx, probe_root, persist_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, merged_dir, final_outputs_diagnostics_dir, anchor_dir, camera_anchor_full_path, batch_execution_items_path, items_df | `DOC-C13-01` |
+| #11-5 | `cells/12_01.py` | `direct` | 11 Run Preparation | - | ctx, probe_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, final_outputs_diagnostics_dir, execution_chunks_path, execution_batch_plan_path, execution_chunks_df, execution_batch_plan_df, batch_execution_items_df, batch_execution_items_path | `DOC-C12-01` |
+| #7-1 | `cells/07_01.py` | `direct` | 7 Full Prepose Build | build_anchor_inputs_from_zip | ctx_path, ctx, manifest_dir, da3_nested_dir, world_dir, final_outputs_dir, final_outputs_merged_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir, final_outputs_chunk_evidence_dir, images_dir, frame_record_path | `DOC-C07-01` |
+| #7-2 | `cells/07_02.py` | `direct` | 7 Full Prepose Build | _existing, _find_manifest_triplet, _normalize_rows | config, search_roots, anchor_dir, manifest_dir, manifest_df, intrinsics, extrinsics_w2c, c2w, camera_centers, right_vecs, up_vecs, lens_vecs | `DOC-C07-02` |
+| #7-3 | `cells/07_03.py` | `direct` | 7 Full Prepose Build | _existing, _find_anchor_root, _normalize, _wrap_deg, _angle_deg | config, search_roots, persist_root, anchor_dir, anchor_path, anchor_df, required_cols, missing, lens, up, right, centers | `DOC-C07-03` |
+| #7-4 | `cells/12_chunk_wrapper.py` | `wrapper_body` | 7 Full Prepose Build | _resolve_device, _pick_pred_array, main | REPO_ROOT, SRC_ROOT | `DOC-C12-02` |
+| #7-5 | `cells/12_03.py` | `direct` | 7 Full Prepose Build | - | ctx, probe_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, final_outputs_diagnostics_dir, wrapper_path, batch_execution_items_path, items_df, config_snapshot, DRY_RUN, DEVICE | `DOC-C12-03` |
+| #7-6 | `cells/07matching_01.py` | `direct` | 7 Full Prepose Build | resolve_matching_chunk_names, resolve_chunk_artifact, to_4x4_batch, normalize_rows, angle_deg, lens_direction_from_c2w, up_direction_from_c2w, c2w_list_from_extrinsics, estimate_pose_aware_similarity, transform_c2w_list, pose_rows_to_frame_df, plot_pose_match, write_pose_match_html | ctx, config, probe_root, persist_root, pipeline_root, anchor_dir, chunk_manifest_dir, chunk_runs_dir, final_outputs_chunk_evidence_dir, final_outputs_diagnostics_dir, matching_dir, LOCAL_EXTRINSIC_MODE | `DOC-C07M-01` |
+| #7-7 | `cells/07_07.py` | `direct` | 7 Full Prepose Build | to_4x4_batch, normalize_rows, angle_deg, summarize_split_metrics, lens_direction_from_c2w, up_direction_from_c2w, normalize_vec, build_anchor_c2w_list, local_c2w_list, estimate_pose_aware_similarity, transform_c2w_list, summarize_candidate, pick_selected_candidate | ctx, probe_root, persist_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, merged_dir, final_outputs_diagnostics_dir, anchor_dir, camera_anchor_full_path, batch_execution_items_path, items_df | `DOC-C07-07` |
+| #8-1 | `cells/08_01.py` | `direct` | 8 Anchor QC And Plot | _existing, _find_anchor_diag_root | config, search_roots, persist_root, anchor_dir, diag_path, df, MAX_DELTA_POS, MAX_DELTA_LENS_ANGLE_DEG, MAX_DELTA_UP_ANGLE_DEG, MAX_DELTA2_POS, MAX_DELTA2_ROT, WARN_ABS_ROLL_CENTERED_DEG | `DOC-C08-01` |
+| #8-2 | `cells/08_02.py` | `direct` | 8 Anchor QC And Plot | _existing, _find_anchor_root, _pick_first_existing, _resolve_center_cols, _resolve_lens_cols | config, search_roots, persist_root, anchor_dir, anchor_csv, df, lens_cols, plotly_html, plotly_png, centers, bbox_min, bbox_max | `DOC-C08-02` |
+| #13-1 | `cells/13_01.py` | `direct` | 13 Prepose Graph Judge | - | ctx, probe_root, pipeline_root, chunk_manifest_dir, merged_dir, final_outputs_diagnostics_dir, validation_json, route_compare_json, route_compare_csv, graph_solution_csv, graph_edges_csv, graph_summary_json | `DOC-C13-01` |
 | #14-1 | `cells/14_01.py` | `direct` | 14 Merge From Prepose Graph | ensure_target_chunk_manifest, resolve_chunk_output_dir, resolve_chunk_input_dir | missing_merge_deps, batch_preflight_status_path, ctx, probe_root, results_root, persist_root, modeling_session_id, manifest_dir, final_outputs_dir, final_outputs_merged_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir | `DOC-C14-01` |
 | #15-1 | `cells/15_01.py` | `direct` | 15 Optional Bundle | - | merge_summary_path, ctx, probe_root, pipeline_root, merged_dir, pipeline_config_path, bundle_model_slug, merge_summary_doc_path, merge_summary, config_snapshot, download_local_bundle, local_bundle_base | `DOC-C15-01` |
 | #16-1 | `cells/16_01.py` | `direct` | 16 Cleanup Inventory | path_size_bytes | ctx, probe_root, results_root, persist_root, manifest_dir, da3_nested_dir, da3_nested_gs_dir, world_dir, final_outputs_dir, final_outputs_merged_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir | `DOC-C16-01` |
@@ -50,15 +51,13 @@
 | #3-1 | `markdown/03_01.md` | #3-1 | #2-1 | #4-1..#4-2 | 3 Input Select And Path Check |
 | #4-1 | `markdown/04_01.md` | #4-1..#4-2 | #3-1 | #5-1 | 4 Tree Init |
 | #5-1 | `markdown/05_01.md` | #5-1 | #4-1..#4-2 | #6-1 | 5 Install |
-| #6-1 | `markdown/06_01.md` | #6-1 | #5-1 | #7-1..#7-3 | 6 Shared Helpers |
-| #7-1 | `markdown/07_01.md` | #7-1..#7-3 | #6-1 | #7matching-1 | 7 Full Prepose Build |
-| #7matching-1 | `markdown/07matching_01.md` | #7matching-1 | #7-1..#7-3 | #8-1..#8-2 | 7matching Overlap Pose Matching |
-| #8-1 | `markdown/08_01.md` | #8-1..#8-2 | #7matching-1 | #9-1..#9-5 | 8 Anchor QC And Plot |
-| #9-1 | `markdown/09_01.md` | #9-1..#9-5 | #8-1..#8-2 | #10-1..#10-3 | 9 Record Manifest And Chunk Plan |
-| #10-1 | `markdown/10_01.md` | #10-1..#10-3 | #9-1..#9-5 | #11-1..#11-4 | 10 Precheck |
-| #11-1 | `markdown/11_01.md` | #11-1..#11-4 | #10-1..#10-3 | #12-1..#12-3 | 11 Run Preparation |
-| #12-1 | `markdown/12_01.md` | #12-1..#12-3 | #11-1..#11-4 | #13-1 | 12 Chunk DA3 Prepose Build |
-| #13-1 | `markdown/13_01.md` | #13-1 | #12-1..#12-3 | #14-1 | 13 Prepose Graph Judge |
+| #6-1 | `markdown/06_01.md` | #6-1 | #5-1 | #9-1..#9-5 | 6 Shared Helpers |
+| #9-1 | `markdown/09_01.md` | #9-1..#9-5 | #6-1 | #10-1..#10-3 | 9 Record Manifest And Chunk Plan |
+| #10-1 | `markdown/10_01.md` | #10-1..#10-3 | #9-1..#9-5 | #11-1..#11-5 | 10 Precheck |
+| #11-1 | `markdown/11_01.md` | #11-1..#11-5 | #10-1..#10-3 | #7-1..#7-7 | 11 Run Preparation |
+| #7-1 | `markdown/07_01.md` | #7-1..#7-7 | #11-1..#11-5 | #8-1..#8-2 | 7 Full Prepose Build |
+| #8-1 | `markdown/08_01.md` | #8-1..#8-2 | #7-1..#7-7 | #13-1 | 8 Anchor QC And Plot |
+| #13-1 | `markdown/13_01.md` | #13-1 | #8-1..#8-2 | #14-1 | 13 Prepose Graph Judge |
 | #14-1 | `markdown/14_01.md` | #14-1 | #13-1 | #15-1 | 14 Merge From Prepose Graph |
 | #15-1 | `markdown/15_01.md` | #15-1 | #14-1 | #16-1..#16-2 | 15 Optional Bundle |
 | #16-1 | `markdown/16_01.md` | #16-1..#16-2 | #15-1 | #17-1 | 16 Cleanup Inventory |
@@ -82,35 +81,6 @@
 | display_stage_summary | #6-1 | 6 Shared Helpers | `DOC-C06-01` |
 | rotation_angle_deg_from_matrix | #6-1 | 6 Shared Helpers | `DOC-C06-01` |
 | summarize_relative_transform | #6-1 | 6 Shared Helpers | `DOC-C06-01` |
-| build_anchor_inputs_from_zip | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
-| _existing | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
-| _find_manifest_triplet | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
-| _normalize_rows | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
-| _existing | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| _find_anchor_root | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| _normalize | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| _wrap_deg | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| _angle_deg | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| resolve_matching_chunk_names | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| resolve_chunk_artifact | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| to_4x4_batch | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| normalize_rows | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| angle_deg | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| lens_direction_from_c2w | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| up_direction_from_c2w | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| c2w_list_from_extrinsics | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| estimate_pose_aware_similarity | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| transform_c2w_list | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| pose_rows_to_frame_df | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| plot_pose_match | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| write_pose_match_html | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| _existing | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
-| _find_anchor_diag_root | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
-| _existing | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
-| _find_anchor_root | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
-| _pick_first_existing | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
-| _resolve_center_cols | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
-| _resolve_lens_cols | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
 | ranked_image_dirs | #9-1 | 9 Record Manifest And Chunk Plan | `DOC-C09-01` |
 | lap_var | #9-1 | 9 Record Manifest And Chunk Plan | `DOC-C09-01` |
 | read_actual_wh | #9-1 | 9 Record Manifest And Chunk Plan | `DOC-C09-01` |
@@ -126,22 +96,51 @@
 | find_first | #11-2 | 11 Run Preparation | `DOC-C11-02` |
 | normalize_rows | #11-2 | 11 Run Preparation | `DOC-C11-02` |
 | angle_deg | #11-2 | 11 Run Preparation | `DOC-C11-02` |
-| _resolve_device | #12-2 | 12 Chunk DA3 Prepose Build | `DOC-C12-02` |
-| _pick_pred_array | #12-2 | 12 Chunk DA3 Prepose Build | `DOC-C12-02` |
-| main | #12-2 | 12 Chunk DA3 Prepose Build | `DOC-C12-02` |
-| to_4x4_batch | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| normalize_rows | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| angle_deg | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| summarize_split_metrics | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| lens_direction_from_c2w | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| up_direction_from_c2w | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| normalize_vec | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| build_anchor_c2w_list | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| local_c2w_list | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| estimate_pose_aware_similarity | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| transform_c2w_list | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| summarize_candidate | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| pick_selected_candidate | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
+| build_anchor_inputs_from_zip | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
+| _existing | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
+| _find_manifest_triplet | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
+| _normalize_rows | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
+| _existing | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| _find_anchor_root | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| _normalize | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| _wrap_deg | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| _angle_deg | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| _resolve_device | #7-4 | 7 Full Prepose Build | `DOC-C12-02` |
+| _pick_pred_array | #7-4 | 7 Full Prepose Build | `DOC-C12-02` |
+| main | #7-4 | 7 Full Prepose Build | `DOC-C12-02` |
+| resolve_matching_chunk_names | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| resolve_chunk_artifact | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| to_4x4_batch | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| normalize_rows | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| angle_deg | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| lens_direction_from_c2w | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| up_direction_from_c2w | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| c2w_list_from_extrinsics | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| estimate_pose_aware_similarity | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| transform_c2w_list | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| pose_rows_to_frame_df | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| plot_pose_match | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| write_pose_match_html | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| to_4x4_batch | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| normalize_rows | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| angle_deg | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| summarize_split_metrics | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| lens_direction_from_c2w | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| up_direction_from_c2w | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| normalize_vec | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| build_anchor_c2w_list | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| local_c2w_list | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| estimate_pose_aware_similarity | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| transform_c2w_list | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| summarize_candidate | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| pick_selected_candidate | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| _existing | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
+| _find_anchor_diag_root | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
+| _existing | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
+| _find_anchor_root | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
+| _pick_first_existing | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
+| _resolve_center_cols | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
+| _resolve_lens_cols | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
 | ensure_target_chunk_manifest | #14-1 | 14 Merge From Prepose Graph | `DOC-C14-01` |
 | resolve_chunk_output_dir | #14-1 | 14 Merge From Prepose Graph | `DOC-C14-01` |
 | resolve_chunk_input_dir | #14-1 | 14 Merge From Prepose Graph | `DOC-C14-01` |
@@ -206,141 +205,6 @@
 | repo_url | #5-1 | 5 Install | `DOC-C05-01` |
 | src_root | #5-1 | 5 Install | `DOC-C05-01` |
 | RUNBOOK_CTX_PATH | #6-1 | 6 Shared Helpers | `DOC-C06-01` |
-| ctx_path | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
-| ctx | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
-| manifest_dir | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
-| da3_nested_dir | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
-| world_dir | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
-| final_outputs_dir | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
-| final_outputs_merged_dir | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
-| final_outputs_diagnostics_dir | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
-| final_outputs_manifests_dir | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
-| final_outputs_chunk_evidence_dir | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
-| images_dir | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
-| frame_record_path | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
-| frame_pose_index_path | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
-| repo_root | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
-| repo_url | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
-| src_root | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
-| required_files | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
-| CANONICAL_ORIENTATION_POLICY | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
-| BLUR_THRESHOLD | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
-| missing_required | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
-| manifest_df | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
-| config | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
-| search_roots | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
-| anchor_dir | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
-| manifest_dir | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
-| manifest_df | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
-| intrinsics | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
-| extrinsics_w2c | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
-| c2w | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
-| camera_centers | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
-| right_vecs | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
-| up_vecs | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
-| lens_vecs | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
-| right_vecs | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
-| up_vecs | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
-| lens_vecs | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
-| camera_center_df | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
-| camera_orientation_df | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
-| camera_anchor_full_df | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
-| camera_matrix_full_csv | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
-| camera_center_matrix_csv | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
-| camera_orientation_full_csv | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
-| camera_anchor_full_csv | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
-| config | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| search_roots | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| persist_root | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| anchor_dir | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| anchor_path | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| anchor_df | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| required_cols | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| missing | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| lens | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| up | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| right | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| centers | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| lens | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| up | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| right | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| yaw_deg | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| pitch_deg | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| world_up | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| proj_world_up | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| proj_up | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| proj_world_up | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| proj_up | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| cross_u | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| sign_roll | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| dot_roll | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| roll_deg | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| delta_yaw_deg | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| delta_pitch_deg | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| delta_roll_deg | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| delta_pos | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| delta_lens_angle_deg | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| delta_up_angle_deg | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| delta2_pos | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| delta2_rot | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| anchor_pose_diag_df | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| diag_csv | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| summary | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
-| ctx | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| config | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| probe_root | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| persist_root | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| pipeline_root | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| anchor_dir | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| chunk_manifest_dir | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| chunk_runs_dir | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| final_outputs_chunk_evidence_dir | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| final_outputs_diagnostics_dir | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| matching_dir | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| LOCAL_EXTRINSIC_MODE | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| LOCAL_CAMERA_BASIS | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| TRANSFORM_SCALE_MIN | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| TRANSFORM_SCALE_MAX | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| TRANSFORM_CENTER_RMSE_MAX | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| TRANSFORM_ROT_DIR_MAX | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| chunk_a_frames_path | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| chunk_a_pred_path | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| chunk_b_frames_path | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| chunk_b_pred_path | #7matching-1 | 7matching Overlap Pose Matching | `DOC-C07M-01` |
-| config | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
-| search_roots | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
-| persist_root | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
-| anchor_dir | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
-| diag_path | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
-| df | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
-| MAX_DELTA_POS | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
-| MAX_DELTA_LENS_ANGLE_DEG | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
-| MAX_DELTA_UP_ANGLE_DEG | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
-| MAX_DELTA2_POS | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
-| MAX_DELTA2_ROT | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
-| WARN_ABS_ROLL_CENTERED_DEG | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
-| WARN_PITCH_MIN_DEG | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
-| WARN_PITCH_MAX_DEG | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
-| fail_df | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
-| warn_df | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
-| qc_csv | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
-| fail_csv | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
-| warn_csv | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
-| summary | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
-| config | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
-| search_roots | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
-| persist_root | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
-| anchor_dir | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
-| anchor_csv | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
-| df | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
-| lens_cols | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
-| plotly_html | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
-| plotly_png | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
-| centers | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
-| bbox_min | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
-| bbox_max | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
-| diag | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
-| arrow_scale | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
 | ctx | #9-1 | 9 Record Manifest And Chunk Plan | `DOC-C09-01` |
 | images_dir | #9-1 | 9 Record Manifest And Chunk Plan | `DOC-C09-01` |
 | frame_record_path | #9-1 | 9 Record Manifest And Chunk Plan | `DOC-C09-01` |
@@ -535,112 +399,273 @@
 | image_path_col | #11-4 | 11 Run Preparation | `DOC-C11-04` |
 | missing_images | #11-4 | 11 Run Preparation | `DOC-C11-04` |
 | preflight | #11-4 | 11 Run Preparation | `DOC-C11-04` |
-| ctx | #12-1 | 12 Chunk DA3 Prepose Build | `DOC-C12-01` |
-| probe_root | #12-1 | 12 Chunk DA3 Prepose Build | `DOC-C12-01` |
-| pipeline_root | #12-1 | 12 Chunk DA3 Prepose Build | `DOC-C12-01` |
-| chunk_manifest_dir | #12-1 | 12 Chunk DA3 Prepose Build | `DOC-C12-01` |
-| chunk_runs_dir | #12-1 | 12 Chunk DA3 Prepose Build | `DOC-C12-01` |
-| final_outputs_diagnostics_dir | #12-1 | 12 Chunk DA3 Prepose Build | `DOC-C12-01` |
-| execution_chunks_path | #12-1 | 12 Chunk DA3 Prepose Build | `DOC-C12-01` |
-| execution_batch_plan_path | #12-1 | 12 Chunk DA3 Prepose Build | `DOC-C12-01` |
-| execution_chunks_df | #12-1 | 12 Chunk DA3 Prepose Build | `DOC-C12-01` |
-| execution_batch_plan_df | #12-1 | 12 Chunk DA3 Prepose Build | `DOC-C12-01` |
-| batch_execution_items_df | #12-1 | 12 Chunk DA3 Prepose Build | `DOC-C12-01` |
-| batch_execution_items_path | #12-1 | 12 Chunk DA3 Prepose Build | `DOC-C12-01` |
-| batch_manifest_rows | #12-1 | 12 Chunk DA3 Prepose Build | `DOC-C12-01` |
-| batch_manifests_df | #12-1 | 12 Chunk DA3 Prepose Build | `DOC-C12-01` |
-| batch_manifests_path | #12-1 | 12 Chunk DA3 Prepose Build | `DOC-C12-01` |
-| summary | #12-1 | 12 Chunk DA3 Prepose Build | `DOC-C12-01` |
-| REPO_ROOT | #12-2 | 12 Chunk DA3 Prepose Build | `DOC-C12-02` |
-| SRC_ROOT | #12-2 | 12 Chunk DA3 Prepose Build | `DOC-C12-02` |
-| ctx | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| probe_root | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| pipeline_root | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| chunk_manifest_dir | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| chunk_runs_dir | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| final_outputs_diagnostics_dir | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| wrapper_path | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| batch_execution_items_path | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| items_df | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| config_snapshot | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| DRY_RUN | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| DEVICE | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| MODEL_ID | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| PROCESS_RES | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| PROCESS_RES_METHOD | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| EXPORT_FORMAT | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| ALIGN_TO_INPUT_EXT_SCALE | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| INFER_GS | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| SHOW_CAMERAS | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| CONF_THRESH_PERCENTILE | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| NUM_MAX_POINTS | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| SKIP_ALREADY_SUCCESS | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| required_cols | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| missing_cols | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| rows | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| run_df | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| run_csv | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
-| summary | #12-3 | 12 Chunk DA3 Prepose Build | `DOC-C12-03` |
+| ctx | #11-5 | 11 Run Preparation | `DOC-C12-01` |
+| probe_root | #11-5 | 11 Run Preparation | `DOC-C12-01` |
+| pipeline_root | #11-5 | 11 Run Preparation | `DOC-C12-01` |
+| chunk_manifest_dir | #11-5 | 11 Run Preparation | `DOC-C12-01` |
+| chunk_runs_dir | #11-5 | 11 Run Preparation | `DOC-C12-01` |
+| final_outputs_diagnostics_dir | #11-5 | 11 Run Preparation | `DOC-C12-01` |
+| execution_chunks_path | #11-5 | 11 Run Preparation | `DOC-C12-01` |
+| execution_batch_plan_path | #11-5 | 11 Run Preparation | `DOC-C12-01` |
+| execution_chunks_df | #11-5 | 11 Run Preparation | `DOC-C12-01` |
+| execution_batch_plan_df | #11-5 | 11 Run Preparation | `DOC-C12-01` |
+| batch_execution_items_df | #11-5 | 11 Run Preparation | `DOC-C12-01` |
+| batch_execution_items_path | #11-5 | 11 Run Preparation | `DOC-C12-01` |
+| batch_manifest_rows | #11-5 | 11 Run Preparation | `DOC-C12-01` |
+| batch_manifests_df | #11-5 | 11 Run Preparation | `DOC-C12-01` |
+| batch_manifests_path | #11-5 | 11 Run Preparation | `DOC-C12-01` |
+| summary | #11-5 | 11 Run Preparation | `DOC-C12-01` |
+| ctx_path | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
+| ctx | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
+| manifest_dir | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
+| da3_nested_dir | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
+| world_dir | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
+| final_outputs_dir | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
+| final_outputs_merged_dir | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
+| final_outputs_diagnostics_dir | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
+| final_outputs_manifests_dir | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
+| final_outputs_chunk_evidence_dir | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
+| images_dir | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
+| frame_record_path | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
+| frame_pose_index_path | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
+| repo_root | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
+| repo_url | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
+| src_root | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
+| required_files | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
+| CANONICAL_ORIENTATION_POLICY | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
+| BLUR_THRESHOLD | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
+| missing_required | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
+| manifest_df | #7-1 | 7 Full Prepose Build | `DOC-C07-01` |
+| config | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
+| search_roots | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
+| anchor_dir | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
+| manifest_dir | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
+| manifest_df | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
+| intrinsics | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
+| extrinsics_w2c | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
+| c2w | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
+| camera_centers | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
+| right_vecs | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
+| up_vecs | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
+| lens_vecs | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
+| right_vecs | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
+| up_vecs | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
+| lens_vecs | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
+| camera_center_df | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
+| camera_orientation_df | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
+| camera_anchor_full_df | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
+| camera_matrix_full_csv | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
+| camera_center_matrix_csv | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
+| camera_orientation_full_csv | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
+| camera_anchor_full_csv | #7-2 | 7 Full Prepose Build | `DOC-C07-02` |
+| config | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| search_roots | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| persist_root | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| anchor_dir | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| anchor_path | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| anchor_df | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| required_cols | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| missing | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| lens | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| up | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| right | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| centers | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| lens | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| up | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| right | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| yaw_deg | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| pitch_deg | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| world_up | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| proj_world_up | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| proj_up | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| proj_world_up | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| proj_up | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| cross_u | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| sign_roll | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| dot_roll | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| roll_deg | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| delta_yaw_deg | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| delta_pitch_deg | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| delta_roll_deg | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| delta_pos | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| delta_lens_angle_deg | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| delta_up_angle_deg | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| delta2_pos | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| delta2_rot | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| anchor_pose_diag_df | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| diag_csv | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| summary | #7-3 | 7 Full Prepose Build | `DOC-C07-03` |
+| REPO_ROOT | #7-4 | 7 Full Prepose Build | `DOC-C12-02` |
+| SRC_ROOT | #7-4 | 7 Full Prepose Build | `DOC-C12-02` |
+| ctx | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| probe_root | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| pipeline_root | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| chunk_manifest_dir | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| chunk_runs_dir | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| final_outputs_diagnostics_dir | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| wrapper_path | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| batch_execution_items_path | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| items_df | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| config_snapshot | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| DRY_RUN | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| DEVICE | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| MODEL_ID | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| PROCESS_RES | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| PROCESS_RES_METHOD | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| EXPORT_FORMAT | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| ALIGN_TO_INPUT_EXT_SCALE | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| INFER_GS | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| SHOW_CAMERAS | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| CONF_THRESH_PERCENTILE | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| NUM_MAX_POINTS | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| SKIP_ALREADY_SUCCESS | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| required_cols | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| missing_cols | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| rows | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| run_df | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| run_csv | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| summary | #7-5 | 7 Full Prepose Build | `DOC-C12-03` |
+| ctx | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| config | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| probe_root | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| persist_root | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| pipeline_root | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| anchor_dir | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| chunk_manifest_dir | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| chunk_runs_dir | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| final_outputs_chunk_evidence_dir | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| final_outputs_diagnostics_dir | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| matching_dir | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| LOCAL_EXTRINSIC_MODE | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| LOCAL_CAMERA_BASIS | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| TRANSFORM_SCALE_MIN | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| TRANSFORM_SCALE_MAX | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| TRANSFORM_CENTER_RMSE_MAX | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| TRANSFORM_ROT_DIR_MAX | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| chunk_a_frames_path | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| chunk_a_pred_path | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| chunk_b_frames_path | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| chunk_b_pred_path | #7-6 | 7 Full Prepose Build | `DOC-C07M-01` |
+| ctx | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| probe_root | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| persist_root | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| pipeline_root | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| chunk_manifest_dir | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| chunk_runs_dir | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| merged_dir | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| final_outputs_diagnostics_dir | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| anchor_dir | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| camera_anchor_full_path | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| batch_execution_items_path | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| items_df | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| sort_cols | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| anchor_full_df | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| required_anchor_cols | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| missing_anchor_cols | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| ROUTE_ARCORE | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| ROUTE_DA3 | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| PREFERRED_ROUTE_LABEL | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| LOCAL_EXTRINSIC_MODE | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| LOCAL_CAMERA_BASIS | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| PREMERGE_CENTER_ERROR_P95_MAX | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| PREMERGE_LENS_ERROR_DEG_P95_MAX | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| PREMERGE_DELTA_CENTER_ERROR_MAX | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| PREMERGE_DELTA_LENS_ERROR_DEG_MAX | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| TRANSFORM_SCALE_MIN | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| TRANSFORM_SCALE_MAX | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| TRANSFORM_CENTER_RMSE_MAX | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| TRANSFORM_ROT_DIR_MAX | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| route_world_pose_map | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| candidate_rows | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| selected_rows | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| graph_solution_rows | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| graph_edge_rows | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| residual_frames | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| missing_pred_chunks | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| previous_selected_chunk_name | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| previous_selected_T | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| candidate_df | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| route_compare_csv | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| residual_df | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| residual_csv | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| missing_pred_df | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| missing_pred_csv | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| validation_df | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| validation_csv | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| gate_csv | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| graph_solution_df | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| graph_solution_csv | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| graph_edges_df | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| graph_edges_csv | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| validation_json | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| route_compare_json | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| graph_summary_json | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| hard_fail_df | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| route_counts | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| fallback_count | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| route_compare_summary | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| graph_summary | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| summary | #7-7 | 7 Full Prepose Build | `DOC-C07-07` |
+| config | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
+| search_roots | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
+| persist_root | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
+| anchor_dir | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
+| diag_path | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
+| df | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
+| MAX_DELTA_POS | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
+| MAX_DELTA_LENS_ANGLE_DEG | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
+| MAX_DELTA_UP_ANGLE_DEG | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
+| MAX_DELTA2_POS | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
+| MAX_DELTA2_ROT | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
+| WARN_ABS_ROLL_CENTERED_DEG | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
+| WARN_PITCH_MIN_DEG | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
+| WARN_PITCH_MAX_DEG | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
+| fail_df | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
+| warn_df | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
+| qc_csv | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
+| fail_csv | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
+| warn_csv | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
+| summary | #8-1 | 8 Anchor QC And Plot | `DOC-C08-01` |
+| config | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
+| search_roots | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
+| persist_root | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
+| anchor_dir | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
+| anchor_csv | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
+| df | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
+| lens_cols | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
+| plotly_html | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
+| plotly_png | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
+| centers | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
+| bbox_min | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
+| bbox_max | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
+| diag | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
+| arrow_scale | #8-2 | 8 Anchor QC And Plot | `DOC-C08-02` |
 | ctx | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
 | probe_root | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| persist_root | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
 | pipeline_root | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
 | chunk_manifest_dir | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| chunk_runs_dir | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
 | merged_dir | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
 | final_outputs_diagnostics_dir | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| anchor_dir | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| camera_anchor_full_path | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| batch_execution_items_path | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| items_df | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| sort_cols | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| anchor_full_df | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| required_anchor_cols | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| missing_anchor_cols | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| ROUTE_ARCORE | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| ROUTE_DA3 | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| PREFERRED_ROUTE_LABEL | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| LOCAL_EXTRINSIC_MODE | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| LOCAL_CAMERA_BASIS | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| PREMERGE_CENTER_ERROR_P95_MAX | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| PREMERGE_LENS_ERROR_DEG_P95_MAX | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| PREMERGE_DELTA_CENTER_ERROR_MAX | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| PREMERGE_DELTA_LENS_ERROR_DEG_MAX | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| TRANSFORM_SCALE_MIN | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| TRANSFORM_SCALE_MAX | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| TRANSFORM_CENTER_RMSE_MAX | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| TRANSFORM_ROT_DIR_MAX | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| route_world_pose_map | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| candidate_rows | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| selected_rows | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| graph_solution_rows | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| graph_edge_rows | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| residual_frames | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| missing_pred_chunks | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| previous_selected_chunk_name | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| previous_selected_T | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| candidate_df | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| route_compare_csv | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| residual_df | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| residual_csv | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| missing_pred_df | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| missing_pred_csv | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| validation_df | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| validation_csv | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| gate_csv | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| graph_solution_df | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| graph_solution_csv | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| graph_edges_df | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| graph_edges_csv | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
 | validation_json | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
 | route_compare_json | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
+| route_compare_csv | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
+| graph_solution_csv | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
+| graph_edges_csv | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
 | graph_summary_json | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| hard_fail_df | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| route_counts | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| fallback_count | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
+| batch_execution_items_path | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
+| required_paths | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
+| missing_paths | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
+| validation | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
 | route_compare_summary | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
 | graph_summary | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
-| summary | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
+| validation_df | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
+| route_compare_df | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
+| graph_edges_df | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
+| status | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
+| selected_route_counts | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
+| preferred_route_label | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
+| preferred_fallback_used_count | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
+| review_summary | #13-1 | 13 Prepose Graph Judge | `DOC-C13-01` |
 | missing_merge_deps | #14-1 | 14 Merge From Prepose Graph | `DOC-C14-01` |
 | batch_preflight_status_path | #14-1 | 14 Merge From Prepose Graph | `DOC-C14-01` |
 | ctx | #14-1 | 14 Merge From Prepose Graph | `DOC-C14-01` |

@@ -504,12 +504,12 @@ print("inference_sig", inspect.signature(DepthAnything3.inference))
 
 #No: #6-1
 前: #5-1
-次: #7-1..#7-3
+次: #9-1..#9-5
 
 # 6 Shared Helpers
 
 この markdown cell は `#6-1` の共通 helper を説明する。
-`load_ctx`、JSON I/O、sequence 付番、pose / intrinsics / anchor basis の共通契約をここで定義し、`#7-1..#7-3` 以降が同じ参照面を使う。
+`load_ctx`、JSON I/O、sequence 付番、pose / intrinsics / anchor basis の共通契約をここで定義し、chunk plan の `#9-1..#9-5` と full prepose build の `#7-1..#7-7` が同じ参照面を使う。
 
 ```python
 #6-1
@@ -623,1768 +623,14 @@ def summarize_relative_transform(parent_T: np.ndarray | None, child_T: np.ndarra
     }
 ```
 
-#No: #7-1..#7-3
-前: #6-1
-次: #7matching-1
-
-# 7 Full Prepose Build
-
-この markdown cell は `#7-1..#7-3` の full prepose 構築を説明する。
-full sequence の canonical camera table、`camera_matrix_full_arc.csv`、`camera_anchor_full_arc.csv`、pose continuity diagnostics を生成し、chunk-local `DA3 NGL` pose、prepose graph judge、後続 merge の参照基準を作る。
-ここで作るのは full-sequence 側の canonical prepose 面であり、各 chunk の `DA3 NGL` 推定 pose 自体は `#12-1..#12-3` で作る。`#7` はその後段が迷わないように world 基準、camera basis、diagnostics 基準面を固定する役を持つ。
-2 chunk の overlap pose を同じ座標系へそろえる事前 matching は直後の `#7matching-1` が担う。`#13-1` はその matching 結果と full-sequence 側基準を使って graph judge を行う。
-
-```python
-#7-1
-from pathlib import Path
-import csv
-import json
-import subprocess
-
-import imageio.v3 as iio
-import numpy as np
-import pandas as pd
-from PIL import Image
-
-ctx_path = Path("/content/runbook_session_context.json")
-assert ctx_path.exists(), ctx_path
-ctx = json.loads(ctx_path.read_text(encoding="utf-8"))
-manifest_dir = Path(ctx["manifest_dir"])
-da3_nested_dir = Path(ctx["da3_nested_dir"])
-world_dir = Path(ctx["world_dir"])
-final_outputs_dir = Path(ctx["final_outputs_dir"])
-final_outputs_merged_dir = Path(ctx["final_outputs_merged_dir"])
-final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
-final_outputs_manifests_dir = Path(ctx["final_outputs_manifests_dir"])
-final_outputs_chunk_evidence_dir = Path(ctx["final_outputs_chunk_evidence_dir"])
-images_dir = Path(ctx["images_dir"])
-frame_record_path = Path(ctx["frame_record_path"])
-frame_pose_index_path = Path(ctx["frame_pose_index_path"])
-
-repo_root = Path("/content/Depth-Anything-3")
-repo_url = "https://github.com/ByteDance-Seed/Depth-Anything-3.git"
-src_root = repo_root / "src"
-if not repo_root.exists():
-    print("Depth-Anything-3 repo not found. Cloning automatically...")
-    subprocess.run(["git", "clone", "--depth", "1", repo_url, str(repo_root)], check=True)
-assert repo_root.exists(), repo_root
-assert src_root.exists(), src_root
-assert (src_root / "depth_anything_3" / "api.py").exists(), src_root / "depth_anything_3" / "api.py"
-
-for p in [manifest_dir, da3_nested_dir, world_dir, final_outputs_dir, final_outputs_merged_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir, final_outputs_chunk_evidence_dir]:
-    p.mkdir(parents=True, exist_ok=True)
-
-required_files = {
-    "input_manifest": manifest_dir / "da3_input_manifest.csv",
-    "intrinsics": manifest_dir / "intrinsics.npy",
-    "extrinsics": manifest_dir / "extrinsics_w2c_arc.npy",
-}
-
-CANONICAL_ORIENTATION_POLICY = "upright_rot90cw_from_correcting"
-BLUR_THRESHOLD = 8.0
-
-def build_anchor_inputs_from_zip():
-    assert frame_record_path.exists(), {"frame_record_path": str(frame_record_path)}
-    with frame_record_path.open("r", encoding="utf-8") as f:
-        frame_records = [json.loads(line) for line in f if line.strip()]
-    assert len(frame_records) > 0, "frame_record.jsonl empty"
-
-    frame_pose_df = pd.read_csv(frame_pose_index_path) if frame_pose_index_path.exists() else pd.DataFrame()
-    image_name_by_record_index = {}
-    if len(frame_pose_df) > 0:
-        image_name_col = next((c for c in ["image_file_name", "imageFileName", "frame_name"] if c in frame_pose_df.columns), None)
-        record_index_col = next((c for c in ["pose_record_index", "record_index"] if c in frame_pose_df.columns), None)
-        if image_name_col is not None and record_index_col is not None:
-            tmp = frame_pose_df[[record_index_col, image_name_col]].copy().dropna()
-            tmp[image_name_col] = tmp[image_name_col].astype(str).str.strip()
-            tmp = tmp.loc[tmp[image_name_col] != ""]
-            image_name_by_record_index = {
-                int(getattr(row, record_index_col)): getattr(row, image_name_col)
-                for row in tmp.itertuples(index=False)
-            }
-        elif "frame_index" in frame_pose_df.columns:
-            sorted_image_names = sorted([
-                *[p.name for p in images_dir.glob("*.jpg")], *[p.name for p in images_dir.glob("*.jpeg")], *[p.name for p in images_dir.glob("*.png")],
-                *[p.name for p in images_dir.glob("*.JPG")], *[p.name for p in images_dir.glob("*.JPEG")], *[p.name for p in images_dir.glob("*.PNG")],
-            ])
-            record_index_col = next((c for c in ["pose_record_index", "record_index"] if c in frame_pose_df.columns), None)
-            if record_index_col is not None:
-                for row in frame_pose_df.itertuples(index=False):
-                    frame_idx = int(getattr(row, "frame_index"))
-                    if 0 <= frame_idx < len(sorted_image_names):
-                        image_name_by_record_index[int(getattr(row, record_index_col))] = sorted_image_names[frame_idx]
-
-    def ranked_image_dirs(primary_dir: Path, frame_record_path: Path):
-        session_outer = frame_record_path.parent
-        session_root = session_outer / "trajectreview" if (session_outer / "trajectreview").exists() else session_outer
-        candidates = [
-            primary_dir,
-            session_root / "images", session_root / "image",
-            session_outer / "images", session_outer / "image",
-            session_outer / "trajectreview" / "images", session_outer / "trajectreview" / "image",
-        ]
-        ranked, seen = [], set()
-        for p in candidates:
-            key = str(p)
-            if key in seen or not p.exists():
-                continue
-            seen.add(key)
-            image_count = sum(len(list(p.glob(ext))) for ext in ["*.jpg", "*.jpeg", "*.png", "*.JPG", "*.JPEG", "*.PNG"])
-            ranked.append((p, image_count))
-        return sorted(ranked, key=lambda x: (-x[1], len(str(x[0]))))
-
-    def lap_var(image_path: Path) -> float:
-        img = iio.imread(image_path)
-        gray = img[..., :3].mean(axis=2).astype(np.float32) if img.ndim == 3 else img.astype(np.float32)
-        gx = gray[:, 1:] - gray[:, :-1]
-        gy = gray[1:, :] - gray[:-1, :]
-        return float(np.var(gx) + np.var(gy))
-
-    def read_actual_wh(image_path: Path):
-        with Image.open(image_path) as img:
-            width, height = img.size
-        return int(width), int(height)
-
-    def normalize_intrinsics_to_upright(intr, actual_width: int, actual_height: int):
-        fx, fy, cx, cy = intr.get("fx"), intr.get("fy"), intr.get("cx"), intr.get("cy")
-        intr_width, intr_height = intr.get("width"), intr.get("height")
-        if None in [fx, fy, cx, cy, intr_width, intr_height]:
-            return {"intrinsics_case": "missing_intrinsics", "rotation_applied_deg": None, "fx_canonical": None, "fy_canonical": None, "cx_canonical": None, "cy_canonical": None, "width_canonical": None, "height_canonical": None}
-        fx, fy, cx, cy = float(fx), float(fy), float(cx), float(cy)
-        intr_width, intr_height = int(intr_width), int(intr_height)
-        if intr_width == actual_width and intr_height == actual_height:
-            return {"intrinsics_case": "already_upright", "rotation_applied_deg": 0, "fx_canonical": fx, "fy_canonical": fy, "cx_canonical": cx, "cy_canonical": cy, "width_canonical": actual_width, "height_canonical": actual_height}
-        if intr_width == actual_height and intr_height == actual_width:
-            return {"intrinsics_case": "rot90cw_intrinsics_fixed", "rotation_applied_deg": 90, "fx_canonical": fy, "fy_canonical": fx, "cx_canonical": float(intr_height - 1) - cy, "cy_canonical": cx, "width_canonical": actual_width, "height_canonical": actual_height}
-        return {"intrinsics_case": "dimension_mismatch", "rotation_applied_deg": None, "fx_canonical": None, "fy_canonical": None, "cx_canonical": None, "cy_canonical": None, "width_canonical": None, "height_canonical": None}
-
-    image_dir_ranking = ranked_image_dirs(images_dir, frame_record_path)
-    assert len(image_dir_ranking) > 0, {"images_dir": str(images_dir), "frame_record_path": str(frame_record_path)}
-    resolved_images_dir = image_dir_ranking[0][0]
-
-    rows = []
-    for rec in sorted(frame_records, key=lambda x: int(x.get("frameTimestampNs", 0) or 0)):
-        image_name = str(rec.get("imageFileName", "") or "").strip()
-        if not image_name:
-            record_index = rec.get("recordIndex")
-            if record_index is not None:
-                image_name = str(image_name_by_record_index.get(int(record_index), "")).strip()
-        image_path = resolved_images_dir / image_name if image_name else None
-        image_exists = bool(image_name) and image_path.exists()
-        intr = rec.get("imageIntrinsics") or {}
-        pose = rec.get("pose") or {}
-        blur_score = lap_var(image_path) if image_exists else None
-        actual_width = actual_height = None
-        intr_norm = {"intrinsics_case": "image_missing", "rotation_applied_deg": None, "fx_canonical": None, "fy_canonical": None, "cx_canonical": None, "cy_canonical": None, "width_canonical": None, "height_canonical": None}
-        if image_exists:
-            actual_width, actual_height = read_actual_wh(image_path)
-            intr_norm = normalize_intrinsics_to_upright(intr, actual_width, actual_height)
-        rows.append({
-            "session_id": rec.get("sessionId"),
-            "record_index": rec.get("recordIndex"),
-            "frame_timestamp_ns": rec.get("frameTimestampNs"),
-            "capture_timestamp_ns": rec.get("captureTimestampNs"),
-            "tracking_state": rec.get("trackingState"),
-            "image_file_name": image_name,
-            "image_path": str(image_path) if image_path else "",
-            "resolved_images_dir": str(resolved_images_dir),
-            "image_name_source": "frame_record" if str(rec.get("imageFileName", "") or "").strip() else "frame_pose_index_fallback",
-            "image_exists": image_exists,
-            "canonical_orientation_policy": CANONICAL_ORIENTATION_POLICY,
-            "actual_width": actual_width,
-            "actual_height": actual_height,
-            "fx": intr.get("fx"), "fy": intr.get("fy"), "cx": intr.get("cx"), "cy": intr.get("cy"), "width": intr.get("width"), "height": intr.get("height"),
-            **intr_norm,
-            "tx": pose.get("tx"), "ty": pose.get("ty"), "tz": pose.get("tz"),
-            "qx": pose.get("qx"), "qy": pose.get("qy"), "qz": pose.get("qz"), "qw": pose.get("qw"),
-            "blur_score": blur_score,
-        })
-
-    manifest_df = pd.DataFrame(rows)
-    manifest_df.to_csv(manifest_dir / "input_frame_manifest.csv", index=False, encoding="utf-8")
-
-    qc_df = manifest_df.copy()
-    qc_df["qc_tracking_ok"] = qc_df["tracking_state"].fillna("") == "TRACKING"
-    qc_df["qc_image_ok"] = qc_df["image_exists"].fillna(False)
-    qc_df["qc_orientation_ok"] = qc_df["intrinsics_case"].isin(["already_upright", "rot90cw_intrinsics_fixed"])
-    qc_df["qc_intrinsics_ok"] = qc_df[["fx_canonical", "fy_canonical", "cx_canonical", "cy_canonical", "width_canonical", "height_canonical"]].notna().all(axis=1)
-    qc_df["qc_pose_ok"] = qc_df[["tx", "ty", "tz", "qx", "qy", "qz", "qw"]].notna().all(axis=1)
-    qc_df["blur_score"] = pd.to_numeric(qc_df["blur_score"], errors="coerce")
-    qc_df["qc_blur_ok"] = qc_df["blur_score"].fillna(0.0).ge(BLUR_THRESHOLD).infer_objects(copy=False)
-    qc_df["qc_pass"] = qc_df[["qc_tracking_ok", "qc_image_ok", "qc_orientation_ok", "qc_intrinsics_ok", "qc_pose_ok"]].all(axis=1)
-    qc_df["skip_reason"] = ""
-    qc_df.loc[~qc_df["qc_tracking_ok"], "skip_reason"] = "tracking_not_ok"
-    qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_image_ok"], "skip_reason"] = "image_missing"
-    qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_orientation_ok"], "skip_reason"] = "orientation_mismatch"
-    qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_intrinsics_ok"], "skip_reason"] = "intrinsics_missing"
-    qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_pose_ok"], "skip_reason"] = "pose_missing"
-    qc_df.to_csv(manifest_dir / "input_frame_qc.csv", index=False, encoding="utf-8", quoting=csv.QUOTE_MINIMAL)
-
-    def quat_to_rot(qx, qy, qz, qw):
-        xx, yy, zz = qx*qx, qy*qy, qz*qz
-        xy, xz, yz = qx*qy, qx*qz, qy*qz
-        wx, wy, wz = qw*qx, qw*qy, qw*qz
-        return np.array([
-            [1 - 2*(yy + zz), 2*(xy - wz), 2*(xz + wy)],
-            [2*(xy + wz), 1 - 2*(xx + zz), 2*(yz - wx)],
-            [2*(xz - wy), 2*(yz + wx), 1 - 2*(xx + yy)],
-        ], dtype=np.float32)
-
-    def pose_to_w2c(row):
-        R_c2w = quat_to_rot(float(row.qx), float(row.qy), float(row.qz), float(row.qw))
-        t_c2w = np.array([float(row.tx), float(row.ty), float(row.tz)], dtype=np.float32)
-        R_w2c = R_c2w.T
-        t_w2c = -R_w2c @ t_c2w
-        out = np.eye(4, dtype=np.float32)
-        out[:3, :3] = R_w2c
-        out[:3, 3] = t_w2c
-        return out
-
-    def build_K(row):
-        return np.array([
-            [float(row.fx_canonical), 0.0, float(row.cx_canonical)],
-            [0.0, float(row.fy_canonical), float(row.cy_canonical)],
-            [0.0, 0.0, 1.0],
-        ], dtype=np.float32)
-
-    adopt_df = qc_df.loc[qc_df["qc_pass"]].copy().sort_values("frame_timestamp_ns").reset_index(drop=True)
-    if len(adopt_df) < 2:
-        fail_counts = {
-            "frame_record_count": int(len(qc_df)),
-            "qc_pass_count": int(len(adopt_df)),
-            "tracking_not_ok": int((~qc_df["qc_tracking_ok"]).sum()),
-            "image_missing": int((~qc_df["qc_image_ok"]).sum()),
-            "orientation_mismatch": int((~qc_df["qc_orientation_ok"]).sum()),
-            "intrinsics_missing": int((~qc_df["qc_intrinsics_ok"]).sum()),
-            "pose_missing": int((~qc_df["qc_pose_ok"]).sum()),
-            "blur_low_diag_only": int((~qc_df["qc_blur_ok"]).sum()),
-            "skip_reason_counts": qc_df["skip_reason"].value_counts(dropna=False).to_dict(),
-        }
-        (manifest_dir / "qc_failure_summary.json").write_text(json.dumps(fail_counts, indent=2, ensure_ascii=False), encoding="utf-8")
-        raise AssertionError(fail_counts)
-
-    adopted_rows = []
-    last_t = None
-    last_R = None
-    for row in adopt_df.itertuples(index=False):
-        t = np.array([float(row.tx), float(row.ty), float(row.tz)], dtype=np.float32)
-        R = quat_to_rot(float(row.qx), float(row.qy), float(row.qz), float(row.qw))
-        baseline = None if last_t is None else float(np.linalg.norm(t - last_t))
-        rot_delta = None if last_R is None else float(np.degrees(np.arccos(np.clip((np.trace(last_R.T @ R) - 1.0) / 2.0, -1.0, 1.0))))
-        geometric_adopt = last_t is None or (baseline >= 0.05) or (rot_delta is not None and rot_delta >= 3.0)
-        blur_boost = bool(row.qc_blur_ok) if pd.notna(row.qc_blur_ok) else False
-        adopt = geometric_adopt or (last_t is None and blur_boost)
-        adopted_rows.append({
-            **row._asdict(),
-            "baseline_from_prev_adopted_m": baseline,
-            "rotation_from_prev_adopted_deg": rot_delta,
-            "geometric_adopt": geometric_adopt,
-            "anchor_input_adopted": adopt,
-            "anchor_input_skip_reason": "" if adopt else "baseline_small",
-        })
-        if adopt:
-            last_t = t
-            last_R = R
-
-    anchor_input_df = pd.DataFrame(adopted_rows)
-    anchor_input_df.to_csv(manifest_dir / "pose_conversion_check.csv", index=False, encoding="utf-8")
-
-    selected_df = anchor_input_df.loc[anchor_input_df["anchor_input_adopted"]].copy().reset_index(drop=True)
-    assert len(selected_df) >= 2, {"selected_df": len(selected_df)}
-    Ks = np.stack([build_K(row) for row in selected_df.itertuples(index=False)], axis=0)
-    exts = np.stack([pose_to_w2c(row) for row in selected_df.itertuples(index=False)], axis=0)
-    np.save(manifest_dir / "intrinsics.npy", Ks)
-    np.save(manifest_dir / "extrinsics_w2c_arc.npy", exts)
-    selected_df.to_csv(manifest_dir / "da3_input_manifest.csv", index=False, encoding="utf-8")
-
-    k_check = selected_df[[
-        "image_file_name", "canonical_orientation_policy", "intrinsics_case", "rotation_applied_deg", "width", "height",
-        "actual_width", "actual_height", "width_canonical", "height_canonical", "fx", "fy", "cx", "cy",
-        "fx_canonical", "fy_canonical", "cx_canonical", "cy_canonical",
-    ]].copy()
-    k_check["resize_mode"] = "native"
-    k_check.to_csv(manifest_dir / "k_resize_check.csv", index=False, encoding="utf-8")
-
-    orientation_summary = {
-        "canonical_orientation_policy": CANONICAL_ORIENTATION_POLICY,
-        "already_upright_count": int((manifest_df["intrinsics_case"] == "already_upright").sum()),
-        "rot90cw_intrinsics_fixed_count": int((manifest_df["intrinsics_case"] == "rot90cw_intrinsics_fixed").sum()),
-        "dimension_mismatch_count": int((manifest_df["intrinsics_case"] == "dimension_mismatch").sum()),
-        "image_missing_count": int((manifest_df["intrinsics_case"] == "image_missing").sum()),
-    }
-    (manifest_dir / "orientation_summary.json").write_text(json.dumps(orientation_summary, indent=2, ensure_ascii=False), encoding="utf-8")
-
-    summary = {
-        "frame_record_count": int(len(manifest_df)),
-        "qc_pass_count": int(len(adopt_df)),
-        "qc_skip_count": int((~qc_df["qc_pass"]).sum()),
-        "resolved_images_dir": str(resolved_images_dir),
-        "resolved_images_dir_file_count": int(image_dir_ranking[0][1]),
-        "frame_pose_index_path": str(frame_pose_index_path),
-        "frame_pose_fallback_mapping_count": int(len(image_name_by_record_index)),
-        "selected_count": int(len(selected_df)),
-        "canonical_orientation_policy": CANONICAL_ORIENTATION_POLICY,
-        "intrinsics_path": str(manifest_dir / "intrinsics.npy"),
-        "extrinsics_path": str(manifest_dir / "extrinsics_w2c_arc.npy"),
-        "orientation_summary_path": str(manifest_dir / "orientation_summary.json"),
-        "built_from": "zip_frame_record",
-    }
-    extrinsics_source_summary = {
-        "artifact": "extrinsics_w2c_arc.npy",
-        "artifact_path": str(manifest_dir / "extrinsics_w2c_arc.npy"),
-        "generated_by": "build_anchor_inputs_from_zip.pose_to_w2c",
-        "source_record_path": str(frame_record_path),
-        "source_fields": ["pose.tx", "pose.ty", "pose.tz", "pose.qx", "pose.qy", "pose.qz", "pose.qw"],
-        "source_sort_key": "frameTimestampNs",
-        "matrix_space": "world_to_camera",
-        "record_count": int(len(selected_df)),
-    }
-    (manifest_dir / "qc_summary.json").write_text(json.dumps({
-        "frame_record_count": summary["frame_record_count"],
-        "qc_pass_count": summary["qc_pass_count"],
-        "qc_skip_count": summary["qc_skip_count"],
-        "frame_record_path": str(frame_record_path),
-        "images_dir": str(images_dir),
-        "canonical_orientation_policy": CANONICAL_ORIENTATION_POLICY,
-    }, indent=2, ensure_ascii=False), encoding="utf-8")
-    (manifest_dir / "da3_input_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
-    (manifest_dir / "extrinsics_w2c_arc_source_summary.json").write_text(json.dumps(extrinsics_source_summary, indent=2, ensure_ascii=False), encoding="utf-8")
-    return summary
-
-missing_required = {key: str(path) for key, path in required_files.items() if not path.exists()}
-if missing_required:
-    print({"message": "anchor inputs missing; building from zip source", "missing": missing_required})
-    build_summary = build_anchor_inputs_from_zip()
-    print(json.dumps(build_summary, indent=2, ensure_ascii=False))
-
-for key, path in required_files.items():
-    assert path.exists(), {key: str(path)}
-
-manifest_df = pd.read_csv(required_files["input_manifest"])
-assert not manifest_df.empty, "input manifest empty"
-print({
-    "input_manifest": str(required_files["input_manifest"]),
-    "intrinsics": str(required_files["intrinsics"]),
-    "extrinsics": str(required_files["extrinsics"]),
-    "row_count": int(len(manifest_df)),
-})
-display_stage_summary(
-    "7-1",
-    "full anchor input prepare",
-    inputs=[
-        {"item": "frame_record", "path": str(frame_record_path)},
-        {"item": "images_dir", "path": str(images_dir)},
-        {"item": "frame_pose_index", "path": str(frame_pose_index_path)},
-    ],
-    outputs=[
-        {"item": "input_frame_manifest", "path": str(manifest_dir / "input_frame_manifest.csv")},
-        {"item": "input_frame_qc", "path": str(manifest_dir / "input_frame_qc.csv")},
-        {"item": "pose_conversion_check", "path": str(manifest_dir / "pose_conversion_check.csv")},
-        {"item": "da3_input_manifest", "path": str(required_files["input_manifest"])},
-        {"item": "intrinsics", "path": str(required_files["intrinsics"])},
-        {"item": "extrinsics_w2c", "path": str(required_files["extrinsics"])},
-        {"item": "extrinsics_w2c_source_summary", "path": str(manifest_dir / "extrinsics_w2c_arc_source_summary.json")},
-        {"item": "da3_input_summary", "path": str(manifest_dir / "da3_input_summary.json")},
-    ],
-    notes=[
-        {"item": "extrinsics_source_rule", "value": "frame_record pose(tx,ty,tz,qx,qy,qz,qw) を pose_to_w2c で world_to_camera 行列へ変換"},
-    ],
-)
-```
-
-```python
-#7-2
-
-from pathlib import Path
-import json
-import numpy as np
-import pandas as pd
-
-config = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8"))
-
-def _existing(p):
-    if not p:
-        return None
-    p = Path(p)
-    return p if p.exists() else None
-
-def _find_manifest_triplet(search_roots):
-    rels = [
-        ("manifests/da3_input_manifest.csv", "manifests/intrinsics.npy", "manifests/extrinsics_w2c_arc.npy"),
-        ("00_config/da3_input_manifest.csv", "00_config/intrinsics.npy", "00_config/extrinsics_w2c_arc.npy"),
-    ]
-    for root in search_roots:
-        if root is None:
-            continue
-        root = Path(root)
-        if root.is_file():
-            root = root.parent
-        if not root.exists():
-            continue
-
-        # root 自体と配下を少し探索
-        candidate_dirs = [root]
-        candidate_dirs += [p for p in root.glob("*") if p.is_dir()]
-        candidate_dirs += [p for p in root.glob("*/*") if p.is_dir()]
-
-        seen = set()
-        for d in candidate_dirs:
-            d = d.resolve()
-            if str(d) in seen:
-                continue
-            seen.add(str(d))
-            for a, b, c in rels:
-                pa = d / a
-                pb = d / b
-                pc = d / c
-                if pa.exists() and pb.exists() and pc.exists():
-                    return d, pa, pb, pc
-    return None, None, None, None
-
-# まず config から探索起点を集める
-search_roots = [
-    _existing(config.get("persist_root")),
-    _existing(config.get("google_drive_run_root")),
-    _existing(config.get("run_root")),
-    _existing(config.get("persist_dir")),
-    _existing(config.get("output_root")),
-    _existing(config.get("project_root")),
-    _existing(config.get("session_dir")),
-    _existing(config.get("target_probe_root")),
-    _existing(config.get("probe_root")),
-    Path("/content/drive/MyDrive/trajectreview"),
-    Path("/content/drive/MyDrive"),
-]
-
-persist_root, input_manifest_path, intrinsics_path, extrinsics_path = _find_manifest_triplet(search_roots)
-
-assert persist_root is not None, {
-    "error": "manifest triplet not found",
-    "searched_roots": [str(p) for p in search_roots if p is not None],
-    "expected_files": [
-        "manifests/da3_input_manifest.csv",
-        "manifests/intrinsics.npy",
-        "manifests/extrinsics_w2c_arc.npy",
-    ],
-}
-
-anchor_dir = persist_root / "01_anchor"
-manifest_dir = input_manifest_path.parent
-anchor_dir.mkdir(parents=True, exist_ok=True)
-
-manifest_df = pd.read_csv(input_manifest_path)
-intrinsics = np.load(intrinsics_path)
-extrinsics_w2c = np.load(extrinsics_path)
-
-assert len(manifest_df) > 0, "da3_input_manifest.csv is empty"
-assert extrinsics_w2c.ndim == 3 and extrinsics_w2c.shape[1:] == (4, 4), extrinsics_w2c.shape
-assert len(manifest_df) == extrinsics_w2c.shape[0], {
-    "manifest_rows": len(manifest_df),
-    "extrinsics_rows": int(extrinsics_w2c.shape[0]),
-}
-assert intrinsics.ndim == 3 and intrinsics.shape[1:] == (3, 3), intrinsics.shape
-assert intrinsics.shape[0] == len(manifest_df), {
-    "manifest_rows": len(manifest_df),
-    "intrinsics_rows": int(intrinsics.shape[0]),
-}
-
-# c2w
-c2w = np.linalg.inv(extrinsics_w2c)
-
-# camera center / basis
-camera_centers = c2w[:, :3, 3]
-right_vecs = c2w[:, :3, 0]
-up_vecs = c2w[:, :3, 1]
-lens_vecs = -c2w[:, :3, 2]
-
-def _normalize_rows(x: np.ndarray, eps: float = 1e-12) -> np.ndarray:
-    n = np.linalg.norm(x, axis=1, keepdims=True)
-    n = np.maximum(n, eps)
-    return x / n
-
-right_vecs = _normalize_rows(right_vecs)
-up_vecs = _normalize_rows(up_vecs)
-lens_vecs = _normalize_rows(lens_vecs)
-
-# sequence_index
-if "frame_timestamp_ns" in manifest_df.columns:
-    ts_col = "frame_timestamp_ns"
-elif "timestamp_ns" in manifest_df.columns:
-    ts_col = "timestamp_ns"
-elif "timestamp" in manifest_df.columns:
-    ts_col = "timestamp"
-else:
-    ts_col = None
-
-if "sequence_index" not in manifest_df.columns:
-    if ts_col is not None:
-        manifest_df = manifest_df.sort_values(ts_col, kind="stable").reset_index(drop=True)
-    else:
-        manifest_df = manifest_df.reset_index(drop=True)
-    manifest_df["sequence_index"] = np.arange(len(manifest_df), dtype=np.int64)
-else:
-    manifest_df = manifest_df.sort_values("sequence_index", kind="stable").reset_index(drop=True)
-
-camera_center_df = pd.DataFrame({
-    "record_index": manifest_df["record_index"].astype(int),
-    "sequence_index": manifest_df["sequence_index"].astype(int),
-    "cam_cx": camera_centers[:, 0],
-    "cam_cy": camera_centers[:, 1],
-    "cam_cz": camera_centers[:, 2],
-    "cx_world": camera_centers[:, 0],
-    "cy_world": camera_centers[:, 1],
-    "cz_world": camera_centers[:, 2],
-})
-
-camera_orientation_df = pd.DataFrame({
-    "record_index": manifest_df["record_index"].astype(int),
-    "sequence_index": manifest_df["sequence_index"].astype(int),
-    "right_x": right_vecs[:, 0],
-    "right_y": right_vecs[:, 1],
-    "right_z": right_vecs[:, 2],
-    "up_x": up_vecs[:, 0],
-    "up_y": up_vecs[:, 1],
-    "up_z": up_vecs[:, 2],
-    "lens_x": lens_vecs[:, 0],
-    "lens_y": lens_vecs[:, 1],
-    "lens_z": lens_vecs[:, 2],
-})
-
-camera_anchor_full_df = manifest_df.copy()
-camera_anchor_full_df["cam_cx"] = camera_centers[:, 0]
-camera_anchor_full_df["cam_cy"] = camera_centers[:, 1]
-camera_anchor_full_df["cam_cz"] = camera_centers[:, 2]
-camera_anchor_full_df["cx_world"] = camera_centers[:, 0]
-camera_anchor_full_df["cy_world"] = camera_centers[:, 1]
-camera_anchor_full_df["cz_world"] = camera_centers[:, 2]
-camera_anchor_full_df["right_x"] = right_vecs[:, 0]
-camera_anchor_full_df["right_y"] = right_vecs[:, 1]
-camera_anchor_full_df["right_z"] = right_vecs[:, 2]
-camera_anchor_full_df["up_x"] = up_vecs[:, 0]
-camera_anchor_full_df["up_y"] = up_vecs[:, 1]
-camera_anchor_full_df["up_z"] = up_vecs[:, 2]
-camera_anchor_full_df["anchor_up_x"] = up_vecs[:, 0]
-camera_anchor_full_df["anchor_up_y"] = up_vecs[:, 1]
-camera_anchor_full_df["anchor_up_z"] = up_vecs[:, 2]
-camera_anchor_full_df["lens_x"] = lens_vecs[:, 0]
-camera_anchor_full_df["lens_y"] = lens_vecs[:, 1]
-camera_anchor_full_df["lens_z"] = lens_vecs[:, 2]
-camera_anchor_full_df["anchor_lens_x"] = lens_vecs[:, 0]
-camera_anchor_full_df["anchor_lens_y"] = lens_vecs[:, 1]
-camera_anchor_full_df["anchor_lens_z"] = lens_vecs[:, 2]
-
-camera_matrix_full_csv = anchor_dir / "camera_matrix_full_arc.csv"
-camera_center_matrix_csv = anchor_dir / "camera_center_matrix_arc.csv"
-camera_orientation_full_csv = anchor_dir / "camera_orientation_full_arc.csv"
-camera_anchor_full_csv = anchor_dir / "camera_anchor_full_arc.csv"
-
-pd.DataFrame(
-    extrinsics_w2c.reshape(extrinsics_w2c.shape[0], -1),
-    columns=[f"w2c_{r}{c}" for r in range(4) for c in range(4)]
-).assign(
-    record_index=manifest_df["record_index"].astype(int),
-    sequence_index=manifest_df["sequence_index"].astype(int),
-).to_csv(camera_matrix_full_csv, index=False)
-
-camera_center_df.to_csv(camera_center_matrix_csv, index=False)
-camera_orientation_df.to_csv(camera_orientation_full_csv, index=False)
-camera_anchor_full_df.to_csv(camera_anchor_full_csv, index=False)
-
-np.save(anchor_dir / "extrinsics_w2c_arc.npy", extrinsics_w2c)
-np.save(anchor_dir / "intrinsics.npy", intrinsics)
-np.save(anchor_dir / "c2w_arc.npy", c2w)
-
-print({
-    "persist_root": str(persist_root),
-    "manifest_dir": str(manifest_dir),
-    "rows": len(manifest_df),
-    "camera_matrix_full_csv": str(camera_matrix_full_csv),
-    "camera_center_matrix_csv": str(camera_center_matrix_csv),
-    "camera_orientation_full_csv": str(camera_orientation_full_csv),
-    "camera_anchor_full_csv": str(camera_anchor_full_csv),
-})
-display_stage_summary(
-    "7-2",
-    "full anchor build",
-    inputs=[
-        {"item": "da3_input_manifest", "path": str(input_manifest_path)},
-        {"item": "intrinsics", "path": str(intrinsics_path)},
-        {"item": "extrinsics_w2c", "path": str(extrinsics_path)},
-        {"item": "extrinsics_w2c_source_summary", "path": str(manifest_dir / "extrinsics_w2c_arc_source_summary.json")},
-    ],
-    outputs=[
-        {"item": "camera_matrix_full", "path": str(camera_matrix_full_csv)},
-        {"item": "camera_center_matrix", "path": str(camera_center_matrix_csv)},
-        {"item": "camera_orientation_full", "path": str(camera_orientation_full_csv)},
-        {"item": "camera_anchor_full", "path": str(camera_anchor_full_csv)},
-        {"item": "anchor_extrinsics_w2c", "path": str(anchor_dir / "extrinsics_w2c_arc.npy")},
-        {"item": "anchor_intrinsics", "path": str(anchor_dir / "intrinsics.npy")},
-        {"item": "anchor_c2w", "path": str(anchor_dir / "c2w_arc.npy")},
-    ],
-    notes=[
-        {"item": "row_count", "value": int(len(manifest_df))},
-        {"item": "matrix_source", "value": "manifests/extrinsics_w2c_arc.npy を c2w へ反転し basis / center を再構成"},
-    ],
-)
-```
-
-```python
-#7-3
-
-from pathlib import Path
-import json
-import numpy as np
-import pandas as pd
-
-config = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8"))
-
-def _existing(p):
-    if not p:
-        return None
-    p = Path(p)
-    return p if p.exists() else None
-
-def _find_anchor_root(search_roots):
-    rels = [
-        "01_anchor/camera_anchor_full_arc.csv",
-        "01_anchor/camera_center_matrix_arc.csv",
-        "01_anchor/camera_orientation_full_arc.csv",
-    ]
-    for root in search_roots:
-        if root is None:
-            continue
-        root = Path(root)
-        if root.is_file():
-            root = root.parent
-        if not root.exists():
-            continue
-
-        candidate_dirs = [root]
-        candidate_dirs += [p for p in root.glob("*") if p.is_dir()]
-        candidate_dirs += [p for p in root.glob("*/*") if p.is_dir()]
-
-        seen = set()
-        for d in candidate_dirs:
-            d = d.resolve()
-            if str(d) in seen:
-                continue
-            seen.add(str(d))
-            if all((d / rel).exists() for rel in rels):
-                return d
-    return None
-
-search_roots = [
-    _existing(config.get("persist_root")),
-    _existing(config.get("google_drive_run_root")),
-    _existing(config.get("run_root")),
-    _existing(config.get("persist_dir")),
-    _existing(config.get("output_root")),
-    _existing(config.get("project_root")),
-    _existing(config.get("session_dir")),
-    _existing(config.get("target_probe_root")),
-    _existing(config.get("probe_root")),
-    Path("/content/drive/MyDrive/trajectreview"),
-    Path("/content/drive/MyDrive"),
-]
-
-persist_root = _find_anchor_root(search_roots)
-assert persist_root is not None, {
-    "error": "01_anchor not found",
-    "searched_roots": [str(p) for p in search_roots if p is not None],
-    "expected": "01_anchor/camera_anchor_full_arc.csv",
-}
-
-anchor_dir = persist_root / "01_anchor"
-anchor_path = anchor_dir / "camera_anchor_full_arc.csv"
-anchor_df = pd.read_csv(anchor_path)
-
-assert not anchor_df.empty, anchor_path
-
-# sequence_index を保証
-if "sequence_index" not in anchor_df.columns:
-    if "frame_timestamp_ns" in anchor_df.columns:
-        anchor_df = anchor_df.sort_values("frame_timestamp_ns", kind="stable").reset_index(drop=True)
-    elif "timestamp_ns" in anchor_df.columns:
-        anchor_df = anchor_df.sort_values("timestamp_ns", kind="stable").reset_index(drop=True)
-    elif "timestamp" in anchor_df.columns:
-        anchor_df = anchor_df.sort_values("timestamp", kind="stable").reset_index(drop=True)
-    else:
-        anchor_df = anchor_df.reset_index(drop=True)
-    anchor_df["sequence_index"] = np.arange(len(anchor_df), dtype=np.int64)
-else:
-    anchor_df = anchor_df.sort_values("sequence_index", kind="stable").reset_index(drop=True)
-
-required_cols = [
-    "right_x","right_y","right_z",
-    "up_x","up_y","up_z",
-    "lens_x","lens_y","lens_z",
-    "cam_cx","cam_cy","cam_cz",
-]
-missing = [c for c in required_cols if c not in anchor_df.columns]
-assert not missing, {"missing_columns": missing, "anchor_path": str(anchor_path)}
-
-def _normalize(v, eps=1e-12):
-    n = np.linalg.norm(v, axis=1, keepdims=True)
-    n = np.maximum(n, eps)
-    return v / n
-
-def _wrap_deg(x):
-    return (x + 180.0) % 360.0 - 180.0
-
-def _angle_deg(a, b, eps=1e-12):
-    a = _normalize(a, eps)
-    b = _normalize(b, eps)
-    d = np.sum(a * b, axis=1)
-    d = np.clip(d, -1.0, 1.0)
-    return np.degrees(np.arccos(d))
-
-# world basis: x right, y up, z forward を仮定
-# lens = camera forward in world
-# yaw   = atan2(fx, fz)
-# pitch = atan2(-fy, sqrt(fx^2 + fz^2))
-# roll  = up ベクトルの傾きから近似導出
-lens = anchor_df[["lens_x","lens_y","lens_z"]].to_numpy(dtype=float)
-up   = anchor_df[["up_x","up_y","up_z"]].to_numpy(dtype=float)
-right = anchor_df[["right_x","right_y","right_z"]].to_numpy(dtype=float)
-centers = anchor_df[["cam_cx","cam_cy","cam_cz"]].to_numpy(dtype=float)
-
-lens = _normalize(lens)
-up = _normalize(up)
-right = _normalize(right)
-
-fx, fy, fz = lens[:, 0], lens[:, 1], lens[:, 2]
-ux, uy, uz = up[:, 0], up[:, 1], up[:, 2]
-
-yaw_deg = np.degrees(np.arctan2(fx, fz))
-pitch_deg = np.degrees(np.arctan2(-fy, np.sqrt(np.maximum(fx * fx + fz * fz, 1e-12))))
-
-# roll 近似:
-# forward を固定したときの up の回転を world-up 基準で表す
-world_up = np.tile(np.array([[0.0, 1.0, 0.0]]), (len(anchor_df), 1))
-proj_world_up = world_up - np.sum(world_up * lens, axis=1, keepdims=True) * lens
-proj_up = up - np.sum(up * lens, axis=1, keepdims=True) * lens
-proj_world_up = _normalize(proj_world_up)
-proj_up = _normalize(proj_up)
-
-cross_u = np.cross(proj_world_up, proj_up)
-sign_roll = np.sign(np.sum(cross_u * lens, axis=1))
-dot_roll = np.clip(np.sum(proj_world_up * proj_up, axis=1), -1.0, 1.0)
-roll_deg = np.degrees(np.arccos(dot_roll)) * sign_roll
-
-# 連続性
-delta_yaw_deg = np.zeros(len(anchor_df), dtype=float)
-delta_pitch_deg = np.zeros(len(anchor_df), dtype=float)
-delta_roll_deg = np.zeros(len(anchor_df), dtype=float)
-delta_pos = np.zeros(len(anchor_df), dtype=float)
-delta_lens_angle_deg = np.zeros(len(anchor_df), dtype=float)
-delta_up_angle_deg = np.zeros(len(anchor_df), dtype=float)
-
-if len(anchor_df) >= 2:
-    delta_yaw_deg[1:] = _wrap_deg(np.diff(yaw_deg))
-    delta_pitch_deg[1:] = np.diff(pitch_deg)
-    delta_roll_deg[1:] = _wrap_deg(np.diff(roll_deg))
-    delta_pos[1:] = np.linalg.norm(np.diff(centers, axis=0), axis=1)
-    delta_lens_angle_deg[1:] = _angle_deg(lens[:-1], lens[1:])
-    delta_up_angle_deg[1:] = _angle_deg(up[:-1], up[1:])
-
-delta2_pos = np.zeros(len(anchor_df), dtype=float)
-delta2_rot = np.zeros(len(anchor_df), dtype=float)
-if len(anchor_df) >= 3:
-    delta2_pos[2:] = np.linalg.norm(centers[2:] - 2.0 * centers[1:-1] + centers[:-2], axis=1)
-    delta2_rot[2:] = np.sqrt(
-        (delta_yaw_deg[2:] - delta_yaw_deg[1:-1]) ** 2 +
-        (delta_pitch_deg[2:] - delta_pitch_deg[1:-1]) ** 2 +
-        (delta_roll_deg[2:] - delta_roll_deg[1:-1]) ** 2
-    )
-
-anchor_pose_diag_df = anchor_df.copy()
-anchor_pose_diag_df["yaw_deg"] = yaw_deg
-anchor_pose_diag_df["pitch_deg"] = pitch_deg
-anchor_pose_diag_df["roll_deg"] = roll_deg
-anchor_pose_diag_df["delta_yaw_deg"] = delta_yaw_deg
-anchor_pose_diag_df["delta_pitch_deg"] = delta_pitch_deg
-anchor_pose_diag_df["delta_roll_deg"] = delta_roll_deg
-anchor_pose_diag_df["delta_pos"] = delta_pos
-anchor_pose_diag_df["delta_lens_angle_deg"] = delta_lens_angle_deg
-anchor_pose_diag_df["delta_up_angle_deg"] = delta_up_angle_deg
-anchor_pose_diag_df["delta2_pos"] = delta2_pos
-anchor_pose_diag_df["delta2_rot"] = delta2_rot
-
-# prev / next
-anchor_pose_diag_df["prev_sequence_index"] = anchor_pose_diag_df["sequence_index"].shift(1)
-anchor_pose_diag_df["next_sequence_index"] = anchor_pose_diag_df["sequence_index"].shift(-1)
-
-diag_csv = anchor_dir / "full_anchor_pose_diag_arc.csv"
-anchor_pose_diag_df.to_csv(diag_csv, index=False)
-
-summary = {
-    "persist_root": str(persist_root),
-    "anchor_path": str(anchor_path),
-    "rows": int(len(anchor_pose_diag_df)),
-    "yaw_deg_min": float(np.nanmin(yaw_deg)),
-    "yaw_deg_max": float(np.nanmax(yaw_deg)),
-    "pitch_deg_min": float(np.nanmin(pitch_deg)),
-    "pitch_deg_max": float(np.nanmax(pitch_deg)),
-    "roll_deg_min": float(np.nanmin(roll_deg)),
-    "roll_deg_max": float(np.nanmax(roll_deg)),
-    "delta_pos_max": float(np.nanmax(delta_pos)),
-    "delta_lens_angle_deg_max": float(np.nanmax(delta_lens_angle_deg)),
-    "delta2_pos_max": float(np.nanmax(delta2_pos)),
-    "delta2_rot_max": float(np.nanmax(delta2_rot)),
-    "diag_csv": str(diag_csv),
-}
-print(summary)
-display_stage_summary(
-    "7-3",
-    "anchor pose diag",
-    inputs=[
-        {"item": "camera_anchor_full", "path": str(anchor_path)},
-    ],
-    outputs=[
-        {"item": "full_anchor_pose_diag", "path": str(diag_csv)},
-    ],
-    notes=[
-        {"item": "rows", "value": int(len(anchor_pose_diag_df))},
-        {"item": "pitch_range_deg", "value": f"{summary['pitch_deg_min']:.3f} .. {summary['pitch_deg_max']:.3f}"},
-    ],
-)
-```
-
-#No: #7matching-1
-前: #7-1..#7-3
-次: #8-1..#8-2
-
-# 7matching Overlap Pose Matching
-
-この markdown cell は `#7matching-1` の overlap pose matching を説明する。
-2 chunk の `pred_extrinsics.npy` と `chunk_input_frames.csv` を入力にし、共通 `record_index` を overlap 区間として抽出し、2 軌跡を同じ座標系へ再現する。
-ここでは overlap 上の `scale`、`rotation`、`translation`、`relative_rotation_deg` を解き、可視化と residual 検証を同じ stage で残す。出力は `overlap_pair_metrics_arc.csv`、`trajectory_points_arc.csv`、`transform_b_to_a.npy`、`trajectory_match.png`、`trajectory_match.html`、`matching_summary.json` である。
-入力 path は config の explicit path を優先し、未指定時は `final_outputs/chunk_evidence/<chunk_name>/`、ついで `chunk_runs/batch_*/<chunk_name>/` から自動解決する。既定 chunk pair は `MATCHING_CHUNK_IDS_1BASED=[6,7]` を使う。
-
-```python
-#7matching-1
-from pathlib import Path
-import json
-
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import plotly.graph_objects as go
-
-ctx = load_ctx()
-config = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8"))
-
-probe_root = Path(ctx["probe_root"])
-persist_root = Path(ctx.get("persist_root", probe_root))
-pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
-anchor_dir = persist_root / "01_anchor"
-chunk_manifest_dir = pipeline_root / "manifests"
-chunk_runs_dir = pipeline_root / "chunk_runs"
-final_outputs_chunk_evidence_dir = Path(ctx["final_outputs_chunk_evidence_dir"])
-final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
-
-matching_dir = anchor_dir / "07matching"
-matching_dir.mkdir(parents=True, exist_ok=True)
-
-LOCAL_EXTRINSIC_MODE = "c2w"
-LOCAL_CAMERA_BASIS = np.eye(4, dtype=np.float32)
-LOCAL_CAMERA_BASIS[:3, :3] = np.array([
-    [0.0, 1.0, 0.0],
-    [0.0, 0.0, -1.0],
-    [1.0, 0.0, 0.0],
-], dtype=np.float32)
-
-TRANSFORM_SCALE_MIN = 0.8
-TRANSFORM_SCALE_MAX = 1.3
-TRANSFORM_CENTER_RMSE_MAX = 0.15
-TRANSFORM_ROT_DIR_MAX = 0.20
-
-
-def resolve_matching_chunk_names() -> tuple[str | None, str | None]:
-    explicit_a = str(config.get("MATCHING_CHUNK_A_NAME", "")).strip()
-    explicit_b = str(config.get("MATCHING_CHUNK_B_NAME", "")).strip()
-    if explicit_a and explicit_b:
-        return explicit_a, explicit_b
-
-    chunk_index_path = chunk_manifest_dir / "chunk_index_all.csv"
-    if not chunk_index_path.exists():
-        return None, None
-    chunk_index_df = pd.read_csv(chunk_index_path)
-    valid_ids = set(chunk_index_df["chunk_id"].astype(int).tolist())
-    ids_1based = config.get("MATCHING_CHUNK_IDS_1BASED") or config.get("TARGET_CHUNK_IDS_1BASED") or []
-    selected_ids = [int(x) - 1 for x in ids_1based if int(x) >= 1]
-    selected_ids = [x for x in selected_ids if x in valid_ids]
-    if len(selected_ids) < 2:
-        return None, None
-    selected_df = chunk_index_df.loc[chunk_index_df["chunk_id"].astype(int).isin(selected_ids)].copy()
-    selected_df = selected_df.sort_values("chunk_id", kind="stable").reset_index(drop=True)
-    return str(selected_df.iloc[0]["chunk_name"]), str(selected_df.iloc[1]["chunk_name"])
-
-
-def resolve_chunk_artifact(explicit_path: str, chunk_name: str | None, filename: str) -> Path | None:
-    if explicit_path:
-        p = Path(explicit_path)
-        assert p.exists(), {"missing_explicit_path": str(p), "chunk_name": chunk_name, "filename": filename}
-        return p
-    if not chunk_name:
-        return None
-
-    candidates = [
-        final_outputs_chunk_evidence_dir / chunk_name / filename,
-        chunk_runs_dir / chunk_name / filename,
-    ]
-    candidates += [p for p in chunk_runs_dir.glob(f"batch_*/{chunk_name}/{filename}")]
-    for candidate in candidates:
-        if candidate.exists():
-            return candidate
-    return None
-
-
-def to_4x4_batch(arr: np.ndarray) -> np.ndarray:
-    arr = np.asarray(arr)
-    assert arr.ndim == 3, {"pred_shape": tuple(arr.shape)}
-    if arr.shape[1:] == (4, 4):
-        return arr.astype(np.float32)
-    if arr.shape[1:] == (3, 4):
-        out = np.repeat(np.eye(4, dtype=np.float32)[None, :, :], arr.shape[0], axis=0)
-        out[:, :3, :] = arr.astype(np.float32)
-        return out
-    raise AssertionError({"pred_shape": tuple(arr.shape), "expected": "(N,4,4) or (N,3,4)"})
-
-
-def normalize_rows(arr: np.ndarray, eps: float = 1e-12) -> np.ndarray:
-    arr = np.asarray(arr, dtype=np.float64)
-    arr = np.nan_to_num(arr, nan=0.0, posinf=0.0, neginf=0.0)
-    norm = np.linalg.norm(arr, axis=1, keepdims=True)
-    return arr / np.maximum(norm, eps)
-
-
-def angle_deg(a: np.ndarray, b: np.ndarray) -> np.ndarray:
-    a = normalize_rows(a)
-    b = normalize_rows(b)
-    dot = np.sum(a * b, axis=1)
-    dot = np.clip(dot, -1.0, 1.0)
-    return np.degrees(np.arccos(dot))
-
-
-def lens_direction_from_c2w(c2w: np.ndarray) -> np.ndarray:
-    axis = -np.asarray(c2w[:3, 2], dtype=np.float64)
-    return axis / max(float(np.linalg.norm(axis)), 1e-12)
-
-
-def up_direction_from_c2w(c2w: np.ndarray) -> np.ndarray:
-    axis = -np.asarray(c2w[:3, 1], dtype=np.float64)
-    return axis / max(float(np.linalg.norm(axis)), 1e-12)
-
-
-def c2w_list_from_extrinsics(pred_extrinsics: np.ndarray) -> list[np.ndarray]:
-    mats = []
-    for ext in to_4x4_batch(pred_extrinsics):
-        raw = ext.astype(np.float32)
-        if LOCAL_EXTRINSIC_MODE == "c2w":
-            c2w = raw
-        elif LOCAL_EXTRINSIC_MODE == "w2c":
-            c2w = np.linalg.inv(raw).astype(np.float32)
-        else:
-            raise AssertionError({"unsupported_extrinsic_mode": LOCAL_EXTRINSIC_MODE})
-        mats.append((c2w @ LOCAL_CAMERA_BASIS).astype(np.float32))
-    return mats
-
-
-def estimate_pose_aware_similarity(local_c2w_rows: list[np.ndarray], global_c2w_rows: list[np.ndarray], estimate_scale: bool = True) -> tuple[np.ndarray, dict]:
-    assert len(local_c2w_rows) == len(global_c2w_rows) >= 2, {"local_len": len(local_c2w_rows), "global_len": len(global_c2w_rows)}
-
-    src_dirs, dst_dirs, src_centers, dst_centers = [], [], [], []
-    for local_c2w, global_c2w in zip(local_c2w_rows, global_c2w_rows):
-        src_dirs.append(lens_direction_from_c2w(local_c2w))
-        src_dirs.append(up_direction_from_c2w(local_c2w))
-        dst_dirs.append(lens_direction_from_c2w(global_c2w))
-        dst_dirs.append(up_direction_from_c2w(global_c2w))
-        src_centers.append(local_c2w[:3, 3])
-        dst_centers.append(global_c2w[:3, 3])
-
-    src_dirs = np.asarray(src_dirs, dtype=np.float64)
-    dst_dirs = np.asarray(dst_dirs, dtype=np.float64)
-    src_centers = np.asarray(src_centers, dtype=np.float64)
-    dst_centers = np.asarray(dst_centers, dtype=np.float64)
-
-    H = dst_dirs.T @ src_dirs
-    U, _, Vt = np.linalg.svd(H)
-    S = np.eye(3, dtype=np.float64)
-    if np.linalg.det(U) * np.linalg.det(Vt) < 0:
-        S[-1, -1] = -1.0
-    R = U @ S @ Vt
-
-    src_mean = src_centers.mean(axis=0)
-    dst_mean = dst_centers.mean(axis=0)
-    src_c = src_centers - src_mean
-    dst_c = dst_centers - dst_mean
-    src_rot = (R @ src_c.T).T
-
-    if estimate_scale:
-        denom = float(np.sum(src_rot ** 2))
-        numer = float(np.sum(dst_c * src_rot))
-        scale = numer / max(denom, 1e-12)
-    else:
-        scale = 1.0
-    t = dst_mean - scale * (R @ src_mean)
-
-    pred = (scale * (R @ src_centers.T)).T + t
-    center_rmse = float(np.sqrt(np.mean(np.sum((pred - dst_centers) ** 2, axis=1))))
-    rotation_dir_residual = float(np.mean(np.linalg.norm((R @ src_dirs.T).T - dst_dirs, axis=1)))
-
-    T = np.eye(4, dtype=np.float64)
-    T[:3, :3] = scale * R
-    T[:3, 3] = t
-    diag = {
-        "scale": float(scale),
-        "rotation_det": float(np.linalg.det(R)),
-        "center_rmse": center_rmse,
-        "rotation_dir_residual": rotation_dir_residual,
-        "positive_similarity_ok": bool(scale > 0.0),
-        "scale_in_range_ok": bool(TRANSFORM_SCALE_MIN <= scale <= TRANSFORM_SCALE_MAX),
-        "center_rmse_ok": bool(center_rmse <= TRANSFORM_CENTER_RMSE_MAX),
-        "rotation_dir_ok": bool(rotation_dir_residual <= TRANSFORM_ROT_DIR_MAX),
-    }
-    diag["hard_fail"] = bool(
-        (scale <= 0.0)
-        or (scale < TRANSFORM_SCALE_MIN)
-        or (scale > TRANSFORM_SCALE_MAX)
-        or (center_rmse > TRANSFORM_CENTER_RMSE_MAX)
-        or (rotation_dir_residual > TRANSFORM_ROT_DIR_MAX)
-    )
-    return T.astype(np.float32), diag
-
-
-def transform_c2w_list(c2w_rows: list[np.ndarray], T: np.ndarray) -> list[np.ndarray]:
-    out = []
-    for c2w in c2w_rows:
-        M = np.asarray(c2w, dtype=np.float64).copy()
-        M[:3, :3] = T[:3, :3] @ M[:3, :3]
-        M[:3, 3] = T[:3, :3] @ M[:3, 3] + T[:3, 3]
-        out.append(M.astype(np.float32))
-    return out
-
-
-def pose_rows_to_frame_df(chunk_name: str, frames_df: pd.DataFrame, c2w_rows: list[np.ndarray], variant: str, overlap_records: set[int]) -> pd.DataFrame:
-    rows = []
-    for frame_row, c2w in zip(frames_df.itertuples(index=False), c2w_rows):
-        record_index = int(frame_row.record_index)
-        center = np.asarray(c2w[:3, 3], dtype=np.float64)
-        lens = lens_direction_from_c2w(c2w)
-        up = up_direction_from_c2w(c2w)
-        rows.append({
-            "chunk_name": chunk_name,
-            "variant": variant,
-            "record_index": record_index,
-            "chunk_local_index": int(getattr(frame_row, "chunk_local_index", len(rows))),
-            "is_overlap": bool(record_index in overlap_records),
-            "cx": float(center[0]),
-            "cy": float(center[1]),
-            "cz": float(center[2]),
-            "fx": float(lens[0]),
-            "fy": float(lens[1]),
-            "fz": float(lens[2]),
-            "ux": float(up[0]),
-            "uy": float(up[1]),
-            "uz": float(up[2]),
-        })
-    return pd.DataFrame(rows)
-
-
-def plot_pose_match(a_df: pd.DataFrame, b_df: pd.DataFrame, b_aligned_df: pd.DataFrame, out_path: Path):
-    fig = plt.figure(figsize=(14, 6))
-    ax1 = fig.add_subplot(1, 2, 1, projection="3d")
-    ax2 = fig.add_subplot(1, 2, 2, projection="3d")
-
-    def draw(ax, lhs: pd.DataFrame, rhs: pd.DataFrame, title: str):
-        ax.plot(lhs["cx"], lhs["cy"], lhs["cz"], color="tab:blue", label=f"{lhs['chunk_name'].iloc[0]} raw")
-        ax.plot(rhs["cx"], rhs["cy"], rhs["cz"], color="tab:orange", label=f"{rhs['chunk_name'].iloc[0]} {'aligned' if 'aligned' in rhs['variant'].iloc[0] else 'raw'}")
-        lhs_overlap = lhs[lhs["is_overlap"]]
-        rhs_overlap = rhs[rhs["is_overlap"]]
-        if len(lhs_overlap):
-            ax.scatter(lhs_overlap["cx"], lhs_overlap["cy"], lhs_overlap["cz"], color="tab:cyan", s=24)
-        if len(rhs_overlap):
-            ax.scatter(rhs_overlap["cx"], rhs_overlap["cy"], rhs_overlap["cz"], color="tab:red", s=24)
-        ax.set_title(title)
-        ax.set_xlabel("x")
-        ax.set_ylabel("y")
-        ax.set_zlabel("z")
-        ax.legend(loc="best")
-
-    draw(ax1, a_df, b_df, "pre-align overlap trajectories")
-    draw(ax2, a_df, b_aligned_df, "post-align overlap trajectories")
-    plt.tight_layout()
-    fig.savefig(out_path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
-
-
-def write_pose_match_html(a_df: pd.DataFrame, b_df: pd.DataFrame, b_aligned_df: pd.DataFrame, out_path: Path):
-    fig = go.Figure()
-
-    def add_trace(df: pd.DataFrame, name: str, color: str, show_overlap: bool):
-        fig.add_trace(
-            go.Scatter3d(
-                x=df["cx"],
-                y=df["cy"],
-                z=df["cz"],
-                mode="lines+markers",
-                name=name,
-                marker={"size": 3, "color": color},
-                line={"width": 5, "color": color},
-            )
-        )
-        if show_overlap:
-            overlap_df = df[df["is_overlap"]]
-            if len(overlap_df):
-                fig.add_trace(
-                    go.Scatter3d(
-                        x=overlap_df["cx"],
-                        y=overlap_df["cy"],
-                        z=overlap_df["cz"],
-                        mode="markers",
-                        name=f"{name} overlap",
-                        marker={"size": 5, "color": color, "symbol": "diamond"},
-                    )
-                )
-
-    add_trace(a_df, f"{a_df['chunk_name'].iloc[0]} raw", "#1f77b4", True)
-    add_trace(b_df, f"{b_df['chunk_name'].iloc[0]} raw", "#ff7f0e", True)
-    add_trace(b_aligned_df, f"{b_aligned_df['chunk_name'].iloc[0]} aligned", "#2ca02c", True)
-    fig.update_layout(
-        title="overlap trajectory matching",
-        scene={
-            "xaxis_title": "x",
-            "yaxis_title": "y",
-            "zaxis_title": "z",
-            "aspectmode": "data",
-        },
-        legend={"orientation": "h"},
-        margin={"l": 0, "r": 0, "t": 48, "b": 0},
-    )
-    fig.write_html(str(out_path), include_plotlyjs="cdn")
-
-
-chunk_a_name, chunk_b_name = resolve_matching_chunk_names()
-chunk_a_frames_path = resolve_chunk_artifact(str(config.get("MATCHING_CHUNK_A_INPUT_FRAMES_PATH", "")).strip(), chunk_a_name, "chunk_input_frames.csv")
-chunk_a_pred_path = resolve_chunk_artifact(str(config.get("MATCHING_CHUNK_A_PRED_EXTRINSICS_PATH", "")).strip(), chunk_a_name, "pred_extrinsics.npy")
-chunk_b_frames_path = resolve_chunk_artifact(str(config.get("MATCHING_CHUNK_B_INPUT_FRAMES_PATH", "")).strip(), chunk_b_name, "chunk_input_frames.csv")
-chunk_b_pred_path = resolve_chunk_artifact(str(config.get("MATCHING_CHUNK_B_PRED_EXTRINSICS_PATH", "")).strip(), chunk_b_name, "pred_extrinsics.npy")
-
-if not all([chunk_a_name, chunk_b_name, chunk_a_frames_path, chunk_a_pred_path, chunk_b_frames_path, chunk_b_pred_path]):
-    summary = {
-        "status": "skipped",
-        "route": "continuous-gs-v06-chunk18-overlap6-adopt12-overlap-pose-matching",
-        "reason": "matching_inputs_missing",
-        "chunk_a_name": chunk_a_name,
-        "chunk_b_name": chunk_b_name,
-        "chunk_a_frames_path": str(chunk_a_frames_path) if chunk_a_frames_path else None,
-        "chunk_a_pred_extrinsics_path": str(chunk_a_pred_path) if chunk_a_pred_path else None,
-        "chunk_b_frames_path": str(chunk_b_frames_path) if chunk_b_frames_path else None,
-        "chunk_b_pred_extrinsics_path": str(chunk_b_pred_path) if chunk_b_pred_path else None,
-        "hint": "set MATCHING_CHUNK_A/B_* explicit paths or rerun after chunk artifacts exist",
-    }
-    summary_json = matching_dir / "chunk_overlap_pose_matching_summary.json"
-    save_json(summary_json, summary)
-    print(json.dumps(summary, indent=2, ensure_ascii=False))
-    display_stage_summary(
-        "7matching-1",
-        "overlap pose matching",
-        outputs=[
-            {"item": "matching_summary", "path": str(summary_json)},
-        ],
-        notes=[
-            {"item": "status", "value": summary["status"]},
-            {"item": "reason", "value": summary["reason"]},
-        ],
-    )
-else:
-    chunk_a_frames_df = pd.read_csv(chunk_a_frames_path).sort_values("chunk_local_index", kind="stable").reset_index(drop=True)
-    chunk_b_frames_df = pd.read_csv(chunk_b_frames_path).sort_values("chunk_local_index", kind="stable").reset_index(drop=True)
-    chunk_a_pred = np.load(chunk_a_pred_path)
-    chunk_b_pred = np.load(chunk_b_pred_path)
-
-    assert chunk_a_pred.shape[0] == len(chunk_a_frames_df), {"chunk_name": chunk_a_name, "pred_len": int(chunk_a_pred.shape[0]), "frame_len": int(len(chunk_a_frames_df))}
-    assert chunk_b_pred.shape[0] == len(chunk_b_frames_df), {"chunk_name": chunk_b_name, "pred_len": int(chunk_b_pred.shape[0]), "frame_len": int(len(chunk_b_frames_df))}
-
-    overlap_records = sorted(set(chunk_a_frames_df["record_index"].astype(int)) & set(chunk_b_frames_df["record_index"].astype(int)))
-    assert len(overlap_records) >= 2, {"chunk_a_name": chunk_a_name, "chunk_b_name": chunk_b_name, "overlap_record_count": len(overlap_records)}
-    overlap_record_set = set(overlap_records)
-
-    chunk_a_map = {int(row.record_index): idx for idx, row in enumerate(chunk_a_frames_df.itertuples(index=False))}
-    chunk_b_map = {int(row.record_index): idx for idx, row in enumerate(chunk_b_frames_df.itertuples(index=False))}
-    overlap_a_indices = [chunk_a_map[r] for r in overlap_records]
-    overlap_b_indices = [chunk_b_map[r] for r in overlap_records]
-
-    chunk_a_c2w_all = c2w_list_from_extrinsics(chunk_a_pred)
-    chunk_b_c2w_all = c2w_list_from_extrinsics(chunk_b_pred)
-    chunk_a_c2w_overlap = [chunk_a_c2w_all[i] for i in overlap_a_indices]
-    chunk_b_c2w_overlap = [chunk_b_c2w_all[i] for i in overlap_b_indices]
-
-    T_b_to_a, align_diag = estimate_pose_aware_similarity(chunk_b_c2w_overlap, chunk_a_c2w_overlap, estimate_scale=True)
-    chunk_b_c2w_aligned_all = transform_c2w_list(chunk_b_c2w_all, T_b_to_a)
-    chunk_b_c2w_aligned_overlap = [chunk_b_c2w_aligned_all[i] for i in overlap_b_indices]
-
-    centers_a = np.asarray([c[:3, 3] for c in chunk_a_c2w_overlap], dtype=np.float64)
-    centers_b = np.asarray([c[:3, 3] for c in chunk_b_c2w_overlap], dtype=np.float64)
-    centers_b_aligned = np.asarray([c[:3, 3] for c in chunk_b_c2w_aligned_overlap], dtype=np.float64)
-    lens_a = np.asarray([lens_direction_from_c2w(c) for c in chunk_a_c2w_overlap], dtype=np.float64)
-    lens_b = np.asarray([lens_direction_from_c2w(c) for c in chunk_b_c2w_overlap], dtype=np.float64)
-    lens_b_aligned = np.asarray([lens_direction_from_c2w(c) for c in chunk_b_c2w_aligned_overlap], dtype=np.float64)
-    up_a = np.asarray([up_direction_from_c2w(c) for c in chunk_a_c2w_overlap], dtype=np.float64)
-    up_b = np.asarray([up_direction_from_c2w(c) for c in chunk_b_c2w_overlap], dtype=np.float64)
-    up_b_aligned = np.asarray([up_direction_from_c2w(c) for c in chunk_b_c2w_aligned_overlap], dtype=np.float64)
-
-    center_error_pre = np.linalg.norm(centers_b - centers_a, axis=1)
-    center_error_post = np.linalg.norm(centers_b_aligned - centers_a, axis=1)
-    lens_error_pre = angle_deg(lens_b, lens_a)
-    lens_error_post = angle_deg(lens_b_aligned, lens_a)
-    up_error_pre = angle_deg(up_b, up_a)
-    up_error_post = angle_deg(up_b_aligned, up_a)
-
-    pair_rows = []
-    for record_index, a_idx, b_idx, ce_pre, ce_post, le_pre, le_post, ue_pre, ue_post in zip(
-        overlap_records,
-        overlap_a_indices,
-        overlap_b_indices,
-        center_error_pre,
-        center_error_post,
-        lens_error_pre,
-        lens_error_post,
-        up_error_pre,
-        up_error_post,
-    ):
-        pair_rows.append({
-            "chunk_a_name": chunk_a_name,
-            "chunk_b_name": chunk_b_name,
-            "record_index": int(record_index),
-            "chunk_a_local_index": int(a_idx),
-            "chunk_b_local_index": int(b_idx),
-            "center_error_pre": float(ce_pre),
-            "center_error_post": float(ce_post),
-            "lens_error_deg_pre": float(le_pre),
-            "lens_error_deg_post": float(le_post),
-            "up_error_deg_pre": float(ue_pre),
-            "up_error_deg_post": float(ue_post),
-        })
-
-    pair_df = pd.DataFrame(pair_rows)
-    points_df = pd.concat([
-        pose_rows_to_frame_df(chunk_a_name, chunk_a_frames_df, chunk_a_c2w_all, "chunk_a_raw", overlap_record_set),
-        pose_rows_to_frame_df(chunk_b_name, chunk_b_frames_df, chunk_b_c2w_all, "chunk_b_raw", overlap_record_set),
-        pose_rows_to_frame_df(chunk_b_name, chunk_b_frames_df, chunk_b_c2w_aligned_all, "chunk_b_aligned_to_a", overlap_record_set),
-    ], ignore_index=True)
-
-    pair_label = f"{chunk_a_name}__{chunk_b_name}"
-    pair_csv = matching_dir / f"{pair_label}_overlap_pair_metrics_arc.csv"
-    points_csv = matching_dir / f"{pair_label}_trajectory_points_arc.csv"
-    transform_npy = matching_dir / f"{pair_label}_transform_b_to_a.npy"
-    plot_png = matching_dir / f"{pair_label}_trajectory_match.png"
-    plot_html = matching_dir / f"{pair_label}_trajectory_match.html"
-    summary_json = matching_dir / f"{pair_label}_matching_summary.json"
-
-    pair_df.to_csv(pair_csv, index=False, encoding="utf-8")
-    points_df.to_csv(points_csv, index=False, encoding="utf-8")
-    np.save(transform_npy, T_b_to_a.astype(np.float32))
-    plot_pose_match(
-        points_df.loc[points_df["variant"] == "chunk_a_raw"].copy(),
-        points_df.loc[points_df["variant"] == "chunk_b_raw"].copy(),
-        points_df.loc[points_df["variant"] == "chunk_b_aligned_to_a"].copy(),
-        plot_png,
-    )
-    write_pose_match_html(
-        points_df.loc[points_df["variant"] == "chunk_a_raw"].copy(),
-        points_df.loc[points_df["variant"] == "chunk_b_raw"].copy(),
-        points_df.loc[points_df["variant"] == "chunk_b_aligned_to_a"].copy(),
-        plot_html,
-    )
-
-    summary = {
-        "status": "ok",
-        "route": "continuous-gs-v06-chunk18-overlap6-adopt12-overlap-pose-matching",
-        "chunk_a_name": chunk_a_name,
-        "chunk_b_name": chunk_b_name,
-        "chunk_a_frames_path": str(chunk_a_frames_path),
-        "chunk_a_pred_extrinsics_path": str(chunk_a_pred_path),
-        "chunk_b_frames_path": str(chunk_b_frames_path),
-        "chunk_b_pred_extrinsics_path": str(chunk_b_pred_path),
-        "chunk_a_row_count": int(len(chunk_a_frames_df)),
-        "chunk_b_row_count": int(len(chunk_b_frames_df)),
-        "overlap_record_count": int(len(overlap_records)),
-        "overlap_records": overlap_records,
-        "local_extrinsic_mode": LOCAL_EXTRINSIC_MODE,
-        "local_camera_basis": "perm_yxz_sign_ppn",
-        "scale": float(align_diag["scale"]),
-        "rotation_det": float(align_diag["rotation_det"]),
-        "center_rmse": float(align_diag["center_rmse"]),
-        "rotation_dir_residual": float(align_diag["rotation_dir_residual"]),
-        "positive_similarity_ok": bool(align_diag["positive_similarity_ok"]),
-        "scale_in_range_ok": bool(align_diag["scale_in_range_ok"]),
-        "center_rmse_ok": bool(align_diag["center_rmse_ok"]),
-        "rotation_dir_ok": bool(align_diag["rotation_dir_ok"]),
-        "hard_fail": bool(align_diag["hard_fail"]),
-        "relative_scale": float(align_diag["scale"]),
-        "relative_translation_norm": float(np.linalg.norm(T_b_to_a[:3, 3])),
-        "relative_rotation_deg": float(rotation_angle_deg_from_matrix(T_b_to_a[:3, :3] / max(abs(float(align_diag["scale"])), 1e-12))),
-        "center_error_pre_mean": float(center_error_pre.mean()),
-        "center_error_pre_p95": float(np.quantile(center_error_pre, 0.95)),
-        "center_error_post_mean": float(center_error_post.mean()),
-        "center_error_post_p95": float(np.quantile(center_error_post, 0.95)),
-        "lens_error_deg_pre_mean": float(lens_error_pre.mean()),
-        "lens_error_deg_pre_p95": float(np.quantile(lens_error_pre, 0.95)),
-        "lens_error_deg_post_mean": float(lens_error_post.mean()),
-        "lens_error_deg_post_p95": float(np.quantile(lens_error_post, 0.95)),
-        "up_error_deg_pre_mean": float(up_error_pre.mean()),
-        "up_error_deg_pre_p95": float(np.quantile(up_error_pre, 0.95)),
-        "up_error_deg_post_mean": float(up_error_post.mean()),
-        "up_error_deg_post_p95": float(np.quantile(up_error_post, 0.95)),
-        "pair_metrics_csv": str(pair_csv),
-        "trajectory_points_csv": str(points_csv),
-        "transform_npy": str(transform_npy),
-        "plot_png": str(plot_png),
-        "plot_html": str(plot_html),
-    }
-    save_json(summary_json, summary)
-
-    print(json.dumps(summary, indent=2, ensure_ascii=False))
-    display_stage_summary(
-        "7matching-1",
-        "overlap pose matching",
-        inputs=[
-            {"item": "chunk_a_input_frames", "path": str(chunk_a_frames_path)},
-            {"item": "chunk_a_pred_extrinsics", "path": str(chunk_a_pred_path)},
-            {"item": "chunk_b_input_frames", "path": str(chunk_b_frames_path)},
-            {"item": "chunk_b_pred_extrinsics", "path": str(chunk_b_pred_path)},
-        ],
-        outputs=[
-            {"item": "matching_summary", "path": str(summary_json)},
-            {"item": "matching_pair_metrics", "path": str(pair_csv)},
-            {"item": "matching_trajectory_points", "path": str(points_csv)},
-            {"item": "matching_transform", "path": str(transform_npy)},
-            {"item": "matching_plot", "path": str(plot_png)},
-            {"item": "matching_plot_html", "path": str(plot_html)},
-        ],
-        notes=[
-            {"item": "chunk_pair", "value": pair_label},
-            {"item": "overlap_record_count", "value": int(len(overlap_records))},
-            {"item": "relative_rotation_deg", "value": float(summary["relative_rotation_deg"])},
-            {"item": "center_error_post_p95", "value": float(summary["center_error_post_p95"])},
-            {"item": "lens_error_deg_post_p95", "value": float(summary["lens_error_deg_post_p95"])},
-        ],
-    )
-```
-
-#No: #8-1..#8-2
-前: #7matching-1
-次: #9-1..#9-5
-
-# 8 Anchor QC And Plot
-
-この markdown cell は `#8-1..#8-2` の anchor QC と plot を説明する。
-camera anchor の連続性、姿勢差分、plotly 可視化を確認し、必要なら直前の `#7matching-1` で overlap pose matching を見直したうえで、record-native manifest の `#9-1..#9-5` へ進む。
-
-```python
-#8-1
-
-from pathlib import Path
-import json
-import numpy as np
-import pandas as pd
-
-config = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8"))
-
-def _existing(p):
-    if not p:
-        return None
-    p = Path(p)
-    return p if p.exists() else None
-
-def _find_anchor_diag_root(search_roots):
-    rel = "01_anchor/full_anchor_pose_diag_arc.csv"
-    for root in search_roots:
-        if root is None:
-            continue
-        root = Path(root)
-        if root.is_file():
-            root = root.parent
-        if not root.exists():
-            continue
-
-        candidate_dirs = [root]
-        candidate_dirs += [p for p in root.glob("*") if p.is_dir()]
-        candidate_dirs += [p for p in root.glob("*/*") if p.is_dir()]
-
-        seen = set()
-        for d in candidate_dirs:
-            d = d.resolve()
-            if str(d) in seen:
-                continue
-            seen.add(str(d))
-            if (d / rel).exists():
-                return d
-    return None
-
-search_roots = [
-    _existing(config.get("persist_root")),
-    _existing(config.get("google_drive_run_root")),
-    _existing(config.get("run_root")),
-    _existing(config.get("persist_dir")),
-    _existing(config.get("output_root")),
-    _existing(config.get("project_root")),
-    _existing(config.get("session_dir")),
-    _existing(config.get("target_probe_root")),
-    _existing(config.get("probe_root")),
-    Path("/content/drive/MyDrive/trajectreview"),
-    Path("/content/drive/MyDrive"),
-]
-
-persist_root = _find_anchor_diag_root(search_roots)
-assert persist_root is not None, {
-    "error": "full_anchor_pose_diag_arc.csv not found",
-    "searched_roots": [str(p) for p in search_roots if p is not None],
-}
-
-anchor_dir = persist_root / "01_anchor"
-diag_path = anchor_dir / "full_anchor_pose_diag_arc.csv"
-df = pd.read_csv(diag_path)
-assert not df.empty, diag_path
-
-# ---- 閾値: まずは緩め。全落ち防止 ----
-MAX_DELTA_POS = float(config.get("ANCHOR_QC_MAX_DELTA_POS", 5.0))
-MAX_DELTA_LENS_ANGLE_DEG = float(config.get("ANCHOR_QC_MAX_DELTA_LENS_ANGLE_DEG", 45.0))
-MAX_DELTA_UP_ANGLE_DEG = float(config.get("ANCHOR_QC_MAX_DELTA_UP_ANGLE_DEG", 45.0))
-MAX_DELTA2_POS = float(config.get("ANCHOR_QC_MAX_DELTA2_POS", 5.0))
-MAX_DELTA2_ROT = float(config.get("ANCHOR_QC_MAX_DELTA2_ROT", 60.0))
-
-# warning 用
-WARN_ABS_ROLL_CENTERED_DEG = float(
-    config.get(
-        "ANCHOR_QC_WARN_ABS_ROLL_CENTERED_DEG",
-        config.get("ANCHOR_QC_WARN_ABS_ROLL_DEG", 45.0),
-    )
-)
-WARN_PITCH_MIN_DEG = float(config.get("ANCHOR_QC_WARN_PITCH_MIN_DEG", -89.0))
-WARN_PITCH_MAX_DEG = float(config.get("ANCHOR_QC_WARN_PITCH_MAX_DEG", 89.0))
-
-for col in [
-    "delta_pos", "delta_lens_angle_deg", "delta_up_angle_deg",
-    "delta2_pos", "delta2_rot", "roll_deg", "pitch_deg"
-]:
-    if col not in df.columns:
-        df[col] = 0.0
-
-if "roll_deg_raw" not in df.columns:
-    df["roll_deg_raw"] = df["roll_deg"].astype(float)
-
-if "roll_deg_centered" not in df.columns:
-    roll_base = float(np.nanmedian(df["roll_deg_raw"].to_numpy(dtype=float))) if len(df) > 0 else 0.0
-    df["roll_deg_centered"] = ((df["roll_deg_raw"] - roll_base + 180.0) % 360.0) - 180.0
-
-# ---- fail: 連続性の明確な破綻だけ ----
-df["fail_delta_pos"] = df["delta_pos"].abs() > MAX_DELTA_POS
-df["fail_delta_lens"] = df["delta_lens_angle_deg"].abs() > MAX_DELTA_LENS_ANGLE_DEG
-df["fail_delta_up"] = df["delta_up_angle_deg"].abs() > MAX_DELTA_UP_ANGLE_DEG
-df["fail_delta2_pos"] = df["delta2_pos"].abs() > MAX_DELTA2_POS
-df["fail_delta2_rot"] = df["delta2_rot"].abs() > MAX_DELTA2_ROT
-
-df["anchor_qc_fail"] = (
-    df["fail_delta_pos"] |
-    df["fail_delta_lens"] |
-    df["fail_delta_up"] |
-    df["fail_delta2_pos"] |
-    df["fail_delta2_rot"]
-)
-
-# ---- warning: 姿勢帯域。まだ fail に使わない ----
-df["warn_roll_band"] = df["roll_deg_centered"].abs() > WARN_ABS_ROLL_CENTERED_DEG
-df["warn_pitch_band"] = (df["pitch_deg"] < WARN_PITCH_MIN_DEG) | (df["pitch_deg"] > WARN_PITCH_MAX_DEG)
-
-# 先頭フレームは差分系が 0 or NaN になりやすいので fail解除
-if len(df) > 0:
-    first_idx = df.index[0]
-    for c in ["fail_delta_pos", "fail_delta_lens", "fail_delta_up", "fail_delta2_pos", "fail_delta2_rot", "anchor_qc_fail"]:
-        df.loc[first_idx, c] = False
-
-fail_df = df[df["anchor_qc_fail"]].copy()
-warn_df = df[df["warn_roll_band"] | df["warn_pitch_band"]].copy()
-
-qc_csv = anchor_dir / "full_anchor_pose_qc_arc.csv"
-fail_csv = anchor_dir / "full_anchor_pose_qc_fail_arc.csv"
-warn_csv = anchor_dir / "full_anchor_pose_qc_warn_arc.csv"
-
-df.to_csv(qc_csv, index=False)
-fail_df.to_csv(fail_csv, index=False)
-warn_df.to_csv(warn_csv, index=False)
-
-summary = {
-    "anchor_qc_rows": int(len(df)),
-    "fail_rows": int(len(fail_df)),
-    "warn_rows": int(len(warn_df)),
-    "fail_count": int(len(fail_df)),
-    "warn_count": int(len(warn_df)),
-    "fail_rate": float(len(fail_df) / max(len(df), 1)),
-    "warn_rate": float(len(warn_df) / max(len(df), 1)),
-    "max_delta_pos": float(df["delta_pos"].abs().max()),
-    "max_delta_lens_angle_deg": float(df["delta_lens_angle_deg"].abs().max()),
-    "max_delta_up_angle_deg": float(df["delta_up_angle_deg"].abs().max()),
-    "max_delta2_pos": float(df["delta2_pos"].abs().max()),
-    "max_delta2_rot": float(df["delta2_rot"].abs().max()),
-    "roll_deg_min": float(df["roll_deg"].min()),
-    "roll_deg_max": float(df["roll_deg"].max()),
-    "roll_deg_centered_min": float(df["roll_deg_centered"].min()),
-    "roll_deg_centered_max": float(df["roll_deg_centered"].max()),
-    "pitch_deg_min": float(df["pitch_deg"].min()),
-    "pitch_deg_max": float(df["pitch_deg"].max()),
-    "qc_csv": str(qc_csv),
-    "fail_csv": str(fail_csv),
-    "warn_csv": str(warn_csv),
-}
-print(summary)
-display_stage_summary(
-    "8-1",
-    "anchor qc",
-    inputs=[
-        {"item": "full_anchor_pose_diag", "path": str(diag_path)},
-    ],
-    outputs=[
-        {"item": "full_anchor_pose_qc", "path": str(qc_csv)},
-        {"item": "full_anchor_pose_fail", "path": str(fail_csv)},
-        {"item": "full_anchor_pose_warn", "path": str(warn_csv)},
-    ],
-    notes=[
-        {"item": "fail_count", "value": int(summary["fail_count"])},
-        {"item": "warn_count", "value": int(summary["warn_count"])},
-    ],
-)
-```
-
-```python
-#8-2
-
-from pathlib import Path
-import json
-import numpy as np
-import pandas as pd
-
-config = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8"))
-
-def _existing(p):
-    if not p:
-        return None
-    p = Path(p)
-    return p if p.exists() else None
-
-def _find_anchor_root(search_roots):
-    rels = [
-        "01_anchor/camera_anchor_full_arc.csv",
-        "01_anchor/full_anchor_pose_diag_arc.csv",
-        "01_anchor/camera_center_matrix_arc.csv",
-        "01_anchor/camera_orientation_full_arc.csv",
-    ]
-    for root in search_roots:
-        if root is None:
-            continue
-        root = Path(root)
-        if root.is_file():
-            root = root.parent
-        if not root.exists():
-            continue
-
-        candidate_dirs = [root]
-        candidate_dirs += [p for p in root.glob("*") if p.is_dir()]
-        candidate_dirs += [p for p in root.glob("*/*") if p.is_dir()]
-
-        seen = set()
-        for d in candidate_dirs:
-            d = d.resolve()
-            if str(d) in seen:
-                continue
-            seen.add(str(d))
-            if any((d / rel).exists() for rel in rels):
-                return d
-    return None
-
-def _pick_first_existing(paths):
-    for p in paths:
-        if p.exists():
-            return p
-    return None
-
-def _resolve_center_cols(df: pd.DataFrame):
-    candidates = [
-        ("cam_cx", "cam_cy", "cam_cz"),
-        ("cx", "cy", "cz"),
-        ("camera_center_x", "camera_center_y", "camera_center_z"),
-        ("tx", "ty", "tz"),
-    ]
-    for cols in candidates:
-        if all(c in df.columns for c in cols):
-            return cols
-    raise ValueError(f"camera center columns not found; columns={list(df.columns)}")
-
-def _resolve_lens_cols(df: pd.DataFrame):
-    candidates = [
-        ("lens_x", "lens_y", "lens_z"),
-        ("forward_x", "forward_y", "forward_z"),
-        ("dir_x", "dir_y", "dir_z"),
-    ]
-    for cols in candidates:
-        if all(c in df.columns for c in cols):
-            return cols
-    return None
-
-search_roots = [
-    _existing(config.get("persist_root")),
-    _existing(config.get("google_drive_run_root")),
-    _existing(config.get("run_root")),
-    _existing(config.get("persist_dir")),
-    _existing(config.get("output_root")),
-    _existing(config.get("project_root")),
-    _existing(config.get("session_dir")),
-    _existing(config.get("target_probe_root")),
-    _existing(config.get("probe_root")),
-    Path("/content/drive/MyDrive/trajectreview"),
-    Path("/content/drive/MyDrive"),
-]
-
-persist_root = _find_anchor_root(search_roots)
-assert persist_root is not None, {
-    "error": "anchor root not found",
-    "searched_roots": [str(p) for p in search_roots if p is not None],
-}
-
-anchor_dir = persist_root / "01_anchor"
-anchor_csv = _pick_first_existing([
-    anchor_dir / "full_anchor_pose_diag_arc.csv",
-    anchor_dir / "camera_anchor_full_arc.csv",
-    anchor_dir / "camera_center_matrix_arc.csv",
-])
-
-assert anchor_csv is not None, {"missing_anchor_csv_in": str(anchor_dir)}
-
-df = pd.read_csv(anchor_csv)
-assert not df.empty, anchor_csv
-
-# sequence 順に並べる
-if "sequence_index" in df.columns:
-    df = df.sort_values("sequence_index", kind="stable").reset_index(drop=True)
-elif "frame_timestamp_ns" in df.columns:
-    df = df.sort_values("frame_timestamp_ns", kind="stable").reset_index(drop=True)
-elif "timestamp_ns" in df.columns:
-    df = df.sort_values("timestamp_ns", kind="stable").reset_index(drop=True)
-elif "timestamp" in df.columns:
-    df = df.sort_values("timestamp", kind="stable").reset_index(drop=True)
-else:
-    df = df.reset_index(drop=True)
-
-cx_col, cy_col, cz_col = _resolve_center_cols(df)
-lens_cols = _resolve_lens_cols(df)
-
-plotly_html = anchor_dir / "full_anchor_preview_arc.html"
-plotly_png = anchor_dir / "full_anchor_preview_arc.png"
-
-centers = df[[cx_col, cy_col, cz_col]].to_numpy(dtype=float)
-
-# 矢印長
-bbox_min = np.nanmin(centers, axis=0)
-bbox_max = np.nanmax(centers, axis=0)
-diag = float(np.linalg.norm(bbox_max - bbox_min))
-arrow_scale = max(diag * 0.03, 0.02)
-
-# Plotly 可視化
-try:
-    import plotly.graph_objects as go
-
-    fig = go.Figure()
-
-    fig.add_trace(go.Scatter3d(
-        x=centers[:, 0],
-        y=centers[:, 1],
-        z=centers[:, 2],
-        mode="lines+markers",
-        name="camera_centers",
-        marker=dict(size=2),
-        line=dict(width=4),
-        text=[f"idx={i}" for i in range(len(df))],
-        hovertemplate="x=%{x:.3f}<br>y=%{y:.3f}<br>z=%{z:.3f}<br>%{text}<extra></extra>",
-    ))
-
-    if lens_cols is not None:
-        lens = df[list(lens_cols)].to_numpy(dtype=float)
-        lens_norm = np.linalg.norm(lens, axis=1, keepdims=True)
-        lens_norm = np.maximum(lens_norm, 1e-12)
-        lens = lens / lens_norm
-        ends = centers + lens * arrow_scale
-
-        step = max(len(df) // 40, 1)  # 矢印が多すぎないよう間引き
-        for i in range(0, len(df), step):
-            fig.add_trace(go.Scatter3d(
-                x=[centers[i, 0], ends[i, 0]],
-                y=[centers[i, 1], ends[i, 1]],
-                z=[centers[i, 2], ends[i, 2]],
-                mode="lines",
-                name="lens_dir" if i == 0 else None,
-                showlegend=(i == 0),
-                line=dict(width=3),
-                hoverinfo="skip",
-            ))
-
-    fig.update_layout(
-        title="Full Anchor Preview",
-        scene=dict(
-            xaxis_title="X",
-            yaxis_title="Y",
-            zaxis_title="Z",
-            aspectmode="data",
-        ),
-        margin=dict(l=0, r=0, t=40, b=0),
-    )
-
-    fig.write_html(str(plotly_html), include_plotlyjs="cdn")
-    preview_result = {
-        "plotly_preview": "saved",
-        "anchor_csv": str(anchor_csv),
-        "html": str(plotly_html),
-        "rows": int(len(df)),
-        "center_cols": [cx_col, cy_col, cz_col],
-        "lens_cols": list(lens_cols) if lens_cols is not None else None,
-    }
-except Exception as e:
-    preview_result = {
-        "plotly_preview": "skipped",
-        "reason": repr(e),
-        "anchor_csv": str(anchor_csv),
-        "rows": int(len(df)),
-        "available_columns": list(df.columns),
-    }
-
-print(preview_result)
-display_stage_summary(
-    "8-2",
-    "full anchor preview",
-    inputs=[
-        {"item": "anchor_csv", "path": str(anchor_csv)},
-    ],
-    outputs=[
-        {"item": "full_anchor_preview_html", "path": str(plotly_html)},
-        {"item": "full_anchor_preview_png", "path": str(plotly_png)},
-    ],
-    notes=[
-        {"item": "rows", "value": int(preview_result["rows"])},
-        {"item": "center_cols", "value": "|".join(preview_result.get("center_cols", [])) if preview_result.get("center_cols") else ""},
-        {"item": "lens_cols", "value": "|".join(preview_result.get("lens_cols", [])) if preview_result.get("lens_cols") else ""},
-    ],
-)
-```
-
 #No: #9-1..#9-5
-前: #8-1..#8-2
+前: #6-1
 次: #10-1..#10-3
 
 # 9 Record Manifest And Chunk Plan
 
 この markdown cell は `#9-1..#9-5` の record-native manifest と chunk plan を説明する。
-`frame_record.jsonl` から `da3_input_manifest.csv`、`intrinsics.npy`、`extrinsics_w2c_arc.npy`、`chunk_index_all.csv`、`batch_plan.csv` を統一契約で作り、precheck の `#10-1..#10-3` に渡す。
+`frame_record.jsonl` から `da3_input_manifest.csv`、`intrinsics.npy`、`extrinsics_w2c_arc.npy`、`chunk_index_all.csv`、`batch_plan.csv` を統一契約で作り、後続の precheck / run preparation を経て `#7-1..#7-7` の full prepose build に渡す。
 
 ```python
 #9-1
@@ -3235,12 +1481,12 @@ display_stage_summary(
 
 #No: #10-1..#10-3
 前: #9-1..#9-5
-次: #11-1..#11-4
+次: #11-1..#11-5
 
 # 10 Precheck
 
 この markdown cell は `#10-1..#10-3` の precheck を説明する。
-chunk sequence、edge continuity、anchor QC summary をここで確認し、run preparation の `#11-1..#11-4` へつなぐ。
+chunk sequence、edge continuity、anchor QC summary をここで確認し、run preparation の `#11-1..#11-5` へつなぐ。
 
 ```python
 #10-1
@@ -3466,14 +1712,14 @@ display_stage_summary(
 )
 ```
 
-#No: #11-1..#11-4
+#No: #11-1..#11-5
 前: #10-1..#10-3
-次: #12-1..#12-3
+次: #7-1..#7-7
 
 # 11 Run Preparation
 
-この markdown cell は `#11-1..#11-4` の run preparation を説明する。
-target chunk window、execution batch、chunk run dir、final output tree を固定し、batch 実行の `#12-1..#12-3` に渡す。
+この markdown cell は `#11-1..#11-5` の run preparation を説明する。
+target chunk window、execution batch、chunk run dir、batch execution items、final output tree を固定し、`#7-1..#7-7` の full prepose build へ渡す。
 
 ```python
 #11-1
@@ -3844,19 +2090,8 @@ display_stage_summary(
 assert not fatal_issues, preflight
 ```
 
-#No: #12-1..#12-3
-前: #11-1..#11-4
-次: #13-1
-
-# 12 Chunk DA3 Prepose Build
-
-この markdown cell は `#12-1..#12-3` の chunk-local `DA3 NGL` 実行を説明する。
-`batch_execution_items.csv`、local chunk wrapper、per-batch execution summary をここで動かし、prepose graph judge の `#13-1` へ渡す。
-`INFER_GS=true` の時は `#12-3` が `EXPORT_FORMAT=npz-glb-gs_ply-gs_video` を強制し、chunk ごとに `gs_ply/0000.ply` が merge 前提 artifact になる。
-この段で各 chunk の `pred_extrinsics.npy` を作り、後続 `#13-1` が overlap 区間だけを使って chunk 間の relative transform を解く。つまり `#12` は chunk pose 推定まで、chunk 間の事前整合固定は `#13-1` が担当する。
-
 ```python
-#12-1
+#11-5
 
 ctx = load_ctx()
 
@@ -3979,7 +2214,7 @@ print(json.dumps(summary, indent=2, ensure_ascii=False))
 display(batch_execution_items_df)
 display(batch_manifests_df)
 display_stage_summary(
-    "12-1",
+    "11-5",
     "batch input generation",
     inputs=[
         {"item": "execution_target_chunks", "path": str(execution_chunks_path)},
@@ -3997,8 +2232,835 @@ display_stage_summary(
 )
 ```
 
+#No: #7-1..#7-7
+前: #11-1..#11-5
+次: #8-1..#8-2
+
+# 7 Full Prepose Build
+
+この markdown cell は `#7-1..#7-7` の full prepose 構築を説明する。
+`#7` は anchor stage として、full sequence の canonical camera table、`camera_matrix_full_arc.csv`、`camera_anchor_full_arc.csv`、chunk-local `DA3 NGL` pose、overlap matching、chunk 間 relative transform、prepose graph solution、可視化確認までを一体で生成する。
+ここでは各 chunk の `pred_extrinsics.npy` を build しつつ、overlap 部分で scale / rotation / translation を解き、`prepose_chunk_graph_solution_arc.csv` と `prepose_chunk_graph_edges_arc.csv` に一体化結果を残す。
+`#8-1..#8-2` は、この `#7` でできた anchor / graph build の QC と plot を確認する段であり、`#13-1` は build 済み artifact を review する thin gate として残す。
+
 ```python
-#12-2
+#7-1
+from pathlib import Path
+import csv
+import json
+import subprocess
+
+import imageio.v3 as iio
+import numpy as np
+import pandas as pd
+from PIL import Image
+
+ctx_path = Path("/content/runbook_session_context.json")
+assert ctx_path.exists(), ctx_path
+ctx = json.loads(ctx_path.read_text(encoding="utf-8"))
+manifest_dir = Path(ctx["manifest_dir"])
+da3_nested_dir = Path(ctx["da3_nested_dir"])
+world_dir = Path(ctx["world_dir"])
+final_outputs_dir = Path(ctx["final_outputs_dir"])
+final_outputs_merged_dir = Path(ctx["final_outputs_merged_dir"])
+final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
+final_outputs_manifests_dir = Path(ctx["final_outputs_manifests_dir"])
+final_outputs_chunk_evidence_dir = Path(ctx["final_outputs_chunk_evidence_dir"])
+images_dir = Path(ctx["images_dir"])
+frame_record_path = Path(ctx["frame_record_path"])
+frame_pose_index_path = Path(ctx["frame_pose_index_path"])
+
+repo_root = Path("/content/Depth-Anything-3")
+repo_url = "https://github.com/ByteDance-Seed/Depth-Anything-3.git"
+src_root = repo_root / "src"
+if not repo_root.exists():
+    print("Depth-Anything-3 repo not found. Cloning automatically...")
+    subprocess.run(["git", "clone", "--depth", "1", repo_url, str(repo_root)], check=True)
+assert repo_root.exists(), repo_root
+assert src_root.exists(), src_root
+assert (src_root / "depth_anything_3" / "api.py").exists(), src_root / "depth_anything_3" / "api.py"
+
+for p in [manifest_dir, da3_nested_dir, world_dir, final_outputs_dir, final_outputs_merged_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir, final_outputs_chunk_evidence_dir]:
+    p.mkdir(parents=True, exist_ok=True)
+
+required_files = {
+    "input_manifest": manifest_dir / "da3_input_manifest.csv",
+    "intrinsics": manifest_dir / "intrinsics.npy",
+    "extrinsics": manifest_dir / "extrinsics_w2c_arc.npy",
+}
+
+CANONICAL_ORIENTATION_POLICY = "upright_rot90cw_from_correcting"
+BLUR_THRESHOLD = 8.0
+
+def build_anchor_inputs_from_zip():
+    assert frame_record_path.exists(), {"frame_record_path": str(frame_record_path)}
+    with frame_record_path.open("r", encoding="utf-8") as f:
+        frame_records = [json.loads(line) for line in f if line.strip()]
+    assert len(frame_records) > 0, "frame_record.jsonl empty"
+
+    frame_pose_df = pd.read_csv(frame_pose_index_path) if frame_pose_index_path.exists() else pd.DataFrame()
+    image_name_by_record_index = {}
+    if len(frame_pose_df) > 0:
+        image_name_col = next((c for c in ["image_file_name", "imageFileName", "frame_name"] if c in frame_pose_df.columns), None)
+        record_index_col = next((c for c in ["pose_record_index", "record_index"] if c in frame_pose_df.columns), None)
+        if image_name_col is not None and record_index_col is not None:
+            tmp = frame_pose_df[[record_index_col, image_name_col]].copy().dropna()
+            tmp[image_name_col] = tmp[image_name_col].astype(str).str.strip()
+            tmp = tmp.loc[tmp[image_name_col] != ""]
+            image_name_by_record_index = {
+                int(getattr(row, record_index_col)): getattr(row, image_name_col)
+                for row in tmp.itertuples(index=False)
+            }
+        elif "frame_index" in frame_pose_df.columns:
+            sorted_image_names = sorted([
+                *[p.name for p in images_dir.glob("*.jpg")], *[p.name for p in images_dir.glob("*.jpeg")], *[p.name for p in images_dir.glob("*.png")],
+                *[p.name for p in images_dir.glob("*.JPG")], *[p.name for p in images_dir.glob("*.JPEG")], *[p.name for p in images_dir.glob("*.PNG")],
+            ])
+            record_index_col = next((c for c in ["pose_record_index", "record_index"] if c in frame_pose_df.columns), None)
+            if record_index_col is not None:
+                for row in frame_pose_df.itertuples(index=False):
+                    frame_idx = int(getattr(row, "frame_index"))
+                    if 0 <= frame_idx < len(sorted_image_names):
+                        image_name_by_record_index[int(getattr(row, record_index_col))] = sorted_image_names[frame_idx]
+
+    def ranked_image_dirs(primary_dir: Path, frame_record_path: Path):
+        session_outer = frame_record_path.parent
+        session_root = session_outer / "trajectreview" if (session_outer / "trajectreview").exists() else session_outer
+        candidates = [
+            primary_dir,
+            session_root / "images", session_root / "image",
+            session_outer / "images", session_outer / "image",
+            session_outer / "trajectreview" / "images", session_outer / "trajectreview" / "image",
+        ]
+        ranked, seen = [], set()
+        for p in candidates:
+            key = str(p)
+            if key in seen or not p.exists():
+                continue
+            seen.add(key)
+            image_count = sum(len(list(p.glob(ext))) for ext in ["*.jpg", "*.jpeg", "*.png", "*.JPG", "*.JPEG", "*.PNG"])
+            ranked.append((p, image_count))
+        return sorted(ranked, key=lambda x: (-x[1], len(str(x[0]))))
+
+    def lap_var(image_path: Path) -> float:
+        img = iio.imread(image_path)
+        gray = img[..., :3].mean(axis=2).astype(np.float32) if img.ndim == 3 else img.astype(np.float32)
+        gx = gray[:, 1:] - gray[:, :-1]
+        gy = gray[1:, :] - gray[:-1, :]
+        return float(np.var(gx) + np.var(gy))
+
+    def read_actual_wh(image_path: Path):
+        with Image.open(image_path) as img:
+            width, height = img.size
+        return int(width), int(height)
+
+    def normalize_intrinsics_to_upright(intr, actual_width: int, actual_height: int):
+        fx, fy, cx, cy = intr.get("fx"), intr.get("fy"), intr.get("cx"), intr.get("cy")
+        intr_width, intr_height = intr.get("width"), intr.get("height")
+        if None in [fx, fy, cx, cy, intr_width, intr_height]:
+            return {"intrinsics_case": "missing_intrinsics", "rotation_applied_deg": None, "fx_canonical": None, "fy_canonical": None, "cx_canonical": None, "cy_canonical": None, "width_canonical": None, "height_canonical": None}
+        fx, fy, cx, cy = float(fx), float(fy), float(cx), float(cy)
+        intr_width, intr_height = int(intr_width), int(intr_height)
+        if intr_width == actual_width and intr_height == actual_height:
+            return {"intrinsics_case": "already_upright", "rotation_applied_deg": 0, "fx_canonical": fx, "fy_canonical": fy, "cx_canonical": cx, "cy_canonical": cy, "width_canonical": actual_width, "height_canonical": actual_height}
+        if intr_width == actual_height and intr_height == actual_width:
+            return {"intrinsics_case": "rot90cw_intrinsics_fixed", "rotation_applied_deg": 90, "fx_canonical": fy, "fy_canonical": fx, "cx_canonical": float(intr_height - 1) - cy, "cy_canonical": cx, "width_canonical": actual_width, "height_canonical": actual_height}
+        return {"intrinsics_case": "dimension_mismatch", "rotation_applied_deg": None, "fx_canonical": None, "fy_canonical": None, "cx_canonical": None, "cy_canonical": None, "width_canonical": None, "height_canonical": None}
+
+    image_dir_ranking = ranked_image_dirs(images_dir, frame_record_path)
+    assert len(image_dir_ranking) > 0, {"images_dir": str(images_dir), "frame_record_path": str(frame_record_path)}
+    resolved_images_dir = image_dir_ranking[0][0]
+
+    rows = []
+    for rec in sorted(frame_records, key=lambda x: int(x.get("frameTimestampNs", 0) or 0)):
+        image_name = str(rec.get("imageFileName", "") or "").strip()
+        if not image_name:
+            record_index = rec.get("recordIndex")
+            if record_index is not None:
+                image_name = str(image_name_by_record_index.get(int(record_index), "")).strip()
+        image_path = resolved_images_dir / image_name if image_name else None
+        image_exists = bool(image_name) and image_path.exists()
+        intr = rec.get("imageIntrinsics") or {}
+        pose = rec.get("pose") or {}
+        blur_score = lap_var(image_path) if image_exists else None
+        actual_width = actual_height = None
+        intr_norm = {"intrinsics_case": "image_missing", "rotation_applied_deg": None, "fx_canonical": None, "fy_canonical": None, "cx_canonical": None, "cy_canonical": None, "width_canonical": None, "height_canonical": None}
+        if image_exists:
+            actual_width, actual_height = read_actual_wh(image_path)
+            intr_norm = normalize_intrinsics_to_upright(intr, actual_width, actual_height)
+        rows.append({
+            "session_id": rec.get("sessionId"),
+            "record_index": rec.get("recordIndex"),
+            "frame_timestamp_ns": rec.get("frameTimestampNs"),
+            "capture_timestamp_ns": rec.get("captureTimestampNs"),
+            "tracking_state": rec.get("trackingState"),
+            "image_file_name": image_name,
+            "image_path": str(image_path) if image_path else "",
+            "resolved_images_dir": str(resolved_images_dir),
+            "image_name_source": "frame_record" if str(rec.get("imageFileName", "") or "").strip() else "frame_pose_index_fallback",
+            "image_exists": image_exists,
+            "canonical_orientation_policy": CANONICAL_ORIENTATION_POLICY,
+            "actual_width": actual_width,
+            "actual_height": actual_height,
+            "fx": intr.get("fx"), "fy": intr.get("fy"), "cx": intr.get("cx"), "cy": intr.get("cy"), "width": intr.get("width"), "height": intr.get("height"),
+            **intr_norm,
+            "tx": pose.get("tx"), "ty": pose.get("ty"), "tz": pose.get("tz"),
+            "qx": pose.get("qx"), "qy": pose.get("qy"), "qz": pose.get("qz"), "qw": pose.get("qw"),
+            "blur_score": blur_score,
+        })
+
+    manifest_df = pd.DataFrame(rows)
+    manifest_df.to_csv(manifest_dir / "input_frame_manifest.csv", index=False, encoding="utf-8")
+
+    qc_df = manifest_df.copy()
+    qc_df["qc_tracking_ok"] = qc_df["tracking_state"].fillna("") == "TRACKING"
+    qc_df["qc_image_ok"] = qc_df["image_exists"].fillna(False)
+    qc_df["qc_orientation_ok"] = qc_df["intrinsics_case"].isin(["already_upright", "rot90cw_intrinsics_fixed"])
+    qc_df["qc_intrinsics_ok"] = qc_df[["fx_canonical", "fy_canonical", "cx_canonical", "cy_canonical", "width_canonical", "height_canonical"]].notna().all(axis=1)
+    qc_df["qc_pose_ok"] = qc_df[["tx", "ty", "tz", "qx", "qy", "qz", "qw"]].notna().all(axis=1)
+    qc_df["blur_score"] = pd.to_numeric(qc_df["blur_score"], errors="coerce")
+    qc_df["qc_blur_ok"] = qc_df["blur_score"].fillna(0.0).ge(BLUR_THRESHOLD).infer_objects(copy=False)
+    qc_df["qc_pass"] = qc_df[["qc_tracking_ok", "qc_image_ok", "qc_orientation_ok", "qc_intrinsics_ok", "qc_pose_ok"]].all(axis=1)
+    qc_df["skip_reason"] = ""
+    qc_df.loc[~qc_df["qc_tracking_ok"], "skip_reason"] = "tracking_not_ok"
+    qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_image_ok"], "skip_reason"] = "image_missing"
+    qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_orientation_ok"], "skip_reason"] = "orientation_mismatch"
+    qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_intrinsics_ok"], "skip_reason"] = "intrinsics_missing"
+    qc_df.loc[qc_df["skip_reason"].eq("") & ~qc_df["qc_pose_ok"], "skip_reason"] = "pose_missing"
+    qc_df.to_csv(manifest_dir / "input_frame_qc.csv", index=False, encoding="utf-8", quoting=csv.QUOTE_MINIMAL)
+
+    def quat_to_rot(qx, qy, qz, qw):
+        xx, yy, zz = qx*qx, qy*qy, qz*qz
+        xy, xz, yz = qx*qy, qx*qz, qy*qz
+        wx, wy, wz = qw*qx, qw*qy, qw*qz
+        return np.array([
+            [1 - 2*(yy + zz), 2*(xy - wz), 2*(xz + wy)],
+            [2*(xy + wz), 1 - 2*(xx + zz), 2*(yz - wx)],
+            [2*(xz - wy), 2*(yz + wx), 1 - 2*(xx + yy)],
+        ], dtype=np.float32)
+
+    def pose_to_w2c(row):
+        R_c2w = quat_to_rot(float(row.qx), float(row.qy), float(row.qz), float(row.qw))
+        t_c2w = np.array([float(row.tx), float(row.ty), float(row.tz)], dtype=np.float32)
+        R_w2c = R_c2w.T
+        t_w2c = -R_w2c @ t_c2w
+        out = np.eye(4, dtype=np.float32)
+        out[:3, :3] = R_w2c
+        out[:3, 3] = t_w2c
+        return out
+
+    def build_K(row):
+        return np.array([
+            [float(row.fx_canonical), 0.0, float(row.cx_canonical)],
+            [0.0, float(row.fy_canonical), float(row.cy_canonical)],
+            [0.0, 0.0, 1.0],
+        ], dtype=np.float32)
+
+    adopt_df = qc_df.loc[qc_df["qc_pass"]].copy().sort_values("frame_timestamp_ns").reset_index(drop=True)
+    if len(adopt_df) < 2:
+        fail_counts = {
+            "frame_record_count": int(len(qc_df)),
+            "qc_pass_count": int(len(adopt_df)),
+            "tracking_not_ok": int((~qc_df["qc_tracking_ok"]).sum()),
+            "image_missing": int((~qc_df["qc_image_ok"]).sum()),
+            "orientation_mismatch": int((~qc_df["qc_orientation_ok"]).sum()),
+            "intrinsics_missing": int((~qc_df["qc_intrinsics_ok"]).sum()),
+            "pose_missing": int((~qc_df["qc_pose_ok"]).sum()),
+            "blur_low_diag_only": int((~qc_df["qc_blur_ok"]).sum()),
+            "skip_reason_counts": qc_df["skip_reason"].value_counts(dropna=False).to_dict(),
+        }
+        (manifest_dir / "qc_failure_summary.json").write_text(json.dumps(fail_counts, indent=2, ensure_ascii=False), encoding="utf-8")
+        raise AssertionError(fail_counts)
+
+    adopted_rows = []
+    last_t = None
+    last_R = None
+    for row in adopt_df.itertuples(index=False):
+        t = np.array([float(row.tx), float(row.ty), float(row.tz)], dtype=np.float32)
+        R = quat_to_rot(float(row.qx), float(row.qy), float(row.qz), float(row.qw))
+        baseline = None if last_t is None else float(np.linalg.norm(t - last_t))
+        rot_delta = None if last_R is None else float(np.degrees(np.arccos(np.clip((np.trace(last_R.T @ R) - 1.0) / 2.0, -1.0, 1.0))))
+        geometric_adopt = last_t is None or (baseline >= 0.05) or (rot_delta is not None and rot_delta >= 3.0)
+        blur_boost = bool(row.qc_blur_ok) if pd.notna(row.qc_blur_ok) else False
+        adopt = geometric_adopt or (last_t is None and blur_boost)
+        adopted_rows.append({
+            **row._asdict(),
+            "baseline_from_prev_adopted_m": baseline,
+            "rotation_from_prev_adopted_deg": rot_delta,
+            "geometric_adopt": geometric_adopt,
+            "anchor_input_adopted": adopt,
+            "anchor_input_skip_reason": "" if adopt else "baseline_small",
+        })
+        if adopt:
+            last_t = t
+            last_R = R
+
+    anchor_input_df = pd.DataFrame(adopted_rows)
+    anchor_input_df.to_csv(manifest_dir / "pose_conversion_check.csv", index=False, encoding="utf-8")
+
+    selected_df = anchor_input_df.loc[anchor_input_df["anchor_input_adopted"]].copy().reset_index(drop=True)
+    assert len(selected_df) >= 2, {"selected_df": len(selected_df)}
+    Ks = np.stack([build_K(row) for row in selected_df.itertuples(index=False)], axis=0)
+    exts = np.stack([pose_to_w2c(row) for row in selected_df.itertuples(index=False)], axis=0)
+    np.save(manifest_dir / "intrinsics.npy", Ks)
+    np.save(manifest_dir / "extrinsics_w2c_arc.npy", exts)
+    selected_df.to_csv(manifest_dir / "da3_input_manifest.csv", index=False, encoding="utf-8")
+
+    k_check = selected_df[[
+        "image_file_name", "canonical_orientation_policy", "intrinsics_case", "rotation_applied_deg", "width", "height",
+        "actual_width", "actual_height", "width_canonical", "height_canonical", "fx", "fy", "cx", "cy",
+        "fx_canonical", "fy_canonical", "cx_canonical", "cy_canonical",
+    ]].copy()
+    k_check["resize_mode"] = "native"
+    k_check.to_csv(manifest_dir / "k_resize_check.csv", index=False, encoding="utf-8")
+
+    orientation_summary = {
+        "canonical_orientation_policy": CANONICAL_ORIENTATION_POLICY,
+        "already_upright_count": int((manifest_df["intrinsics_case"] == "already_upright").sum()),
+        "rot90cw_intrinsics_fixed_count": int((manifest_df["intrinsics_case"] == "rot90cw_intrinsics_fixed").sum()),
+        "dimension_mismatch_count": int((manifest_df["intrinsics_case"] == "dimension_mismatch").sum()),
+        "image_missing_count": int((manifest_df["intrinsics_case"] == "image_missing").sum()),
+    }
+    (manifest_dir / "orientation_summary.json").write_text(json.dumps(orientation_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    summary = {
+        "frame_record_count": int(len(manifest_df)),
+        "qc_pass_count": int(len(adopt_df)),
+        "qc_skip_count": int((~qc_df["qc_pass"]).sum()),
+        "resolved_images_dir": str(resolved_images_dir),
+        "resolved_images_dir_file_count": int(image_dir_ranking[0][1]),
+        "frame_pose_index_path": str(frame_pose_index_path),
+        "frame_pose_fallback_mapping_count": int(len(image_name_by_record_index)),
+        "selected_count": int(len(selected_df)),
+        "canonical_orientation_policy": CANONICAL_ORIENTATION_POLICY,
+        "intrinsics_path": str(manifest_dir / "intrinsics.npy"),
+        "extrinsics_path": str(manifest_dir / "extrinsics_w2c_arc.npy"),
+        "orientation_summary_path": str(manifest_dir / "orientation_summary.json"),
+        "built_from": "zip_frame_record",
+    }
+    extrinsics_source_summary = {
+        "artifact": "extrinsics_w2c_arc.npy",
+        "artifact_path": str(manifest_dir / "extrinsics_w2c_arc.npy"),
+        "generated_by": "build_anchor_inputs_from_zip.pose_to_w2c",
+        "source_record_path": str(frame_record_path),
+        "source_fields": ["pose.tx", "pose.ty", "pose.tz", "pose.qx", "pose.qy", "pose.qz", "pose.qw"],
+        "source_sort_key": "frameTimestampNs",
+        "matrix_space": "world_to_camera",
+        "record_count": int(len(selected_df)),
+    }
+    (manifest_dir / "qc_summary.json").write_text(json.dumps({
+        "frame_record_count": summary["frame_record_count"],
+        "qc_pass_count": summary["qc_pass_count"],
+        "qc_skip_count": summary["qc_skip_count"],
+        "frame_record_path": str(frame_record_path),
+        "images_dir": str(images_dir),
+        "canonical_orientation_policy": CANONICAL_ORIENTATION_POLICY,
+    }, indent=2, ensure_ascii=False), encoding="utf-8")
+    (manifest_dir / "da3_input_summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
+    (manifest_dir / "extrinsics_w2c_arc_source_summary.json").write_text(json.dumps(extrinsics_source_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+    return summary
+
+missing_required = {key: str(path) for key, path in required_files.items() if not path.exists()}
+if missing_required:
+    print({"message": "anchor inputs missing; building from zip source", "missing": missing_required})
+    build_summary = build_anchor_inputs_from_zip()
+    print(json.dumps(build_summary, indent=2, ensure_ascii=False))
+
+for key, path in required_files.items():
+    assert path.exists(), {key: str(path)}
+
+manifest_df = pd.read_csv(required_files["input_manifest"])
+assert not manifest_df.empty, "input manifest empty"
+print({
+    "input_manifest": str(required_files["input_manifest"]),
+    "intrinsics": str(required_files["intrinsics"]),
+    "extrinsics": str(required_files["extrinsics"]),
+    "row_count": int(len(manifest_df)),
+})
+display_stage_summary(
+    "7-1",
+    "full anchor input prepare",
+    inputs=[
+        {"item": "frame_record", "path": str(frame_record_path)},
+        {"item": "images_dir", "path": str(images_dir)},
+        {"item": "frame_pose_index", "path": str(frame_pose_index_path)},
+    ],
+    outputs=[
+        {"item": "input_frame_manifest", "path": str(manifest_dir / "input_frame_manifest.csv")},
+        {"item": "input_frame_qc", "path": str(manifest_dir / "input_frame_qc.csv")},
+        {"item": "pose_conversion_check", "path": str(manifest_dir / "pose_conversion_check.csv")},
+        {"item": "da3_input_manifest", "path": str(required_files["input_manifest"])},
+        {"item": "intrinsics", "path": str(required_files["intrinsics"])},
+        {"item": "extrinsics_w2c", "path": str(required_files["extrinsics"])},
+        {"item": "extrinsics_w2c_source_summary", "path": str(manifest_dir / "extrinsics_w2c_arc_source_summary.json")},
+        {"item": "da3_input_summary", "path": str(manifest_dir / "da3_input_summary.json")},
+    ],
+    notes=[
+        {"item": "extrinsics_source_rule", "value": "frame_record pose(tx,ty,tz,qx,qy,qz,qw) を pose_to_w2c で world_to_camera 行列へ変換"},
+    ],
+)
+```
+
+```python
+#7-2
+
+from pathlib import Path
+import json
+import numpy as np
+import pandas as pd
+
+config = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8"))
+
+def _existing(p):
+    if not p:
+        return None
+    p = Path(p)
+    return p if p.exists() else None
+
+def _find_manifest_triplet(search_roots):
+    rels = [
+        ("manifests/da3_input_manifest.csv", "manifests/intrinsics.npy", "manifests/extrinsics_w2c_arc.npy"),
+        ("00_config/da3_input_manifest.csv", "00_config/intrinsics.npy", "00_config/extrinsics_w2c_arc.npy"),
+    ]
+    for root in search_roots:
+        if root is None:
+            continue
+        root = Path(root)
+        if root.is_file():
+            root = root.parent
+        if not root.exists():
+            continue
+
+        # root 自体と配下を少し探索
+        candidate_dirs = [root]
+        candidate_dirs += [p for p in root.glob("*") if p.is_dir()]
+        candidate_dirs += [p for p in root.glob("*/*") if p.is_dir()]
+
+        seen = set()
+        for d in candidate_dirs:
+            d = d.resolve()
+            if str(d) in seen:
+                continue
+            seen.add(str(d))
+            for a, b, c in rels:
+                pa = d / a
+                pb = d / b
+                pc = d / c
+                if pa.exists() and pb.exists() and pc.exists():
+                    return d, pa, pb, pc
+    return None, None, None, None
+
+# まず config から探索起点を集める
+search_roots = [
+    _existing(config.get("persist_root")),
+    _existing(config.get("google_drive_run_root")),
+    _existing(config.get("run_root")),
+    _existing(config.get("persist_dir")),
+    _existing(config.get("output_root")),
+    _existing(config.get("project_root")),
+    _existing(config.get("session_dir")),
+    _existing(config.get("target_probe_root")),
+    _existing(config.get("probe_root")),
+    Path("/content/drive/MyDrive/trajectreview"),
+    Path("/content/drive/MyDrive"),
+]
+
+persist_root, input_manifest_path, intrinsics_path, extrinsics_path = _find_manifest_triplet(search_roots)
+
+assert persist_root is not None, {
+    "error": "manifest triplet not found",
+    "searched_roots": [str(p) for p in search_roots if p is not None],
+    "expected_files": [
+        "manifests/da3_input_manifest.csv",
+        "manifests/intrinsics.npy",
+        "manifests/extrinsics_w2c_arc.npy",
+    ],
+}
+
+anchor_dir = persist_root / "01_anchor"
+manifest_dir = input_manifest_path.parent
+anchor_dir.mkdir(parents=True, exist_ok=True)
+
+manifest_df = pd.read_csv(input_manifest_path)
+intrinsics = np.load(intrinsics_path)
+extrinsics_w2c = np.load(extrinsics_path)
+
+assert len(manifest_df) > 0, "da3_input_manifest.csv is empty"
+assert extrinsics_w2c.ndim == 3 and extrinsics_w2c.shape[1:] == (4, 4), extrinsics_w2c.shape
+assert len(manifest_df) == extrinsics_w2c.shape[0], {
+    "manifest_rows": len(manifest_df),
+    "extrinsics_rows": int(extrinsics_w2c.shape[0]),
+}
+assert intrinsics.ndim == 3 and intrinsics.shape[1:] == (3, 3), intrinsics.shape
+assert intrinsics.shape[0] == len(manifest_df), {
+    "manifest_rows": len(manifest_df),
+    "intrinsics_rows": int(intrinsics.shape[0]),
+}
+
+# c2w
+c2w = np.linalg.inv(extrinsics_w2c)
+
+# camera center / basis
+camera_centers = c2w[:, :3, 3]
+right_vecs = c2w[:, :3, 0]
+up_vecs = c2w[:, :3, 1]
+lens_vecs = -c2w[:, :3, 2]
+
+def _normalize_rows(x: np.ndarray, eps: float = 1e-12) -> np.ndarray:
+    n = np.linalg.norm(x, axis=1, keepdims=True)
+    n = np.maximum(n, eps)
+    return x / n
+
+right_vecs = _normalize_rows(right_vecs)
+up_vecs = _normalize_rows(up_vecs)
+lens_vecs = _normalize_rows(lens_vecs)
+
+# sequence_index
+if "frame_timestamp_ns" in manifest_df.columns:
+    ts_col = "frame_timestamp_ns"
+elif "timestamp_ns" in manifest_df.columns:
+    ts_col = "timestamp_ns"
+elif "timestamp" in manifest_df.columns:
+    ts_col = "timestamp"
+else:
+    ts_col = None
+
+if "sequence_index" not in manifest_df.columns:
+    if ts_col is not None:
+        manifest_df = manifest_df.sort_values(ts_col, kind="stable").reset_index(drop=True)
+    else:
+        manifest_df = manifest_df.reset_index(drop=True)
+    manifest_df["sequence_index"] = np.arange(len(manifest_df), dtype=np.int64)
+else:
+    manifest_df = manifest_df.sort_values("sequence_index", kind="stable").reset_index(drop=True)
+
+camera_center_df = pd.DataFrame({
+    "record_index": manifest_df["record_index"].astype(int),
+    "sequence_index": manifest_df["sequence_index"].astype(int),
+    "cam_cx": camera_centers[:, 0],
+    "cam_cy": camera_centers[:, 1],
+    "cam_cz": camera_centers[:, 2],
+    "cx_world": camera_centers[:, 0],
+    "cy_world": camera_centers[:, 1],
+    "cz_world": camera_centers[:, 2],
+})
+
+camera_orientation_df = pd.DataFrame({
+    "record_index": manifest_df["record_index"].astype(int),
+    "sequence_index": manifest_df["sequence_index"].astype(int),
+    "right_x": right_vecs[:, 0],
+    "right_y": right_vecs[:, 1],
+    "right_z": right_vecs[:, 2],
+    "up_x": up_vecs[:, 0],
+    "up_y": up_vecs[:, 1],
+    "up_z": up_vecs[:, 2],
+    "lens_x": lens_vecs[:, 0],
+    "lens_y": lens_vecs[:, 1],
+    "lens_z": lens_vecs[:, 2],
+})
+
+camera_anchor_full_df = manifest_df.copy()
+camera_anchor_full_df["cam_cx"] = camera_centers[:, 0]
+camera_anchor_full_df["cam_cy"] = camera_centers[:, 1]
+camera_anchor_full_df["cam_cz"] = camera_centers[:, 2]
+camera_anchor_full_df["cx_world"] = camera_centers[:, 0]
+camera_anchor_full_df["cy_world"] = camera_centers[:, 1]
+camera_anchor_full_df["cz_world"] = camera_centers[:, 2]
+camera_anchor_full_df["right_x"] = right_vecs[:, 0]
+camera_anchor_full_df["right_y"] = right_vecs[:, 1]
+camera_anchor_full_df["right_z"] = right_vecs[:, 2]
+camera_anchor_full_df["up_x"] = up_vecs[:, 0]
+camera_anchor_full_df["up_y"] = up_vecs[:, 1]
+camera_anchor_full_df["up_z"] = up_vecs[:, 2]
+camera_anchor_full_df["anchor_up_x"] = up_vecs[:, 0]
+camera_anchor_full_df["anchor_up_y"] = up_vecs[:, 1]
+camera_anchor_full_df["anchor_up_z"] = up_vecs[:, 2]
+camera_anchor_full_df["lens_x"] = lens_vecs[:, 0]
+camera_anchor_full_df["lens_y"] = lens_vecs[:, 1]
+camera_anchor_full_df["lens_z"] = lens_vecs[:, 2]
+camera_anchor_full_df["anchor_lens_x"] = lens_vecs[:, 0]
+camera_anchor_full_df["anchor_lens_y"] = lens_vecs[:, 1]
+camera_anchor_full_df["anchor_lens_z"] = lens_vecs[:, 2]
+
+camera_matrix_full_csv = anchor_dir / "camera_matrix_full_arc.csv"
+camera_center_matrix_csv = anchor_dir / "camera_center_matrix_arc.csv"
+camera_orientation_full_csv = anchor_dir / "camera_orientation_full_arc.csv"
+camera_anchor_full_csv = anchor_dir / "camera_anchor_full_arc.csv"
+
+pd.DataFrame(
+    extrinsics_w2c.reshape(extrinsics_w2c.shape[0], -1),
+    columns=[f"w2c_{r}{c}" for r in range(4) for c in range(4)]
+).assign(
+    record_index=manifest_df["record_index"].astype(int),
+    sequence_index=manifest_df["sequence_index"].astype(int),
+).to_csv(camera_matrix_full_csv, index=False)
+
+camera_center_df.to_csv(camera_center_matrix_csv, index=False)
+camera_orientation_df.to_csv(camera_orientation_full_csv, index=False)
+camera_anchor_full_df.to_csv(camera_anchor_full_csv, index=False)
+
+np.save(anchor_dir / "extrinsics_w2c_arc.npy", extrinsics_w2c)
+np.save(anchor_dir / "intrinsics.npy", intrinsics)
+np.save(anchor_dir / "c2w_arc.npy", c2w)
+
+print({
+    "persist_root": str(persist_root),
+    "manifest_dir": str(manifest_dir),
+    "rows": len(manifest_df),
+    "camera_matrix_full_csv": str(camera_matrix_full_csv),
+    "camera_center_matrix_csv": str(camera_center_matrix_csv),
+    "camera_orientation_full_csv": str(camera_orientation_full_csv),
+    "camera_anchor_full_csv": str(camera_anchor_full_csv),
+})
+display_stage_summary(
+    "7-2",
+    "full anchor build",
+    inputs=[
+        {"item": "da3_input_manifest", "path": str(input_manifest_path)},
+        {"item": "intrinsics", "path": str(intrinsics_path)},
+        {"item": "extrinsics_w2c", "path": str(extrinsics_path)},
+        {"item": "extrinsics_w2c_source_summary", "path": str(manifest_dir / "extrinsics_w2c_arc_source_summary.json")},
+    ],
+    outputs=[
+        {"item": "camera_matrix_full", "path": str(camera_matrix_full_csv)},
+        {"item": "camera_center_matrix", "path": str(camera_center_matrix_csv)},
+        {"item": "camera_orientation_full", "path": str(camera_orientation_full_csv)},
+        {"item": "camera_anchor_full", "path": str(camera_anchor_full_csv)},
+        {"item": "anchor_extrinsics_w2c", "path": str(anchor_dir / "extrinsics_w2c_arc.npy")},
+        {"item": "anchor_intrinsics", "path": str(anchor_dir / "intrinsics.npy")},
+        {"item": "anchor_c2w", "path": str(anchor_dir / "c2w_arc.npy")},
+    ],
+    notes=[
+        {"item": "row_count", "value": int(len(manifest_df))},
+        {"item": "matrix_source", "value": "manifests/extrinsics_w2c_arc.npy を c2w へ反転し basis / center を再構成"},
+    ],
+)
+```
+
+```python
+#7-3
+
+from pathlib import Path
+import json
+import numpy as np
+import pandas as pd
+
+config = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8"))
+
+def _existing(p):
+    if not p:
+        return None
+    p = Path(p)
+    return p if p.exists() else None
+
+def _find_anchor_root(search_roots):
+    rels = [
+        "01_anchor/camera_anchor_full_arc.csv",
+        "01_anchor/camera_center_matrix_arc.csv",
+        "01_anchor/camera_orientation_full_arc.csv",
+    ]
+    for root in search_roots:
+        if root is None:
+            continue
+        root = Path(root)
+        if root.is_file():
+            root = root.parent
+        if not root.exists():
+            continue
+
+        candidate_dirs = [root]
+        candidate_dirs += [p for p in root.glob("*") if p.is_dir()]
+        candidate_dirs += [p for p in root.glob("*/*") if p.is_dir()]
+
+        seen = set()
+        for d in candidate_dirs:
+            d = d.resolve()
+            if str(d) in seen:
+                continue
+            seen.add(str(d))
+            if all((d / rel).exists() for rel in rels):
+                return d
+    return None
+
+search_roots = [
+    _existing(config.get("persist_root")),
+    _existing(config.get("google_drive_run_root")),
+    _existing(config.get("run_root")),
+    _existing(config.get("persist_dir")),
+    _existing(config.get("output_root")),
+    _existing(config.get("project_root")),
+    _existing(config.get("session_dir")),
+    _existing(config.get("target_probe_root")),
+    _existing(config.get("probe_root")),
+    Path("/content/drive/MyDrive/trajectreview"),
+    Path("/content/drive/MyDrive"),
+]
+
+persist_root = _find_anchor_root(search_roots)
+assert persist_root is not None, {
+    "error": "01_anchor not found",
+    "searched_roots": [str(p) for p in search_roots if p is not None],
+    "expected": "01_anchor/camera_anchor_full_arc.csv",
+}
+
+anchor_dir = persist_root / "01_anchor"
+anchor_path = anchor_dir / "camera_anchor_full_arc.csv"
+anchor_df = pd.read_csv(anchor_path)
+
+assert not anchor_df.empty, anchor_path
+
+# sequence_index を保証
+if "sequence_index" not in anchor_df.columns:
+    if "frame_timestamp_ns" in anchor_df.columns:
+        anchor_df = anchor_df.sort_values("frame_timestamp_ns", kind="stable").reset_index(drop=True)
+    elif "timestamp_ns" in anchor_df.columns:
+        anchor_df = anchor_df.sort_values("timestamp_ns", kind="stable").reset_index(drop=True)
+    elif "timestamp" in anchor_df.columns:
+        anchor_df = anchor_df.sort_values("timestamp", kind="stable").reset_index(drop=True)
+    else:
+        anchor_df = anchor_df.reset_index(drop=True)
+    anchor_df["sequence_index"] = np.arange(len(anchor_df), dtype=np.int64)
+else:
+    anchor_df = anchor_df.sort_values("sequence_index", kind="stable").reset_index(drop=True)
+
+required_cols = [
+    "right_x","right_y","right_z",
+    "up_x","up_y","up_z",
+    "lens_x","lens_y","lens_z",
+    "cam_cx","cam_cy","cam_cz",
+]
+missing = [c for c in required_cols if c not in anchor_df.columns]
+assert not missing, {"missing_columns": missing, "anchor_path": str(anchor_path)}
+
+def _normalize(v, eps=1e-12):
+    n = np.linalg.norm(v, axis=1, keepdims=True)
+    n = np.maximum(n, eps)
+    return v / n
+
+def _wrap_deg(x):
+    return (x + 180.0) % 360.0 - 180.0
+
+def _angle_deg(a, b, eps=1e-12):
+    a = _normalize(a, eps)
+    b = _normalize(b, eps)
+    d = np.sum(a * b, axis=1)
+    d = np.clip(d, -1.0, 1.0)
+    return np.degrees(np.arccos(d))
+
+# world basis: x right, y up, z forward を仮定
+# lens = camera forward in world
+# yaw   = atan2(fx, fz)
+# pitch = atan2(-fy, sqrt(fx^2 + fz^2))
+# roll  = up ベクトルの傾きから近似導出
+lens = anchor_df[["lens_x","lens_y","lens_z"]].to_numpy(dtype=float)
+up   = anchor_df[["up_x","up_y","up_z"]].to_numpy(dtype=float)
+right = anchor_df[["right_x","right_y","right_z"]].to_numpy(dtype=float)
+centers = anchor_df[["cam_cx","cam_cy","cam_cz"]].to_numpy(dtype=float)
+
+lens = _normalize(lens)
+up = _normalize(up)
+right = _normalize(right)
+
+fx, fy, fz = lens[:, 0], lens[:, 1], lens[:, 2]
+ux, uy, uz = up[:, 0], up[:, 1], up[:, 2]
+
+yaw_deg = np.degrees(np.arctan2(fx, fz))
+pitch_deg = np.degrees(np.arctan2(-fy, np.sqrt(np.maximum(fx * fx + fz * fz, 1e-12))))
+
+# roll 近似:
+# forward を固定したときの up の回転を world-up 基準で表す
+world_up = np.tile(np.array([[0.0, 1.0, 0.0]]), (len(anchor_df), 1))
+proj_world_up = world_up - np.sum(world_up * lens, axis=1, keepdims=True) * lens
+proj_up = up - np.sum(up * lens, axis=1, keepdims=True) * lens
+proj_world_up = _normalize(proj_world_up)
+proj_up = _normalize(proj_up)
+
+cross_u = np.cross(proj_world_up, proj_up)
+sign_roll = np.sign(np.sum(cross_u * lens, axis=1))
+dot_roll = np.clip(np.sum(proj_world_up * proj_up, axis=1), -1.0, 1.0)
+roll_deg = np.degrees(np.arccos(dot_roll)) * sign_roll
+
+# 連続性
+delta_yaw_deg = np.zeros(len(anchor_df), dtype=float)
+delta_pitch_deg = np.zeros(len(anchor_df), dtype=float)
+delta_roll_deg = np.zeros(len(anchor_df), dtype=float)
+delta_pos = np.zeros(len(anchor_df), dtype=float)
+delta_lens_angle_deg = np.zeros(len(anchor_df), dtype=float)
+delta_up_angle_deg = np.zeros(len(anchor_df), dtype=float)
+
+if len(anchor_df) >= 2:
+    delta_yaw_deg[1:] = _wrap_deg(np.diff(yaw_deg))
+    delta_pitch_deg[1:] = np.diff(pitch_deg)
+    delta_roll_deg[1:] = _wrap_deg(np.diff(roll_deg))
+    delta_pos[1:] = np.linalg.norm(np.diff(centers, axis=0), axis=1)
+    delta_lens_angle_deg[1:] = _angle_deg(lens[:-1], lens[1:])
+    delta_up_angle_deg[1:] = _angle_deg(up[:-1], up[1:])
+
+delta2_pos = np.zeros(len(anchor_df), dtype=float)
+delta2_rot = np.zeros(len(anchor_df), dtype=float)
+if len(anchor_df) >= 3:
+    delta2_pos[2:] = np.linalg.norm(centers[2:] - 2.0 * centers[1:-1] + centers[:-2], axis=1)
+    delta2_rot[2:] = np.sqrt(
+        (delta_yaw_deg[2:] - delta_yaw_deg[1:-1]) ** 2 +
+        (delta_pitch_deg[2:] - delta_pitch_deg[1:-1]) ** 2 +
+        (delta_roll_deg[2:] - delta_roll_deg[1:-1]) ** 2
+    )
+
+anchor_pose_diag_df = anchor_df.copy()
+anchor_pose_diag_df["yaw_deg"] = yaw_deg
+anchor_pose_diag_df["pitch_deg"] = pitch_deg
+anchor_pose_diag_df["roll_deg"] = roll_deg
+anchor_pose_diag_df["delta_yaw_deg"] = delta_yaw_deg
+anchor_pose_diag_df["delta_pitch_deg"] = delta_pitch_deg
+anchor_pose_diag_df["delta_roll_deg"] = delta_roll_deg
+anchor_pose_diag_df["delta_pos"] = delta_pos
+anchor_pose_diag_df["delta_lens_angle_deg"] = delta_lens_angle_deg
+anchor_pose_diag_df["delta_up_angle_deg"] = delta_up_angle_deg
+anchor_pose_diag_df["delta2_pos"] = delta2_pos
+anchor_pose_diag_df["delta2_rot"] = delta2_rot
+
+# prev / next
+anchor_pose_diag_df["prev_sequence_index"] = anchor_pose_diag_df["sequence_index"].shift(1)
+anchor_pose_diag_df["next_sequence_index"] = anchor_pose_diag_df["sequence_index"].shift(-1)
+
+diag_csv = anchor_dir / "full_anchor_pose_diag_arc.csv"
+anchor_pose_diag_df.to_csv(diag_csv, index=False)
+
+summary = {
+    "persist_root": str(persist_root),
+    "anchor_path": str(anchor_path),
+    "rows": int(len(anchor_pose_diag_df)),
+    "yaw_deg_min": float(np.nanmin(yaw_deg)),
+    "yaw_deg_max": float(np.nanmax(yaw_deg)),
+    "pitch_deg_min": float(np.nanmin(pitch_deg)),
+    "pitch_deg_max": float(np.nanmax(pitch_deg)),
+    "roll_deg_min": float(np.nanmin(roll_deg)),
+    "roll_deg_max": float(np.nanmax(roll_deg)),
+    "delta_pos_max": float(np.nanmax(delta_pos)),
+    "delta_lens_angle_deg_max": float(np.nanmax(delta_lens_angle_deg)),
+    "delta2_pos_max": float(np.nanmax(delta2_pos)),
+    "delta2_rot_max": float(np.nanmax(delta2_rot)),
+    "diag_csv": str(diag_csv),
+}
+print(summary)
+display_stage_summary(
+    "7-3",
+    "anchor pose diag",
+    inputs=[
+        {"item": "camera_anchor_full", "path": str(anchor_path)},
+    ],
+    outputs=[
+        {"item": "full_anchor_pose_diag", "path": str(diag_csv)},
+    ],
+    notes=[
+        {"item": "rows", "value": int(len(anchor_pose_diag_df))},
+        {"item": "pitch_range_deg", "value": f"{summary['pitch_deg_min']:.3f} .. {summary['pitch_deg_max']:.3f}"},
+    ],
+)
+```
+
+```python
+#7-4
 
 from pathlib import Path
 import textwrap
@@ -4190,7 +3252,7 @@ if __name__ == "__main__":
 wrapper_path.write_text(textwrap.dedent(wrapper_code).lstrip("\n"), encoding="utf-8")
 print({"wrapper_path": str(wrapper_path), "size_bytes": wrapper_path.stat().st_size})
 display_stage_summary(
-    "12-2",
+    "7-4",
     "write chunk runner wrapper",
     outputs=[
         {"item": "wrapper_path", "path": str(wrapper_path)},
@@ -4199,7 +3261,7 @@ display_stage_summary(
 ```
 
 ```python
-#12-3
+#7-5
 
 from pathlib import Path
 import json
@@ -4370,7 +3432,7 @@ summary = {
 print(json.dumps(summary, ensure_ascii=False, indent=2))
 display(run_df)
 display_stage_summary(
-    "12-3",
+    "7-5",
     "run batches",
     inputs=[
         {"item": "batch_execution_items", "path": str(batch_execution_items_path)},
@@ -4389,22 +3451,521 @@ display_stage_summary(
 )
 ```
 
-#No: #13-1
-前: #12-1..#12-3
-次: #14-1
+```python
+#7-6
+from pathlib import Path
+import json
 
-# 13 Prepose Graph Judge
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
 
-この markdown cell は active な `#13-1` の prepose graph judge を説明する。
-`#13-1` では full prepose anchor の `camera_anchor_full_arc.csv` を `record_index` で join し、`arcore_anchor_baseline` と `da3_predicted_primary` の 2 route を同じ chunk / 同じ metric で比較する。
-`DA3` route は chunk overlap の predicted trajectory を主に使い、最初の seed だけ `arcore_anchor_baseline` を使う。`arcore_anchor_baseline` は fallback / judge と residual 計測の基準に残す。
-出力は `premerge_route_compare_summary.json` と `premerge_pose_validation.json` に加え、`prepose_chunk_graph_solution_arc.csv`、`prepose_chunk_graph_edges_arc.csv`、`prepose_chunk_graph_summary.json` で各 chunk の `chunk_to_world` 候補を固定して `#14-1` へ渡す。
-graph artifact には `graph_parent_chunk_name`、`relative_scale`、`relative_translation_norm`、`relative_rotation_deg` を残し、overlap 区間で解いた chunk 間 relative transform を merge 前に可視化できるようにする。
-加えて overlap 区間と non-overlap 区間を分けた residual 列も残し、`predicted_overlap` が overlap 上では合うのに chunk 後半で drift していないかを `center_error_overlap_p95` / `center_error_nonoverlap_p95`、`lens_error_deg_overlap_p95` / `lens_error_deg_nonoverlap_p95` で読めるようにする。
-以前の追加 probe 群は active runbook から外し、`cells/*-extrated.md` の dead copy として同じ folder に退避した。
+ctx = load_ctx()
+config = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8"))
+
+probe_root = Path(ctx["probe_root"])
+persist_root = Path(ctx.get("persist_root", probe_root))
+pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
+anchor_dir = persist_root / "01_anchor"
+chunk_manifest_dir = pipeline_root / "manifests"
+chunk_runs_dir = pipeline_root / "chunk_runs"
+final_outputs_chunk_evidence_dir = Path(ctx["final_outputs_chunk_evidence_dir"])
+final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
+
+matching_dir = anchor_dir / "07matching"
+matching_dir.mkdir(parents=True, exist_ok=True)
+
+LOCAL_EXTRINSIC_MODE = "c2w"
+LOCAL_CAMERA_BASIS = np.eye(4, dtype=np.float32)
+LOCAL_CAMERA_BASIS[:3, :3] = np.array([
+    [0.0, 1.0, 0.0],
+    [0.0, 0.0, -1.0],
+    [1.0, 0.0, 0.0],
+], dtype=np.float32)
+
+TRANSFORM_SCALE_MIN = 0.8
+TRANSFORM_SCALE_MAX = 1.3
+TRANSFORM_CENTER_RMSE_MAX = 0.15
+TRANSFORM_ROT_DIR_MAX = 0.20
+
+
+def resolve_matching_chunk_names() -> tuple[str | None, str | None]:
+    explicit_a = str(config.get("MATCHING_CHUNK_A_NAME", "")).strip()
+    explicit_b = str(config.get("MATCHING_CHUNK_B_NAME", "")).strip()
+    if explicit_a and explicit_b:
+        return explicit_a, explicit_b
+
+    chunk_index_path = chunk_manifest_dir / "chunk_index_all.csv"
+    if not chunk_index_path.exists():
+        return None, None
+    chunk_index_df = pd.read_csv(chunk_index_path)
+    valid_ids = set(chunk_index_df["chunk_id"].astype(int).tolist())
+    ids_1based = config.get("MATCHING_CHUNK_IDS_1BASED") or config.get("TARGET_CHUNK_IDS_1BASED") or []
+    selected_ids = [int(x) - 1 for x in ids_1based if int(x) >= 1]
+    selected_ids = [x for x in selected_ids if x in valid_ids]
+    if len(selected_ids) < 2:
+        return None, None
+    selected_df = chunk_index_df.loc[chunk_index_df["chunk_id"].astype(int).isin(selected_ids)].copy()
+    selected_df = selected_df.sort_values("chunk_id", kind="stable").reset_index(drop=True)
+    return str(selected_df.iloc[0]["chunk_name"]), str(selected_df.iloc[1]["chunk_name"])
+
+
+def resolve_chunk_artifact(explicit_path: str, chunk_name: str | None, filename: str) -> Path | None:
+    if explicit_path:
+        p = Path(explicit_path)
+        assert p.exists(), {"missing_explicit_path": str(p), "chunk_name": chunk_name, "filename": filename}
+        return p
+    if not chunk_name:
+        return None
+
+    candidates = [
+        final_outputs_chunk_evidence_dir / chunk_name / filename,
+        chunk_runs_dir / chunk_name / filename,
+    ]
+    candidates += [p for p in chunk_runs_dir.glob(f"batch_*/{chunk_name}/{filename}")]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def to_4x4_batch(arr: np.ndarray) -> np.ndarray:
+    arr = np.asarray(arr)
+    assert arr.ndim == 3, {"pred_shape": tuple(arr.shape)}
+    if arr.shape[1:] == (4, 4):
+        return arr.astype(np.float32)
+    if arr.shape[1:] == (3, 4):
+        out = np.repeat(np.eye(4, dtype=np.float32)[None, :, :], arr.shape[0], axis=0)
+        out[:, :3, :] = arr.astype(np.float32)
+        return out
+    raise AssertionError({"pred_shape": tuple(arr.shape), "expected": "(N,4,4) or (N,3,4)"})
+
+
+def normalize_rows(arr: np.ndarray, eps: float = 1e-12) -> np.ndarray:
+    arr = np.asarray(arr, dtype=np.float64)
+    arr = np.nan_to_num(arr, nan=0.0, posinf=0.0, neginf=0.0)
+    norm = np.linalg.norm(arr, axis=1, keepdims=True)
+    return arr / np.maximum(norm, eps)
+
+
+def angle_deg(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    a = normalize_rows(a)
+    b = normalize_rows(b)
+    dot = np.sum(a * b, axis=1)
+    dot = np.clip(dot, -1.0, 1.0)
+    return np.degrees(np.arccos(dot))
+
+
+def lens_direction_from_c2w(c2w: np.ndarray) -> np.ndarray:
+    axis = -np.asarray(c2w[:3, 2], dtype=np.float64)
+    return axis / max(float(np.linalg.norm(axis)), 1e-12)
+
+
+def up_direction_from_c2w(c2w: np.ndarray) -> np.ndarray:
+    axis = -np.asarray(c2w[:3, 1], dtype=np.float64)
+    return axis / max(float(np.linalg.norm(axis)), 1e-12)
+
+
+def c2w_list_from_extrinsics(pred_extrinsics: np.ndarray) -> list[np.ndarray]:
+    mats = []
+    for ext in to_4x4_batch(pred_extrinsics):
+        raw = ext.astype(np.float32)
+        if LOCAL_EXTRINSIC_MODE == "c2w":
+            c2w = raw
+        elif LOCAL_EXTRINSIC_MODE == "w2c":
+            c2w = np.linalg.inv(raw).astype(np.float32)
+        else:
+            raise AssertionError({"unsupported_extrinsic_mode": LOCAL_EXTRINSIC_MODE})
+        mats.append((c2w @ LOCAL_CAMERA_BASIS).astype(np.float32))
+    return mats
+
+
+def estimate_pose_aware_similarity(local_c2w_rows: list[np.ndarray], global_c2w_rows: list[np.ndarray], estimate_scale: bool = True) -> tuple[np.ndarray, dict]:
+    assert len(local_c2w_rows) == len(global_c2w_rows) >= 2, {"local_len": len(local_c2w_rows), "global_len": len(global_c2w_rows)}
+
+    src_dirs, dst_dirs, src_centers, dst_centers = [], [], [], []
+    for local_c2w, global_c2w in zip(local_c2w_rows, global_c2w_rows):
+        src_dirs.append(lens_direction_from_c2w(local_c2w))
+        src_dirs.append(up_direction_from_c2w(local_c2w))
+        dst_dirs.append(lens_direction_from_c2w(global_c2w))
+        dst_dirs.append(up_direction_from_c2w(global_c2w))
+        src_centers.append(local_c2w[:3, 3])
+        dst_centers.append(global_c2w[:3, 3])
+
+    src_dirs = np.asarray(src_dirs, dtype=np.float64)
+    dst_dirs = np.asarray(dst_dirs, dtype=np.float64)
+    src_centers = np.asarray(src_centers, dtype=np.float64)
+    dst_centers = np.asarray(dst_centers, dtype=np.float64)
+
+    H = dst_dirs.T @ src_dirs
+    U, _, Vt = np.linalg.svd(H)
+    S = np.eye(3, dtype=np.float64)
+    if np.linalg.det(U) * np.linalg.det(Vt) < 0:
+        S[-1, -1] = -1.0
+    R = U @ S @ Vt
+
+    src_mean = src_centers.mean(axis=0)
+    dst_mean = dst_centers.mean(axis=0)
+    src_c = src_centers - src_mean
+    dst_c = dst_centers - dst_mean
+    src_rot = (R @ src_c.T).T
+
+    if estimate_scale:
+        denom = float(np.sum(src_rot ** 2))
+        numer = float(np.sum(dst_c * src_rot))
+        scale = numer / max(denom, 1e-12)
+    else:
+        scale = 1.0
+    t = dst_mean - scale * (R @ src_mean)
+
+    pred = (scale * (R @ src_centers.T)).T + t
+    center_rmse = float(np.sqrt(np.mean(np.sum((pred - dst_centers) ** 2, axis=1))))
+    rotation_dir_residual = float(np.mean(np.linalg.norm((R @ src_dirs.T).T - dst_dirs, axis=1)))
+
+    T = np.eye(4, dtype=np.float64)
+    T[:3, :3] = scale * R
+    T[:3, 3] = t
+    diag = {
+        "scale": float(scale),
+        "rotation_det": float(np.linalg.det(R)),
+        "center_rmse": center_rmse,
+        "rotation_dir_residual": rotation_dir_residual,
+        "positive_similarity_ok": bool(scale > 0.0),
+        "scale_in_range_ok": bool(TRANSFORM_SCALE_MIN <= scale <= TRANSFORM_SCALE_MAX),
+        "center_rmse_ok": bool(center_rmse <= TRANSFORM_CENTER_RMSE_MAX),
+        "rotation_dir_ok": bool(rotation_dir_residual <= TRANSFORM_ROT_DIR_MAX),
+    }
+    diag["hard_fail"] = bool(
+        (scale <= 0.0)
+        or (scale < TRANSFORM_SCALE_MIN)
+        or (scale > TRANSFORM_SCALE_MAX)
+        or (center_rmse > TRANSFORM_CENTER_RMSE_MAX)
+        or (rotation_dir_residual > TRANSFORM_ROT_DIR_MAX)
+    )
+    return T.astype(np.float32), diag
+
+
+def transform_c2w_list(c2w_rows: list[np.ndarray], T: np.ndarray) -> list[np.ndarray]:
+    out = []
+    for c2w in c2w_rows:
+        M = np.asarray(c2w, dtype=np.float64).copy()
+        M[:3, :3] = T[:3, :3] @ M[:3, :3]
+        M[:3, 3] = T[:3, :3] @ M[:3, 3] + T[:3, 3]
+        out.append(M.astype(np.float32))
+    return out
+
+
+def pose_rows_to_frame_df(chunk_name: str, frames_df: pd.DataFrame, c2w_rows: list[np.ndarray], variant: str, overlap_records: set[int]) -> pd.DataFrame:
+    rows = []
+    for frame_row, c2w in zip(frames_df.itertuples(index=False), c2w_rows):
+        record_index = int(frame_row.record_index)
+        center = np.asarray(c2w[:3, 3], dtype=np.float64)
+        lens = lens_direction_from_c2w(c2w)
+        up = up_direction_from_c2w(c2w)
+        rows.append({
+            "chunk_name": chunk_name,
+            "variant": variant,
+            "record_index": record_index,
+            "chunk_local_index": int(getattr(frame_row, "chunk_local_index", len(rows))),
+            "is_overlap": bool(record_index in overlap_records),
+            "cx": float(center[0]),
+            "cy": float(center[1]),
+            "cz": float(center[2]),
+            "fx": float(lens[0]),
+            "fy": float(lens[1]),
+            "fz": float(lens[2]),
+            "ux": float(up[0]),
+            "uy": float(up[1]),
+            "uz": float(up[2]),
+        })
+    return pd.DataFrame(rows)
+
+
+def plot_pose_match(a_df: pd.DataFrame, b_df: pd.DataFrame, b_aligned_df: pd.DataFrame, out_path: Path):
+    fig = plt.figure(figsize=(14, 6))
+    ax1 = fig.add_subplot(1, 2, 1, projection="3d")
+    ax2 = fig.add_subplot(1, 2, 2, projection="3d")
+
+    def draw(ax, lhs: pd.DataFrame, rhs: pd.DataFrame, title: str):
+        ax.plot(lhs["cx"], lhs["cy"], lhs["cz"], color="tab:blue", label=f"{lhs['chunk_name'].iloc[0]} raw")
+        ax.plot(rhs["cx"], rhs["cy"], rhs["cz"], color="tab:orange", label=f"{rhs['chunk_name'].iloc[0]} {'aligned' if 'aligned' in rhs['variant'].iloc[0] else 'raw'}")
+        lhs_overlap = lhs[lhs["is_overlap"]]
+        rhs_overlap = rhs[rhs["is_overlap"]]
+        if len(lhs_overlap):
+            ax.scatter(lhs_overlap["cx"], lhs_overlap["cy"], lhs_overlap["cz"], color="tab:cyan", s=24)
+        if len(rhs_overlap):
+            ax.scatter(rhs_overlap["cx"], rhs_overlap["cy"], rhs_overlap["cz"], color="tab:red", s=24)
+        ax.set_title(title)
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        ax.set_zlabel("z")
+        ax.legend(loc="best")
+
+    draw(ax1, a_df, b_df, "pre-align overlap trajectories")
+    draw(ax2, a_df, b_aligned_df, "post-align overlap trajectories")
+    plt.tight_layout()
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
+def write_pose_match_html(a_df: pd.DataFrame, b_df: pd.DataFrame, b_aligned_df: pd.DataFrame, out_path: Path):
+    fig = go.Figure()
+
+    def add_trace(df: pd.DataFrame, name: str, color: str, show_overlap: bool):
+        fig.add_trace(
+            go.Scatter3d(
+                x=df["cx"],
+                y=df["cy"],
+                z=df["cz"],
+                mode="lines+markers",
+                name=name,
+                marker={"size": 3, "color": color},
+                line={"width": 5, "color": color},
+            )
+        )
+        if show_overlap:
+            overlap_df = df[df["is_overlap"]]
+            if len(overlap_df):
+                fig.add_trace(
+                    go.Scatter3d(
+                        x=overlap_df["cx"],
+                        y=overlap_df["cy"],
+                        z=overlap_df["cz"],
+                        mode="markers",
+                        name=f"{name} overlap",
+                        marker={"size": 5, "color": color, "symbol": "diamond"},
+                    )
+                )
+
+    add_trace(a_df, f"{a_df['chunk_name'].iloc[0]} raw", "#1f77b4", True)
+    add_trace(b_df, f"{b_df['chunk_name'].iloc[0]} raw", "#ff7f0e", True)
+    add_trace(b_aligned_df, f"{b_aligned_df['chunk_name'].iloc[0]} aligned", "#2ca02c", True)
+    fig.update_layout(
+        title="overlap trajectory matching",
+        scene={
+            "xaxis_title": "x",
+            "yaxis_title": "y",
+            "zaxis_title": "z",
+            "aspectmode": "data",
+        },
+        legend={"orientation": "h"},
+        margin={"l": 0, "r": 0, "t": 48, "b": 0},
+    )
+    fig.write_html(str(out_path), include_plotlyjs="cdn")
+
+
+chunk_a_name, chunk_b_name = resolve_matching_chunk_names()
+chunk_a_frames_path = resolve_chunk_artifact(str(config.get("MATCHING_CHUNK_A_INPUT_FRAMES_PATH", "")).strip(), chunk_a_name, "chunk_input_frames.csv")
+chunk_a_pred_path = resolve_chunk_artifact(str(config.get("MATCHING_CHUNK_A_PRED_EXTRINSICS_PATH", "")).strip(), chunk_a_name, "pred_extrinsics.npy")
+chunk_b_frames_path = resolve_chunk_artifact(str(config.get("MATCHING_CHUNK_B_INPUT_FRAMES_PATH", "")).strip(), chunk_b_name, "chunk_input_frames.csv")
+chunk_b_pred_path = resolve_chunk_artifact(str(config.get("MATCHING_CHUNK_B_PRED_EXTRINSICS_PATH", "")).strip(), chunk_b_name, "pred_extrinsics.npy")
+
+if not all([chunk_a_name, chunk_b_name, chunk_a_frames_path, chunk_a_pred_path, chunk_b_frames_path, chunk_b_pred_path]):
+    summary = {
+        "status": "skipped",
+        "route": "continuous-gs-v06-chunk18-overlap6-adopt12-overlap-pose-matching",
+        "reason": "matching_inputs_missing",
+        "chunk_a_name": chunk_a_name,
+        "chunk_b_name": chunk_b_name,
+        "chunk_a_frames_path": str(chunk_a_frames_path) if chunk_a_frames_path else None,
+        "chunk_a_pred_extrinsics_path": str(chunk_a_pred_path) if chunk_a_pred_path else None,
+        "chunk_b_frames_path": str(chunk_b_frames_path) if chunk_b_frames_path else None,
+        "chunk_b_pred_extrinsics_path": str(chunk_b_pred_path) if chunk_b_pred_path else None,
+        "hint": "set MATCHING_CHUNK_A/B_* explicit paths or rerun after chunk artifacts exist",
+    }
+    summary_json = matching_dir / "chunk_overlap_pose_matching_summary.json"
+    save_json(summary_json, summary)
+    print(json.dumps(summary, indent=2, ensure_ascii=False))
+    display_stage_summary(
+        "7-6",
+        "overlap pose matching",
+        outputs=[
+            {"item": "matching_summary", "path": str(summary_json)},
+        ],
+        notes=[
+            {"item": "status", "value": summary["status"]},
+            {"item": "reason", "value": summary["reason"]},
+        ],
+    )
+else:
+    chunk_a_frames_df = pd.read_csv(chunk_a_frames_path).sort_values("chunk_local_index", kind="stable").reset_index(drop=True)
+    chunk_b_frames_df = pd.read_csv(chunk_b_frames_path).sort_values("chunk_local_index", kind="stable").reset_index(drop=True)
+    chunk_a_pred = np.load(chunk_a_pred_path)
+    chunk_b_pred = np.load(chunk_b_pred_path)
+
+    assert chunk_a_pred.shape[0] == len(chunk_a_frames_df), {"chunk_name": chunk_a_name, "pred_len": int(chunk_a_pred.shape[0]), "frame_len": int(len(chunk_a_frames_df))}
+    assert chunk_b_pred.shape[0] == len(chunk_b_frames_df), {"chunk_name": chunk_b_name, "pred_len": int(chunk_b_pred.shape[0]), "frame_len": int(len(chunk_b_frames_df))}
+
+    overlap_records = sorted(set(chunk_a_frames_df["record_index"].astype(int)) & set(chunk_b_frames_df["record_index"].astype(int)))
+    assert len(overlap_records) >= 2, {"chunk_a_name": chunk_a_name, "chunk_b_name": chunk_b_name, "overlap_record_count": len(overlap_records)}
+    overlap_record_set = set(overlap_records)
+
+    chunk_a_map = {int(row.record_index): idx for idx, row in enumerate(chunk_a_frames_df.itertuples(index=False))}
+    chunk_b_map = {int(row.record_index): idx for idx, row in enumerate(chunk_b_frames_df.itertuples(index=False))}
+    overlap_a_indices = [chunk_a_map[r] for r in overlap_records]
+    overlap_b_indices = [chunk_b_map[r] for r in overlap_records]
+
+    chunk_a_c2w_all = c2w_list_from_extrinsics(chunk_a_pred)
+    chunk_b_c2w_all = c2w_list_from_extrinsics(chunk_b_pred)
+    chunk_a_c2w_overlap = [chunk_a_c2w_all[i] for i in overlap_a_indices]
+    chunk_b_c2w_overlap = [chunk_b_c2w_all[i] for i in overlap_b_indices]
+
+    T_b_to_a, align_diag = estimate_pose_aware_similarity(chunk_b_c2w_overlap, chunk_a_c2w_overlap, estimate_scale=True)
+    chunk_b_c2w_aligned_all = transform_c2w_list(chunk_b_c2w_all, T_b_to_a)
+    chunk_b_c2w_aligned_overlap = [chunk_b_c2w_aligned_all[i] for i in overlap_b_indices]
+
+    centers_a = np.asarray([c[:3, 3] for c in chunk_a_c2w_overlap], dtype=np.float64)
+    centers_b = np.asarray([c[:3, 3] for c in chunk_b_c2w_overlap], dtype=np.float64)
+    centers_b_aligned = np.asarray([c[:3, 3] for c in chunk_b_c2w_aligned_overlap], dtype=np.float64)
+    lens_a = np.asarray([lens_direction_from_c2w(c) for c in chunk_a_c2w_overlap], dtype=np.float64)
+    lens_b = np.asarray([lens_direction_from_c2w(c) for c in chunk_b_c2w_overlap], dtype=np.float64)
+    lens_b_aligned = np.asarray([lens_direction_from_c2w(c) for c in chunk_b_c2w_aligned_overlap], dtype=np.float64)
+    up_a = np.asarray([up_direction_from_c2w(c) for c in chunk_a_c2w_overlap], dtype=np.float64)
+    up_b = np.asarray([up_direction_from_c2w(c) for c in chunk_b_c2w_overlap], dtype=np.float64)
+    up_b_aligned = np.asarray([up_direction_from_c2w(c) for c in chunk_b_c2w_aligned_overlap], dtype=np.float64)
+
+    center_error_pre = np.linalg.norm(centers_b - centers_a, axis=1)
+    center_error_post = np.linalg.norm(centers_b_aligned - centers_a, axis=1)
+    lens_error_pre = angle_deg(lens_b, lens_a)
+    lens_error_post = angle_deg(lens_b_aligned, lens_a)
+    up_error_pre = angle_deg(up_b, up_a)
+    up_error_post = angle_deg(up_b_aligned, up_a)
+
+    pair_rows = []
+    for record_index, a_idx, b_idx, ce_pre, ce_post, le_pre, le_post, ue_pre, ue_post in zip(
+        overlap_records,
+        overlap_a_indices,
+        overlap_b_indices,
+        center_error_pre,
+        center_error_post,
+        lens_error_pre,
+        lens_error_post,
+        up_error_pre,
+        up_error_post,
+    ):
+        pair_rows.append({
+            "chunk_a_name": chunk_a_name,
+            "chunk_b_name": chunk_b_name,
+            "record_index": int(record_index),
+            "chunk_a_local_index": int(a_idx),
+            "chunk_b_local_index": int(b_idx),
+            "center_error_pre": float(ce_pre),
+            "center_error_post": float(ce_post),
+            "lens_error_deg_pre": float(le_pre),
+            "lens_error_deg_post": float(le_post),
+            "up_error_deg_pre": float(ue_pre),
+            "up_error_deg_post": float(ue_post),
+        })
+
+    pair_df = pd.DataFrame(pair_rows)
+    points_df = pd.concat([
+        pose_rows_to_frame_df(chunk_a_name, chunk_a_frames_df, chunk_a_c2w_all, "chunk_a_raw", overlap_record_set),
+        pose_rows_to_frame_df(chunk_b_name, chunk_b_frames_df, chunk_b_c2w_all, "chunk_b_raw", overlap_record_set),
+        pose_rows_to_frame_df(chunk_b_name, chunk_b_frames_df, chunk_b_c2w_aligned_all, "chunk_b_aligned_to_a", overlap_record_set),
+    ], ignore_index=True)
+
+    pair_label = f"{chunk_a_name}__{chunk_b_name}"
+    pair_csv = matching_dir / f"{pair_label}_overlap_pair_metrics_arc.csv"
+    points_csv = matching_dir / f"{pair_label}_trajectory_points_arc.csv"
+    transform_npy = matching_dir / f"{pair_label}_transform_b_to_a.npy"
+    plot_png = matching_dir / f"{pair_label}_trajectory_match.png"
+    plot_html = matching_dir / f"{pair_label}_trajectory_match.html"
+    summary_json = matching_dir / f"{pair_label}_matching_summary.json"
+
+    pair_df.to_csv(pair_csv, index=False, encoding="utf-8")
+    points_df.to_csv(points_csv, index=False, encoding="utf-8")
+    np.save(transform_npy, T_b_to_a.astype(np.float32))
+    plot_pose_match(
+        points_df.loc[points_df["variant"] == "chunk_a_raw"].copy(),
+        points_df.loc[points_df["variant"] == "chunk_b_raw"].copy(),
+        points_df.loc[points_df["variant"] == "chunk_b_aligned_to_a"].copy(),
+        plot_png,
+    )
+    write_pose_match_html(
+        points_df.loc[points_df["variant"] == "chunk_a_raw"].copy(),
+        points_df.loc[points_df["variant"] == "chunk_b_raw"].copy(),
+        points_df.loc[points_df["variant"] == "chunk_b_aligned_to_a"].copy(),
+        plot_html,
+    )
+
+    summary = {
+        "status": "ok",
+        "route": "continuous-gs-v06-chunk18-overlap6-adopt12-overlap-pose-matching",
+        "chunk_a_name": chunk_a_name,
+        "chunk_b_name": chunk_b_name,
+        "chunk_a_frames_path": str(chunk_a_frames_path),
+        "chunk_a_pred_extrinsics_path": str(chunk_a_pred_path),
+        "chunk_b_frames_path": str(chunk_b_frames_path),
+        "chunk_b_pred_extrinsics_path": str(chunk_b_pred_path),
+        "chunk_a_row_count": int(len(chunk_a_frames_df)),
+        "chunk_b_row_count": int(len(chunk_b_frames_df)),
+        "overlap_record_count": int(len(overlap_records)),
+        "overlap_records": overlap_records,
+        "local_extrinsic_mode": LOCAL_EXTRINSIC_MODE,
+        "local_camera_basis": "perm_yxz_sign_ppn",
+        "scale": float(align_diag["scale"]),
+        "rotation_det": float(align_diag["rotation_det"]),
+        "center_rmse": float(align_diag["center_rmse"]),
+        "rotation_dir_residual": float(align_diag["rotation_dir_residual"]),
+        "positive_similarity_ok": bool(align_diag["positive_similarity_ok"]),
+        "scale_in_range_ok": bool(align_diag["scale_in_range_ok"]),
+        "center_rmse_ok": bool(align_diag["center_rmse_ok"]),
+        "rotation_dir_ok": bool(align_diag["rotation_dir_ok"]),
+        "hard_fail": bool(align_diag["hard_fail"]),
+        "relative_scale": float(align_diag["scale"]),
+        "relative_translation_norm": float(np.linalg.norm(T_b_to_a[:3, 3])),
+        "relative_rotation_deg": float(rotation_angle_deg_from_matrix(T_b_to_a[:3, :3] / max(abs(float(align_diag["scale"])), 1e-12))),
+        "center_error_pre_mean": float(center_error_pre.mean()),
+        "center_error_pre_p95": float(np.quantile(center_error_pre, 0.95)),
+        "center_error_post_mean": float(center_error_post.mean()),
+        "center_error_post_p95": float(np.quantile(center_error_post, 0.95)),
+        "lens_error_deg_pre_mean": float(lens_error_pre.mean()),
+        "lens_error_deg_pre_p95": float(np.quantile(lens_error_pre, 0.95)),
+        "lens_error_deg_post_mean": float(lens_error_post.mean()),
+        "lens_error_deg_post_p95": float(np.quantile(lens_error_post, 0.95)),
+        "up_error_deg_pre_mean": float(up_error_pre.mean()),
+        "up_error_deg_pre_p95": float(np.quantile(up_error_pre, 0.95)),
+        "up_error_deg_post_mean": float(up_error_post.mean()),
+        "up_error_deg_post_p95": float(np.quantile(up_error_post, 0.95)),
+        "pair_metrics_csv": str(pair_csv),
+        "trajectory_points_csv": str(points_csv),
+        "transform_npy": str(transform_npy),
+        "plot_png": str(plot_png),
+        "plot_html": str(plot_html),
+    }
+    save_json(summary_json, summary)
+
+    print(json.dumps(summary, indent=2, ensure_ascii=False))
+    display_stage_summary(
+        "7-6",
+        "overlap pose matching",
+        inputs=[
+            {"item": "chunk_a_input_frames", "path": str(chunk_a_frames_path)},
+            {"item": "chunk_a_pred_extrinsics", "path": str(chunk_a_pred_path)},
+            {"item": "chunk_b_input_frames", "path": str(chunk_b_frames_path)},
+            {"item": "chunk_b_pred_extrinsics", "path": str(chunk_b_pred_path)},
+        ],
+        outputs=[
+            {"item": "matching_summary", "path": str(summary_json)},
+            {"item": "matching_pair_metrics", "path": str(pair_csv)},
+            {"item": "matching_trajectory_points", "path": str(points_csv)},
+            {"item": "matching_transform", "path": str(transform_npy)},
+            {"item": "matching_plot", "path": str(plot_png)},
+            {"item": "matching_plot_html", "path": str(plot_html)},
+        ],
+        notes=[
+            {"item": "chunk_pair", "value": pair_label},
+            {"item": "overlap_record_count", "value": int(len(overlap_records))},
+            {"item": "relative_rotation_deg", "value": float(summary["relative_rotation_deg"])},
+            {"item": "center_error_post_p95", "value": float(summary["center_error_post_p95"])},
+            {"item": "lens_error_deg_post_p95", "value": float(summary["lens_error_deg_post_p95"])},
+        ],
+    )
+```
 
 ```python
-#13-1
+#7-7
 
 ctx = load_ctx()
 
@@ -5196,8 +4757,8 @@ if len(candidate_df):
 if len(missing_pred_df):
     display(missing_pred_df.head())
 display_stage_summary(
-    "13-1",
-    "prediction validation",
+    "7-7",
+    "prepose graph build and gate",
     inputs=[
         {"item": "batch_execution_items", "path": str(batch_execution_items_path)},
         {"item": "camera_anchor_full_arc", "path": str(camera_anchor_full_path)},
@@ -5222,6 +4783,518 @@ display_stage_summary(
         {"item": "fallback_count", "value": fallback_count},
     ],
 )
+```
+
+#No: #8-1..#8-2
+前: #7-1..#7-7
+次: #13-1
+
+# 8 Anchor QC And Plot
+
+この markdown cell は `#8-1..#8-2` の anchor QC と plot を説明する。
+camera anchor の連続性、姿勢差分、plotly 可視化を確認し、必要なら直前の `#7-1..#7-7` で作った overlap matching / prepose graph build を見直したうえで、`#13-1` の review gate へ進む。
+
+```python
+#8-1
+
+from pathlib import Path
+import json
+import numpy as np
+import pandas as pd
+
+config = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8"))
+
+def _existing(p):
+    if not p:
+        return None
+    p = Path(p)
+    return p if p.exists() else None
+
+def _find_anchor_diag_root(search_roots):
+    rel = "01_anchor/full_anchor_pose_diag_arc.csv"
+    for root in search_roots:
+        if root is None:
+            continue
+        root = Path(root)
+        if root.is_file():
+            root = root.parent
+        if not root.exists():
+            continue
+
+        candidate_dirs = [root]
+        candidate_dirs += [p for p in root.glob("*") if p.is_dir()]
+        candidate_dirs += [p for p in root.glob("*/*") if p.is_dir()]
+
+        seen = set()
+        for d in candidate_dirs:
+            d = d.resolve()
+            if str(d) in seen:
+                continue
+            seen.add(str(d))
+            if (d / rel).exists():
+                return d
+    return None
+
+search_roots = [
+    _existing(config.get("persist_root")),
+    _existing(config.get("google_drive_run_root")),
+    _existing(config.get("run_root")),
+    _existing(config.get("persist_dir")),
+    _existing(config.get("output_root")),
+    _existing(config.get("project_root")),
+    _existing(config.get("session_dir")),
+    _existing(config.get("target_probe_root")),
+    _existing(config.get("probe_root")),
+    Path("/content/drive/MyDrive/trajectreview"),
+    Path("/content/drive/MyDrive"),
+]
+
+persist_root = _find_anchor_diag_root(search_roots)
+assert persist_root is not None, {
+    "error": "full_anchor_pose_diag_arc.csv not found",
+    "searched_roots": [str(p) for p in search_roots if p is not None],
+}
+
+anchor_dir = persist_root / "01_anchor"
+diag_path = anchor_dir / "full_anchor_pose_diag_arc.csv"
+df = pd.read_csv(diag_path)
+assert not df.empty, diag_path
+
+# ---- 閾値: まずは緩め。全落ち防止 ----
+MAX_DELTA_POS = float(config.get("ANCHOR_QC_MAX_DELTA_POS", 5.0))
+MAX_DELTA_LENS_ANGLE_DEG = float(config.get("ANCHOR_QC_MAX_DELTA_LENS_ANGLE_DEG", 45.0))
+MAX_DELTA_UP_ANGLE_DEG = float(config.get("ANCHOR_QC_MAX_DELTA_UP_ANGLE_DEG", 45.0))
+MAX_DELTA2_POS = float(config.get("ANCHOR_QC_MAX_DELTA2_POS", 5.0))
+MAX_DELTA2_ROT = float(config.get("ANCHOR_QC_MAX_DELTA2_ROT", 60.0))
+
+# warning 用
+WARN_ABS_ROLL_CENTERED_DEG = float(
+    config.get(
+        "ANCHOR_QC_WARN_ABS_ROLL_CENTERED_DEG",
+        config.get("ANCHOR_QC_WARN_ABS_ROLL_DEG", 45.0),
+    )
+)
+WARN_PITCH_MIN_DEG = float(config.get("ANCHOR_QC_WARN_PITCH_MIN_DEG", -89.0))
+WARN_PITCH_MAX_DEG = float(config.get("ANCHOR_QC_WARN_PITCH_MAX_DEG", 89.0))
+
+for col in [
+    "delta_pos", "delta_lens_angle_deg", "delta_up_angle_deg",
+    "delta2_pos", "delta2_rot", "roll_deg", "pitch_deg"
+]:
+    if col not in df.columns:
+        df[col] = 0.0
+
+if "roll_deg_raw" not in df.columns:
+    df["roll_deg_raw"] = df["roll_deg"].astype(float)
+
+if "roll_deg_centered" not in df.columns:
+    roll_base = float(np.nanmedian(df["roll_deg_raw"].to_numpy(dtype=float))) if len(df) > 0 else 0.0
+    df["roll_deg_centered"] = ((df["roll_deg_raw"] - roll_base + 180.0) % 360.0) - 180.0
+
+# ---- fail: 連続性の明確な破綻だけ ----
+df["fail_delta_pos"] = df["delta_pos"].abs() > MAX_DELTA_POS
+df["fail_delta_lens"] = df["delta_lens_angle_deg"].abs() > MAX_DELTA_LENS_ANGLE_DEG
+df["fail_delta_up"] = df["delta_up_angle_deg"].abs() > MAX_DELTA_UP_ANGLE_DEG
+df["fail_delta2_pos"] = df["delta2_pos"].abs() > MAX_DELTA2_POS
+df["fail_delta2_rot"] = df["delta2_rot"].abs() > MAX_DELTA2_ROT
+
+df["anchor_qc_fail"] = (
+    df["fail_delta_pos"] |
+    df["fail_delta_lens"] |
+    df["fail_delta_up"] |
+    df["fail_delta2_pos"] |
+    df["fail_delta2_rot"]
+)
+
+# ---- warning: 姿勢帯域。まだ fail に使わない ----
+df["warn_roll_band"] = df["roll_deg_centered"].abs() > WARN_ABS_ROLL_CENTERED_DEG
+df["warn_pitch_band"] = (df["pitch_deg"] < WARN_PITCH_MIN_DEG) | (df["pitch_deg"] > WARN_PITCH_MAX_DEG)
+
+# 先頭フレームは差分系が 0 or NaN になりやすいので fail解除
+if len(df) > 0:
+    first_idx = df.index[0]
+    for c in ["fail_delta_pos", "fail_delta_lens", "fail_delta_up", "fail_delta2_pos", "fail_delta2_rot", "anchor_qc_fail"]:
+        df.loc[first_idx, c] = False
+
+fail_df = df[df["anchor_qc_fail"]].copy()
+warn_df = df[df["warn_roll_band"] | df["warn_pitch_band"]].copy()
+
+qc_csv = anchor_dir / "full_anchor_pose_qc_arc.csv"
+fail_csv = anchor_dir / "full_anchor_pose_qc_fail_arc.csv"
+warn_csv = anchor_dir / "full_anchor_pose_qc_warn_arc.csv"
+
+df.to_csv(qc_csv, index=False)
+fail_df.to_csv(fail_csv, index=False)
+warn_df.to_csv(warn_csv, index=False)
+
+summary = {
+    "anchor_qc_rows": int(len(df)),
+    "fail_rows": int(len(fail_df)),
+    "warn_rows": int(len(warn_df)),
+    "fail_count": int(len(fail_df)),
+    "warn_count": int(len(warn_df)),
+    "fail_rate": float(len(fail_df) / max(len(df), 1)),
+    "warn_rate": float(len(warn_df) / max(len(df), 1)),
+    "max_delta_pos": float(df["delta_pos"].abs().max()),
+    "max_delta_lens_angle_deg": float(df["delta_lens_angle_deg"].abs().max()),
+    "max_delta_up_angle_deg": float(df["delta_up_angle_deg"].abs().max()),
+    "max_delta2_pos": float(df["delta2_pos"].abs().max()),
+    "max_delta2_rot": float(df["delta2_rot"].abs().max()),
+    "roll_deg_min": float(df["roll_deg"].min()),
+    "roll_deg_max": float(df["roll_deg"].max()),
+    "roll_deg_centered_min": float(df["roll_deg_centered"].min()),
+    "roll_deg_centered_max": float(df["roll_deg_centered"].max()),
+    "pitch_deg_min": float(df["pitch_deg"].min()),
+    "pitch_deg_max": float(df["pitch_deg"].max()),
+    "qc_csv": str(qc_csv),
+    "fail_csv": str(fail_csv),
+    "warn_csv": str(warn_csv),
+}
+print(summary)
+display_stage_summary(
+    "8-1",
+    "anchor qc",
+    inputs=[
+        {"item": "full_anchor_pose_diag", "path": str(diag_path)},
+    ],
+    outputs=[
+        {"item": "full_anchor_pose_qc", "path": str(qc_csv)},
+        {"item": "full_anchor_pose_fail", "path": str(fail_csv)},
+        {"item": "full_anchor_pose_warn", "path": str(warn_csv)},
+    ],
+    notes=[
+        {"item": "fail_count", "value": int(summary["fail_count"])},
+        {"item": "warn_count", "value": int(summary["warn_count"])},
+    ],
+)
+```
+
+```python
+#8-2
+
+from pathlib import Path
+import json
+import numpy as np
+import pandas as pd
+
+config = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8"))
+
+def _existing(p):
+    if not p:
+        return None
+    p = Path(p)
+    return p if p.exists() else None
+
+def _find_anchor_root(search_roots):
+    rels = [
+        "01_anchor/camera_anchor_full_arc.csv",
+        "01_anchor/full_anchor_pose_diag_arc.csv",
+        "01_anchor/camera_center_matrix_arc.csv",
+        "01_anchor/camera_orientation_full_arc.csv",
+    ]
+    for root in search_roots:
+        if root is None:
+            continue
+        root = Path(root)
+        if root.is_file():
+            root = root.parent
+        if not root.exists():
+            continue
+
+        candidate_dirs = [root]
+        candidate_dirs += [p for p in root.glob("*") if p.is_dir()]
+        candidate_dirs += [p for p in root.glob("*/*") if p.is_dir()]
+
+        seen = set()
+        for d in candidate_dirs:
+            d = d.resolve()
+            if str(d) in seen:
+                continue
+            seen.add(str(d))
+            if any((d / rel).exists() for rel in rels):
+                return d
+    return None
+
+def _pick_first_existing(paths):
+    for p in paths:
+        if p.exists():
+            return p
+    return None
+
+def _resolve_center_cols(df: pd.DataFrame):
+    candidates = [
+        ("cam_cx", "cam_cy", "cam_cz"),
+        ("cx", "cy", "cz"),
+        ("camera_center_x", "camera_center_y", "camera_center_z"),
+        ("tx", "ty", "tz"),
+    ]
+    for cols in candidates:
+        if all(c in df.columns for c in cols):
+            return cols
+    raise ValueError(f"camera center columns not found; columns={list(df.columns)}")
+
+def _resolve_lens_cols(df: pd.DataFrame):
+    candidates = [
+        ("lens_x", "lens_y", "lens_z"),
+        ("forward_x", "forward_y", "forward_z"),
+        ("dir_x", "dir_y", "dir_z"),
+    ]
+    for cols in candidates:
+        if all(c in df.columns for c in cols):
+            return cols
+    return None
+
+search_roots = [
+    _existing(config.get("persist_root")),
+    _existing(config.get("google_drive_run_root")),
+    _existing(config.get("run_root")),
+    _existing(config.get("persist_dir")),
+    _existing(config.get("output_root")),
+    _existing(config.get("project_root")),
+    _existing(config.get("session_dir")),
+    _existing(config.get("target_probe_root")),
+    _existing(config.get("probe_root")),
+    Path("/content/drive/MyDrive/trajectreview"),
+    Path("/content/drive/MyDrive"),
+]
+
+persist_root = _find_anchor_root(search_roots)
+assert persist_root is not None, {
+    "error": "anchor root not found",
+    "searched_roots": [str(p) for p in search_roots if p is not None],
+}
+
+anchor_dir = persist_root / "01_anchor"
+anchor_csv = _pick_first_existing([
+    anchor_dir / "full_anchor_pose_diag_arc.csv",
+    anchor_dir / "camera_anchor_full_arc.csv",
+    anchor_dir / "camera_center_matrix_arc.csv",
+])
+
+assert anchor_csv is not None, {"missing_anchor_csv_in": str(anchor_dir)}
+
+df = pd.read_csv(anchor_csv)
+assert not df.empty, anchor_csv
+
+# sequence 順に並べる
+if "sequence_index" in df.columns:
+    df = df.sort_values("sequence_index", kind="stable").reset_index(drop=True)
+elif "frame_timestamp_ns" in df.columns:
+    df = df.sort_values("frame_timestamp_ns", kind="stable").reset_index(drop=True)
+elif "timestamp_ns" in df.columns:
+    df = df.sort_values("timestamp_ns", kind="stable").reset_index(drop=True)
+elif "timestamp" in df.columns:
+    df = df.sort_values("timestamp", kind="stable").reset_index(drop=True)
+else:
+    df = df.reset_index(drop=True)
+
+cx_col, cy_col, cz_col = _resolve_center_cols(df)
+lens_cols = _resolve_lens_cols(df)
+
+plotly_html = anchor_dir / "full_anchor_preview_arc.html"
+plotly_png = anchor_dir / "full_anchor_preview_arc.png"
+
+centers = df[[cx_col, cy_col, cz_col]].to_numpy(dtype=float)
+
+# 矢印長
+bbox_min = np.nanmin(centers, axis=0)
+bbox_max = np.nanmax(centers, axis=0)
+diag = float(np.linalg.norm(bbox_max - bbox_min))
+arrow_scale = max(diag * 0.03, 0.02)
+
+# Plotly 可視化
+try:
+    import plotly.graph_objects as go
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter3d(
+        x=centers[:, 0],
+        y=centers[:, 1],
+        z=centers[:, 2],
+        mode="lines+markers",
+        name="camera_centers",
+        marker=dict(size=2),
+        line=dict(width=4),
+        text=[f"idx={i}" for i in range(len(df))],
+        hovertemplate="x=%{x:.3f}<br>y=%{y:.3f}<br>z=%{z:.3f}<br>%{text}<extra></extra>",
+    ))
+
+    if lens_cols is not None:
+        lens = df[list(lens_cols)].to_numpy(dtype=float)
+        lens_norm = np.linalg.norm(lens, axis=1, keepdims=True)
+        lens_norm = np.maximum(lens_norm, 1e-12)
+        lens = lens / lens_norm
+        ends = centers + lens * arrow_scale
+
+        step = max(len(df) // 40, 1)  # 矢印が多すぎないよう間引き
+        for i in range(0, len(df), step):
+            fig.add_trace(go.Scatter3d(
+                x=[centers[i, 0], ends[i, 0]],
+                y=[centers[i, 1], ends[i, 1]],
+                z=[centers[i, 2], ends[i, 2]],
+                mode="lines",
+                name="lens_dir" if i == 0 else None,
+                showlegend=(i == 0),
+                line=dict(width=3),
+                hoverinfo="skip",
+            ))
+
+    fig.update_layout(
+        title="Full Anchor Preview",
+        scene=dict(
+            xaxis_title="X",
+            yaxis_title="Y",
+            zaxis_title="Z",
+            aspectmode="data",
+        ),
+        margin=dict(l=0, r=0, t=40, b=0),
+    )
+
+    fig.write_html(str(plotly_html), include_plotlyjs="cdn")
+    preview_result = {
+        "plotly_preview": "saved",
+        "anchor_csv": str(anchor_csv),
+        "html": str(plotly_html),
+        "rows": int(len(df)),
+        "center_cols": [cx_col, cy_col, cz_col],
+        "lens_cols": list(lens_cols) if lens_cols is not None else None,
+    }
+except Exception as e:
+    preview_result = {
+        "plotly_preview": "skipped",
+        "reason": repr(e),
+        "anchor_csv": str(anchor_csv),
+        "rows": int(len(df)),
+        "available_columns": list(df.columns),
+    }
+
+print(preview_result)
+display_stage_summary(
+    "8-2",
+    "full anchor preview",
+    inputs=[
+        {"item": "anchor_csv", "path": str(anchor_csv)},
+    ],
+    outputs=[
+        {"item": "full_anchor_preview_html", "path": str(plotly_html)},
+        {"item": "full_anchor_preview_png", "path": str(plotly_png)},
+    ],
+    notes=[
+        {"item": "rows", "value": int(preview_result["rows"])},
+        {"item": "center_cols", "value": "|".join(preview_result.get("center_cols", [])) if preview_result.get("center_cols") else ""},
+        {"item": "lens_cols", "value": "|".join(preview_result.get("lens_cols", [])) if preview_result.get("lens_cols") else ""},
+    ],
+)
+```
+
+#No: #13-1
+前: #8-1..#8-2
+次: #14-1
+
+# 13 Prepose Graph Judge
+
+この markdown cell は active な `#13-1` の prepose graph review gate を説明する。
+`#13-1` は `#7-1..#7-7` で既に生成済みの `premerge_pose_validation.json`、`premerge_route_compare_summary.json`、`prepose_chunk_graph_solution_arc.csv`、`prepose_chunk_graph_edges_arc.csv` を読み、route 選択と graph build が merge 前提を満たすかを review する thin gate である。
+review 対象の route label は少なくとも `arcore_anchor_baseline` と `da3_predicted_primary` を含み、`relative_rotation_deg`、`preferred_fallback_used_count` と合わせて `#14-1` へ渡す。
+つまり graph をここで新規生成するのではなく、`#7` で作った anchor / overlap matching / graph solution を確認して `#14-1` へ渡す。
+以前の追加 probe 群は active runbook から外し、`cells/*-extrated.md` の dead copy として同じ folder に退避した。
+
+```python
+#13-1
+
+ctx = load_ctx()
+
+probe_root = Path(ctx["probe_root"])
+pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
+chunk_manifest_dir = pipeline_root / "manifests"
+merged_dir = Path(ctx.get("merged_dir", str(pipeline_root / "merged")))
+merged_dir.mkdir(parents=True, exist_ok=True)
+
+final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
+final_outputs_diagnostics_dir.mkdir(parents=True, exist_ok=True)
+
+validation_json = merged_dir / "premerge_pose_validation.json"
+route_compare_json = merged_dir / "premerge_route_compare_summary.json"
+route_compare_csv = merged_dir / "premerge_route_compare_arc.csv"
+graph_solution_csv = merged_dir / "prepose_chunk_graph_solution_arc.csv"
+graph_edges_csv = merged_dir / "prepose_chunk_graph_edges_arc.csv"
+graph_summary_json = merged_dir / "prepose_chunk_graph_summary.json"
+batch_execution_items_path = chunk_manifest_dir / "batch_execution_items.csv"
+
+required_paths = [
+    validation_json,
+    route_compare_json,
+    route_compare_csv,
+    graph_solution_csv,
+    graph_edges_csv,
+    graph_summary_json,
+    batch_execution_items_path,
+]
+missing_paths = [str(path) for path in required_paths if not path.exists()]
+assert not missing_paths, {"reason": "missing_prepose_graph_artifacts", "missing_paths": missing_paths}
+
+validation = load_json(validation_json)
+route_compare_summary = load_json(route_compare_json)
+graph_summary = load_json(graph_summary_json)
+
+validation_df = pd.read_csv(graph_solution_csv)
+route_compare_df = pd.read_csv(route_compare_csv)
+graph_edges_df = pd.read_csv(graph_edges_csv)
+
+status = str(validation.get("status", "missing"))
+selected_route_counts = validation.get("selected_route_counts", route_compare_summary.get("selected_route_counts", []))
+preferred_route_label = str(validation.get("preferred_route_label", route_compare_summary.get("preferred_route_label", "")))
+preferred_fallback_used_count = int(validation.get("preferred_fallback_used_count", 0))
+
+review_summary = {
+    "status": status,
+    "route": "continuous-gs-v06-chunk18-overlap6-adopt12-prepose-graph-review",
+    "preferred_route_label": preferred_route_label,
+    "selected_route_counts": selected_route_counts,
+    "preferred_fallback_used_count": preferred_fallback_used_count,
+    "tested_chunk_count": int(validation.get("tested_chunk_count", len(validation_df))),
+    "hard_fail_count": int(validation.get("hard_fail_count", 0)),
+    "route_compare_csv": str(route_compare_csv),
+    "prepose_chunk_graph_solution_csv": str(graph_solution_csv),
+    "prepose_chunk_graph_edges_csv": str(graph_edges_csv),
+    "prepose_chunk_graph_summary_json": str(graph_summary_json),
+    "premerge_pose_validation_json": str(validation_json),
+}
+save_json(final_outputs_diagnostics_dir / "prepose_graph_gate_review.json", review_summary)
+
+print(json.dumps(review_summary, indent=2, ensure_ascii=False))
+if len(validation_df):
+    display(validation_df)
+if len(route_compare_df):
+    display(route_compare_df)
+if len(graph_edges_df):
+    display(graph_edges_df)
+
+display_stage_summary(
+    "13-1",
+    "prepose graph review gate",
+    inputs=[
+        {"item": "batch_execution_items", "path": str(batch_execution_items_path)},
+        {"item": "premerge_pose_validation", "path": str(validation_json)},
+        {"item": "premerge_route_compare_summary", "path": str(route_compare_json)},
+        {"item": "prepose_chunk_graph_summary", "path": str(graph_summary_json)},
+    ],
+    outputs=[
+        {"item": "premerge_route_compare", "path": str(route_compare_csv)},
+        {"item": "prepose_chunk_graph_solution", "path": str(graph_solution_csv)},
+        {"item": "prepose_chunk_graph_edges", "path": str(graph_edges_csv)},
+        {"item": "prepose_graph_gate_review", "path": str(final_outputs_diagnostics_dir / "prepose_graph_gate_review.json")},
+    ],
+    notes=[
+        {"item": "status", "value": status},
+        {"item": "preferred_route_label", "value": preferred_route_label},
+        {"item": "preferred_fallback_used_count", "value": preferred_fallback_used_count},
+        {"item": "hard_fail_count", "value": int(validation.get("hard_fail_count", 0))},
+    ],
+)
+
+assert status == "ok", validation
 ```
 
 #No: #14-1
@@ -5427,7 +5500,7 @@ def resolve_chunk_output_dir(chunk_name: str) -> Path:
     raise AssertionError({
         "chunk_name": chunk_name,
         "missing_dir": str(direct),
-        "reason": "run #12-3 before #14-1",
+        "reason": "run #7-5 before #14-1",
         "searched_nested_under": str(chunk_runs_dir),
     })
 

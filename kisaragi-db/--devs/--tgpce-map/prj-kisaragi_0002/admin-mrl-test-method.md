@@ -70,7 +70,7 @@
 
 ### PC + Colab block
 
-38. `Colab` runbook の正本は [da3_ngl_prepose_RB.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_prepose_RB.md) とし、admin が Colab でそのまま実行する notebook は [da3_ngl_prepose_RB.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_prepose_RB.ipynb) を使う。canonical route は `MRL-10 sequence-anchor record-native DA3 route` であり、`frame_record.jsonl + images` を正に読み、`intrinsics[N,3,3]` と `extrinsics_w2c_arc[N,4,4]` を canonical manifest として生成する。画像は `correcting` 側で `90度右回転` 済みの upright JPEG を受け取り、`Colab` は pixel を再回転しない。camera pose / trajectory の事前推定も `depth-anything/DA3NESTED-GIANT-LARGE-1.1` の official API / CLI 基準で full sequence anchor、anchor QC、adjacent continuity precheck、batch/chunk gate、final merge を行う。pair の設計契約は [da3_ngl_runbook_design_contract.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook_design_contract.md) を正本とし、`#5-1`、`#6-1`、`#12-2` の authoring source は `da3_runbook_sources/` から同期する。
+38. `Colab` runbook の正本は [da3_ngl_prepose_RB.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_prepose_RB.md) とし、admin が Colab でそのまま実行する notebook は [da3_ngl_prepose_RB.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_prepose_RB.ipynb) を使う。canonical route は `MRL-10 sequence-anchor record-native DA3 route` であり、`frame_record.jsonl + images` を正に読み、`intrinsics[N,3,3]` と `extrinsics_w2c_arc[N,4,4]` を canonical manifest として生成する。画像は `correcting` 側で `90度右回転` 済みの upright JPEG を受け取り、`Colab` は pixel を再回転しない。camera pose / trajectory の事前推定も `depth-anything/DA3NESTED-GIANT-LARGE-1.1` の official API / CLI 基準で `#6 -> #9 -> #10 -> #11 -> #7 -> #8 -> #13 -> #14` の順に full prepose anchor、anchor QC、prepose graph review、final merge を行う。pair の設計契約は [da3_ngl_runbook_design_contract.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook_design_contract.md) を正本とし、`#5-1`、`#6-1`、`#7-4` の authoring source は `da3_runbook_sources/` から同期する。
 39. PC browser で [Google Colab](https://colab.research.google.com/) を開き、Google account で sign in する。
 40. `ファイル` -> `ノートブックをアップロード` を選び、[da3_ngl_prepose_RB.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_prepose_RB.ipynb) を開く。menu 名が違う時は `Upload notebook` 相当を探す。
 41. `ランタイム` -> `ランタイムのタイプを変更` で `GPU` を選ぶ。候補に `T4`、`L4`、`A100` などが見えた時は、その表示を記録する。
@@ -78,10 +78,10 @@
 43. `drive.mount('/content/drive')` の cell を実行し、Google Drive への access 許可画面が出たら許可する。
 44. `Google Drive` 上の `correcting` zip に `frame_record.jsonl`、`trajectreview/image/`、`camera_calibration_summary.json`、`sensor_quality.json`、`space_handoff_manifest.json` が含まれていることを確認する。迷った時は zip 内の file 名だけを Codex へ伝える。
 45. install cell と `DA3NESTED-GIANT-LARGE-1.1` 実行 cell は、1 つずつ順に実行する。失敗したら、その cell の見出しと error message をそのまま控える。
-46. `#1` から `#10` までを順に実行し、mount、config、input 選択、tree 作成、install、helper、full anchor、anchor QC、record manifest、chunk plan、precheck を通す。
-47. `#11` を 1 回実行し、target output reset と execution preflight を通す。fatal が出た時は `final_outputs/diagnostics/` の summary を先に確認する。
-48. `#12` を実行して batch/chunk 処理を走らせる。実行対象 batch は `#2 Config` の値で決まり、途中確認は `chunk_runs/batch_***/batch_summary.json` を見る。
-49. `#13` を実行して residual / continuity / pre-merge gate を通し、通過後に `#14` を 1 回だけ実行して `merged_gs_arc.ply` と `merged_scene_arc.glb` を再構築する。local zip が必要な時だけ `#15` を実行する。
+46. `#1` から `#11` までを順に実行し、mount、config、input 選択、tree 作成、install、helper、record manifest、chunk plan、precheck、run preparation を通す。
+47. `#7` を実行して full prepose anchor を build する。ここには chunk-local `DA3 NGL` pose build、overlap matching、prepose graph build、可視化確認が含まれる。途中確認は `chunk_runs/batch_***/batch_summary.json`、`persist_root/01_anchor/07matching/`、`merged/prepose_chunk_graph_solution_arc.csv` を見る。
+48. `#8` を実行して anchor QC / plot を確認し、`#13` を実行して prepose graph review gate を通す。
+49. 通過後に `#14` を 1 回だけ実行して `merged_gs_arc.ply` と `merged_scene_arc.glb` を再構築する。local zip が必要な時だけ `#15` を実行する。
 50. `merged_scene_arc.glb` または `merged_gs_arc.ply` を viewer で開き、天地反転していないこと、camera pose と scene の向きが一致してぶれた二重像になっていないことを確認する。異常がある時は `chunk_global_transforms_arc.csv`、`chunk_transform_quality_arc.csv`、`merge_warning_summary_arc.json`、`owner_record_histogram_arc.csv`、`chunk_assignment_summary_arc.csv`、各 chunk dir の `vertex_assignment_summary.csv` を確認し、runbook の sequence-anchor / owner-based merge 実装に従って再実行する。
 
 ### runbook authoring 整合確認
@@ -89,7 +89,7 @@
 51. Codex が runbook pair の構成変更を含む更新を出した時は、[da3_ngl_runbook_design_contract.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook_design_contract.md) に同じ更新が反映されていることを確認する。
 52. `HAUB` の `TDD` 後段にある `correcting / modeling script 一覧表` に、更新した関数 / クラス / 主要変数が追記されていることを確認する。
 53. `correcting` を触った task では [correcting_script_source_inventory.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\correcting\correcting_script_source_inventory.md) と [correcting_script_manifest.json](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\correcting\correcting_script_manifest.json) が同時更新され、現状をありのまま記載していることを確認する。
-54. `#5-1`、`#6-1`、`#12-2` を変更した task では、`da3_runbook_sources/` 側 source と canonical pair が同時更新されていることを確認する。
+54. `#5-1`、`#6-1`、`#7-4` を変更した task では、`da3_runbook_sources/` 側 source と canonical pair が同時更新されていることを確認する。
 
 ## Colab へ入る時の考え方
 
