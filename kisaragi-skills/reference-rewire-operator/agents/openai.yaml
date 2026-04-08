@@ -1,0 +1,7 @@
+interface:
+  display_name: "Reference Rewire Operator"
+  short_description: "設計変更で参照先を変える時の棚卸し、切替、検証、文書同期を固定する。"
+  default_prompt: "Use $reference-rewire-operator to inventory current references, change them safely, verify downstream impact, and update docs in the same task when a design change rewires paths, ids, contracts, helper ownership, or output names."
+
+policy:
+  allow_implicit_invocation: true
