@@ -9,8 +9,8 @@
 
 - 恒久 truth は [project-truth.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\project-truth.md)
 - plan / current / gate は [hi-ai-unified-blueprint.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\hi-ai-unified-blueprint.md)
-- record-native `Colab` 正本は [da3_ngl_prepose_RB.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_prepose_RB.md)
-- record-native `Colab` の実行 notebook は [da3_ngl_prepose_RB.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_prepose_RB.ipynb)
+- record-native `Colab` 正本は [da3_ngl_increpose_RB.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_increpose_RB.md)
+- record-native `Colab` の実行 notebook は [da3_ngl_increpose_RB.ipynb](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_increpose_RB.ipynb)
 - `correcting` の local product script / source inventory は [correcting_script_source_inventory.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\correcting\correcting_script_source_inventory.md)
 - `modeling` の canonical pair source inventory は [da3_ngl_runbook_source_inventory.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_runbook_source_inventory.md)
 - `MRL-10` は同 runbook の `.md/.ipynb` pair の `MRL-10 record-native DA3 route` section を使う
@@ -34,7 +34,7 @@
 
 ## 到達済み
 
-- [da3_ngl_prepose_RB.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_prepose_RB.md) は `Adopted Bootstrap v1` を持つ。
+- [da3_ngl_increpose_RB.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_increpose_RB.md) は `sliding_window_incremental_seeded` を採用した canonical pair であり、chunk overlap を前 chunk の採択 pose で seed しながら進める。
 - `Google Drive` shortcut 配下の zip から `session_root` を正規化できる。
 - `Depth-Anything-3` repo clone、必要 dependency install、`depth_anything_3.api` import が通る。
 - `T4` 上で `DA3NESTED-GIANT-LARGE-1.1` の `1 frame` 推論が通り、`summary.json`、`depth_preview.png`、`depth_raw.npy` を保存できる。
@@ -57,9 +57,9 @@
 
 1. [sharedlogs_da3-colab.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\sharedlogs_da3-colab.md) の最下部を読んで、最新の `# codex v**` と `# admin` を確認する。
 2. [hi-ai-unified-blueprint.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--tgpce-map\prj-kisaragi_0002\hi-ai-unified-blueprint.md) で `MRL-2S` と後続 `MRL-**` の current_state を確認する。
-3. record-native route を blank runtime から進める時は [da3_ngl_prepose_RB.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_prepose_RB.md) の `#1` から `#6` までを順に実行し、mount、config、input 選択、tree 作成、install、helper を固める。
-4. `MRL-10` を進める時は同 runbook の `#7` から `#10` を順に実行し、full anchor、anchor QC、record manifest、chunk plan、precheck が通ることを先に確認する。
-5. giant production candidate は同 runbook の `#11`、`#12`、`#13`、`#14` を順に実行し、reset / preflight、chunk 実行、residual / continuity gate、final merge を進める。chunk 条件は `#2 Config` の設定値だけで決まり、merge 証跡は `chunk_global_transforms_arc.csv`、`chunk_keep_summary_arc.csv`、`chunk_assignment_summary_arc.csv`、`merge_warning_summary_arc.json`、`chunk_transform_quality_arc.csv` として残る。
+3. record-native route を blank runtime から進める時は [da3_ngl_increpose_RB.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_increpose_RB.md) の `#1` から `#6` までを順に実行し、mount、config、input 選択、tree 作成、install、helper を固める。
+4. `MRL-10` を進める時は同 runbook の `#7` と `#8` を順に実行し、full anchor、anchor QC、record manifest、chunk plan、precheck、`sliding_window_incremental_seeded` の chunk 実行が通ることを先に確認する。
+5. giant production candidate は同 runbook の `#9`、`#10`、`#11` を順に実行し、overlap matching、global graph gate、final merge / review を進める。merge 証跡は `incremental_seed_trace_arc.csv`、`prepose_chunk_graph_solution_arc.csv`、`chunk_global_transforms_arc.csv`、`merge_summary.json`、`chunk_transform_quality_arc.csv` として残る。
 
 ## 引き継ぎ上の重要判断
 

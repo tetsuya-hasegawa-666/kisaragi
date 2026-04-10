@@ -201,7 +201,8 @@ summary:
 ### remote modeling
 
 - remote modeling の主経路は `Google Drive` と `Colab` を使う route とする。
-- `Colab` runtime の bootstrap は product 側 runbook を正本とし、record-native canonical input、明示 `K` / `pose` 入力、`proof` / `production` 分離を同じ contract で維持する。
+- `Colab` runtime の bootstrap は product 側 runbook を正本とし、record-native canonical input、明示 `K` / `pose` 入力、`proof` / `production` 分離を同じ contract で維持する。現行 canonical pair は [da3_ngl_increpose_RB.md](C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_increpose_RB.md) / [da3_ngl_increpose_RB.ipynb](C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_increpose_RB.ipynb) とする。
+- canonical `Colab` route は `sliding_window_incremental_seeded` を採用し、chunk の overlap 部分を前 chunk の adopted pose で seed しながら漸次的に予測を進め、overlap matching と graph build を経て merge へ渡す。
 - `modeling` の Drive 正本 top directory 名は modeling session 名そのものを使い、`trajectreview-modeling-session-YYYYMMDD_<slug>` 形式を canonical とする。旧 `_*route*` suffix を top directory 名へ新規採用しない。
 
 ### route 比較

@@ -6643,3 +6643,58 @@ Moviepy - video ready /content/drive/MyDrive/trajectreview/modeling/trajectrevie
 
 - admin 指示の「nb 内の並びを上から順に並べ替え」に合わせて、現行 manifest 順を正として `sync_da3_runbook_sources.py` を再実行し、`da3_ngl_prepose_RB.md` / `.ipynb` を再生成した。active runbook の順序は `#1` から `#17` までの表示順として `#6 -> #9 -> #10 -> #11 -> #7 -> #8 -> #13 -> #14` を保つ構成で固定されている。
 - `cell_manifest.json` と `markdown_manifest.json` の順序、再生成後 pair、inventory の一致を再確認し、回帰 test `python -m unittest ...test_da3_runbook_sources.py` を再実行して `11 tests OK` を確認した。今回の変更は notebook 並び替えと pair 再同期で、runbook 内容の意味は v112 から変えていない。
+
+# codex v114
+
+- admin 実測で `#9-2` が `01_anchor/full_anchor_pose_diag_arc.csv` 不在のまま落ちた。新順序では `#9` が `#7` より前なので、この依存は設計矛盾だった。
+- `09_02.py` を修正し、`full_anchor_pose_diag_arc.csv` が未生成でも optional join として継続するようにした。`anchor_diag_joined` と `anchor_diag_missing_ok` を stage summary に追加し、`#7` 前の fresh 実行でも `da3_input_manifest.csv` 更新と `record_manifest.csv` 生成が止まらない契約へ直した。
+- 同じ順序矛盾があった `#11-4` も修正し、preflight の必須入力を `record_manifest`、sequence precheck、edge validation に限定した。`01_anchor/full_anchor_pose_diag_arc.csv` と `full_anchor_pose_qc_arc.csv` は `#7` 前なら warning に落とし、fatal にしない。`anchor_pose_diag_exists` と `anchor_qc_exists` を preflight summary に残す。
+- `09_01.md`、`11_01.md`、test を同期し、`sync_da3_runbook_sources.py`、`build_inventory.py`、`python -m unittest ...test_da3_runbook_sources.py` を再実行して `11 tests OK` を確認した。以後の Colab では最新 `da3_ngl_prepose_RB.ipynb` を開き直し、`#9-2` と `#11-4` をそのまま実行してよい。
+
+# codex v115
+
+- admin 提供の `C:/Users/tetsuya/Downloads/da3_ngl_optpose_RB.ipynb` を読み、`da3_ngl_optpose_RB.md` / `.ipynb` の pair と `da3_optpose_sources/` の source 管理へ引き戻した。`cell_manifest.json`、`markdown_manifest.json`、`sync_da3_optpose_sources.py`、`build_optpose_inventory.py` を新設し、各 code cell ごとに `cells/*.py`、各説明 cell ごとに `markdown/*.md` を持つ構成へ再分類した。
+- 元 notebook に散在していた pose helper を `#6-2` へ集約し、`#9-1`、`#10-1`、`#11-2` から重複 helper を外した。これにより `estimate_pose_aware_similarity`、`to_4x4_batch`、`transform_c2w_list` などの共通処理は 1 箇所に閉じ、cell ごとの責務は入力選択、anchor build、chunk 実行、graph gate、merge reviewに分かれる。
+- `da3_ngl_optpose_RB.md` / `.ipynb`、`da3_ngl_optpose_source_inventory.md`、`colab/agents.md`、`HAUB` を同期し、`optpose` は canonical `da3_ngl_prepose_RB` を置き換えずに並行管理する別 pair だと明記した。回帰 test `test_da3_optpose_sources.py` を追加し、source-sync・inventory・markdown/code 対応・共通 helper 分離を機械検証できるようにした。
+
+# codex v116
+
+- admin 実測の `#10-1` で `SciRot` 未定義により graph optimization が落ちた。原因は `sim3_matrix_to_params()` と `params_to_sim3_matrix()` が `scipy.spatial.transform.Rotation` を使うのに、`10_01.py` へ import を入れ忘れていたこと。
+- `da3_optpose_sources/cells/10_01.py` に `from scipy.spatial.transform import Rotation as SciRot` を追加し、`test_da3_optpose_sources.py` にも import 存在確認を追加した。pair は source-sync で再生成すれば Colab 側の `#10-1` へ反映される。
+
+# codex v117
+
+- admin 再実測で同じ `#10-1` が `least_squares` 未定義で止まった。`refine_graph_solution()` が `scipy.optimize.least_squares` を使うのに、同じく import を落としていた。
+- `da3_optpose_sources/cells/10_01.py` に `from scipy.optimize import least_squares` を追加し、`test_da3_optpose_sources.py` でも import 存在を確認するよう更新した。再度 source-sync を掛ければ `da3_ngl_optpose_RB.ipynb` 側の `#10-1` へ反映される。
+
+# codex v118
+
+- admin 実測で `chunk_0006` は overlap 上の `Sim(3)` は良いが non-overlap で大きく drift していたため、`da3_optpose_sources/cells/10_01.py` の graph optimization を anchor residual aware に拡張した。edge residual と初期値 prior だけでなく、各 chunk の local pose を current `Sim(3)` で world へ写した後の center residual と lens residual を loss に混ぜ、overlap frame より non-overlap frame を重く見るようにした。
+- `#10-1` の route selection は、preferred route が `align_hard_fail` でなくても `anchor_warning` を出した時は baseline へ fallback するよう修正した。これにより「overlap だけ合う route」がそのまま selected route として通る挙動を防ぐ。`fallback_reason` は `preferred_route_warning_or_hard_fail` を返す。
+- graph optimization 後の `premerge_pose_validation.csv/json` も pre-optimization の `selected_rows` ではなく、再計算した `graph_solution_df` を基準に出すよう変更した。`test_da3_optpose_sources.py` を更新し、`anchor-aware graph optimization` と `warning-based fallback` の実装痕跡を検証して `6 tests OK` を確認した。
+
+# codex v119
+
+- admin 実測で `#11-2` の Plotly 可視化が `showlegend` に `numpy.bool_` を渡して `ValueError` になった。原因は `sample_idx[0]` との比較結果をそのまま `Scatter3d(showlegend=...)` へ渡していたこと。
+- `da3_optpose_sources/cells/11_02.py` に `_py_bool()` を追加し、`showlegend=_py_bool(i == sample_idx[0])` で Python `bool` に正規化するよう修正した。`test_da3_optpose_sources.py` にも helper と呼び出しの存在確認を追加し、source-sync 後に `6 tests OK` を確認した。
+
+# codex v120
+
+- admin 指示の directory 再構成に合わせて `da3_ngl_optpose_RB` の tree 初期化を組み替えた。`03_01.py` は `tree_schema_version=2.0.0`、`run_id`、`10_validation/runs/<run_id>/`、`20_delivery/*`、`legacy/`、`migration/`、`99_archive/` を含む canonical tree を path 解決時点で定義し、`compatibility_aliases` も同時に返す。
+- `04_01.py` は root/run/bundle manifest を作成し、`validation current/latest` と旧 path 互換 alias を pointer として作るよう変更した。`root_manifest.json`、`run_manifest.json`、`status.json`、`lineage.json`、`bundle_manifest.json` を run 開始時に生成し、symlink 不能時は `alias_target.json` 付き directory fallback を使って notebook 実行を止めない。
+- `04_02.py` は旧 `managed_dirs` 全量定義をやめ、現行 script が実際に使う `02_records` だけを managed key として残し、canonical dir と compatibility alias を別 object で出す形へ整理した。未参照の `legacy_source_pipeline_slug` は context から削除した。
+- markdown、`colab/agents.md`、`HAUB`、pair、inventory を同じ task で同期し、`py_compile`、`sync_da3_optpose_sources.py`、`build_optpose_inventory.py`、`python -m unittest ...test_da3_optpose_sources.py` を再実行して `6 tests OK` を確認した。現行 optpose notebook の path 契約は compatibility alias により維持している。
+
+# codex v121
+
+- admin 提供の `C:/Users/tetsuya/Downloads/da3_ngl_increpose_RB.ipynb` を canonical `Colab` system として吸収し、`kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_increpose_sources/` を新設した。external notebook の tokenized markdown / code を source-managed 構成へ引き戻し、孤立していた追加 code cell は `#10-1` source へ吸収した。
+- canonical pair は `da3_ngl_increpose_RB.md` / `.ipynb` へ切り替えた。route は `sliding_window_incremental_seeded` として定義し、`#8-9` で `record_index -> accepted pose` map を引き継ぎながら chunk を漸次実行し、`incremental_seed_trace_arc.csv` と `batch_run_status_arc.csv` を固定 artifact にした。
+- `colab/agents.md`、`project-truth.md`、`HAUB`、`resume-startup-plan.md`、`admin-mrl-test-method.md`、`README.md`、`LocalModelingService.kt` を同じ task で更新し、`da3_ngl_increpose_RB` を `trajectreview-modeling` の canonical pair、`da3_ngl_prepose_RB` / `da3_ngl_optpose_RB` を legacy / 比較用 pair として整理した。`HAUB` には `incremental predicted chunk route` と `sliding_window_incremental_seeded` を project 固有 decision として追記した。
+- `sync_da3_increpose_sources.py`、`build_increpose_inventory.py`、`test_da3_increpose_sources.py` を追加し、既存 `test_da3_runbook_sources.py` も新 canonical 設計契約へ合わせて調整した。`python -m unittest ...test_da3_increpose_sources.py ...test_da3_runbook_sources.py ...test_da3_optpose_sources.py` は `22 tests OK` を確認した。
+
+# codex v122
+
+- admin 実測の `#8-4` が `chunk_index_all.csv` 不在で停止した。原因は `#8-3` が `batch_execution_items.csv` と `chunk_input_manifest_arc.csv` だけを生成する新契約へ変わっていた一方、`#8-4` は旧 `chunk_index_all.csv` 契約のまま残っていたこと。また `#8-7` は各 `chunk_XXXX.csv` を前提にしていたが、現行 `#8-3` はそれも出していなかった。
+- `da3_increpose_sources/cells/08_03.py` を修正し、`batch_execution_items.csv`、`chunk_input_manifest_arc.csv` に加えて互換 `chunk_index_all.csv` と各 `chunk_XXXX.csv` を同時生成するようにした。`chunk_index_all.csv` には `chunk_id`、`chunk_name`、`batch_name`、`global_start/end`、`adopt_local_start/end`、`chunk_csv` を載せ、後段の `#8-7`、`#9-1`、`#11-1`、`#11-2` が同じ manifest を参照できるよう揃えた。
+- `da3_increpose_sources/cells/08_04.py` は `load_ctx()` と `probe_root / pipeline_slug` の新契約へ合わせ、`batch_execution_items.csv` を第一優先、`chunk_index_all.csv` を互換 fallback として読むよう直した。precheck は各 `chunk_XXXX.csv` を直接診断し、`chunk_input_manifest_arc.csv` も stage summary に残す。
+- `08_03.md`、`08_04.md`、canonical pair `da3_ngl_increpose_RB.md` / `.ipynb`、inventory、`test_da3_increpose_sources.py` を同じ task で同期し、`python -m unittest ...test_da3_increpose_sources.py` で `5 tests OK` を確認した。Colab 側では最新 pair を開き直した上で `#8-3` を再実行し、続けて `#8-4` へ進めばよい。

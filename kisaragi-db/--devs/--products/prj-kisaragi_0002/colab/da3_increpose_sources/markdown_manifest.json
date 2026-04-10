@@ -1,0 +1,218 @@
+[
+  {
+    "leading_token": "#1-1",
+    "source_file": "markdown/01_01.md",
+    "target_ref": "#1-1",
+    "prev_ref": "なし",
+    "next_ref": "#2-1",
+    "heading": "1 Runtime Bootstrap"
+  },
+  {
+    "leading_token": "#2-1",
+    "source_file": "markdown/02_01.md",
+    "target_ref": "#2-1",
+    "prev_ref": "#1-1",
+    "next_ref": "#3-1",
+    "heading": "2 Config"
+  },
+  {
+    "leading_token": "#3-1",
+    "source_file": "markdown/03_01.md",
+    "target_ref": "#3-1",
+    "prev_ref": "#2-1",
+    "next_ref": "#4-1..#4-2",
+    "heading": "3 Input Select And Path Check"
+  },
+  {
+    "leading_token": "#4-1",
+    "source_file": "markdown/04_01.md",
+    "target_ref": "#4-1",
+    "prev_ref": "#3-1",
+    "next_ref": "#4-2",
+    "heading": "4 Tree Init"
+  },
+  {
+    "leading_token": "#4-2",
+    "source_file": "markdown/04_02.md",
+    "target_ref": "#4-2",
+    "prev_ref": "#4-1",
+    "next_ref": "#5-1",
+    "heading": "4 Tree Init"
+  },
+  {
+    "leading_token": "#5-1",
+    "source_file": "markdown/05_01.md",
+    "target_ref": "#5-1",
+    "prev_ref": "#4-2",
+    "next_ref": "#6-1",
+    "heading": "5 Install"
+  },
+  {
+    "leading_token": "#6-1",
+    "source_file": "markdown/06_01.md",
+    "target_ref": "#6-1",
+    "prev_ref": "#5-1",
+    "next_ref": "#6-2",
+    "heading": "6 Shared Helpers"
+  },
+  {
+    "leading_token": "#6-2",
+    "source_file": "markdown/06_02.md",
+    "target_ref": "#6-2",
+    "prev_ref": "#6-1",
+    "next_ref": "#7-1",
+    "heading": "6 Shared Helpers"
+  },
+  {
+    "leading_token": "#7-1",
+    "source_file": "markdown/07_01.md",
+    "target_ref": "#7-1",
+    "prev_ref": "#6-2",
+    "next_ref": "#7-2",
+    "heading": "7 Full Anchor Build"
+  },
+  {
+    "leading_token": "#7-2",
+    "source_file": "markdown/07_02.md",
+    "target_ref": "#7-2",
+    "prev_ref": "#7-1",
+    "next_ref": "#7-3",
+    "heading": "7 Full Anchor Build"
+  },
+  {
+    "leading_token": "#7-3",
+    "source_file": "markdown/07_03.md",
+    "target_ref": "#7-3",
+    "prev_ref": "#7-2",
+    "next_ref": "#7-4",
+    "heading": "7 Full Anchor Build"
+  },
+  {
+    "leading_token": "#7-4",
+    "source_file": "markdown/07_04.md",
+    "target_ref": "#7-4",
+    "prev_ref": "#7-3",
+    "next_ref": "#7-5",
+    "heading": "7 Full Anchor Build"
+  },
+  {
+    "leading_token": "#7-5",
+    "source_file": "markdown/07_05.md",
+    "target_ref": "#7-5",
+    "prev_ref": "#7-4",
+    "next_ref": "#8-1",
+    "heading": "7 Full Anchor Build"
+  },
+  {
+    "leading_token": "#8-1",
+    "source_file": "markdown/08_01.md",
+    "target_ref": "#8-1",
+    "prev_ref": "#7-5",
+    "next_ref": "#8-2",
+    "heading": "8 Chunk Run Preparation And Execution"
+  },
+  {
+    "leading_token": "#8-2",
+    "source_file": "markdown/08_02.md",
+    "target_ref": "#8-2",
+    "prev_ref": "#8-1",
+    "next_ref": "#8-3",
+    "heading": "8 Chunk Run Preparation And Execution"
+  },
+  {
+    "leading_token": "#8-3",
+    "source_file": "markdown/08_03.md",
+    "target_ref": "#8-3",
+    "prev_ref": "#8-2",
+    "next_ref": "#8-4",
+    "heading": "8 Chunk Run Preparation And Execution"
+  },
+  {
+    "leading_token": "#8-4",
+    "source_file": "markdown/08_04.md",
+    "target_ref": "#8-4",
+    "prev_ref": "#8-3",
+    "next_ref": "#8-5",
+    "heading": "8 Chunk Run Preparation And Execution"
+  },
+  {
+    "leading_token": "#8-5",
+    "source_file": "markdown/08_05.md",
+    "target_ref": "#8-5",
+    "prev_ref": "#8-4",
+    "next_ref": "#8-6",
+    "heading": "8 Chunk Run Preparation And Execution"
+  },
+  {
+    "leading_token": "#8-6",
+    "source_file": "markdown/08_06.md",
+    "target_ref": "#8-6",
+    "prev_ref": "#8-5",
+    "next_ref": "#8-7",
+    "heading": "8 Chunk Run Preparation And Execution"
+  },
+  {
+    "leading_token": "#8-7",
+    "source_file": "markdown/08_07.md",
+    "target_ref": "#8-7",
+    "prev_ref": "#8-6",
+    "next_ref": "#8-8",
+    "heading": "8 Chunk Run Preparation And Execution"
+  },
+  {
+    "leading_token": "#8-8",
+    "source_file": "markdown/08_08.md",
+    "target_ref": "#8-8",
+    "prev_ref": "#8-7",
+    "next_ref": "#8-9",
+    "heading": "8 Chunk Run Preparation And Execution"
+  },
+  {
+    "leading_token": "#8-9",
+    "source_file": "markdown/08_09.md",
+    "target_ref": "#8-9",
+    "prev_ref": "#8-8",
+    "next_ref": "#9-1",
+    "heading": "8 Chunk Run Preparation And Execution"
+  },
+  {
+    "leading_token": "#9-1",
+    "source_file": "markdown/09_01.md",
+    "target_ref": "#9-1",
+    "prev_ref": "#8-9",
+    "next_ref": "#10-1",
+    "heading": "9 Chunk Alignment Coefficient Derivation"
+  },
+  {
+    "leading_token": "#10-1",
+    "source_file": "markdown/10_01.md",
+    "target_ref": "#10-1",
+    "prev_ref": "#9-1",
+    "next_ref": "#10-2",
+    "heading": "10 Global Prepose Graph And Gate"
+  },
+  {
+    "leading_token": "#10-2",
+    "source_file": "markdown/10_02.md",
+    "target_ref": "#10-2",
+    "prev_ref": "#10-1",
+    "next_ref": "#11-1",
+    "heading": "10 Global Prepose Graph And Gate"
+  },
+  {
+    "leading_token": "#11-1",
+    "source_file": "markdown/11_01.md",
+    "target_ref": "#11-1",
+    "prev_ref": "#10-2",
+    "next_ref": "#11-2",
+    "heading": "11 Merge And Review"
+  },
+  {
+    "leading_token": "#11-2",
+    "source_file": "markdown/11_02.md",
+    "target_ref": "#11-2",
+    "prev_ref": "#11-1",
+    "next_ref": "終了",
+    "heading": "11 Merge And Review"
+  }
+]

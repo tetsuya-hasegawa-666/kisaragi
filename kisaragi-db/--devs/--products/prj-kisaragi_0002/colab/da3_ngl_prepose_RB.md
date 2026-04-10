@@ -631,6 +631,7 @@ def summarize_relative_transform(parent_T: np.ndarray | None, child_T: np.ndarra
 
 この markdown cell は `#9-1..#9-5` の record-native manifest と chunk plan を説明する。
 `frame_record.jsonl` から `da3_input_manifest.csv`、`intrinsics.npy`、`extrinsics_w2c_arc.npy`、`chunk_index_all.csv`、`batch_plan.csv` を統一契約で作り、後続の precheck / run preparation を経て `#7-1..#7-7` の full prepose build に渡す。
+`#9-2` の anchor pose diag 連結は optional であり、`#7` 実行前は `full_anchor_pose_diag_arc.csv` が無くても skip 扱いで record manifest refresh を継続する。
 
 ```python
 #9-1
@@ -1059,9 +1060,14 @@ manifest_dir = Path(ctx['manifest_dir'])
 managed_dirs = json.loads(Path('/content/runbook_managed_dirs.json').read_text(encoding='utf-8'))
 record_dir = Path(managed_dirs['02_records'])
 record_dir.mkdir(parents=True, exist_ok=True)
-anchor_diag = pd.read_csv(Path(managed_dirs['01_anchor']) / 'full_anchor_pose_diag_arc.csv')
-anchor_keep_cols = [c for c in ['sequence_index','roll_deg','pitch_deg','yaw_deg','delta_roll_deg','delta_pitch_deg','delta_yaw_deg','delta_pos','delta2_pos','delta2_rot'] if c in anchor_diag.columns]
-anchor_join = anchor_diag[anchor_keep_cols].copy() if anchor_keep_cols else pd.DataFrame()
+anchor_diag_path = Path(managed_dirs['01_anchor']) / 'full_anchor_pose_diag_arc.csv'
+anchor_diag_exists = anchor_diag_path.exists()
+if anchor_diag_exists:
+    anchor_diag = pd.read_csv(anchor_diag_path)
+    anchor_keep_cols = [c for c in ['sequence_index','roll_deg','pitch_deg','yaw_deg','delta_roll_deg','delta_pitch_deg','delta_yaw_deg','delta_pos','delta2_pos','delta2_rot'] if c in anchor_diag.columns]
+    anchor_join = anchor_diag[anchor_keep_cols].copy() if anchor_keep_cols else pd.DataFrame()
+else:
+    anchor_join = pd.DataFrame()
 
 p = manifest_dir / 'da3_input_manifest.csv'
 assert p.exists(), p
@@ -1079,7 +1085,7 @@ display_stage_summary(
     "record manifest refresh",
     inputs=[
         {"item": "da3_input_manifest", "path": str(p)},
-        {"item": "full_anchor_pose_diag", "path": str(Path(managed_dirs['01_anchor']) / 'full_anchor_pose_diag_arc.csv')},
+        {"item": "full_anchor_pose_diag", "path": str(anchor_diag_path)},
     ],
     outputs=[
         {"item": "record_manifest", "path": str(record_dir / 'record_manifest.csv')},
@@ -1087,6 +1093,8 @@ display_stage_summary(
     ],
     notes=[
         {"item": "rows", "value": int(len(df))},
+        {"item": "anchor_diag_joined", "value": bool(anchor_diag_exists and not anchor_join.empty)},
+        {"item": "anchor_diag_missing_ok", "value": bool(not anchor_diag_exists)},
     ],
 )
 ```
@@ -1720,6 +1728,7 @@ display_stage_summary(
 
 この markdown cell は `#11-1..#11-5` の run preparation を説明する。
 target chunk window、execution batch、chunk run dir、batch execution items、final output tree を固定し、`#7-1..#7-7` の full prepose build へ渡す。
+`#11-4` の preflight は `record_manifest`、sequence precheck、edge validation を必須とし、`01_anchor/full_anchor_pose_diag_arc.csv` と `full_anchor_pose_qc_arc.csv` は `#7` 実行前なら未生成 warning として扱う。
 
 ```python
 #11-1
@@ -1990,8 +1999,6 @@ edge_validation_path = chunk_manifest_dir / "adjacent_edge_validation.csv"
 
 required_paths = {
     "record_manifest": record_manifest_path,
-    "anchor_pose_diag": anchor_pose_diag_path,
-    "anchor_qc": anchor_qc_path,
     "sequence_precheck": sequence_precheck_path,
     "edge_validation": edge_validation_path,
 }
@@ -1999,12 +2006,14 @@ missing_required = {k: str(p) for k, p in required_paths.items() if not p.exists
 assert not missing_required, {"missing_required": missing_required}
 
 record_df = pd.read_csv(record_manifest_path)
-anchor_pose_df = pd.read_csv(anchor_pose_diag_path)
-anchor_qc_df = pd.read_csv(anchor_qc_path)
 sequence_df = pd.read_csv(sequence_precheck_path)
 edge_df = pd.read_csv(edge_validation_path)
+anchor_pose_exists = anchor_pose_diag_path.exists()
+anchor_qc_exists = anchor_qc_path.exists()
+anchor_pose_df = pd.read_csv(anchor_pose_diag_path) if anchor_pose_exists else pd.DataFrame()
+anchor_qc_df = pd.read_csv(anchor_qc_path) if anchor_qc_exists else pd.DataFrame()
 
-record_count_match = len(record_df) == len(anchor_pose_df)
+record_count_match = (len(record_df) == len(anchor_pose_df)) if anchor_pose_exists else True
 sequence_bad_count = int(((~sequence_df["is_monotonic"]) | (sequence_df["has_duplicate_sequence"]) | (sequence_df["bad_gap_count"] > 0)).sum()) if len(sequence_df) else 0
 edge_bad_chunk_count = 0
 if len(edge_df) and "chunk_name" in edge_df.columns:
@@ -2040,14 +2049,18 @@ if missing_images:
     pd.DataFrame({"missing_image_path": missing_images}).to_csv(final_outputs_diagnostics_dir / "batch_execution_preflight_missing_images.csv", index=False, encoding="utf-8")
 
 fatal_issues, warnings = [], []
-if not record_count_match:
+if anchor_pose_exists and not record_count_match:
     fatal_issues.append({"type": "record_anchor_count_mismatch", "record_rows": int(len(record_df)), "anchor_rows": int(len(anchor_pose_df))})
 if sequence_bad_count > 0:
     fatal_issues.append({"type": "sequence_precheck_failed", "bad_chunk_count": sequence_bad_count})
 if edge_bad_chunk_count > 0:
     warnings.append({"type": "adjacent_edge_validation_has_failures", "bad_chunk_count": edge_bad_chunk_count})
-if anchor_fail_count > 0:
+if anchor_qc_exists and anchor_fail_count > 0:
     warnings.append({"type": "anchor_qc_failures_present", "anchor_fail_count": anchor_fail_count})
+if not anchor_pose_exists:
+    warnings.append({"type": "anchor_pose_diag_not_ready_yet"})
+if not anchor_qc_exists:
+    warnings.append({"type": "anchor_qc_not_ready_yet"})
 if missing_images:
     fatal_issues.append({"type": "missing_images", "missing_image_count": int(len(missing_images))})
 
@@ -2056,11 +2069,13 @@ preflight = {
     "target_chunk_count": int(len(target_chunks_df)),
     "target_batch_count": int(len(batch_plan_df)),
     "record_rows": int(len(record_df)),
-    "anchor_rows": int(len(anchor_pose_df)),
+    "anchor_rows": int(len(anchor_pose_df)) if anchor_pose_exists else None,
+    "anchor_pose_diag_exists": bool(anchor_pose_exists),
+    "anchor_qc_exists": bool(anchor_qc_exists),
     "record_anchor_count_match": bool(record_count_match),
     "sequence_bad_chunk_count": int(sequence_bad_count),
     "edge_bad_chunk_count": int(edge_bad_chunk_count),
-    "anchor_fail_count": int(anchor_fail_count),
+    "anchor_fail_count": int(anchor_fail_count) if anchor_qc_exists else None,
     "missing_image_count": int(len(missing_images)),
     "fatal_issues": fatal_issues,
     "warnings": warnings,
@@ -2085,6 +2100,8 @@ display_stage_summary(
     notes=[
         {"item": "fatal_issue_count", "value": int(len(fatal_issues))},
         {"item": "warning_count", "value": int(len(warnings))},
+        {"item": "anchor_pose_diag_exists", "value": bool(anchor_pose_exists)},
+        {"item": "anchor_qc_exists", "value": bool(anchor_qc_exists)},
     ],
 )
 assert not fatal_issues, preflight

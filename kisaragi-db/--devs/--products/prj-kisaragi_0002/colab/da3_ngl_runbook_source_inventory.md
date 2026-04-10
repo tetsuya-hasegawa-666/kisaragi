@@ -14,7 +14,7 @@
 | #5-1 | `cells/05_install.py` | `direct` | 5 Install | - | repo_root, repo_url, src_root | `DOC-C05-01` |
 | #6-1 | `cells/06_shared_helpers.py` | `direct` | 6 Shared Helpers | load_ctx, save_json, append_sequence_columns, rotmat_to_rpy_deg, _summary_rows, display_stage_summary, rotation_angle_deg_from_matrix, summarize_relative_transform | RUNBOOK_CTX_PATH | `DOC-C06-01` |
 | #9-1 | `cells/09_01.py` | `direct` | 9 Record Manifest And Chunk Plan | ranked_image_dirs, lap_var, read_actual_wh, normalize_intrinsics_to_upright, quat_to_rot, pose_to_w2c, build_K | ctx, images_dir, frame_record_path, frame_pose_index_path, manifest_dir, CANONICAL_ORIENTATION_POLICY, BLUR_THRESHOLD, frame_pose_df, image_name_by_record_index, image_dir_ranking, resolved_images_dir, rows | `DOC-C09-01` |
-| #9-2 | `cells/09_02.py` | `direct` | 9 Record Manifest And Chunk Plan | - | ctx, manifest_dir, managed_dirs, record_dir, anchor_diag, anchor_keep_cols, anchor_join, p, df, ts_col, df | `DOC-C09-02` |
+| #9-2 | `cells/09_02.py` | `direct` | 9 Record Manifest And Chunk Plan | - | ctx, manifest_dir, managed_dirs, record_dir, anchor_diag_path, anchor_diag_exists, p, df, ts_col, df | `DOC-C09-02` |
 | #9-3 | `cells/09_03.py` | `direct` | 9 Record Manifest And Chunk Plan | - | config, config_view | `DOC-C09-03` |
 | #9-4 | `cells/09_04.py` | `direct` | 9 Record Manifest And Chunk Plan | sha256_file, to_4x4 | ctx, config_snapshot, manifest_dir, persist_root, pipeline_slug, pipeline_root, anchor_dir, chunk_manifest_dir, batch_runs_dir, merged_dir, MODEL_ID, BUNDLE_MODEL_SLUG | `DOC-C09-04` |
 | #9-5 | `cells/09_05.py` | `direct` | 9 Record Manifest And Chunk Plan | - | ctx, probe_root, pipeline_root, chunk_manifest_dir, record_manifest_path, record_df, chunk_index_path, chunk_index_df, rows, out | `DOC-C09-05` |
@@ -235,9 +235,8 @@
 | manifest_dir | #9-2 | 9 Record Manifest And Chunk Plan | `DOC-C09-02` |
 | managed_dirs | #9-2 | 9 Record Manifest And Chunk Plan | `DOC-C09-02` |
 | record_dir | #9-2 | 9 Record Manifest And Chunk Plan | `DOC-C09-02` |
-| anchor_diag | #9-2 | 9 Record Manifest And Chunk Plan | `DOC-C09-02` |
-| anchor_keep_cols | #9-2 | 9 Record Manifest And Chunk Plan | `DOC-C09-02` |
-| anchor_join | #9-2 | 9 Record Manifest And Chunk Plan | `DOC-C09-02` |
+| anchor_diag_path | #9-2 | 9 Record Manifest And Chunk Plan | `DOC-C09-02` |
+| anchor_diag_exists | #9-2 | 9 Record Manifest And Chunk Plan | `DOC-C09-02` |
 | p | #9-2 | 9 Record Manifest And Chunk Plan | `DOC-C09-02` |
 | df | #9-2 | 9 Record Manifest And Chunk Plan | `DOC-C09-02` |
 | ts_col | #9-2 | 9 Record Manifest And Chunk Plan | `DOC-C09-02` |
@@ -388,10 +387,12 @@
 | required_paths | #11-4 | 11 Run Preparation | `DOC-C11-04` |
 | missing_required | #11-4 | 11 Run Preparation | `DOC-C11-04` |
 | record_df | #11-4 | 11 Run Preparation | `DOC-C11-04` |
-| anchor_pose_df | #11-4 | 11 Run Preparation | `DOC-C11-04` |
-| anchor_qc_df | #11-4 | 11 Run Preparation | `DOC-C11-04` |
 | sequence_df | #11-4 | 11 Run Preparation | `DOC-C11-04` |
 | edge_df | #11-4 | 11 Run Preparation | `DOC-C11-04` |
+| anchor_pose_exists | #11-4 | 11 Run Preparation | `DOC-C11-04` |
+| anchor_qc_exists | #11-4 | 11 Run Preparation | `DOC-C11-04` |
+| anchor_pose_df | #11-4 | 11 Run Preparation | `DOC-C11-04` |
+| anchor_qc_df | #11-4 | 11 Run Preparation | `DOC-C11-04` |
 | record_count_match | #11-4 | 11 Run Preparation | `DOC-C11-04` |
 | sequence_bad_count | #11-4 | 11 Run Preparation | `DOC-C11-04` |
 | edge_bad_chunk_count | #11-4 | 11 Run Preparation | `DOC-C11-04` |

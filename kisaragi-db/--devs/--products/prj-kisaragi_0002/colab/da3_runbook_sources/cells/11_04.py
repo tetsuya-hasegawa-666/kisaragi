@@ -82,8 +82,6 @@ edge_validation_path = chunk_manifest_dir / "adjacent_edge_validation.csv"
 
 required_paths = {
     "record_manifest": record_manifest_path,
-    "anchor_pose_diag": anchor_pose_diag_path,
-    "anchor_qc": anchor_qc_path,
     "sequence_precheck": sequence_precheck_path,
     "edge_validation": edge_validation_path,
 }
@@ -91,12 +89,14 @@ missing_required = {k: str(p) for k, p in required_paths.items() if not p.exists
 assert not missing_required, {"missing_required": missing_required}
 
 record_df = pd.read_csv(record_manifest_path)
-anchor_pose_df = pd.read_csv(anchor_pose_diag_path)
-anchor_qc_df = pd.read_csv(anchor_qc_path)
 sequence_df = pd.read_csv(sequence_precheck_path)
 edge_df = pd.read_csv(edge_validation_path)
+anchor_pose_exists = anchor_pose_diag_path.exists()
+anchor_qc_exists = anchor_qc_path.exists()
+anchor_pose_df = pd.read_csv(anchor_pose_diag_path) if anchor_pose_exists else pd.DataFrame()
+anchor_qc_df = pd.read_csv(anchor_qc_path) if anchor_qc_exists else pd.DataFrame()
 
-record_count_match = len(record_df) == len(anchor_pose_df)
+record_count_match = (len(record_df) == len(anchor_pose_df)) if anchor_pose_exists else True
 sequence_bad_count = int(((~sequence_df["is_monotonic"]) | (sequence_df["has_duplicate_sequence"]) | (sequence_df["bad_gap_count"] > 0)).sum()) if len(sequence_df) else 0
 edge_bad_chunk_count = 0
 if len(edge_df) and "chunk_name" in edge_df.columns:
@@ -132,14 +132,18 @@ if missing_images:
     pd.DataFrame({"missing_image_path": missing_images}).to_csv(final_outputs_diagnostics_dir / "batch_execution_preflight_missing_images.csv", index=False, encoding="utf-8")
 
 fatal_issues, warnings = [], []
-if not record_count_match:
+if anchor_pose_exists and not record_count_match:
     fatal_issues.append({"type": "record_anchor_count_mismatch", "record_rows": int(len(record_df)), "anchor_rows": int(len(anchor_pose_df))})
 if sequence_bad_count > 0:
     fatal_issues.append({"type": "sequence_precheck_failed", "bad_chunk_count": sequence_bad_count})
 if edge_bad_chunk_count > 0:
     warnings.append({"type": "adjacent_edge_validation_has_failures", "bad_chunk_count": edge_bad_chunk_count})
-if anchor_fail_count > 0:
+if anchor_qc_exists and anchor_fail_count > 0:
     warnings.append({"type": "anchor_qc_failures_present", "anchor_fail_count": anchor_fail_count})
+if not anchor_pose_exists:
+    warnings.append({"type": "anchor_pose_diag_not_ready_yet"})
+if not anchor_qc_exists:
+    warnings.append({"type": "anchor_qc_not_ready_yet"})
 if missing_images:
     fatal_issues.append({"type": "missing_images", "missing_image_count": int(len(missing_images))})
 
@@ -148,11 +152,13 @@ preflight = {
     "target_chunk_count": int(len(target_chunks_df)),
     "target_batch_count": int(len(batch_plan_df)),
     "record_rows": int(len(record_df)),
-    "anchor_rows": int(len(anchor_pose_df)),
+    "anchor_rows": int(len(anchor_pose_df)) if anchor_pose_exists else None,
+    "anchor_pose_diag_exists": bool(anchor_pose_exists),
+    "anchor_qc_exists": bool(anchor_qc_exists),
     "record_anchor_count_match": bool(record_count_match),
     "sequence_bad_chunk_count": int(sequence_bad_count),
     "edge_bad_chunk_count": int(edge_bad_chunk_count),
-    "anchor_fail_count": int(anchor_fail_count),
+    "anchor_fail_count": int(anchor_fail_count) if anchor_qc_exists else None,
     "missing_image_count": int(len(missing_images)),
     "fatal_issues": fatal_issues,
     "warnings": warnings,
@@ -177,6 +183,8 @@ display_stage_summary(
     notes=[
         {"item": "fatal_issue_count", "value": int(len(fatal_issues))},
         {"item": "warning_count", "value": int(len(warnings))},
+        {"item": "anchor_pose_diag_exists", "value": bool(anchor_pose_exists)},
+        {"item": "anchor_qc_exists", "value": bool(anchor_qc_exists)},
     ],
 )
 assert not fatal_issues, preflight

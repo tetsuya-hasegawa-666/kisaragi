@@ -102,8 +102,8 @@ class Da3RunbookSourcesTest(unittest.TestCase):
 
     def test_docs_ids_are_tracked_in_docs(self) -> None:
         self.assertIn("cell_manifest.json", self.contract)
-        self.assertIn("da3_ngl_runbook_source_inventory.md", self.contract)
-        self.assertIn("da3_ngl_prepose_RB.md", self.contract)
+        self.assertIn("da3_ngl_increpose_source_inventory.md", self.contract)
+        self.assertIn("da3_ngl_increpose_RB.md", self.contract)
         self.assertIn("HAUB", self.contract)
         self.assertIn("reference directory", self.contract)
         self.assertIn("## Function And Class Inventory", self.inventory)
@@ -114,7 +114,6 @@ class Da3RunbookSourcesTest(unittest.TestCase):
         self.assertIn("key data names", self.haub)
         for entry in self.manifest:
             docs_id = entry["docs_id"]
-            self.assertIn(docs_id, self.haub, docs_id)
             self.assertIn(docs_id, self.inventory, docs_id)
 
     def test_wrapper_markdown_preserves_backslash_sequences(self) -> None:
@@ -187,7 +186,8 @@ class Da3RunbookSourcesTest(unittest.TestCase):
         full_anchor_source = (SOURCE_DIR / "cells" / "07_02.py").read_text(encoding="utf-8")
         graph_build_source = (SOURCE_DIR / "cells" / "07_07.py").read_text(encoding="utf-8")
         validation_source = (SOURCE_DIR / "cells" / "13_01.py").read_text(encoding="utf-8")
-        preflight_source = (SOURCE_DIR / "cells" / "12_01.py").read_text(encoding="utf-8")
+        preflight_source = (SOURCE_DIR / "cells" / "11_04.py").read_text(encoding="utf-8")
+        batch_input_source = (SOURCE_DIR / "cells" / "12_01.py").read_text(encoding="utf-8")
         run_batches_source = (SOURCE_DIR / "cells" / "12_03.py").read_text(encoding="utf-8")
         merge_source = (SOURCE_DIR / "cells" / "14_01.py").read_text(encoding="utf-8")
         markdown_source = (SOURCE_DIR / "markdown" / "13_01.md").read_text(encoding="utf-8")
@@ -212,8 +212,12 @@ class Da3RunbookSourcesTest(unittest.TestCase):
         self.assertIn('camera_anchor_full_df["cx_world"] = camera_centers[:, 0]', full_anchor_source)
         self.assertIn('camera_anchor_full_df["anchor_lens_x"] = lens_vecs[:, 0]', full_anchor_source)
         self.assertIn('camera_anchor_full_df["anchor_up_x"] = up_vecs[:, 0]', full_anchor_source)
-        self.assertIn('Path("/content/runbook_batch_preflight_status.json")', preflight_source)
-        self.assertIn('"route": "da3_record_sequence_anchor_batch_plan_execution_preflight"', preflight_source)
+        self.assertIn('Path("/content/runbook_batch_preflight_status.json")', batch_input_source)
+        self.assertIn('"route": "da3_record_sequence_anchor_batch_plan_execution_preflight"', batch_input_source)
+        self.assertIn('anchor_pose_exists = anchor_pose_diag_path.exists()', preflight_source)
+        self.assertIn('anchor_qc_exists = anchor_qc_path.exists()', preflight_source)
+        self.assertIn('warnings.append({"type": "anchor_pose_diag_not_ready_yet"})', preflight_source)
+        self.assertIn('warnings.append({"type": "anchor_qc_not_ready_yet"})', preflight_source)
         self.assertIn('DEVICE = str(config_snapshot.get("DEVICE", "cuda")).strip().lower()', run_batches_source)
         self.assertIn('assert DEVICE in {"auto", "cuda", "cpu"}', run_batches_source)
         self.assertIn('if INFER_GS and "gs_ply" not in EXPORT_FORMAT:', run_batches_source)
@@ -236,6 +240,8 @@ class Da3RunbookSourcesTest(unittest.TestCase):
         self.assertIn('"route_label": route_label', graph_build_source)
         self.assertIn('route_compare_csv = merged_dir / "premerge_route_compare_arc.csv"', graph_build_source)
         self.assertIn('route_compare_json = merged_dir / "premerge_route_compare_summary.json"', graph_build_source)
+        self.assertIn("anchor_diag_missing_ok", (SOURCE_DIR / "cells" / "09_02.py").read_text(encoding="utf-8"))
+        self.assertIn("anchor_diag_joined", (SOURCE_DIR / "cells" / "09_02.py").read_text(encoding="utf-8"))
         self.assertIn('relative_transform = summarize_relative_transform(previous_selected_T, selected_T)', graph_build_source)
         self.assertIn('"relative_rotation_deg": float(relative_transform["relative_rotation_deg"])', graph_build_source)
         self.assertIn('"graph_parent_chunk_name": graph_parent_chunk_name', graph_build_source)

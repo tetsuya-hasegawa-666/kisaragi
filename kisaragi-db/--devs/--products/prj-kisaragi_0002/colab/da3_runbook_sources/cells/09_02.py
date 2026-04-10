@@ -8,9 +8,14 @@ manifest_dir = Path(ctx['manifest_dir'])
 managed_dirs = json.loads(Path('/content/runbook_managed_dirs.json').read_text(encoding='utf-8'))
 record_dir = Path(managed_dirs['02_records'])
 record_dir.mkdir(parents=True, exist_ok=True)
-anchor_diag = pd.read_csv(Path(managed_dirs['01_anchor']) / 'full_anchor_pose_diag_arc.csv')
-anchor_keep_cols = [c for c in ['sequence_index','roll_deg','pitch_deg','yaw_deg','delta_roll_deg','delta_pitch_deg','delta_yaw_deg','delta_pos','delta2_pos','delta2_rot'] if c in anchor_diag.columns]
-anchor_join = anchor_diag[anchor_keep_cols].copy() if anchor_keep_cols else pd.DataFrame()
+anchor_diag_path = Path(managed_dirs['01_anchor']) / 'full_anchor_pose_diag_arc.csv'
+anchor_diag_exists = anchor_diag_path.exists()
+if anchor_diag_exists:
+    anchor_diag = pd.read_csv(anchor_diag_path)
+    anchor_keep_cols = [c for c in ['sequence_index','roll_deg','pitch_deg','yaw_deg','delta_roll_deg','delta_pitch_deg','delta_yaw_deg','delta_pos','delta2_pos','delta2_rot'] if c in anchor_diag.columns]
+    anchor_join = anchor_diag[anchor_keep_cols].copy() if anchor_keep_cols else pd.DataFrame()
+else:
+    anchor_join = pd.DataFrame()
 
 p = manifest_dir / 'da3_input_manifest.csv'
 assert p.exists(), p
@@ -28,7 +33,7 @@ display_stage_summary(
     "record manifest refresh",
     inputs=[
         {"item": "da3_input_manifest", "path": str(p)},
-        {"item": "full_anchor_pose_diag", "path": str(Path(managed_dirs['01_anchor']) / 'full_anchor_pose_diag_arc.csv')},
+        {"item": "full_anchor_pose_diag", "path": str(anchor_diag_path)},
     ],
     outputs=[
         {"item": "record_manifest", "path": str(record_dir / 'record_manifest.csv')},
@@ -36,5 +41,7 @@ display_stage_summary(
     ],
     notes=[
         {"item": "rows", "value": int(len(df))},
+        {"item": "anchor_diag_joined", "value": bool(anchor_diag_exists and not anchor_join.empty)},
+        {"item": "anchor_diag_missing_ok", "value": bool(not anchor_diag_exists)},
     ],
 )
