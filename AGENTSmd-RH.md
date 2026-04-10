@@ -12,6 +12,48 @@
 
 ## 更新履歴
 
+### 2026-04-11 AGENTS.md 開発 prompt の skill 選定を `skill-distributor` へ固定
+
+- 日時: `2026-04-11`
+- 文書名: `AGENTS.md`
+- 標題: 開発 prompt ごとの必須 skill 提案を `skill-distributor` へ固定
+- 背景: 現状は `phase-task-orchestrator` などの入口 skill を整備しても、依頼ごとにどの skill を使うべきかの選定自体が暗黙で、結局 Codex の裁量に寄っていた。
+- 目的: 開発 prompt を受けた最初の段階で、その prompt に必要な最小 skill 群と適用順を必ず先に決める入口を追加し、運用の安定性を上げる。
+- 対処方法: `kisaragi-skills/skill-distributor/` を新設し、routing matrix、UI metadata、workflow を追加したうえで、`AGENTS.md` に開発 prompt ではまず `skill-distributor` を使う shared rule を追記した。
+- 対応内容: skill 一覧では `skill-distributor` を最上位入口、`phase-task-orchestrator` を複数 task 開発依頼の進行管理 skill、そのほかを専門 skill として再配置した。
+- 更新結果: 今後は開発 prompt ごとに、まず使う skill と順序を先に提案してから作業へ入る運用を shared rule として扱える。
+- 新旧比較:
+  - 旧: 入口 skill はあっても、依頼ごとの skill 選定自体は暗黙だった。
+  - 新: `skill-distributor` が prompt ごとの skill 選定を担当し、必要 skill と順序を先に固定する運用になった。
+
+### 2026-04-11 AGENTS.md phase 入口 skill へ authoritative guard を統合
+
+- 日時: `2026-04-11`
+- 文書名: `AGENTS.md`
+- 標題: `phase-task-orchestrator` を複数 task 開発の既定入口とし、authoritative guard を吸収
+- 背景: `phase-task-orchestrator` と `authoritative-doc-guard` はどちらも開発 task 冒頭の文脈固定を扱っており、入口 skill が 2 本あると、どちらを先に使うべきかが逆に曖昧になっていた。
+- 目的: 複数 task を含む開発依頼の入口を `phase-task-orchestrator` へ一本化し、authoritative doc check をその内部手順として扱うことで、skill 群の役割を明確にする。
+- 対処方法: `AGENTS.md` の該当条項を `phase-task-orchestrator` 付属の authoritative doc check 前提へ書き換え、`kisaragi-skills` 側では `authoritative-doc-guard` を独立 skill 一覧から外し、guard script を `phase-task-orchestrator/scripts/` へ再配置した。
+- 対応内容: `phase-task-orchestrator` の workflow に authoritative doc check と script を追加し、skill 一覧では phase skill を既定入口、`design-first-script-builder`、`reference-rewire-operator`、`documentation-watchkeeper`、`delivery-planning-keeper` を phase 内の専門 skill として再定義した。
+- 更新結果: 今後は複数 task 開発依頼で入口 skill を迷わず `phase-task-orchestrator` に寄せられ、authoritative 文書確認も同じ skill 内で完結する。
+- 新旧比較:
+  - 旧: phase 構成用 skill と authoritative guard skill が分かれており、入口が二重化していた。
+  - 新: `phase-task-orchestrator` が唯一の入口となり、authoritative guard はその内部手順へ統合された。
+
+### 2026-04-11 AGENTS.md 複数 task 開発依頼の phase 構成を shared rule 化
+
+- 日時: `2026-04-11`
+- 文書名: `AGENTS.md`
+- 標題: 複数 task を含む依頼を phase 構成で処理する shared rule を追加
+- 背景: admin からの長い開発依頼は現実には 1 回で複数 task を含むが、Codex がそのまま処理すると authoritative context、設計確定、文書同期、検証の順序が崩れやすく、admin との文脈ずれや参照 drift が起きやすかった。
+- 目的: `1依頼 = 複数 task` を許容しつつ、editing 前に phase を固定して checkpoint ごとに進める shared 運用を明文化し、文脈保持を command 依存ではなく phase 依存へ寄せる。
+- 対処方法: `AGENTS.md` の `協調原則` に、複数 task を含む開発依頼では `Phase 1: authoritative context 確定`、`Phase 2: 設計確定と参照面棚卸し`、`Phase 3: code / docs 編集`、`Phase 4: probe / test / link check`、`Phase 5: evidence / closeout` を明示する条項と、phase header 必須項目を追加した。
+- 対応内容: 局所 task では phase 併合を許容しつつ、`Phase 1` と `Phase 4` を無言で省略しないこと、`Goal`、`Authoritative`、`Working files`、`Do not treat as truth`、`Close condition` を phase header へ置くこと、長い task では phase 完了ごとに再宣言することを shared rule とした。
+- 更新結果: 今後の複数 task 開発依頼は、長い 1 prompt のままでも phase checkpoint を先に固定して進める前提になり、admin と Codex の文脈ずれを減らせる。
+- 新旧比較:
+  - 旧: 複数指示を残件として保持する rule はあったが、開発依頼を phase 構成で処理する shared rule はなかった。
+  - 新: 複数 task 開発依頼では phase header と 5 phase 構成を先に固定する shared rule になった。
+
 ### 2026-04-11 AGENTS.md script 編集前の authoritative guard 実行を必須化
 
 - 日時: `2026-04-11`

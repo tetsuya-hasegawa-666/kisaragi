@@ -1,0 +1,7 @@
+interface:
+  display_name: "Phase Task Orchestrator"
+  short_description: "複数 task を phase で固定する。"
+  default_prompt: "Use $phase-task-orchestrator to turn a multi-part development request into explicit phases with authoritative context, design freeze, implementation, document sync, verification, and closeout before editing."
+
+policy:
+  allow_implicit_invocation: true
