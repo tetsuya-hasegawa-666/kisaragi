@@ -12,6 +12,20 @@
 
 ## 更新履歴
 
+### 2026-04-11 AGENTS.md script 編集前の authoritative guard 実行を必須化
+
+- 日時: `2026-04-11`
+- 文書名: `AGENTS.md`
+- 標題: script / notebook / runbook source 編集時に authoritative guard の事前実行を必須化
+- 背景: `prj-kisaragi_0002` の increpose 修正では、skill と contract probe を通していても、どの正本文書を事前確認し、どの正本文書を事後見直しすべきかの洗い出しが task ごとに暗黙になりやすかった。
+- 目的: script 編集時は毎回必ず authoritative な正本文書群を先に特定し、修正後の反映漏れ候補も同じ task で確認する shared rule を固定する。
+- 対処方法: `AGENTS.md` の `協調原則` に、script / notebook / runbook source 編集時は `authoritative-doc-guard` 相当の確認を編集着手前に必ず実行し、事前確認対象と事後見直し対象を機械的に洗い出す条項を追加した。
+- 対応内容: project が guard script を持つ時はその script 実行を必須とし、持たない時も `AGENTS.md`、対象 project の truth / plan 正本、関連設計契約を同じ観点で先に確認する shared rule とした。
+- 更新結果: 今後の script 編集は、skill 起動と handoff contract 検証だけでなく、authoritative 文書の事前確認と事後見直し候補の洗い出しまで毎回必須になる。
+- 新旧比較:
+  - 旧: script 編集時に skill 起動と contract probe 実行は必須だったが、authoritative 文書の事前確認対象を guard で毎回洗い出す shared rule はなかった。
+  - 新: script 編集前に authoritative guard を必ず実行し、読むべき正本文書と見直すべき正本文書を毎回洗い出す shared rule になった。
+
 ### 2026-04-11 AGENTS.md script 編集時の skill 起動と handoff contract 検証を必須化
 
 - 日時: `2026-04-11`

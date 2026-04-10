@@ -177,6 +177,9 @@ camera_anchor_full_df["lens_z"] = lens_vecs[:, 2]
 camera_anchor_full_df["anchor_lens_x"] = lens_vecs[:, 0]
 camera_anchor_full_df["anchor_lens_y"] = lens_vecs[:, 1]
 camera_anchor_full_df["anchor_lens_z"] = lens_vecs[:, 2]
+for r in range(4):
+    for c in range(4):
+        camera_anchor_full_df[f"w2c_{r}{c}"] = extrinsics_w2c[:, r, c]
 
 camera_matrix_full_csv = anchor_dir / "camera_matrix_full_arc.csv"
 camera_center_matrix_csv = anchor_dir / "camera_center_matrix_arc.csv"
