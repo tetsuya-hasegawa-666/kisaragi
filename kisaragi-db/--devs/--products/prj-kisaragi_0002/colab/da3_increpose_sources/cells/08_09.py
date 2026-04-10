@@ -143,11 +143,19 @@ for _, item_row in items_df.iterrows():
     batch_name = str(item_row["batch_name"])
     chunk_name = str(item_row["chunk_name"])
     chunk_csv = Path(str(item_row["chunk_csv"]))
-    batch_work_dir = Path(str(item_row["batch_work_dir"]))
-    out_dir = batch_work_dir
-    runtime_dir = batch_work_dir / "_runtime"
+    raw_batch_work_dir = Path(str(item_row["batch_work_dir"]))
+    batch_work_dir = raw_batch_work_dir
+    if batch_work_dir.name == chunk_name:
+        batch_work_dir = batch_work_dir.parent
+
+    if "chunk_out_dir" in item_row.index and pd.notna(item_row["chunk_out_dir"]) and str(item_row["chunk_out_dir"]).strip():
+        out_dir = Path(str(item_row["chunk_out_dir"]).strip())
+    else:
+        out_dir = batch_work_dir / chunk_name
+    runtime_dir = out_dir / "_runtime"
 
     batch_work_dir.mkdir(parents=True, exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
     runtime_dir.mkdir(parents=True, exist_ok=True)
 
     stdout_txt = batch_work_dir / "stdout.txt"
@@ -227,6 +235,7 @@ for _, item_row in items_df.iterrows():
         "adopt_size": int(ADOPT_SIZE),
         "seeded_overlap_count": int(len(seeded_local_indices)),
         "seeded_overlap_local_indices": json.dumps(seeded_local_indices, ensure_ascii=False),
+        "batch_work_dir": str(batch_work_dir),
     })
     seed_trace_rows.append({
         "chunk_name": chunk_name,

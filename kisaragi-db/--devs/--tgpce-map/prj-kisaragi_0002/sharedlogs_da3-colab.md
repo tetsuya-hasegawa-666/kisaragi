@@ -6698,3 +6698,44 @@ Moviepy - video ready /content/drive/MyDrive/trajectreview/modeling/trajectrevie
 - `da3_increpose_sources/cells/08_03.py` を修正し、`batch_execution_items.csv`、`chunk_input_manifest_arc.csv` に加えて互換 `chunk_index_all.csv` と各 `chunk_XXXX.csv` を同時生成するようにした。`chunk_index_all.csv` には `chunk_id`、`chunk_name`、`batch_name`、`global_start/end`、`adopt_local_start/end`、`chunk_csv` を載せ、後段の `#8-7`、`#9-1`、`#11-1`、`#11-2` が同じ manifest を参照できるよう揃えた。
 - `da3_increpose_sources/cells/08_04.py` は `load_ctx()` と `probe_root / pipeline_slug` の新契約へ合わせ、`batch_execution_items.csv` を第一優先、`chunk_index_all.csv` を互換 fallback として読むよう直した。precheck は各 `chunk_XXXX.csv` を直接診断し、`chunk_input_manifest_arc.csv` も stage summary に残す。
 - `08_03.md`、`08_04.md`、canonical pair `da3_ngl_increpose_RB.md` / `.ipynb`、inventory、`test_da3_increpose_sources.py` を同じ task で同期し、`python -m unittest ...test_da3_increpose_sources.py` で `5 tests OK` を確認した。Colab 側では最新 pair を開き直した上で `#8-3` を再実行し、続けて `#8-4` へ進めばよい。
+
+# codex v123
+
+- admin 実測の `#8-5` が `chunk_index_target.csv` 不在で停止した。原因は `#8-5` が旧 route の target manifest 生成責務を前提にしていた一方、現行 `increpose` route では `#8-3` までで target subset manifest を常時生成していなかったこと。
+- `da3_increpose_sources/cells/08_05.py` を修正し、`test_only_*` と canonical target manifest が無い時でも `batch_execution_items.csv` または `chunk_index_all.csv` と `/content/config_snapshot.json` を使って `chunk_index_target.csv` と `batch_plan.csv` を self-heal 生成するようにした。`TARGET_CHUNK_MODE=selected_chunk_ids_1based`、window mode、full_set mode を扱い、`target_local_chunk_index`、`batch_index`、`batch_name` を補完してから後段用 `execution_target_chunks.csv` / `execution_target_batch_plan.csv` を作る。
+- `08_05.md`、canonical pair、inventory、`test_da3_increpose_sources.py` も同じ task で同期し、`python -m unittest ...test_da3_increpose_sources.py` で引き続き `5 tests OK` を確認した。Colab 側では最新 pair を開き直した上で `#8-5` を再実行すれば、不足していた target manifest はその場で生成される。
+
+# codex v124
+
+- admin 実測の後段評価で `chunk_0005` / `chunk_0006` の `pred_extrinsics.npy` が見つからず `no_chunk_pose_loaded` で停止した。原因は `da3_increpose_sources/cells/08_09.py` が各 chunk の出力先を `chunk_runs/<batch_name>/` 直下にしており、chunk 単位の artifact path 契約と一致していなかったこと。
+- `08_09.py` を修正し、実行出力を `chunk_runs/<batch_name>/<chunk_name>/` 配下へ保存するようにした。`out_dir = batch_work_dir / chunk_name`、`runtime_dir = out_dir / "_runtime"` とし、`batch_run_status_arc.csv` にも `batch_work_dir` を残して downstream の探索候補と矛盾しないよう揃えた。
+- `08_09.md`、canonical pair、inventory、`test_da3_increpose_sources.py` を同じ task で同期し、`python -m unittest ...test_da3_increpose_sources.py` で `5 tests OK` を再確認した。Colab 側では最新 pair を開き直し、少なくとも `#8-9` を再実行して chunk 出力を作り直した後に `#10-1` 以降へ進めばよい。
+
+# codex v125
+
+- admin 指示の「directory 定義、生成物出力先、参照先の一括確認を temporary code ではなく継続運用可能な contract として持つ」に合わせて、`increpose` route の path handoff を HAUB へ昇格した。`hi-ai-unified-blueprint.md` に `### Increpose Path Handoff Matrix` を追加し、`PATH-I01` から `PATH-I17` までで producer token、consumer token、canonical path pattern を管理する形へ整理した。
+- これに合わせて `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/da3_increpose_path_contract_probe.py` を追加し、`da3_increpose_sources/` の cell source と `#8-8` embedded wrapper code を静的走査して path 定義・artifact write/read/probe を収集し、HAUB matrix と照合する probe を作成した。manifest 系の direct 抽出が弱い箇所は、HAUB contract を fallback declaration として扱い、critical artifact の write/read coverage を欠落なく見られるようにした。
+- `test_da3_increpose_path_contract_probe.py` と `test_da3_increpose_sources.py` も更新し、HAUB に matrix が載っていること、`pred_extrinsics.npy` や `chunk_input_frames.csv` などの重要 artifact が source と contract の両面で追えることを unittest 化した。`python -m unittest ...test_da3_increpose_path_contract_probe.py ...test_da3_increpose_sources.py` は `6 tests OK` を確認した。以後は path 契約変更時に HAUB と probe の両方が同 task で更新される運用にする。
+
+# codex v126
+
+- admin 指示に合わせて、script / notebook source 編集時に HAUB 対照表と probe を必ず通す運用を shared rule と skill へ昇格した。`AGENTS.md` には、script 編集時は `design-first-script-builder` と `reference-rewire-operator` を既定で起動し、project が handoff 対照表と contract probe を持つ時は code 変更と同じ task で対照表更新、probe 実行、関連 test 実行まで終える条項を追加した。履歴は `AGENTSmd-RH.md` に追記した。
+- `kisaragi-skills/design-first-script-builder/` と `kisaragi-skills/reference-rewire-operator/` を更新し、frontmatter description、workflow、guard rail、checklist、`agents/openai.yaml` に `HAUB` handoff row 更新と project probe / test 実行を明示した。これにより今後の script 編集は skill 自体が `対照表を使う・更新する・検証する` 流れを要求する。
+- `HAUB` の `### Increpose Path Handoff Matrix` 直下にも、`increpose` source 編集時はこの表を authoritative contract とし、`da3_increpose_path_contract_probe.py` と関連 unittest を同 task で実行してから close する運用注記を追加した。`quick_validate.py` は環境に `PyYAML` がなく実行不能だったため、frontmatter と `agents/openai.yaml` の必須 key を自前 check し、加えて `python -m unittest ...test_da3_increpose_path_contract_probe.py ...test_da3_increpose_sources.py` の `6 tests OK` を確認した。
+
+# codex v127
+
+- admin 指示により `da3_ngl_increpose_RB.ipynb` の現行修正状態を再点検した。`design-first-script-builder` と `reference-rewire-operator` の運用で、source manifest、design contract、HAUB handoff matrix、contract probe、source test、pair 内の旧参照残骸検索をまとめて通した。
+- `python -m unittest ...test_da3_increpose_path_contract_probe.py ...test_da3_increpose_sources.py` は再度 `6 tests OK` を確認した。probe report では `critical_rule_failures=[]`、`haub_contract_failures=[]` で、`PATH-I01..I17` と source / notebook の producer・consumer・canonical path は現時点で一致している。
+- 追加の grep では `#8-9` の chunk 出力が `chunk_runs/<batch_name>/<chunk_name>/` 契約で残っていること、`#8-5` の `chunk_index_target.csv` / `batch_plan.csv` self-heal 導線が pair に反映済みであることを確認した。今回の再検査では新たな参照不整合は見つからず、追加 code 修正は不要と判断した。
+
+# codex v128
+
+- admin 指示の通り、sharedlog にしか残っていなかった `increpose` の path / reference contract 運用を永続文書へ昇格した。`HAUB` current_state と `mRL-10.5` 説明、`codex-mrl-test-evidence.md`、`resume-startup-plan.md` に `Increpose Path Handoff Matrix`、`da3_increpose_path_contract_probe.py`、`2026-04-11` の clean 再検査結果を反映した。
+- 同日再検査として `python -m unittest ...test_da3_increpose_path_contract_probe.py ...test_da3_increpose_sources.py` を再実行し、`6 tests OK`、`critical_rule_failures=[]`、`haub_contract_failures=[]` を確認した。sharedlog は以後、この「今日再検査した」事実の時系列記録だけを残し、持続すべき判断や運用 rule の保持先にはしない。
+
+# codex v129
+
+- admin 実測の `pred_extrinsics_not_found` 再発を受けて source を再確認したところ、`#8-3` が `batch_work_dir` にすでに `chunk_name` を含めていた一方、`#8-9` は `out_dir = batch_work_dir / chunk_name` としており、directory handoff が二重ネストになっていた。これが manifest と実出力先の再ずれ要因だった。
+- `08_03.py` は `batch_work_dir = chunk_runs/<batch_name>/` を batch scope に修正し、chunk 固有出力先は `chunk_out_dir = batch_work_dir / chunk_name` として manifest へ明示した。`08_09.py` と `10_01.py` は旧互換で `batch_work_dir` が chunk path を指していた場合も batch scope へ正規化し、`chunk_out_dir` があればそれを優先して `pred_extrinsics.npy` と `chunk_input_frames.csv` を解決するようにした。
+- `08_03.md`、`08_09.md`、source test、canonical pair を同期し、さらに `reference-rewire-operator` に `parent scope directory と leaf scope directory を混同しない` guard を追加した。`python -m unittest ...test_da3_increpose_path_contract_probe.py ...test_da3_increpose_sources.py` は引き続き `6 tests OK` を確認した。

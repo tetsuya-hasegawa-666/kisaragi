@@ -46,5 +46,6 @@
 - `#10-1` は graph / gate 面として、最低でも `center_error_p95`、`lens_error_deg_p95`、`delta_center_error_max`、`delta_lens_error_deg_max` と `chunk_global_transforms_arc.csv` 互換の matrix 列を残す。`run_status_path` と `seed_trace_path` を読む contract を外してはならない。
 - `#11-1` は merge engine 面として、`merged_camera_pose_arc.csv`、`merged_camera_matrix_arc.csv`、`ngl_bundle_manifest_dir`、`chunk_global_transforms_arc.csv`、`merge_summary.json` を同時に更新し、graph 由来の chunk-to-world 解釈を merge 結果まで追跡可能に保つ。
 - `HAUB` の `modeling` 用一覧表を更新する時は、少なくとも `role`、`key data names`、`reference directories`、`main outputs / handoff` の 4 列を維持し、runbook の参照面変更を同じ task で反映する。
+- `HAUB` には `Increpose Path Handoff Matrix` を持たせ、主要 artifact ごとの producer token、consumer token、canonical path / pattern を管理する。directory / output / read 参照の整合確認はこの表を正として行う。
 - `correcting` 側で local product script / source を更新した時も、同じ 4 列を `correcting_script_source_inventory.md` と `HAUB` の correct 用一覧表へ同時反映する。
 - 各 row では、どの reference directory を見ているかを曖昧名ではなく `persist_root/01_anchor`、`pipeline_root/manifests` のような具体 path で書く。

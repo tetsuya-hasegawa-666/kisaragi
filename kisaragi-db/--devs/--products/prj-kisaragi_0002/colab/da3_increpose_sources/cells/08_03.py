@@ -69,7 +69,8 @@ for start_index in range(0, n - CHUNK_SIZE + 1, CHUNK_STEP):
 
     batch_index = chunk_id // BATCH_SIZE
     batch_name = f"batch_{batch_index:04d}"
-    batch_work_dir = chunk_runs_dir / batch_name / chunk_name
+    batch_work_dir = chunk_runs_dir / batch_name
+    chunk_out_dir = batch_work_dir / chunk_name
     chunk_csv_path = chunk_manifest_dir / f"{chunk_name}.csv"
 
     execution_rows.append({
@@ -78,6 +79,7 @@ for start_index in range(0, n - CHUNK_SIZE + 1, CHUNK_STEP):
         "batch_index": int(batch_index),
         "batch_name": batch_name,
         "batch_work_dir": str(batch_work_dir),
+        "chunk_out_dir": str(chunk_out_dir),
         "start_index": int(start_index),
         "end_index": int(end_index),
         "chunk_size": int(CHUNK_SIZE),
@@ -117,6 +119,7 @@ for start_index in range(0, n - CHUNK_SIZE + 1, CHUNK_STEP):
         "batch_index": int(batch_index),
         "batch_name": batch_name,
         "batch_work_dir": str(batch_work_dir),
+        "chunk_out_dir": str(chunk_out_dir),
         "global_start": int(start_index),
         "global_end": int(end_index - 1),
         "frame_count": int(CHUNK_SIZE),

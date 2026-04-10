@@ -1,7 +1,7 @@
 interface:
   display_name: "Design First Script Builder"
-  short_description: "設計審査票、関数表、docs ID 契約を先に固めてから script を書く。"
-  default_prompt: "Use $design-first-script-builder to define a design review sheet, responsibility boundaries, function inventory, docs IDs, validation rules, and only then implement or refactor a script or notebook."
+  short_description: "設計審査票と HAUB handoff 契約を先に固めてから script を書く。"
+  default_prompt: "Use $design-first-script-builder to define a design review sheet, responsibility boundaries, function inventory, docs IDs, HAUB handoff rows when present, validation rules, and only then implement or refactor a script or notebook, finishing with the project probe and related tests."
 
 policy:
   allow_implicit_invocation: true

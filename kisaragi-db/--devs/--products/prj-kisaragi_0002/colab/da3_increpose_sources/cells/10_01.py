@@ -172,9 +172,16 @@ def _resolve_pred_path(item_row: pd.Series) -> Path | None:
 
     if "batch_work_dir" in item_row.index and pd.notna(item_row["batch_work_dir"]) and str(item_row["batch_work_dir"]).strip():
         batch_work_dir = Path(str(item_row["batch_work_dir"]).strip())
+        if batch_work_dir.name == chunk_name:
+            candidates.append(batch_work_dir / "pred_extrinsics.npy")
+            batch_work_dir = batch_work_dir.parent
         if chunk_name:
             candidates.append(batch_work_dir / chunk_name / "pred_extrinsics.npy")
         candidates.append(batch_work_dir / "pred_extrinsics.npy")
+
+    if "chunk_out_dir" in item_row.index and pd.notna(item_row["chunk_out_dir"]) and str(item_row["chunk_out_dir"]).strip():
+        chunk_out_dir = Path(str(item_row["chunk_out_dir"]).strip())
+        candidates.insert(0, chunk_out_dir / "pred_extrinsics.npy")
 
     if chunk_name:
         candidates.append(chunk_runs_dir / chunk_name / "pred_extrinsics.npy")
@@ -219,6 +226,11 @@ def _resolve_chunk_csv(item_row: pd.Series, pred_path: Path | None) -> Path | No
     if pred_path is not None:
         candidates.append(pred_path.parent / "chunk_input_frames.csv")
         candidates.append(pred_path.parent / "_runtime" / "chunk_input_seeded.csv")
+
+    if "chunk_out_dir" in item_row.index and pd.notna(item_row["chunk_out_dir"]) and str(item_row["chunk_out_dir"]).strip():
+        chunk_out_dir = Path(str(item_row["chunk_out_dir"]).strip())
+        candidates.append(chunk_out_dir / "chunk_input_frames.csv")
+        candidates.append(chunk_out_dir / "_runtime" / "chunk_input_seeded.csv")
 
     if not run_status_df.empty:
         rs = run_status_df.loc[run_status_df["chunk_name"].astype(str) == chunk_name].copy()

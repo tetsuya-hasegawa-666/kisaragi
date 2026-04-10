@@ -264,6 +264,8 @@ kisaragi-tree/
 - 投機的拡張より、現在制約下で実行可能な前進を優先する。
 - 人間への依頼は、小さく、拒否されても全体計画が崩れない単位で行う。
 - 複数指示を含む prompt を処理する時は、未完了指示を task 内の残件として保持し、理由説明なしに取りこぼしたまま入力待ちへ移ってはならない。
+- script、notebook、runbook source を編集する task では、対象に合う skill を必ず起動し、設計系変更は `design-first-script-builder`、参照切替や output / path / contract 変更は `reference-rewire-operator` を既定で使う。
+- 上記 task の対象 project が `HAUB` などの handoff 対照表と contract probe / test を持つ時は、それを authoritative contract として扱い、code 変更と同じ task で対照表更新、probe 実行、関連 test 実行まで終える。
 - notebook cell、長い script、error 全文、admin 実行結果の往復を伴う task では、main code thread を chat の直接往復ではなく project ごとの `sharedlogs_<thema>.md` へ集約することを既定とする。
 - 上記の task では、Codex は回答前に shared worklog の最新追記を先に確認し、chat では「どの worklog を基準に答えるか」を明示する。
 - shared worklog は context window の代替ではなく、誤送信と文脈取り違えを減らすための canonical な往復面として使う。main code、実行順、admin の raw response は原則そこで管理する。

@@ -27,6 +27,7 @@
 - consumer を後追いで直したか
 - tests を同じ task で直したか
 - inventory / docs_id / design contract を直したか
+- `HAUB` などの handoff 対照表を持つ project では row の producer / consumer / canonical path を更新したか
 
 ## 5. grep 検査
 
@@ -36,6 +37,7 @@
 - old docs_id
 - old heading / section 名
 - old helper import
+- parent scope path と leaf scope path が同名 key のまま混在していないか
 
 ## 6. 下流確認
 
@@ -44,6 +46,7 @@
 - 文書から辿れる
 - cleanup が新参照に追随している
 - evidence path が新参照を指す
+- contract probe / source test を同じ task で実行し pass を確認したか
 
 ## 7. close 条件
 

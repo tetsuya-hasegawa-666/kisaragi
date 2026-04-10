@@ -12,6 +12,20 @@
 
 ## 更新履歴
 
+### 2026-04-11 AGENTS.md script 編集時の skill 起動と handoff contract 検証を必須化
+
+- 日時: `2026-04-11`
+- 文書名: `AGENTS.md`
+- 標題: script / notebook / runbook source 編集時に skill 起動と handoff contract 検証を必須化
+- 背景: `prj-kisaragi_0002` の `increpose` route で directory 定義、生成物出力先、参照先のずれが繰り返し発生し、個別修正だけでは再発を防ぎにくかった。
+- 目的: script 編集時に設計 skill と参照切替 skill を必ず使い、project が持つ `HAUB` handoff 対照表と contract probe / test を同じ task で更新・実行する shared 運用へ上げる。
+- 対処方法: `AGENTS.md` の `協調原則` に、script / notebook / runbook source 編集時の skill 起動必須条項と、handoff 対照表・probe・関連 test の同 task 実行条項を追加した。
+- 対応内容: 設計系変更は `design-first-script-builder`、参照切替や output / path / contract 変更は `reference-rewire-operator` を既定 skill とし、project が `HAUB` 等の対照表と probe を持つ場合はそれを authoritative contract として扱う rule を固定した。
+- 更新結果: 今後の script 編集は、skill による設計 / 参照管理と、対照表・probe による機械検証が前提の shared governance になる。
+- 新旧比較:
+  - 旧: script 編集時に skill 起動と handoff contract probe 実行を必須とする shared rule はなかった。
+  - 新: script 編集時は該当 skill を必ず使い、project に対照表と probe があれば同 task で更新・実行する shared rule になった。
+
 ### 2026-04-08 AGENTS.md `正本` 用語の使用域を管理文書へ限定
 
 - 日時: `2026-04-08`

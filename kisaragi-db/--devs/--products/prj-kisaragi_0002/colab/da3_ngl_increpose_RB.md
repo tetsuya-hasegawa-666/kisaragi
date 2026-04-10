@@ -2506,7 +2506,7 @@ display_stage_summary(
 
 # 8 Chunk Run Preparation And Execution
 
-この markdown cell は `#8-3` の chunk/batch plan build を説明する。anchor full から `batch_execution_items.csv`、`chunk_input_manifest_arc.csv`、`chunk_index_all.csv`、および各 `chunk_XXXX.csv` を生成する。
+この markdown cell は `#8-3` の chunk/batch plan build を説明する。anchor full から `batch_execution_items.csv`、`chunk_input_manifest_arc.csv`、`chunk_index_all.csv`、および各 `chunk_XXXX.csv` を生成する。`batch_work_dir` は `chunk_runs/<batch_name>/` を指す batch scope とし、chunk 固有出力先は `chunk_out_dir = chunk_runs/<batch_name>/<chunk_name>/` で管理する。
 
 ```python
 #8-3
@@ -2580,7 +2580,8 @@ for start_index in range(0, n - CHUNK_SIZE + 1, CHUNK_STEP):
 
     batch_index = chunk_id // BATCH_SIZE
     batch_name = f"batch_{batch_index:04d}"
-    batch_work_dir = chunk_runs_dir / batch_name / chunk_name
+    batch_work_dir = chunk_runs_dir / batch_name
+    chunk_out_dir = batch_work_dir / chunk_name
     chunk_csv_path = chunk_manifest_dir / f"{chunk_name}.csv"
 
     execution_rows.append({
@@ -2589,6 +2590,7 @@ for start_index in range(0, n - CHUNK_SIZE + 1, CHUNK_STEP):
         "batch_index": int(batch_index),
         "batch_name": batch_name,
         "batch_work_dir": str(batch_work_dir),
+        "chunk_out_dir": str(chunk_out_dir),
         "start_index": int(start_index),
         "end_index": int(end_index),
         "chunk_size": int(CHUNK_SIZE),
@@ -2628,6 +2630,7 @@ for start_index in range(0, n - CHUNK_SIZE + 1, CHUNK_STEP):
         "batch_index": int(batch_index),
         "batch_name": batch_name,
         "batch_work_dir": str(batch_work_dir),
+        "chunk_out_dir": str(chunk_out_dir),
         "global_start": int(start_index),
         "global_end": int(end_index - 1),
         "frame_count": int(CHUNK_SIZE),
@@ -2789,7 +2792,7 @@ display_stage_summary(
 
 # 8 Chunk Run Preparation And Execution
 
-この markdown cell は `#8-5` の execution target resolve を説明する。target chunk と batch plan の正本を解決し、後段実行対象を固定する。
+この markdown cell は `#8-5` の execution target resolve を説明する。target chunk と batch plan の正本を解決し、欠けている時は `chunk_index_all.csv` と config から `chunk_index_target.csv` / `batch_plan.csv` を self-heal して後段実行対象を固定する。
 
 ```python
 #8-5
@@ -2799,6 +2802,7 @@ probe_root = Path(ctx["probe_root"])
 pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
+config_snapshot = load_json("/content/config_snapshot.json") if Path("/content/config_snapshot.json").exists() else {}
 
 chunk_manifest_dir.mkdir(parents=True, exist_ok=True)
 chunk_runs_dir.mkdir(parents=True, exist_ok=True)
@@ -2811,6 +2815,71 @@ canonical_batch_plan_path = chunk_manifest_dir / "target_batch_plan.csv"
 
 fallback_chunk_target_path = chunk_manifest_dir / "chunk_index_target.csv"
 fallback_batch_plan_path = chunk_manifest_dir / "batch_plan.csv"
+batch_execution_items_path = chunk_manifest_dir / "batch_execution_items.csv"
+chunk_index_all_path = chunk_manifest_dir / "chunk_index_all.csv"
+
+def build_target_chunk_and_batch_plan():
+    if batch_execution_items_path.exists():
+        base_df = pd.read_csv(batch_execution_items_path)
+    else:
+        assert chunk_index_all_path.exists(), {
+            "missing_required_manifest": [
+                str(batch_execution_items_path),
+                str(chunk_index_all_path),
+            ]
+        }
+        base_df = pd.read_csv(chunk_index_all_path)
+
+    assert not base_df.empty, {"reason": "base_chunk_manifest_empty", "chunk_manifest_dir": str(chunk_manifest_dir)}
+    assert "chunk_id" in base_df.columns, base_df.columns.tolist()
+    assert "chunk_name" in base_df.columns, base_df.columns.tolist()
+
+    target_mode = str(config_snapshot.get("TARGET_CHUNK_MODE", "selected_chunk_ids_1based"))
+    if target_mode == "full_set":
+        target_chunks_df = base_df.copy().reset_index(drop=True)
+    elif target_mode == "selected_chunk_ids_1based":
+        valid_chunk_ids = set(base_df["chunk_id"].astype(int).tolist())
+        selected_chunk_ids = sorted({int(x) - 1 for x in config_snapshot.get("TARGET_CHUNK_IDS_1BASED", []) if int(x) >= 1})
+        selected_chunk_ids = [x for x in selected_chunk_ids if x in valid_chunk_ids]
+        assert selected_chunk_ids, {
+            "reason": "selected target chunk ids resolved empty",
+            "selected_chunk_ids_1based": config_snapshot.get("TARGET_CHUNK_IDS_1BASED", []),
+            "valid_chunk_ids_0based": sorted(valid_chunk_ids),
+        }
+        target_chunks_df = base_df.loc[base_df["chunk_id"].astype(int).isin(selected_chunk_ids)].copy()
+        target_chunks_df = target_chunks_df.sort_values("chunk_id", kind="stable").reset_index(drop=True)
+    elif bool(config_snapshot.get("USE_TARGET_CHUNK_WINDOW", False)):
+        start_0 = max(0, int(config_snapshot.get("TARGET_CHUNK_WINDOW_START_1BASED", 1)) - 1)
+        count = int(config_snapshot.get("TARGET_CHUNK_WINDOW_COUNT", 0))
+        assert count > 0, {"reason": "target_chunk_window_count_must_be_positive", "count": count}
+        end_0 = min(start_0 + count, len(base_df))
+        target_chunks_df = base_df.iloc[start_0:end_0].copy().reset_index(drop=True)
+    else:
+        raise AssertionError({"reason": "unsupported target chunk mode", "target_mode": target_mode})
+
+    if "target_local_chunk_index" not in target_chunks_df.columns:
+        target_chunks_df["target_local_chunk_index"] = range(len(target_chunks_df))
+
+    if "batch_index" not in target_chunks_df.columns:
+        batch_size = int(config_snapshot.get("BATCH_SIZE", 1))
+        target_chunks_df["batch_index"] = target_chunks_df["target_local_chunk_index"].astype(int) // batch_size
+
+    if "batch_name" not in target_chunks_df.columns:
+        target_chunks_df["batch_name"] = target_chunks_df["batch_index"].astype(int).map(lambda x: f"batch_{x:03d}")
+
+    batch_plan_df = (
+        target_chunks_df.groupby(["batch_index", "batch_name"], sort=True)
+        .agg(
+            chunk_from=("target_local_chunk_index", "min"),
+            chunk_to=("target_local_chunk_index", "max"),
+            chunk_count=("chunk_name", "size"),
+        )
+        .reset_index()
+    )
+
+    target_chunks_df.to_csv(fallback_chunk_target_path, index=False, encoding="utf-8")
+    batch_plan_df.to_csv(fallback_batch_plan_path, index=False, encoding="utf-8")
+    return target_chunks_df, batch_plan_df
 
 if test_chunk_with_batch_path.exists():
     execution_chunk_path = test_chunk_with_batch_path
@@ -2831,6 +2900,9 @@ elif canonical_batch_plan_path.exists():
 else:
     execution_batch_plan_path = fallback_batch_plan_path
     execution_mode_batch_plan = "canonical_batch_plan"
+
+if (not execution_chunk_path.exists()) or (not execution_batch_plan_path.exists()):
+    build_target_chunk_and_batch_plan()
 
 assert execution_chunk_path.exists(), {"missing_execution_chunk_source": str(execution_chunk_path)}
 assert execution_batch_plan_path.exists(), {"missing_execution_batch_source": str(execution_batch_plan_path)}
@@ -2872,6 +2944,8 @@ summary = {
     "execution_batch_names": execution_batch_plan_df["batch_name"].astype(str).tolist(),
     "execution_chunk_out": str(execution_chunk_out),
     "execution_batch_out": str(execution_batch_out),
+    "self_heal_chunk_index_target_exists": bool(fallback_chunk_target_path.exists()),
+    "self_heal_batch_plan_exists": bool(fallback_batch_plan_path.exists()),
 }
 
 save_json(chunk_manifest_dir / "execution_target_resolution_summary.json", summary)
@@ -3393,7 +3467,7 @@ display_stage_summary(
 
 # 8 Chunk Run Preparation And Execution
 
-この markdown cell は `#8-9` の batch 実行を説明する。target chunk を batch 単位で実行し、predicted pose artifact を残す。
+この markdown cell は `#8-9` の batch 実行を説明する。target chunk を順次実行し、artifact は `chunk_runs/<batch_name>/<chunk_name>/` 配下へ chunk 単位で残す。`batch_execution_items.csv` の `batch_work_dir` が旧互換で chunk path を指していても、実行時に batch scope へ正規化して二重ネストを防ぐ。
 
 ```python
 #8-9
@@ -3541,11 +3615,19 @@ for _, item_row in items_df.iterrows():
     batch_name = str(item_row["batch_name"])
     chunk_name = str(item_row["chunk_name"])
     chunk_csv = Path(str(item_row["chunk_csv"]))
-    batch_work_dir = Path(str(item_row["batch_work_dir"]))
-    out_dir = batch_work_dir
-    runtime_dir = batch_work_dir / "_runtime"
+    raw_batch_work_dir = Path(str(item_row["batch_work_dir"]))
+    batch_work_dir = raw_batch_work_dir
+    if batch_work_dir.name == chunk_name:
+        batch_work_dir = batch_work_dir.parent
+
+    if "chunk_out_dir" in item_row.index and pd.notna(item_row["chunk_out_dir"]) and str(item_row["chunk_out_dir"]).strip():
+        out_dir = Path(str(item_row["chunk_out_dir"]).strip())
+    else:
+        out_dir = batch_work_dir / chunk_name
+    runtime_dir = out_dir / "_runtime"
 
     batch_work_dir.mkdir(parents=True, exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
     runtime_dir.mkdir(parents=True, exist_ok=True)
 
     stdout_txt = batch_work_dir / "stdout.txt"
@@ -3625,6 +3707,7 @@ for _, item_row in items_df.iterrows():
         "adopt_size": int(ADOPT_SIZE),
         "seeded_overlap_count": int(len(seeded_local_indices)),
         "seeded_overlap_local_indices": json.dumps(seeded_local_indices, ensure_ascii=False),
+        "batch_work_dir": str(batch_work_dir),
     })
     seed_trace_rows.append({
         "chunk_name": chunk_name,
@@ -4288,9 +4371,16 @@ def _resolve_pred_path(item_row: pd.Series) -> Path | None:
 
     if "batch_work_dir" in item_row.index and pd.notna(item_row["batch_work_dir"]) and str(item_row["batch_work_dir"]).strip():
         batch_work_dir = Path(str(item_row["batch_work_dir"]).strip())
+        if batch_work_dir.name == chunk_name:
+            candidates.append(batch_work_dir / "pred_extrinsics.npy")
+            batch_work_dir = batch_work_dir.parent
         if chunk_name:
             candidates.append(batch_work_dir / chunk_name / "pred_extrinsics.npy")
         candidates.append(batch_work_dir / "pred_extrinsics.npy")
+
+    if "chunk_out_dir" in item_row.index and pd.notna(item_row["chunk_out_dir"]) and str(item_row["chunk_out_dir"]).strip():
+        chunk_out_dir = Path(str(item_row["chunk_out_dir"]).strip())
+        candidates.insert(0, chunk_out_dir / "pred_extrinsics.npy")
 
     if chunk_name:
         candidates.append(chunk_runs_dir / chunk_name / "pred_extrinsics.npy")
@@ -4335,6 +4425,11 @@ def _resolve_chunk_csv(item_row: pd.Series, pred_path: Path | None) -> Path | No
     if pred_path is not None:
         candidates.append(pred_path.parent / "chunk_input_frames.csv")
         candidates.append(pred_path.parent / "_runtime" / "chunk_input_seeded.csv")
+
+    if "chunk_out_dir" in item_row.index and pd.notna(item_row["chunk_out_dir"]) and str(item_row["chunk_out_dir"]).strip():
+        chunk_out_dir = Path(str(item_row["chunk_out_dir"]).strip())
+        candidates.append(chunk_out_dir / "chunk_input_frames.csv")
+        candidates.append(chunk_out_dir / "_runtime" / "chunk_input_seeded.csv")
 
     if not run_status_df.empty:
         rs = run_status_df.loc[run_status_df["chunk_name"].astype(str) == chunk_name].copy()

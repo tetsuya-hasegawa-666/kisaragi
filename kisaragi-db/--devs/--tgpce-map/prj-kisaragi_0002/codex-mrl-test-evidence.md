@@ -13,6 +13,17 @@
 
 ## Entries
 
+- record date: `2026-04-11`
+  target MRL: `MRL-10`
+  target mRL: `mRL-10.5`
+  gate change: `active recurrence-prevention strengthened`
+  issue: `da3_ngl_increpose_RB` は canonical pair へ切り替えた後も、directory 定義、生成物出力先、reader 側参照のずれが発生しやすく、shared worklog にしか残っていない修復知識へ依存すると再発防止にならなかった
+  cause: `#8-3`、`#8-5`、`#8-9`、`#10-1`、`#11-1`、`#11-2` の artifact handoff は notebook cell をまたいでおり、producer / consumer / canonical path の authoritative contract と機械検査が永続文書へ十分固定されていなかった
+  resolution: [hi-ai-unified-blueprint.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/hi-ai-unified-blueprint.md) に `Increpose Path Handoff Matrix` を恒久 contract として明記し、[da3_increpose_path_contract_probe.py](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--testcode/prj-kisaragi_0002/da3_increpose_path_contract_probe.py) と [test_da3_increpose_path_contract_probe.py](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_da3_increpose_path_contract_probe.py)、[test_da3_increpose_sources.py](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_da3_increpose_sources.py) を使う再検査 route を永続化した。`2026-04-11` の再検査では `critical_rule_failures=[]`、`haub_contract_failures=[]`、`6 tests OK` を確認した
+  recurrence prevention: 今後 `da3_ngl_increpose_RB` の script / notebook source を編集する task では、`HAUB` handoff matrix 更新、probe 実行、関連 unittest 実行を同じ task で必須にする。shared worklog は判断の起点には使ってよいが、永続 contract の保持場所にしない
+  remaining work: path / reference 整合は現時点で clean だが、`BLK-1` の merge quality と `BLK-5` の correcting 長時間実収録安定化は未解消であり、`mRL-10.4` と `MRL-2S` の主 blocker は残る
+  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/hi-ai-unified-blueprint.md`, `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/da3_increpose_path_contract_probe.py`, `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_da3_increpose_path_contract_probe.py`, `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_da3_increpose_sources.py`
+
 - record date: `2026-04-08`
   target MRL: `MRL-2R`、`MRL-10`
   target mRL: `mRL-2R.3`、`mRL-10.5c`

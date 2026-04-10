@@ -23,7 +23,7 @@
 | #8-2 | `cells/08_02.py` | `direct` | 8 Chunk Run Preparation And Execution | - | ctx, manifest_dir, managed_dirs, record_dir, p, df, ts_col, df | `DOC-I08-02` |
 | #8-3 | `cells/08_03.py` | `direct` | 8 Chunk Run Preparation And Execution | - | ctx, probe_root, persist_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, anchor_dir, camera_anchor_full_path, anchor_df, CHUNK_SIZE, CHUNK_STEP, CONTEXT_SIZE | `DOC-I08-03` |
 | #8-4 | `cells/08_04.py` | `direct` | 8 Chunk Run Preparation And Execution | - | ctx, probe_root, pipeline_root, chunk_manifest_dir, batch_execution_items_path, chunk_input_manifest_path, chunk_index_all_path, input_manifest_df, rows, precheck_df, precheck_path, bad_chunk_count | `DOC-I08-04` |
-| #8-5 | `cells/08_05.py` | `direct` | 8 Chunk Run Preparation And Execution | - | ctx, probe_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, test_chunk_with_batch_path, test_batch_plan_path, canonical_chunk_with_batch_path, canonical_batch_plan_path, fallback_chunk_target_path, fallback_batch_plan_path, execution_chunks_df | `DOC-I08-05` |
+| #8-5 | `cells/08_05.py` | `direct` | 8 Chunk Run Preparation And Execution | build_target_chunk_and_batch_plan | ctx, probe_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, config_snapshot, test_chunk_with_batch_path, test_batch_plan_path, canonical_chunk_with_batch_path, canonical_batch_plan_path, fallback_chunk_target_path, fallback_batch_plan_path | `DOC-I08-05` |
 | #8-6 | `cells/08_06.py` | `direct` | 8 Chunk Run Preparation And Execution | - | ctx, probe_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, merged_dir, final_outputs_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir, final_outputs_chunk_evidence_dir, final_outputs_merged_dir, execution_chunks_path | `DOC-I08-06` |
 | #8-7 | `cells/08_07.py` | `direct` | 8 Chunk Run Preparation And Execution | - | ctx, probe_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, final_outputs_diagnostics_dir, execution_chunks_path, execution_batch_plan_path, execution_chunks_df, execution_batch_plan_df, batch_execution_items_df, batch_execution_items_path | `DOC-I08-07` |
 | #8-8 | `cells/08_08.py` | `direct` | 8 Chunk Run Preparation And Execution | - | repo_root, src_root, wrapper_path, wrapper_code | `DOC-I08-08` |
@@ -115,6 +115,7 @@
 | quat_to_rot | #8-1 | 8 Chunk Run Preparation And Execution | `DOC-I08-01` |
 | pose_to_w2c | #8-1 | 8 Chunk Run Preparation And Execution | `DOC-I08-01` |
 | build_K | #8-1 | 8 Chunk Run Preparation And Execution | `DOC-I08-01` |
+| build_target_chunk_and_batch_plan | #8-5 | 8 Chunk Run Preparation And Execution | `DOC-I08-05` |
 | ensure_pose4x4_batch | #8-9 | 8 Chunk Run Preparation And Execution | `DOC-I08-09` |
 | apply_incremental_seed_to_chunk_df | #8-9 | 8 Chunk Run Preparation And Execution | `DOC-I08-09` |
 | update_accepted_pose_map_from_chunk | #8-9 | 8 Chunk Run Preparation And Execution | `DOC-I08-09` |
@@ -397,12 +398,15 @@
 | pipeline_root | #8-5 | 8 Chunk Run Preparation And Execution | `DOC-I08-05` |
 | chunk_manifest_dir | #8-5 | 8 Chunk Run Preparation And Execution | `DOC-I08-05` |
 | chunk_runs_dir | #8-5 | 8 Chunk Run Preparation And Execution | `DOC-I08-05` |
+| config_snapshot | #8-5 | 8 Chunk Run Preparation And Execution | `DOC-I08-05` |
 | test_chunk_with_batch_path | #8-5 | 8 Chunk Run Preparation And Execution | `DOC-I08-05` |
 | test_batch_plan_path | #8-5 | 8 Chunk Run Preparation And Execution | `DOC-I08-05` |
 | canonical_chunk_with_batch_path | #8-5 | 8 Chunk Run Preparation And Execution | `DOC-I08-05` |
 | canonical_batch_plan_path | #8-5 | 8 Chunk Run Preparation And Execution | `DOC-I08-05` |
 | fallback_chunk_target_path | #8-5 | 8 Chunk Run Preparation And Execution | `DOC-I08-05` |
 | fallback_batch_plan_path | #8-5 | 8 Chunk Run Preparation And Execution | `DOC-I08-05` |
+| batch_execution_items_path | #8-5 | 8 Chunk Run Preparation And Execution | `DOC-I08-05` |
+| chunk_index_all_path | #8-5 | 8 Chunk Run Preparation And Execution | `DOC-I08-05` |
 | execution_chunks_df | #8-5 | 8 Chunk Run Preparation And Execution | `DOC-I08-05` |
 | execution_batch_plan_df | #8-5 | 8 Chunk Run Preparation And Execution | `DOC-I08-05` |
 | chunk_name_col | #8-5 | 8 Chunk Run Preparation And Execution | `DOC-I08-05` |
