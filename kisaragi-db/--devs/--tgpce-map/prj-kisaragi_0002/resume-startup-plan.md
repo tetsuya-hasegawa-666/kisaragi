@@ -29,6 +29,7 @@
 - `MRL-8` は `p-done` であり、`DA3 Colab` runbook 本体の前段で Drive 上の任意 session zip / session folder を script だけで選び、selected input を bootstrap 本体と `MRL-7` one-block の両方へ渡せる状態を閉じた。
 - 現在の main target は `MRL-2S` と `MRL-10` であり、`correcting` の `10min` 実収録安定化と、`frame_record.jsonl + images` を正にした record-native `Colab` route を canonical 化し、`90度右回転` upright image 契約、legacy intrinsics 補正、`orientation_summary.json`、sequence anchor、adjacent continuity precheck、pre-merge gate を main runbook の `.md/.ipynb` pair に固定することである。camera pose / trajectory の事前推定も `DA3NESTED-GIANT-LARGE-1.1` の official API / CLI 基準へ統一する。
 - `2026-04-11` 時点では `da3_ngl_increpose_RB` の path / reference 再検査を実施し、`HAUB` handoff matrix、contract probe、source test は clean である。directory handoff は `batch_work_dir = chunk_runs/<batch_name>/`、`chunk_out_dir = chunk_runs/<batch_name>/<chunk_name>/` を基準とし、legacy manifest が chunk path や `chunk_0005_*` suffix dir を持っていても reader が吸収する。以後は script / notebook source 編集後に同じ検査を必ず回す。
+- `2026-04-11` からは merge / graph の final access contract を `probe_root/final_outputs/#10-1/`、`probe_root/final_outputs/#11-1/` の stage root へ寄せる。各 stage root は `re_access/` と `persist_only/` に分かれ、`persist_only/` が canonical file 実体、`re_access/` が handoff manifest / resume pointer である。
 - script inventory は `correcting` 用と `modeling` 用を分離し、`correcting` 側は現状をありのまま記録する。`HAUB` は統合入口、product 側 inventory は詳細参照面とする。
 - `MRL-**` は細かく固定せず大まかな順番だけを置き、実測で見えた課題の大小に応じて `MRL` / `mRL` を切り直す。
 - ただし後続 `MRL` でも UX 到達品質は元の目標に沿わせる。特に modeling では、利用者が主空間の見え方、主カメラ経路、処理状態、次 action を迷わず把握できる方向を維持する。
@@ -62,7 +63,8 @@
 3. record-native route を blank runtime から進める時は [da3_ngl_increpose_RB.md](C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--products\prj-kisaragi_0002\colab\da3_ngl_increpose_RB.md) の `#1` から `#6` までを順に実行し、mount、config、input 選択、tree 作成、install、helper を固める。
 4. `MRL-10` を進める時は同 runbook の `#7` と `#8` を順に実行し、full anchor、anchor QC、record manifest、chunk plan、precheck、`sliding_window_incremental_seeded` の chunk 実行が通ることを先に確認する。
 5. giant production candidate は同 runbook の `#9`、`#10`、`#11` を順に実行し、overlap matching、global graph gate、final merge / review を進める。merge 証跡は `incremental_seed_trace_arc.csv`、`prepose_chunk_graph_solution_arc.csv`、`chunk_global_transforms_arc.csv`、`merge_summary.json`、`chunk_transform_quality_arc.csv` として残る。
-6. script / notebook source を触る時は、最後に `python -m unittest C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--testcode\prj-kisaragi_0002\test_da3_increpose_path_contract_probe.py C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--testcode\prj-kisaragi_0002\test_da3_increpose_sources.py` を回し、`HAUB` handoff matrix と pair の参照整合を再確認する。
+6. `#10-1` と `#11-1` の directory で迷ったら、まず `final_outputs/#10-1/re_access/graph_contract_manifest.json` と `final_outputs/#11-1/re_access/stage_access_index.json` を見る。file 実体探索を先に始めず、manifest が指す canonical path を採用する。
+7. script / notebook source を触る時は、最後に `python -m unittest C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--testcode\prj-kisaragi_0002\test_da3_increpose_path_contract_probe.py C:\Users\tetsuya\kisaragi\kisaragi-db\--devs\--testcode\prj-kisaragi_0002\test_da3_increpose_sources.py` を回し、`HAUB` handoff matrix と pair の参照整合を再確認する。
 
 ## 引き継ぎ上の重要判断
 

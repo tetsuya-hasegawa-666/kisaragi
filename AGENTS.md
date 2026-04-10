@@ -210,6 +210,7 @@ kisaragi-tree/
 - project ごとの局所 decision も、`--tgpce-map/` 適用済み project では統合計画書の `current_state` 章へ要約して持たせてよい。
 - 既存 project が `market_release_lines.md` や `micro_release_lines.md` を持つ場合でも、それらは統合計画書を補助する参考情報として扱う。
 - `MRL` と `mRL` の内容は、原則として統合計画書に吸収し、closeout が必要になった時点で Codex 側 gate closeout 記録文書を追加または移行する。
+- 一時的な横断 hygiene、directory stabilization、reference safety のように本機能そのものではないが一定期間は開発を支える補助目標が必要な時は、project 側で `support-MRL` を置いてよい。`support-MRL` は temporary goal、適用範囲、除去条件、admin が close を判断する基準を同じ表または節で明記し、chat だけに残してはならない。
 - `UX評価状態` も `ready`、`active`、`p-done`、`i-pass` の 4 値で表す。
 - `UX評価状態` の `ready` は、まだ admin `UX check` に出す段階ではないことを示す。
 - `UX評価状態` の `active` は、manual、実行環境、対象機能がそろい、admin が今すぐ test できるか、または test を進行中であることを示す。

@@ -152,7 +152,28 @@ def resolve_and_validate_paths(selected_doc: dict):
     final_outputs_diagnostics_dir = final_outputs_dir / "diagnostics"
     final_outputs_manifests_dir = final_outputs_dir / "manifests"
     final_outputs_chunk_evidence_dir = final_outputs_dir / "chunk_evidence"
-    for p in [probe_root, da3_nested_dir, da3_nested_gs_dir, world_dir, manifest_dir, final_outputs_dir, final_outputs_merged_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir, final_outputs_chunk_evidence_dir]:
+    stage_10_dir = final_outputs_dir / "#10-1"
+    stage_10_reaccess_dir = stage_10_dir / "re_access"
+    stage_10_persist_only_dir = stage_10_dir / "persist_only"
+    stage_11_dir = final_outputs_dir / "#11-1"
+    stage_11_reaccess_dir = stage_11_dir / "re_access"
+    stage_11_persist_only_dir = stage_11_dir / "persist_only"
+    for p in [
+        probe_root,
+        da3_nested_dir,
+        da3_nested_gs_dir,
+        world_dir,
+        manifest_dir,
+        final_outputs_dir,
+        final_outputs_merged_dir,
+        final_outputs_diagnostics_dir,
+        final_outputs_manifests_dir,
+        final_outputs_chunk_evidence_dir,
+        stage_10_reaccess_dir,
+        stage_10_persist_only_dir,
+        stage_11_reaccess_dir,
+        stage_11_persist_only_dir,
+    ]:
         p.mkdir(parents=True, exist_ok=True)
     return {
         "session_id": session_id,
@@ -172,6 +193,12 @@ def resolve_and_validate_paths(selected_doc: dict):
         "final_outputs_diagnostics_dir": str(final_outputs_diagnostics_dir),
         "final_outputs_manifests_dir": str(final_outputs_manifests_dir),
         "final_outputs_chunk_evidence_dir": str(final_outputs_chunk_evidence_dir),
+        "stage_10_dir": str(stage_10_dir),
+        "stage_10_reaccess_dir": str(stage_10_reaccess_dir),
+        "stage_10_persist_only_dir": str(stage_10_persist_only_dir),
+        "stage_11_dir": str(stage_11_dir),
+        "stage_11_reaccess_dir": str(stage_11_reaccess_dir),
+        "stage_11_persist_only_dir": str(stage_11_persist_only_dir),
         "images_dir": str(images_dir),
         "images_dir_file_count": int(valid_image_dirs[0][1]),
         "image_dir_candidates_ranked": [{"path": str(p), "image_count": int(c)} for p, c in valid_image_dirs],

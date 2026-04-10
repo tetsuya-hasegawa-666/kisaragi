@@ -265,7 +265,28 @@ def resolve_and_validate_paths(selected_doc: dict):
     final_outputs_diagnostics_dir = final_outputs_dir / "diagnostics"
     final_outputs_manifests_dir = final_outputs_dir / "manifests"
     final_outputs_chunk_evidence_dir = final_outputs_dir / "chunk_evidence"
-    for p in [probe_root, da3_nested_dir, da3_nested_gs_dir, world_dir, manifest_dir, final_outputs_dir, final_outputs_merged_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir, final_outputs_chunk_evidence_dir]:
+    stage_10_dir = final_outputs_dir / "#10-1"
+    stage_10_reaccess_dir = stage_10_dir / "re_access"
+    stage_10_persist_only_dir = stage_10_dir / "persist_only"
+    stage_11_dir = final_outputs_dir / "#11-1"
+    stage_11_reaccess_dir = stage_11_dir / "re_access"
+    stage_11_persist_only_dir = stage_11_dir / "persist_only"
+    for p in [
+        probe_root,
+        da3_nested_dir,
+        da3_nested_gs_dir,
+        world_dir,
+        manifest_dir,
+        final_outputs_dir,
+        final_outputs_merged_dir,
+        final_outputs_diagnostics_dir,
+        final_outputs_manifests_dir,
+        final_outputs_chunk_evidence_dir,
+        stage_10_reaccess_dir,
+        stage_10_persist_only_dir,
+        stage_11_reaccess_dir,
+        stage_11_persist_only_dir,
+    ]:
         p.mkdir(parents=True, exist_ok=True)
     return {
         "session_id": session_id,
@@ -285,6 +306,12 @@ def resolve_and_validate_paths(selected_doc: dict):
         "final_outputs_diagnostics_dir": str(final_outputs_diagnostics_dir),
         "final_outputs_manifests_dir": str(final_outputs_manifests_dir),
         "final_outputs_chunk_evidence_dir": str(final_outputs_chunk_evidence_dir),
+        "stage_10_dir": str(stage_10_dir),
+        "stage_10_reaccess_dir": str(stage_10_reaccess_dir),
+        "stage_10_persist_only_dir": str(stage_10_persist_only_dir),
+        "stage_11_dir": str(stage_11_dir),
+        "stage_11_reaccess_dir": str(stage_11_reaccess_dir),
+        "stage_11_persist_only_dir": str(stage_11_persist_only_dir),
         "images_dir": str(images_dir),
         "images_dir_file_count": int(valid_image_dirs[0][1]),
         "image_dir_candidates_ranked": [{"path": str(p), "image_count": int(c)} for p, c in valid_image_dirs],
@@ -381,6 +408,12 @@ final_outputs_merged_dir = Path(paths["final_outputs_merged_dir"])
 final_outputs_diagnostics_dir = Path(paths["final_outputs_diagnostics_dir"])
 final_outputs_manifests_dir = Path(paths["final_outputs_manifests_dir"])
 final_outputs_chunk_evidence_dir = Path(paths["final_outputs_chunk_evidence_dir"])
+stage_10_dir = Path(paths["stage_10_dir"])
+stage_10_reaccess_dir = Path(paths["stage_10_reaccess_dir"])
+stage_10_persist_only_dir = Path(paths["stage_10_persist_only_dir"])
+stage_11_dir = Path(paths["stage_11_dir"])
+stage_11_reaccess_dir = Path(paths["stage_11_reaccess_dir"])
+stage_11_persist_only_dir = Path(paths["stage_11_persist_only_dir"])
 
 reset_before_run = bool(config.get("RESET_TARGET_OUTPUTS_BEFORE_RUN", True))
 if reset_before_run and probe_root.exists():
@@ -404,6 +437,10 @@ for p in [
     final_outputs_diagnostics_dir,
     final_outputs_manifests_dir,
     final_outputs_chunk_evidence_dir,
+    stage_10_reaccess_dir,
+    stage_10_persist_only_dir,
+    stage_11_reaccess_dir,
+    stage_11_persist_only_dir,
 ]:
     p.mkdir(parents=True, exist_ok=True)
 
@@ -434,6 +471,12 @@ context_doc = {
     "final_outputs_diagnostics_dir": str(final_outputs_diagnostics_dir),
     "final_outputs_manifests_dir": str(final_outputs_manifests_dir),
     "final_outputs_chunk_evidence_dir": str(final_outputs_chunk_evidence_dir),
+    "stage_10_dir": str(stage_10_dir),
+    "stage_10_reaccess_dir": str(stage_10_reaccess_dir),
+    "stage_10_persist_only_dir": str(stage_10_persist_only_dir),
+    "stage_11_dir": str(stage_11_dir),
+    "stage_11_reaccess_dir": str(stage_11_reaccess_dir),
+    "stage_11_persist_only_dir": str(stage_11_persist_only_dir),
     "input_mode": "zip_only",
     "add_suffix": "",
     "reset_target_outputs_before_run": reset_before_run,
@@ -4221,6 +4264,10 @@ merged_dir.mkdir(parents=True, exist_ok=True)
 
 final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
 final_outputs_diagnostics_dir.mkdir(parents=True, exist_ok=True)
+stage_10_reaccess_dir = Path(ctx.get("stage_10_reaccess_dir", str(final_outputs_diagnostics_dir.parent / "#10-1" / "re_access")))
+stage_10_persist_only_dir = Path(ctx.get("stage_10_persist_only_dir", str(final_outputs_diagnostics_dir.parent / "#10-1" / "persist_only")))
+stage_10_reaccess_dir.mkdir(parents=True, exist_ok=True)
+stage_10_persist_only_dir.mkdir(parents=True, exist_ok=True)
 
 anchor_dir = persist_root / "01_anchor"
 camera_anchor_full_path = anchor_dir / "camera_anchor_full_arc.csv"
@@ -4270,15 +4317,17 @@ PREMERGE_LENS_ERROR_DEG_P95_MAX = 12.0
 PREMERGE_DELTA_CENTER_ERROR_MAX = 0.15
 PREMERGE_DELTA_LENS_ERROR_DEG_MAX = 8.0
 
-residual_csv = merged_dir / "pred_vs_anchor_pose_residual_arc.csv"
-missing_pred_csv = merged_dir / "pred_vs_anchor_pose_residual_missing_pred_arc.csv"
-gate_csv = merged_dir / "premerge_pose_gate_arc.csv"
-route_compare_json = merged_dir / "premerge_route_compare_summary.json"
-route_compare_csv = merged_dir / "premerge_route_compare_arc.csv"
-graph_solution_csv = merged_dir / "prepose_chunk_graph_solution_arc.csv"   # downstream互換: chunk validation summary
-graph_summary_json = merged_dir / "prepose_chunk_graph_summary.json"        # downstream互換: incremental summary
-graph_opt_summary_json = merged_dir / "prepose_graph_optimization_summary.json"
-validation_json = merged_dir / "premerge_pose_validation.json"
+residual_csv = stage_10_persist_only_dir / "pred_vs_anchor_pose_residual_arc.csv"
+missing_pred_csv = stage_10_persist_only_dir / "pred_vs_anchor_pose_residual_missing_pred_arc.csv"
+gate_csv = stage_10_persist_only_dir / "premerge_pose_gate_arc.csv"
+route_compare_json = stage_10_persist_only_dir / "premerge_route_compare_summary.json"
+route_compare_csv = stage_10_persist_only_dir / "premerge_route_compare_arc.csv"
+graph_solution_csv = stage_10_persist_only_dir / "prepose_chunk_graph_solution_arc.csv"   # downstream互換: chunk validation summary
+graph_summary_json = stage_10_persist_only_dir / "prepose_chunk_graph_summary.json"        # downstream互換: incremental summary
+graph_opt_summary_json = stage_10_persist_only_dir / "prepose_graph_optimization_summary.json"
+validation_json = stage_10_persist_only_dir / "premerge_pose_validation.json"
+validation_csv = stage_10_persist_only_dir / "premerge_pose_validation.csv"
+graph_contract_manifest_path = stage_10_reaccess_dir / "graph_contract_manifest.json"
 identity_transform_csv = chunk_manifest_dir / "chunk_global_transforms_arc.csv"
 
 MAT_COLS = [f"t{r}{c}" for r in range(4) for c in range(4)]
@@ -4755,6 +4804,7 @@ for _, item_row in items_eval_df.iterrows():
 
 gate_df = pd.DataFrame(chunk_gate_rows)
 gate_df.to_csv(gate_csv, index=False, encoding="utf-8")
+gate_df.to_csv(validation_csv, index=False, encoding="utf-8")
 gate_df.to_csv(graph_solution_csv, index=False, encoding="utf-8")  # downstream互換: identity列つき
 
 identity_rows = []
@@ -4844,6 +4894,24 @@ save_json(graph_opt_summary_json, {
     "reason": "sim3_graph_mainflow_removed",
     "status": status,
 })
+save_json(graph_contract_manifest_path, {
+    "stage": "#10-1",
+    "status": status,
+    "canonical_root": str(stage_10_persist_only_dir),
+    "canonical_artifacts": {
+        "premerge_pose_validation_json": str(validation_json),
+        "premerge_pose_validation_csv": str(validation_csv),
+        "prepose_chunk_graph_solution_csv": str(graph_solution_csv),
+        "prepose_chunk_graph_summary_json": str(graph_summary_json),
+        "premerge_route_compare_summary_json": str(route_compare_json),
+        "premerge_route_compare_csv": str(route_compare_csv),
+        "pred_vs_anchor_pose_residual_csv": str(residual_csv),
+        "pred_vs_anchor_pose_residual_missing_pred_csv": str(missing_pred_csv),
+        "premerge_pose_gate_csv": str(gate_csv),
+        "prepose_graph_optimization_summary_json": str(graph_opt_summary_json),
+        "chunk_global_transforms_csv": str(identity_transform_csv),
+    },
+})
 
 missing_chunk_df = pd.DataFrame(missing_chunk_rows)
 if len(missing_chunk_df):
@@ -4864,6 +4932,7 @@ display_stage_summary(
         {"item": "residual_csv", "path": str(residual_csv)},
         {"item": "graph_solution_csv_compat", "path": str(graph_solution_csv)},
         {"item": "identity_transform_csv", "path": str(identity_transform_csv)},
+        {"item": "graph_contract_manifest", "path": str(graph_contract_manifest_path)},
     ],
 )
 
@@ -5038,11 +5107,34 @@ pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
 anchor_dir = persist_root / "01_anchor"
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
-merged_dir = Path(ctx.get("merged_dir", str(pipeline_root / "merged")))
-merged_dir.mkdir(parents=True, exist_ok=True)
-stage_11_2_dir = final_outputs_dir / "stage_11_2"
-stage_11_3_dir = final_outputs_dir / "stage_11_3"
-for p in [final_outputs_dir, final_outputs_merged_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir, final_outputs_chunk_evidence_dir, stage_11_2_dir, stage_11_3_dir]:
+graph_reaccess_dir = Path(ctx.get("stage_10_reaccess_dir", str(final_outputs_dir / "#10-1" / "re_access")))
+graph_persist_only_dir = Path(ctx.get("stage_10_persist_only_dir", str(final_outputs_dir / "#10-1" / "persist_only")))
+merge_reaccess_dir = Path(ctx.get("stage_11_reaccess_dir", str(final_outputs_dir / "#11-1" / "re_access")))
+merge_persist_only_dir = Path(ctx.get("stage_11_persist_only_dir", str(final_outputs_dir / "#11-1" / "persist_only")))
+final_outputs_merged_dir = merge_persist_only_dir / "merged"
+final_outputs_diagnostics_dir = merge_persist_only_dir / "diagnostics"
+final_outputs_manifests_dir = merge_persist_only_dir / "manifests"
+final_outputs_chunk_evidence_dir = merge_persist_only_dir / "chunk_evidence"
+merged_dir = final_outputs_merged_dir
+stage_11_2_dir = merge_reaccess_dir / "11_2_handoff"
+stage_11_3_dir = merge_reaccess_dir / "11_3_handoff"
+stage_11_2_manifest_path = stage_11_2_dir / "11_2_handoff_manifest.json"
+stage_11_3_manifest_path = stage_11_3_dir / "11_3_handoff_manifest.json"
+stage_access_index_path = merge_reaccess_dir / "stage_access_index.json"
+merge_resume_state_path = merge_reaccess_dir / "merge_resume_state.json"
+for p in [
+    final_outputs_dir,
+    graph_reaccess_dir,
+    graph_persist_only_dir,
+    merge_reaccess_dir,
+    merge_persist_only_dir,
+    final_outputs_merged_dir,
+    final_outputs_diagnostics_dir,
+    final_outputs_manifests_dir,
+    final_outputs_chunk_evidence_dir,
+    stage_11_2_dir,
+    stage_11_3_dir,
+]:
     p.mkdir(parents=True, exist_ok=True)
 
 config_path = pipeline_root / "pipeline_config.json"
@@ -5207,8 +5299,10 @@ batch_summaries = sorted({
     str(p) for p in chunk_runs_dir.glob("batch_*/batch_summary.json")
 })
 summary_rows = [json.loads(Path(p).read_text(encoding="utf-8")) for p in batch_summaries]
-(merged_dir / "all_batch_summary_arc.json").write_text(json.dumps(summary_rows, indent=2, ensure_ascii=False), encoding="utf-8")
-premerge_pose_validation_path = merged_dir / "premerge_pose_validation.json"
+all_batch_summary_path = final_outputs_diagnostics_dir / "all_batch_summary_arc.json"
+all_batch_summary_path.write_text(json.dumps(summary_rows, indent=2, ensure_ascii=False), encoding="utf-8")
+merge_summary_path = final_outputs_diagnostics_dir / "merge_summary.json"
+premerge_pose_validation_path = graph_persist_only_dir / "premerge_pose_validation.json"
 
 if not premerge_pose_validation_path.exists():
     merge_summary = {
@@ -5216,17 +5310,17 @@ if not premerge_pose_validation_path.exists():
         "status": "skipped",
         "reason": "premerge_pose_validation_required",
         "premerge_pose_validation_path": str(premerge_pose_validation_path),
-        "all_batch_summary_path": str(merged_dir / "all_batch_summary_arc.json"),
+        "all_batch_summary_path": str(all_batch_summary_path),
     }
-    (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+    merge_summary_path.write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
     print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
     raise AssertionError("run #13-1 pre-merge pose gate before #14-1 merge")
 
 premerge_pose_validation = json.loads(premerge_pose_validation_path.read_text(encoding="utf-8"))
-premerge_route_compare_path = merged_dir / "premerge_route_compare_summary.json"
-prepose_chunk_graph_solution_path = merged_dir / "prepose_chunk_graph_solution_arc.csv"
-prepose_chunk_graph_summary_path = merged_dir / "prepose_chunk_graph_summary.json"
-premerge_validation_csv_path = merged_dir / "premerge_pose_validation.csv"
+premerge_route_compare_path = graph_persist_only_dir / "premerge_route_compare_summary.json"
+prepose_chunk_graph_solution_path = graph_persist_only_dir / "prepose_chunk_graph_solution_arc.csv"
+prepose_chunk_graph_summary_path = graph_persist_only_dir / "prepose_chunk_graph_summary.json"
+premerge_validation_csv_path = graph_persist_only_dir / "premerge_pose_validation.csv"
 allowed_premerge_status = {"ok", "warning"}
 if str(premerge_pose_validation.get("status")) not in allowed_premerge_status:
     merge_summary = {
@@ -5238,9 +5332,9 @@ if str(premerge_pose_validation.get("status")) not in allowed_premerge_status:
         "prepose_chunk_graph_solution_path": str(prepose_chunk_graph_solution_path) if prepose_chunk_graph_solution_path.exists() else None,
         "hard_fail_count": int(premerge_pose_validation.get("hard_fail_count", 0)),
         "failed_chunks": premerge_pose_validation.get("failed_chunks", []),
-        "all_batch_summary_path": str(merged_dir / "all_batch_summary_arc.json"),
+        "all_batch_summary_path": str(all_batch_summary_path),
     }
-    (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+    merge_summary_path.write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
     print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
     raise AssertionError(premerge_pose_validation)
 
@@ -5253,9 +5347,9 @@ if REQUIRE_ALL_CHUNKS and len(completed_chunks_df) < len(target_chunks_df):
         "pred_ready_chunk_count": int(len(pred_ready_target_chunk_names)),
         "ply_ready_chunk_count": int(len(ply_ready_target_chunk_names)),
         "all_chunk_count": int(len(target_chunks_df)),
-        "all_batch_summary_path": str(merged_dir / "all_batch_summary_arc.json"),
+        "all_batch_summary_path": str(all_batch_summary_path),
     }
-    (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+    merge_summary_path.write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
     print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
 elif INFER_GS and len(ply_ready_target_chunk_names) < len(target_chunks_df):
     merge_summary = {
@@ -5267,9 +5361,9 @@ elif INFER_GS and len(ply_ready_target_chunk_names) < len(target_chunks_df):
         "ply_ready_chunk_count": int(len(ply_ready_target_chunk_names)),
         "all_chunk_count": int(len(target_chunks_df)),
         "infer_gs": bool(INFER_GS),
-        "all_batch_summary_path": str(merged_dir / "all_batch_summary_arc.json"),
+        "all_batch_summary_path": str(all_batch_summary_path),
     }
-    (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+    merge_summary_path.write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
     print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
 else:
     global_centers_df = pd.read_csv(anchor_dir / "camera_center_matrix_arc.csv")
@@ -5605,6 +5699,19 @@ else:
             out = out.drop_duplicates(["frame_timestamp_ns"], keep="first")
         return out.reset_index(drop=True)
 
+    def has_detailed_prepose_solution(solution: dict | None) -> bool:
+        if not solution:
+            return False
+        required = [
+            "route_label",
+            "route_source",
+            "scale",
+            "rotation_det",
+            "center_rmse",
+            "rotation_dir_residual",
+        ]
+        return all(k in solution and pd.notna(solution[k]) for k in required)
+
     def summarize_route_candidate(chunk_name: str, route_label: str, route_source: str, route_overlap_record_count: int, overlap_record_indices: list[int], transformed_rows, anchor_rows, align_diag: dict) -> dict:
         pred_center = np.stack([m[:3, 3] for m in transformed_rows], axis=0)
         pred_lens = np.stack([lens_direction_from_c2w(m) for m in transformed_rows], axis=0)
@@ -5784,18 +5891,22 @@ else:
 
         local_c2w_list = c2w_list_from_extrinsics(pred_extrinsics)
 
-        merged = chunk_df.merge(
-            global_anchor_df,
-            on=["record_index", "image_file_name", "image_path", "frame_timestamp_ns", "capture_timestamp_ns"],
+        anchor_join_cols = ["record_index", "image_file_name", "image_path", "frame_timestamp_ns", "capture_timestamp_ns"]
+        anchor_value_cols = ["cx_world", "cy_world", "cz_world", "anchor_lens_x", "anchor_lens_y", "anchor_lens_z", "anchor_up_x", "anchor_up_y", "anchor_up_z"]
+        chunk_merge_df = chunk_df.drop(columns=[c for c in anchor_value_cols if c in chunk_df.columns], errors="ignore")
+        anchor_merge_df = global_anchor_df[anchor_join_cols + anchor_value_cols].copy()
+        merged = chunk_merge_df.merge(
+            anchor_merge_df,
+            on=anchor_join_cols,
             how="left",
             validate="one_to_one",
         )
         assert len(merged) == len(chunk_df), {"chunk_name": row.chunk_name, "merged_len": len(merged), "chunk_len": len(chunk_df)}
-        assert not merged[["cx_world", "cy_world", "cz_world", "anchor_lens_x", "anchor_lens_y", "anchor_lens_z", "anchor_up_x", "anchor_up_y", "anchor_up_z"]].isnull().any().any(), f"global anchor missing: {row.chunk_name}"
+        assert not merged[anchor_value_cols].isnull().any().any(), f"global anchor missing: {row.chunk_name}"
         global_c2w_list = [build_anchor_c2w(global_camera_map[int(rec.record_index)], rec) for rec in merged.itertuples(index=False)]
 
         prepose_solution = prepose_graph_solution_by_chunk.get(str(row.chunk_name))
-        if prepose_solution is not None:
+        if has_detailed_prepose_solution(prepose_solution):
             requested_route_label = str(prepose_solution.get("requested_route_label", prepose_solution.get("route_label", PREFERRED_ROUTE_LABEL)))
             selected_candidate = dict(prepose_solution)
             fallback_used = bool(prepose_solution.get("fallback_used", False))
@@ -6052,11 +6163,11 @@ transform_df = pd.DataFrame(transform_rows)
 transform_df.to_csv(chunk_manifest_dir / "chunk_global_transforms_arc.csv", index=False, encoding="utf-8")
 
 integrated_pose_df = dedupe_integrated_pose_df(pd.DataFrame(integrated_pose_rows))
-merged_camera_pose_csv = merged_dir / "merged_camera_pose_arc.csv"
-merged_camera_matrix_csv = merged_dir / "merged_camera_matrix_arc.csv"
-merged_camera_c2w_npy = merged_dir / "merged_camera_c2w_arc.npy"
-merged_camera_w2c_npy = merged_dir / "merged_extrinsics_w2c_arc.npy"
-ngl_bundle_dir = merged_dir / "ngl_camera_bundle"
+merged_camera_pose_csv = final_outputs_diagnostics_dir / "merged_camera_pose_arc.csv"
+merged_camera_matrix_csv = final_outputs_diagnostics_dir / "merged_camera_matrix_arc.csv"
+merged_camera_c2w_npy = final_outputs_diagnostics_dir / "merged_camera_c2w_arc.npy"
+merged_camera_w2c_npy = final_outputs_diagnostics_dir / "merged_extrinsics_w2c_arc.npy"
+ngl_bundle_dir = final_outputs_merged_dir / "ngl_camera_bundle"
 ngl_bundle_manifest_dir = ngl_bundle_dir / "manifests"
 ngl_bundle_manifest_dir.mkdir(parents=True, exist_ok=True)
 ngl_input_manifest_path = ngl_bundle_manifest_dir / "da3_input_manifest.csv"
@@ -6115,19 +6226,19 @@ else:
     save_json(ngl_pose_summary_path, ngl_pose_bundle_summary)
 
     route_compare_df = pd.DataFrame(route_compare_rows)
-    route_compare_path = merged_dir / "merge_route_compare_arc.csv"
+    route_compare_path = final_outputs_diagnostics_dir / "merge_route_compare_arc.csv"
     route_compare_df.to_csv(route_compare_path, index=False, encoding="utf-8")
 
     keep_df = pd.DataFrame(keep_rows)
-    keep_summary_path = merged_dir / "chunk_keep_summary_arc.csv"
+    keep_summary_path = final_outputs_diagnostics_dir / "chunk_keep_summary_arc.csv"
     keep_df.to_csv(keep_summary_path, index=False, encoding="utf-8")
-    transform_quality_path = merged_dir / "chunk_transform_quality_arc.csv"
+    transform_quality_path = final_outputs_diagnostics_dir / "chunk_transform_quality_arc.csv"
     transform_df.to_csv(transform_quality_path, index=False, encoding="utf-8")
 
     if owner_hist_rows:
-        pd.concat(owner_hist_rows, ignore_index=True).to_csv(merged_dir / "owner_record_histogram_arc.csv", index=False, encoding="utf-8")
+        pd.concat(owner_hist_rows, ignore_index=True).to_csv(final_outputs_diagnostics_dir / "owner_record_histogram_arc.csv", index=False, encoding="utf-8")
     if chunk_assign_rows:
-        pd.concat(chunk_assign_rows, ignore_index=True).to_csv(merged_dir / "chunk_assignment_summary_arc.csv", index=False, encoding="utf-8")
+        pd.concat(chunk_assign_rows, ignore_index=True).to_csv(final_outputs_diagnostics_dir / "chunk_assignment_summary_arc.csv", index=False, encoding="utf-8")
 
     warning_summary = {
         "transform_warning_count": int(sum(bool(x["transform_warning"]) for x in warning_rows)),
@@ -6136,79 +6247,72 @@ else:
         "preferred_fallback_used_count": int(sum(bool(x.get("preferred_fallback_used")) for x in warning_rows)),
         "rows": warning_rows,
     }
-    (merged_dir / "merge_warning_summary_arc.json").write_text(json.dumps(warning_summary, indent=2, ensure_ascii=False), encoding="utf-8")
+    (final_outputs_diagnostics_dir / "merge_warning_summary_arc.json").write_text(json.dumps(warning_summary, indent=2, ensure_ascii=False), encoding="utf-8")
 
     merged_ply_path = merged_dir / "merged_gs_arc.ply"
     if all_vertices:
         merged_vertices = np.concatenate(all_vertices, axis=0)
         PlyData([PlyElement.describe(merged_vertices, "vertex")], text=False).write(str(merged_ply_path))
 
-    stage_11_2_copy_plan = [
-        (merged_ply_path, stage_11_2_dir / "merged_gs_arc.ply"),
-        (chunk_manifest_dir / "chunk_global_transforms_arc.csv", stage_11_2_dir / "chunk_global_transforms_arc.csv"),
-        (route_compare_path, stage_11_2_dir / "merge_route_compare_arc.csv"),
-        (keep_summary_path, stage_11_2_dir / "chunk_keep_summary_arc.csv"),
-        (transform_quality_path, stage_11_2_dir / "chunk_transform_quality_arc.csv"),
-        (merged_dir / "owner_record_histogram_arc.csv", stage_11_2_dir / "owner_record_histogram_arc.csv"),
-        (merged_dir / "chunk_assignment_summary_arc.csv", stage_11_2_dir / "chunk_assignment_summary_arc.csv"),
-        (merged_dir / "merge_warning_summary_arc.json", stage_11_2_dir / "merge_warning_summary_arc.json"),
-        (merged_dir / "all_batch_summary_arc.json", stage_11_2_dir / "all_batch_summary_arc.json"),
-        (merged_dir / "merged_camera_pose_arc.csv", stage_11_2_dir / "merged_camera_pose_arc.csv"),
-        (merged_dir / "merged_camera_matrix_arc.csv", stage_11_2_dir / "merged_camera_matrix_arc.csv"),
-        (merged_dir / "merged_camera_c2w_arc.npy", stage_11_2_dir / "merged_camera_c2w_arc.npy"),
-        (merged_dir / "merged_extrinsics_w2c_arc.npy", stage_11_2_dir / "merged_extrinsics_w2c_arc.npy"),
-        (merged_dir / "ngl_camera_bundle/ngl_pose_bundle_summary.json", stage_11_2_dir / "ngl_pose_bundle_summary.json"),
+    merged_glb_path = final_outputs_merged_dir / "merged_scene_arc.glb"
+    if len(master_scene.geometry) > 0:
+        master_scene.export(str(merged_glb_path))
+
+    stage_11_2_entries = [
+        {"label": "merged_gs_arc.ply", "path": str(merged_ply_path)},
+        {"label": "chunk_global_transforms_arc.csv", "path": str(chunk_manifest_dir / "chunk_global_transforms_arc.csv")},
+        {"label": "merge_route_compare_arc.csv", "path": str(route_compare_path)},
+        {"label": "chunk_keep_summary_arc.csv", "path": str(keep_summary_path)},
+        {"label": "chunk_transform_quality_arc.csv", "path": str(transform_quality_path)},
+        {"label": "owner_record_histogram_arc.csv", "path": str(final_outputs_diagnostics_dir / "owner_record_histogram_arc.csv")},
+        {"label": "chunk_assignment_summary_arc.csv", "path": str(final_outputs_diagnostics_dir / "chunk_assignment_summary_arc.csv")},
+        {"label": "merge_warning_summary_arc.json", "path": str(final_outputs_diagnostics_dir / "merge_warning_summary_arc.json")},
+        {"label": "all_batch_summary_arc.json", "path": str(all_batch_summary_path)},
+        {"label": "merged_camera_pose_arc.csv", "path": str(merged_camera_pose_csv)},
+        {"label": "merged_camera_matrix_arc.csv", "path": str(merged_camera_matrix_csv)},
+        {"label": "merged_camera_c2w_arc.npy", "path": str(merged_camera_c2w_npy)},
+        {"label": "merged_extrinsics_w2c_arc.npy", "path": str(merged_camera_w2c_npy)},
+        {"label": "ngl_pose_bundle_summary.json", "path": str(ngl_bundle_dir / "ngl_pose_bundle_summary.json")},
     ]
-    stage_11_2_files = []
-    for src, dst in stage_11_2_copy_plan:
-        if src.exists():
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, dst)
-            stage_11_2_files.append(str(dst))
+    stage_11_2_entries = [entry for entry in stage_11_2_entries if Path(entry["path"]).exists()]
+    stage_11_2_manifest = {
+        "stage": "#11-2",
+        "handoff_role": "review_inputs",
+        "canonical_root": str(merge_persist_only_dir),
+        "entries": stage_11_2_entries,
+    }
+    stage_11_2_manifest_path.write_text(json.dumps(stage_11_2_manifest, indent=2, ensure_ascii=False), encoding="utf-8")
     merge_resume_state = {
         "route": "continuous-gs-v07-chunk18-context12-output6-adopt6-merge",
         "stage": "11-2-complete",
         "completed_chunk_count": int(len(completed_chunks_df)),
         "all_chunk_count": int(len(target_chunks_df)),
         "stage_11_2_dir": str(stage_11_2_dir),
-        "stage_11_2_files": stage_11_2_files,
+        "stage_11_2_manifest_path": str(stage_11_2_manifest_path),
         "merged_ply_path": str(merged_ply_path) if merged_ply_path.exists() else None,
     }
-    (final_outputs_diagnostics_dir / "merge_resume_state.json").write_text(json.dumps(merge_resume_state, indent=2, ensure_ascii=False), encoding="utf-8")
+    merge_resume_state_path.write_text(json.dumps(merge_resume_state, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    merged_glb_path = merged_dir / "merged_scene_arc.glb"
-    if len(master_scene.geometry) > 0:
-        master_scene.export(str(merged_glb_path))
-
-    for src in stage_11_2_dir.glob("*"):
-        if src.is_file():
-            shutil.copy2(src, stage_11_3_dir / src.name)
+    stage_11_3_entries = list(stage_11_2_entries)
     if merged_glb_path.exists():
-        shutil.copy2(merged_glb_path, stage_11_3_dir / "merged_scene_arc.glb")
+        stage_11_3_entries.append({"label": "merged_scene_arc.glb", "path": str(merged_glb_path)})
+    stage_11_3_entries.append({"label": "merge_resume_state.json", "path": str(merge_resume_state_path)})
+    stage_11_3_manifest = {
+        "stage": "#11-3",
+        "handoff_role": "bundle_and_resume_inputs",
+        "canonical_root": str(merge_persist_only_dir),
+        "entries": stage_11_3_entries,
+    }
+    stage_11_3_manifest_path.write_text(json.dumps(stage_11_3_manifest, indent=2, ensure_ascii=False), encoding="utf-8")
     merge_resume_state.update({
         "stage": "11-3-complete",
         "stage_11_3_dir": str(stage_11_3_dir),
+        "stage_11_3_manifest_path": str(stage_11_3_manifest_path),
         "merged_glb_path": str(merged_glb_path) if merged_glb_path.exists() else None,
     })
-    (final_outputs_diagnostics_dir / "merge_resume_state.json").write_text(json.dumps(merge_resume_state, indent=2, ensure_ascii=False), encoding="utf-8")
-    shutil.copy2(final_outputs_diagnostics_dir / "merge_resume_state.json", stage_11_3_dir / "merge_resume_state.json")
+    merge_resume_state_path.write_text(json.dumps(merge_resume_state, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    final_output_copy_plan = [
-        (merged_ply_path, final_outputs_merged_dir / "merged_gs_arc.ply"),
-        (merged_glb_path, final_outputs_merged_dir / "merged_scene_arc.glb"),
-        (chunk_manifest_dir / "chunk_global_transforms_arc.csv", final_outputs_diagnostics_dir / "chunk_global_transforms_arc.csv"),
-        (route_compare_path, final_outputs_diagnostics_dir / "merge_route_compare_arc.csv"),
-        (keep_summary_path, final_outputs_diagnostics_dir / "chunk_keep_summary_arc.csv"),
-        (transform_quality_path, final_outputs_diagnostics_dir / "chunk_transform_quality_arc.csv"),
-        (merged_dir / "owner_record_histogram_arc.csv", final_outputs_diagnostics_dir / "owner_record_histogram_arc.csv"),
-        (merged_dir / "chunk_assignment_summary_arc.csv", final_outputs_diagnostics_dir / "chunk_assignment_summary_arc.csv"),
-        (merged_dir / "merge_warning_summary_arc.json", final_outputs_diagnostics_dir / "merge_warning_summary_arc.json"),
-        (merged_dir / "all_batch_summary_arc.json", final_outputs_diagnostics_dir / "all_batch_summary_arc.json"),
-        (merged_dir / "merged_camera_pose_arc.csv", final_outputs_diagnostics_dir / "merged_camera_pose_arc.csv"),
-        (merged_dir / "merged_camera_matrix_arc.csv", final_outputs_diagnostics_dir / "merged_camera_matrix_arc.csv"),
-        (merged_dir / "merged_camera_c2w_arc.npy", final_outputs_diagnostics_dir / "merged_camera_c2w_arc.npy"),
-        (merged_dir / "merged_extrinsics_w2c_arc.npy", final_outputs_diagnostics_dir / "merged_extrinsics_w2c_arc.npy"),
-        (merged_dir / "ngl_camera_bundle/ngl_pose_bundle_summary.json", final_outputs_diagnostics_dir / "ngl_pose_bundle_summary.json"),
+    manifest_copy_plan = [
         (input_manifest_path, final_outputs_manifests_dir / "da3_input_manifest.csv"),
         (anchor_dir / "camera_center_matrix_arc.csv", final_outputs_manifests_dir / "camera_center_matrix_arc.csv"),
         (anchor_dir / "camera_matrix_full_arc.csv", final_outputs_manifests_dir / "camera_matrix_full_arc.csv"),
@@ -6217,7 +6321,7 @@ else:
         (chunk_manifest_dir / "batch_plan.csv", final_outputs_manifests_dir / "batch_plan.csv"),
     ]
     final_output_files = []
-    for src, dst in final_output_copy_plan:
+    for src, dst in manifest_copy_plan:
         if src.exists():
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dst)
@@ -6225,6 +6329,29 @@ else:
                 "label": dst.name,
                 "source_path": str(src),
                 "drive_path": str(dst),
+            })
+    for path in [
+        merged_ply_path,
+        merged_glb_path,
+        route_compare_path,
+        keep_summary_path,
+        transform_quality_path,
+        final_outputs_diagnostics_dir / "owner_record_histogram_arc.csv",
+        final_outputs_diagnostics_dir / "chunk_assignment_summary_arc.csv",
+        final_outputs_diagnostics_dir / "merge_warning_summary_arc.json",
+        all_batch_summary_path,
+        merged_camera_pose_csv,
+        merged_camera_matrix_csv,
+        merged_camera_c2w_npy,
+        merged_camera_w2c_npy,
+        ngl_bundle_dir / "ngl_pose_bundle_summary.json",
+        merge_resume_state_path,
+    ]:
+        if Path(path).exists():
+            final_output_files.append({
+                "label": Path(path).name,
+                "source_path": str(path),
+                "drive_path": str(path),
             })
 
     bundle_summary = {
@@ -6252,11 +6379,21 @@ else:
         "final_outputs_chunk_evidence_dir": str(final_outputs_chunk_evidence_dir),
         "stage_11_2_dir": str(stage_11_2_dir),
         "stage_11_3_dir": str(stage_11_3_dir),
+        "stage_11_2_manifest_path": str(stage_11_2_manifest_path),
+        "stage_11_3_manifest_path": str(stage_11_3_manifest_path),
         "chunk_evidence_dirs": sorted([str(p) for p in final_outputs_chunk_evidence_dir.glob("*") if p.is_dir()]),
         "file_count": int(len(final_output_files)),
         "files": final_output_files,
     }
     (final_outputs_dir / "final_output_manifest_arc.json").write_text(json.dumps(final_output_manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+    stage_access_index_path.write_text(json.dumps({
+        "stage": "#11-1",
+        "canonical_root": str(merge_persist_only_dir),
+        "stage_11_2_manifest_path": str(stage_11_2_manifest_path),
+        "stage_11_3_manifest_path": str(stage_11_3_manifest_path),
+        "merge_resume_state_path": str(merge_resume_state_path),
+        "final_output_manifest_path": str(final_outputs_dir / "final_output_manifest_arc.json"),
+    }, indent=2, ensure_ascii=False), encoding="utf-8")
 
     if not all_vertices and not INFER_GS:
         merge_reason = "infer_gs_disabled"
@@ -6290,15 +6427,15 @@ else:
                 "prepose_chunk_graph_summary_path": str(prepose_chunk_graph_summary_path) if prepose_chunk_graph_summary_path.exists() else None,
         "chunk_keep_summary_path": str(keep_summary_path),
         "chunk_transform_quality_path": str(transform_quality_path),
-        "owner_record_histogram_path": str(merged_dir / "owner_record_histogram_arc.csv"),
-        "chunk_assignment_summary_path": str(merged_dir / "chunk_assignment_summary_arc.csv"),
-        "merge_warning_summary_path": str(merged_dir / "merge_warning_summary_arc.json"),
-        "all_batch_summary_path": str(merged_dir / "all_batch_summary_arc.json"),
-        "merged_camera_pose_path": str(merged_dir / "merged_camera_pose_arc.csv"),
-        "merged_camera_matrix_path": str(merged_dir / "merged_camera_matrix_arc.csv"),
-        "merged_camera_c2w_path": str(merged_dir / "merged_camera_c2w_arc.npy"),
-        "merged_extrinsics_w2c_path": str(merged_dir / "merged_extrinsics_w2c_arc.npy"),
-        "ngl_pose_bundle_summary_path": str(merged_dir / "ngl_camera_bundle" / "ngl_pose_bundle_summary.json"),
+        "owner_record_histogram_path": str(final_outputs_diagnostics_dir / "owner_record_histogram_arc.csv"),
+        "chunk_assignment_summary_path": str(final_outputs_diagnostics_dir / "chunk_assignment_summary_arc.csv"),
+        "merge_warning_summary_path": str(final_outputs_diagnostics_dir / "merge_warning_summary_arc.json"),
+        "all_batch_summary_path": str(all_batch_summary_path),
+        "merged_camera_pose_path": str(merged_camera_pose_csv),
+        "merged_camera_matrix_path": str(merged_camera_matrix_csv),
+        "merged_camera_c2w_path": str(merged_camera_c2w_npy),
+        "merged_extrinsics_w2c_path": str(merged_camera_w2c_npy),
+        "ngl_pose_bundle_summary_path": str(ngl_bundle_dir / "ngl_pose_bundle_summary.json"),
         "preferred_route_label": PREFERRED_ROUTE_LABEL,
         "selected_route_counts": selected_route_counts,
         "fallback_used_count": fallback_used_count,
@@ -6307,8 +6444,7 @@ else:
         "final_output_manifest_path": str(final_outputs_dir / "final_output_manifest_arc.json"),
         "bundle_summary": bundle_summary,
     }
-    (merged_dir / "merge_summary.json").write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
-    shutil.copy2(merged_dir / "merge_summary.json", final_outputs_diagnostics_dir / "merge_summary.json")
+    merge_summary_path.write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
     print(json.dumps(merge_summary, indent=2, ensure_ascii=False))
     display_stage_summary(
         "11-1",
@@ -6319,7 +6455,7 @@ else:
             {"item": "da3_input_manifest", "path": str(input_manifest_path)},
         ],
         outputs=[
-            {"item": "merge_summary", "path": str(merged_dir / "merge_summary.json")},
+            {"item": "merge_summary", "path": str(merge_summary_path)},
             {"item": "merged_gs", "path": str(merged_ply_path)},
             {"item": "merged_scene_glb", "path": str(merged_glb_path)},
             {"item": "final_output_manifest", "path": str(final_outputs_dir / "final_output_manifest_arc.json")},
@@ -6327,9 +6463,9 @@ else:
             {"item": "merge_route_compare", "path": str(route_compare_path)},
             {"item": "chunk_keep_summary", "path": str(keep_summary_path)},
             {"item": "chunk_transform_quality", "path": str(transform_quality_path)},
-            {"item": "merged_camera_pose", "path": str(merged_dir / "merged_camera_pose_arc.csv")},
-            {"item": "merged_extrinsics_w2c", "path": str(merged_dir / "merged_extrinsics_w2c_arc.npy")},
-            {"item": "ngl_pose_bundle_summary", "path": str(merged_dir / "ngl_camera_bundle" / "ngl_pose_bundle_summary.json")},
+            {"item": "merged_camera_pose", "path": str(merged_camera_pose_csv)},
+            {"item": "merged_extrinsics_w2c", "path": str(merged_camera_w2c_npy)},
+            {"item": "ngl_pose_bundle_summary", "path": str(ngl_bundle_dir / "ngl_pose_bundle_summary.json")},
         ],
         notes=[
             {"item": "completed_chunk_count", "value": int(len(completed_chunks_df))},

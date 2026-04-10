@@ -12,6 +12,20 @@
 
 ## 更新履歴
 
+### 2026-04-11 AGENTS.md 一時補助目標を `support-MRL` として明文化
+
+- 日時: `2026-04-11`
+- 文書名: `AGENTS.md`
+- 標題: directory stabilization や reference safety を `support-MRL` として扱う shared rule を追加
+- 背景: 長い開発では本機能 gate とは別に、directory 構成の安定化や参照 drift 防止のような temporary objective が発生するが、これを chat や局所メモだけで運用すると、いつまで有効か、何を満たせば消滅するかが曖昧になりやすい。
+- 目的: temporary objective を project 文書上で追跡可能にし、admin が close を判断できる除去条件まで明示したうえで運用する。
+- 対処方法: `AGENTS.md` の開発計画 rule に、横断 hygiene や directory stabilization のような補助目標は `support-MRL` として project 側へ記録してよいこと、temporary goal、適用範囲、除去条件、admin close 基準を明記することを追加した。
+- 対応内容: `support-MRL` を shared rule として定義しつつ、具体内容は project 側正本へ置く境界を維持した。
+- 更新結果: 今後は本機能 gate と temporary stabilization goal を混同せず、project 文書内で期限付きの補助目標として管理できる。
+- 新旧比較:
+  - 旧: temporary objective の扱いは task ごとの説明へ寄りやすく、継続条件と除去条件が shared rule では定義されていなかった。
+  - 新: `support-MRL` を使って project 文書へ昇格し、temporary goal と close 条件を明示して運用できる。
+
 ### 2026-04-11 AGENTS.md 開発 prompt の skill 選定を `skill-distributor` へ固定
 
 - 日時: `2026-04-11`

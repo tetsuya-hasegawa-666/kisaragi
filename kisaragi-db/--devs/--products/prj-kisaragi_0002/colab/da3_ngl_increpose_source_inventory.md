@@ -29,7 +29,7 @@
 | #8-8 | `cells/08_08.py` | `direct` | 8 Chunk Run Preparation And Execution | - | repo_root, src_root, wrapper_path, wrapper_code | `DOC-I08-08` |
 | #8-9 | `cells/08_09.py` | `direct` | 8 Chunk Run Preparation And Execution | ensure_pose4x4_batch, apply_incremental_seed_to_chunk_df, update_accepted_pose_map_from_chunk | ctx, probe_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, final_outputs_diagnostics_dir, wrapper_path, batch_execution_items_path, items_df, sort_cols, config_snapshot, DRY_RUN | `DOC-I08-09` |
 | #9-1 | `cells/09_01.py` | `direct` | 9 Chunk Alignment Coefficient Derivation | resolve_matching_chunk_names, resolve_chunk_artifact, c2w_list_from_extrinsics, pose_rows_to_frame_df, plot_pose_match, write_pose_match_html | ctx, config, probe_root, persist_root, pipeline_root, anchor_dir, chunk_manifest_dir, chunk_runs_dir, final_outputs_chunk_evidence_dir, final_outputs_diagnostics_dir, matching_dir, LOCAL_EXTRINSIC_MODE | `DOC-I09-01` |
-| #10-1 | `cells/10_01.py` | `direct` | 10 Global Prepose Graph And Gate | _record_col, _safe_int, _normalize, _angle_deg, _p95, _max_abs, _ensure_pose_batch, _w2c_to_c2w_batch, _poses_to_center_lens, _resolve_pred_path, _resolve_chunk_csv, _load_chunk_pose_df | ctx, probe_root, persist_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, merged_dir, final_outputs_diagnostics_dir, anchor_dir, camera_anchor_full_path, batch_execution_items_path, run_status_path | `DOC-I10-01` |
+| #10-1 | `cells/10_01.py` | `direct` | 10 Global Prepose Graph And Gate | _record_col, _safe_int, _normalize, _angle_deg, _p95, _max_abs, _ensure_pose_batch, _w2c_to_c2w_batch, _poses_to_center_lens, _resolve_pred_path, _resolve_chunk_csv, _load_chunk_pose_df | ctx, probe_root, persist_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, merged_dir, final_outputs_diagnostics_dir, stage_10_reaccess_dir, stage_10_persist_only_dir, anchor_dir, camera_anchor_full_path | `DOC-I10-01` |
 | #10-2 | `cells/10_02.py` | `direct` | 10 Global Prepose Graph And Gate | - | ctx, probe_root, pipeline_root, chunk_manifest_dir, merged_dir, final_outputs_diagnostics_dir, validation_json, route_compare_json, route_compare_csv, graph_solution_csv, graph_summary_json, batch_execution_items_path | `DOC-I10-02` |
 | #11-1 | `cells/11_01.py` | `direct` | 11 Merge And Review | ensure_target_chunk_manifest, resolve_chunk_output_dir, resolve_chunk_input_dir | missing_merge_deps, batch_preflight_status_path, ctx, probe_root, results_root, persist_root, modeling_session_id, manifest_dir, final_outputs_dir, final_outputs_merged_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir | `DOC-I11-01` |
 | #11-2 | `cells/11_02.py` | `direct` | 11 Merge And Review | _resolve_center_cols, _resolve_dir_cols, _load_transform_map, _resolve_chunk_output_dir, _sample_indices, _py_bool, _poses_to_centers_dirs | ctx, probe_root, persist_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, merged_dir, anchor_dir, anchor_path, graph_solution_path, transform_path, merged_camera_pose_path | `DOC-I11-02` |
@@ -198,6 +198,12 @@
 | final_outputs_diagnostics_dir | #4-1 | 4 Tree Init | `DOC-I04-01` |
 | final_outputs_manifests_dir | #4-1 | 4 Tree Init | `DOC-I04-01` |
 | final_outputs_chunk_evidence_dir | #4-1 | 4 Tree Init | `DOC-I04-01` |
+| stage_10_dir | #4-1 | 4 Tree Init | `DOC-I04-01` |
+| stage_10_reaccess_dir | #4-1 | 4 Tree Init | `DOC-I04-01` |
+| stage_10_persist_only_dir | #4-1 | 4 Tree Init | `DOC-I04-01` |
+| stage_11_dir | #4-1 | 4 Tree Init | `DOC-I04-01` |
+| stage_11_reaccess_dir | #4-1 | 4 Tree Init | `DOC-I04-01` |
+| stage_11_persist_only_dir | #4-1 | 4 Tree Init | `DOC-I04-01` |
 | reset_before_run | #4-1 | 4 Tree Init | `DOC-I04-01` |
 | context_doc | #4-1 | 4 Tree Init | `DOC-I04-01` |
 | ctx | #4-2 | 4 Tree Init | `DOC-I04-02` |
@@ -537,6 +543,8 @@
 | chunk_runs_dir | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
 | merged_dir | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
 | final_outputs_diagnostics_dir | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
+| stage_10_reaccess_dir | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
+| stage_10_persist_only_dir | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
 | anchor_dir | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
 | camera_anchor_full_path | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
 | batch_execution_items_path | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
@@ -562,6 +570,8 @@
 | graph_summary_json | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
 | graph_opt_summary_json | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
 | validation_json | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
+| validation_csv | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
+| graph_contract_manifest_path | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
 | identity_transform_csv | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
 | MAT_COLS | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
 | items_eval_df | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
@@ -634,9 +644,21 @@
 | anchor_dir | #11-1 | 11 Merge And Review | `DOC-I11-01` |
 | chunk_manifest_dir | #11-1 | 11 Merge And Review | `DOC-I11-01` |
 | chunk_runs_dir | #11-1 | 11 Merge And Review | `DOC-I11-01` |
+| graph_reaccess_dir | #11-1 | 11 Merge And Review | `DOC-I11-01` |
+| graph_persist_only_dir | #11-1 | 11 Merge And Review | `DOC-I11-01` |
+| merge_reaccess_dir | #11-1 | 11 Merge And Review | `DOC-I11-01` |
+| merge_persist_only_dir | #11-1 | 11 Merge And Review | `DOC-I11-01` |
+| final_outputs_merged_dir | #11-1 | 11 Merge And Review | `DOC-I11-01` |
+| final_outputs_diagnostics_dir | #11-1 | 11 Merge And Review | `DOC-I11-01` |
+| final_outputs_manifests_dir | #11-1 | 11 Merge And Review | `DOC-I11-01` |
+| final_outputs_chunk_evidence_dir | #11-1 | 11 Merge And Review | `DOC-I11-01` |
 | merged_dir | #11-1 | 11 Merge And Review | `DOC-I11-01` |
 | stage_11_2_dir | #11-1 | 11 Merge And Review | `DOC-I11-01` |
 | stage_11_3_dir | #11-1 | 11 Merge And Review | `DOC-I11-01` |
+| stage_11_2_manifest_path | #11-1 | 11 Merge And Review | `DOC-I11-01` |
+| stage_11_3_manifest_path | #11-1 | 11 Merge And Review | `DOC-I11-01` |
+| stage_access_index_path | #11-1 | 11 Merge And Review | `DOC-I11-01` |
+| merge_resume_state_path | #11-1 | 11 Merge And Review | `DOC-I11-01` |
 | config_path | #11-1 | 11 Merge And Review | `DOC-I11-01` |
 | BUNDLE_MODEL_SLUG | #11-1 | 11 Merge And Review | `DOC-I11-01` |
 | REQUIRE_ALL_CHUNKS | #11-1 | 11 Merge And Review | `DOC-I11-01` |
@@ -667,6 +689,8 @@
 | ply_ready_target_chunk_names | #11-1 | 11 Merge And Review | `DOC-I11-01` |
 | batch_summaries | #11-1 | 11 Merge And Review | `DOC-I11-01` |
 | summary_rows | #11-1 | 11 Merge And Review | `DOC-I11-01` |
+| all_batch_summary_path | #11-1 | 11 Merge And Review | `DOC-I11-01` |
+| merge_summary_path | #11-1 | 11 Merge And Review | `DOC-I11-01` |
 | premerge_pose_validation_path | #11-1 | 11 Merge And Review | `DOC-I11-01` |
 | premerge_pose_validation | #11-1 | 11 Merge And Review | `DOC-I11-01` |
 | premerge_route_compare_path | #11-1 | 11 Merge And Review | `DOC-I11-01` |

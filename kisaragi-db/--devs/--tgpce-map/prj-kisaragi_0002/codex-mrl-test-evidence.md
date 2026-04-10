@@ -15,6 +15,17 @@
 
 - record date: `2026-04-11`
   target MRL: `MRL-10`
+  target mRL: `support-MRL-S1`, `mRL-10.5`
+  gate change: `active directory/reference stabilization started`
+  issue: `#11-1` では `merged_dir`、`final_outputs_merged_dir`、`final_outputs_diagnostics_dir`、`final_outputs_manifests_dir`、`stage_11_2_dir`、`stage_11_3_dir` に同系統 file が重複しやすく、さらに `#11-1` が `#10-1` の current contract を旧前提で読んだ時に access failure や reference drift を起こしやすかった
+  cause: graph / merge の final access contract が `pipeline_root/merged` と `final_outputs/*` の混在で曖昧なまま増築され、producer と consumer の間に `どこが canonical 実体か` を明示する stage-level handoff manifest がなかった
+  resolution: `HAUB`、`project-truth`、`resume-startup-plan.md`、`da3_ngl_runbook_design_contract.md` を更新し、temporary objective を `support-MRL-S1` として明記したうえで、`#10-1` と `#11-1` の final access contract を `final_outputs/#10-1/{re_access,persist_only}`、`final_outputs/#11-1/{re_access,persist_only}` へ再編した。source 側では `03_01.py` と `04_01.py` に stage path を追加し、`10_01.py` は `graph_contract_manifest.json` を出す形へ変更、`11_01.py` は `persist_only` を canonical file 実体、`re_access` を handoff manifest / resume pointer に寄せた
+  recurrence prevention: 以後 `#10-1` と `#11-1` の参照変更では、`graph_contract_manifest.json` と `stage_access_index.json` を更新せずに consumer 側探索へ入らない。`HAUB` の `Increpose Path Handoff Matrix`、source test、path contract probe を同じ task で更新・実行する
+  remaining work: `support-MRL-S1` は temporary objective なので、admin が truth / HAUB 上の配置最適化を目視確認し、不要と判断するまで残す。`BLK-1`、`BLK-2`、`BLK-5`、`BLK-10` は引き続き open である
+  evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/hi-ai-unified-blueprint.md`, `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/project-truth.md`, `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook_design_contract.md`, `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_increpose_sources/cells/10_01.py`, `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_increpose_sources/cells/11_01.py`
+
+- record date: `2026-04-11`
+  target MRL: `MRL-10`
   target mRL: `mRL-10.5`
   gate change: `active recurrence-prevention strengthened`
   issue: `da3_ngl_increpose_RB` は canonical pair へ切り替えた後も、directory 定義、生成物出力先、reader 側参照のずれが発生しやすく、shared worklog にしか残っていない修復知識へ依存すると再発防止にならなかった

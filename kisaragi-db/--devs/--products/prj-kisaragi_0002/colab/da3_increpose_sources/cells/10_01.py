@@ -19,6 +19,10 @@ merged_dir.mkdir(parents=True, exist_ok=True)
 
 final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
 final_outputs_diagnostics_dir.mkdir(parents=True, exist_ok=True)
+stage_10_reaccess_dir = Path(ctx.get("stage_10_reaccess_dir", str(final_outputs_diagnostics_dir.parent / "#10-1" / "re_access")))
+stage_10_persist_only_dir = Path(ctx.get("stage_10_persist_only_dir", str(final_outputs_diagnostics_dir.parent / "#10-1" / "persist_only")))
+stage_10_reaccess_dir.mkdir(parents=True, exist_ok=True)
+stage_10_persist_only_dir.mkdir(parents=True, exist_ok=True)
 
 anchor_dir = persist_root / "01_anchor"
 camera_anchor_full_path = anchor_dir / "camera_anchor_full_arc.csv"
@@ -68,15 +72,17 @@ PREMERGE_LENS_ERROR_DEG_P95_MAX = 12.0
 PREMERGE_DELTA_CENTER_ERROR_MAX = 0.15
 PREMERGE_DELTA_LENS_ERROR_DEG_MAX = 8.0
 
-residual_csv = merged_dir / "pred_vs_anchor_pose_residual_arc.csv"
-missing_pred_csv = merged_dir / "pred_vs_anchor_pose_residual_missing_pred_arc.csv"
-gate_csv = merged_dir / "premerge_pose_gate_arc.csv"
-route_compare_json = merged_dir / "premerge_route_compare_summary.json"
-route_compare_csv = merged_dir / "premerge_route_compare_arc.csv"
-graph_solution_csv = merged_dir / "prepose_chunk_graph_solution_arc.csv"   # downstream互換: chunk validation summary
-graph_summary_json = merged_dir / "prepose_chunk_graph_summary.json"        # downstream互換: incremental summary
-graph_opt_summary_json = merged_dir / "prepose_graph_optimization_summary.json"
-validation_json = merged_dir / "premerge_pose_validation.json"
+residual_csv = stage_10_persist_only_dir / "pred_vs_anchor_pose_residual_arc.csv"
+missing_pred_csv = stage_10_persist_only_dir / "pred_vs_anchor_pose_residual_missing_pred_arc.csv"
+gate_csv = stage_10_persist_only_dir / "premerge_pose_gate_arc.csv"
+route_compare_json = stage_10_persist_only_dir / "premerge_route_compare_summary.json"
+route_compare_csv = stage_10_persist_only_dir / "premerge_route_compare_arc.csv"
+graph_solution_csv = stage_10_persist_only_dir / "prepose_chunk_graph_solution_arc.csv"   # downstream互換: chunk validation summary
+graph_summary_json = stage_10_persist_only_dir / "prepose_chunk_graph_summary.json"        # downstream互換: incremental summary
+graph_opt_summary_json = stage_10_persist_only_dir / "prepose_graph_optimization_summary.json"
+validation_json = stage_10_persist_only_dir / "premerge_pose_validation.json"
+validation_csv = stage_10_persist_only_dir / "premerge_pose_validation.csv"
+graph_contract_manifest_path = stage_10_reaccess_dir / "graph_contract_manifest.json"
 identity_transform_csv = chunk_manifest_dir / "chunk_global_transforms_arc.csv"
 
 MAT_COLS = [f"t{r}{c}" for r in range(4) for c in range(4)]
@@ -553,6 +559,7 @@ for _, item_row in items_eval_df.iterrows():
 
 gate_df = pd.DataFrame(chunk_gate_rows)
 gate_df.to_csv(gate_csv, index=False, encoding="utf-8")
+gate_df.to_csv(validation_csv, index=False, encoding="utf-8")
 gate_df.to_csv(graph_solution_csv, index=False, encoding="utf-8")  # downstream互換: identity列つき
 
 identity_rows = []
@@ -642,6 +649,24 @@ save_json(graph_opt_summary_json, {
     "reason": "sim3_graph_mainflow_removed",
     "status": status,
 })
+save_json(graph_contract_manifest_path, {
+    "stage": "#10-1",
+    "status": status,
+    "canonical_root": str(stage_10_persist_only_dir),
+    "canonical_artifacts": {
+        "premerge_pose_validation_json": str(validation_json),
+        "premerge_pose_validation_csv": str(validation_csv),
+        "prepose_chunk_graph_solution_csv": str(graph_solution_csv),
+        "prepose_chunk_graph_summary_json": str(graph_summary_json),
+        "premerge_route_compare_summary_json": str(route_compare_json),
+        "premerge_route_compare_csv": str(route_compare_csv),
+        "pred_vs_anchor_pose_residual_csv": str(residual_csv),
+        "pred_vs_anchor_pose_residual_missing_pred_csv": str(missing_pred_csv),
+        "premerge_pose_gate_csv": str(gate_csv),
+        "prepose_graph_optimization_summary_json": str(graph_opt_summary_json),
+        "chunk_global_transforms_csv": str(identity_transform_csv),
+    },
+})
 
 missing_chunk_df = pd.DataFrame(missing_chunk_rows)
 if len(missing_chunk_df):
@@ -662,6 +687,7 @@ display_stage_summary(
         {"item": "residual_csv", "path": str(residual_csv)},
         {"item": "graph_solution_csv_compat", "path": str(graph_solution_csv)},
         {"item": "identity_transform_csv", "path": str(identity_transform_csv)},
+        {"item": "graph_contract_manifest", "path": str(graph_contract_manifest_path)},
     ],
 )
 

@@ -33,6 +33,12 @@ final_outputs_merged_dir = Path(paths["final_outputs_merged_dir"])
 final_outputs_diagnostics_dir = Path(paths["final_outputs_diagnostics_dir"])
 final_outputs_manifests_dir = Path(paths["final_outputs_manifests_dir"])
 final_outputs_chunk_evidence_dir = Path(paths["final_outputs_chunk_evidence_dir"])
+stage_10_dir = Path(paths["stage_10_dir"])
+stage_10_reaccess_dir = Path(paths["stage_10_reaccess_dir"])
+stage_10_persist_only_dir = Path(paths["stage_10_persist_only_dir"])
+stage_11_dir = Path(paths["stage_11_dir"])
+stage_11_reaccess_dir = Path(paths["stage_11_reaccess_dir"])
+stage_11_persist_only_dir = Path(paths["stage_11_persist_only_dir"])
 
 reset_before_run = bool(config.get("RESET_TARGET_OUTPUTS_BEFORE_RUN", True))
 if reset_before_run and probe_root.exists():
@@ -56,6 +62,10 @@ for p in [
     final_outputs_diagnostics_dir,
     final_outputs_manifests_dir,
     final_outputs_chunk_evidence_dir,
+    stage_10_reaccess_dir,
+    stage_10_persist_only_dir,
+    stage_11_reaccess_dir,
+    stage_11_persist_only_dir,
 ]:
     p.mkdir(parents=True, exist_ok=True)
 
@@ -86,6 +96,12 @@ context_doc = {
     "final_outputs_diagnostics_dir": str(final_outputs_diagnostics_dir),
     "final_outputs_manifests_dir": str(final_outputs_manifests_dir),
     "final_outputs_chunk_evidence_dir": str(final_outputs_chunk_evidence_dir),
+    "stage_10_dir": str(stage_10_dir),
+    "stage_10_reaccess_dir": str(stage_10_reaccess_dir),
+    "stage_10_persist_only_dir": str(stage_10_persist_only_dir),
+    "stage_11_dir": str(stage_11_dir),
+    "stage_11_reaccess_dir": str(stage_11_reaccess_dir),
+    "stage_11_persist_only_dir": str(stage_11_persist_only_dir),
     "input_mode": "zip_only",
     "add_suffix": "",
     "reset_target_outputs_before_run": reset_before_run,
