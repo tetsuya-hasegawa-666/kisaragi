@@ -28,7 +28,7 @@
 - `MRL-7` は `multi-frame` densify と gaussian short optimization まで `p-done` である。
 - `MRL-8` は `p-done` であり、`DA3 Colab` runbook 本体の前段で Drive 上の任意 session zip / session folder を script だけで選び、selected input を bootstrap 本体と `MRL-7` one-block の両方へ渡せる状態を閉じた。
 - 現在の main target は `MRL-2S` と `MRL-10` であり、`correcting` の `10min` 実収録安定化と、`frame_record.jsonl + images` を正にした record-native `Colab` route を canonical 化し、`90度右回転` upright image 契約、legacy intrinsics 補正、`orientation_summary.json`、sequence anchor、adjacent continuity precheck、pre-merge gate を main runbook の `.md/.ipynb` pair に固定することである。camera pose / trajectory の事前推定も `DA3NESTED-GIANT-LARGE-1.1` の official API / CLI 基準へ統一する。
-- `2026-04-11` 時点では `da3_ngl_increpose_RB` の path / reference 再検査を実施し、`HAUB` handoff matrix、contract probe、source test は clean である。以後は script / notebook source 編集後に同じ検査を必ず回す。
+- `2026-04-11` 時点では `da3_ngl_increpose_RB` の path / reference 再検査を実施し、`HAUB` handoff matrix、contract probe、source test は clean である。directory handoff は `batch_work_dir = chunk_runs/<batch_name>/`、`chunk_out_dir = chunk_runs/<batch_name>/<chunk_name>/` を基準とし、legacy manifest が chunk path や `chunk_0005_*` suffix dir を持っていても reader が吸収する。以後は script / notebook source 編集後に同じ検査を必ず回す。
 - script inventory は `correcting` 用と `modeling` 用を分離し、`correcting` 側は現状をありのまま記録する。`HAUB` は統合入口、product 側 inventory は詳細参照面とする。
 - `MRL-**` は細かく固定せず大まかな順番だけを置き、実測で見えた課題の大小に応じて `MRL` / `mRL` を切り直す。
 - ただし後続 `MRL` でも UX 到達品質は元の目標に沿わせる。特に modeling では、利用者が主空間の見え方、主カメラ経路、処理状態、次 action を迷わず把握できる方向を維持する。

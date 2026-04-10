@@ -1,0 +1,7 @@
+interface:
+  display_name: "Authoritative Doc Guard"
+  short_description: "編集前後に AGENTS / project-truth / HAUB の確認漏れを点検する。"
+  default_prompt: "Use $authoritative-doc-guard to determine which authoritative docs must be checked before editing and which authoritative docs may still need updates after editing, keeping sharedlogs out of the authoritative set."
+
+policy:
+  allow_implicit_invocation: true

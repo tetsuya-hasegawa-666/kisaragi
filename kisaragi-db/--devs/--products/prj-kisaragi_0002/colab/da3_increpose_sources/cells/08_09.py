@@ -145,7 +145,7 @@ for _, item_row in items_df.iterrows():
     chunk_csv = Path(str(item_row["chunk_csv"]))
     raw_batch_work_dir = Path(str(item_row["batch_work_dir"]))
     batch_work_dir = raw_batch_work_dir
-    if batch_work_dir.name == chunk_name:
+    if batch_work_dir.name == chunk_name or batch_work_dir.name.startswith(f"{chunk_name}_"):
         batch_work_dir = batch_work_dir.parent
 
     if "chunk_out_dir" in item_row.index and pd.notna(item_row["chunk_out_dir"]) and str(item_row["chunk_out_dir"]).strip():

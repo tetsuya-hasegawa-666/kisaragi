@@ -38,6 +38,7 @@
 - old heading / section 名
 - old helper import
 - parent scope path と leaf scope path が同名 key のまま混在していないか
+- 旧 manifest / 旧 suffix 付き directory を admin が再利用した時の fallback 要否を確認したか
 
 ## 6. 下流確認
 

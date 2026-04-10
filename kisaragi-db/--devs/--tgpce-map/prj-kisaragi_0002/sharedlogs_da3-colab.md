@@ -6739,3 +6739,9 @@ Moviepy - video ready /content/drive/MyDrive/trajectreview/modeling/trajectrevie
 - admin 実測の `pred_extrinsics_not_found` 再発を受けて source を再確認したところ、`#8-3` が `batch_work_dir` にすでに `chunk_name` を含めていた一方、`#8-9` は `out_dir = batch_work_dir / chunk_name` としており、directory handoff が二重ネストになっていた。これが manifest と実出力先の再ずれ要因だった。
 - `08_03.py` は `batch_work_dir = chunk_runs/<batch_name>/` を batch scope に修正し、chunk 固有出力先は `chunk_out_dir = batch_work_dir / chunk_name` として manifest へ明示した。`08_09.py` と `10_01.py` は旧互換で `batch_work_dir` が chunk path を指していた場合も batch scope へ正規化し、`chunk_out_dir` があればそれを優先して `pred_extrinsics.npy` と `chunk_input_frames.csv` を解決するようにした。
 - `08_03.md`、`08_09.md`、source test、canonical pair を同期し、さらに `reference-rewire-operator` に `parent scope directory と leaf scope directory を混同しない` guard を追加した。`python -m unittest ...test_da3_increpose_path_contract_probe.py ...test_da3_increpose_sources.py` は引き続き `6 tests OK` を確認した。
+
+# codex v130
+
+- `authoritative-doc-guard` で `da3_ngl_increpose_RB.ipynb` と `sharedlogs_da3-colab.md` を照合し、事前確認対象が `AGENTS.md`、`project-truth.md`、`HAUB`、事後見直し対象が `HAUB`、`resume-startup-plan.md`、`codex-mrl-test-evidence.md` であることを再確認した。shared worklog 自体は照合元には使うが正本にはしない扱いで固定した。
+- 永続反映として `HAUB` current_state と `Increpose Path Handoff Matrix` に `batch_work_dir=batch scope`、`chunk_out_dir=chunk scope`、`chunk_0005_*` のような legacy suffix dir fallback を追記し、`da3_ngl_runbook_design_contract.md`、`resume-startup-plan.md`、`codex-mrl-test-evidence.md` も同期した。
+- `sync_da3_increpose_sources.py`、`python -m unittest ...test_da3_increpose_path_contract_probe.py ...test_da3_increpose_sources.py`、`authoritative-doc-guard` を再実行し、`critical_rule_failures=[]`、`haub_contract_failures=[]`、`6 tests OK` を確認した。現時点で script 本体と正本の追加不整合は見つかっていない。

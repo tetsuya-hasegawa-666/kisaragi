@@ -44,6 +44,7 @@ description: 設計変更で path、file 名、docs_id、manifest 名、helper �
 - helper 移設では call site だけでなく import、tests、inventory、design contract を同時更新する。
 - path 変更では生成物 writer、reader、cleanup、download、evidence path を同時更新する。
 - directory handoff 変更では、`batch_work_dir` のような親 scope path と `chunk_out_dir` のような leaf scope path を混同せず、二重ネストが起きないかを producer / consumer の両方で確認する。
+- old manifest や旧 suffix 付き dir 名が残りうる移行期は、reader 側に `chunk_0005_*` のような legacy path fallback が必要かを明示的に判断する。
 - docs_id 変更では表、source inventory、design contract、runbook 説明、test 名寄せを同時更新する。
 - canonical 名変更では truth、plan、manual、resume、closeout の順に上位から直す。
 - compatibility を置く時は終了条件を明記する。
@@ -58,6 +59,7 @@ description: 設計変更で path、file 名、docs_id、manifest 名、helper �
 - 参照変更を 1 file の局所修正に見せかけて、実際は多段 handoff を壊したままにしない。
 - `HAUB` handoff 対照表や path contract probe を持つ project で、それらを更新せずに path / output / reader を変えない。
 - parent scope directory と leaf artifact directory を同じ key 名で使い回し、`chunk_name` などを二重付与しない。
+- producer を直した直後でも admin 実測が旧 manifest を再利用し得るなら、reader 側で旧 path を一時吸収する fallback を置く。
 
 ## Minimum Deliverables
 

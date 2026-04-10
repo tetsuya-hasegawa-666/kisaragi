@@ -10,6 +10,7 @@
 
 ## 収録 skill
 
+- `authoritative-doc-guard`
 - `design-first-script-builder`
 - `documentation-watchkeeper`
 - `delivery-planning-keeper`
@@ -21,6 +22,7 @@
 
 ## 役割境界
 
+- `authoritative-doc-guard` は、編集前にどの正本文書を読むべきか、編集後にどの正本文書の反映漏れを確認すべきかを点検する観点を扱うものとする。
 - `design-first-script-builder` は、設計審査票、責務分離、関数一覧表、docs ID 対応、validation / error handling 契約を先に固定してから script や notebook を書く観点を扱うものとする。
 - `documentation-watchkeeper` は docs drift、文書 topology、version 整合、encoding 健全性をまとめて扱うものとする。
 - `delivery-planning-keeper` は BDD、TDD、release gate、handover をまとめて扱うものとする。

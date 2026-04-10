@@ -24,6 +24,17 @@
   remaining work: path / reference 整合は現時点で clean だが、`BLK-1` の merge quality と `BLK-5` の correcting 長時間実収録安定化は未解消であり、`mRL-10.4` と `MRL-2S` の主 blocker は残る
   evidence path: `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/hi-ai-unified-blueprint.md`, `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/da3_increpose_path_contract_probe.py`, `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_da3_increpose_path_contract_probe.py`, `kisaragi-db/--devs/--testcode/prj-kisaragi_0002/test_da3_increpose_sources.py`
 
+- record date: `2026-04-11`
+  target MRL: `MRL-10`
+  target mRL: `mRL-10.5`
+  gate change: `active authoritative recheck completed`
+  issue: shared worklog の `v129` で batch/chunk 二重ネスト起因の `pred_extrinsics_not_found` 修復は記録されていたが、`batch_work_dir` と `chunk_out_dir` の scope 分離、および `chunk_0005_*` のような legacy suffix dir を reader が吸収する契約が恒久文書へ十分固定されていなかった
+  cause: source と test は更新済みでも、`HAUB` current_state、path handoff matrix、resume、runbook 設計契約へ同じ detail を揃えていなければ、shared worklog を見ない再開時に directory 解釈を誤読できる余地が残っていた
+  resolution: [hi-ai-unified-blueprint.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/hi-ai-unified-blueprint.md) の `modeling` current_state と `Increpose Path Handoff Matrix` に batch/chunk scope 分離と legacy suffix fallback を追記し、[resume-startup-plan.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/resume-startup-plan.md) と [da3_ngl_runbook_design_contract.md](/C:/Users/tetsuya/kisaragi/kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook_design_contract.md) も同期した。あわせて `authoritative-doc-guard` で再確認し、shared worklog は照合元に使っても正本にはしない運用を再検証した
+  recurrence prevention: `da3_ngl_increpose_RB` の script / notebook source を編集する時は、`AGENTS.md`、`project-truth.md`、`HAUB` を先に確認し、編集後は `HAUB` matrix、runbook 設計契約、必要なら resume / closeout まで同 task で見直す。shared worklog は差分の手掛かりに限定し、恒久 contract の保持先にしない
+  remaining work: source / pair / authority docs の参照整合は再検査でそろったが、`BLK-1` の multi-frame merge quality と `BLK-5` の `3min` 実収録安定化は未解消のままである
+  evidence path: `kisaragi-db/--devs/--products/prj-kisaragi_0002/colab/da3_ngl_runbook_design_contract.md`, `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/hi-ai-unified-blueprint.md`, `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/resume-startup-plan.md`
+
 - record date: `2026-04-08`
   target MRL: `MRL-2R`、`MRL-10`
   target mRL: `mRL-2R.3`、`mRL-10.5c`
