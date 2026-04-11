@@ -17,7 +17,7 @@ frame_record_path = Path(paths["frame_record_path"])
 frame_pose_index_path = session_root / "frame_pose_index.csv"
 config = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8")) if Path("/content/config_snapshot.json").exists() else {}
 route_slug = config.get("PROJECT_SLUG", "da3_record_sequence_anchor_rebuild_v02")
-pipeline_slug = config.get("PIPELINE_SLUG", "da3_ngl_batch_v01")
+pipeline_slug = config.get("PIPELINE_SLUG", "runtime_workspace")
 legacy_source_pipeline_slug = "continuous_gs_v07_chunk18_step6_adopt6_incremental"
 modeling_session_id = session_id.replace("trajectreview-correcting-session-", "trajectreview-modeling-session-", 1) if session_id.startswith("trajectreview-correcting-session-") else f"trajectreview-modeling-session-{session_id}"
 probe_root_name = modeling_session_id

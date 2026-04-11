@@ -28,7 +28,7 @@ RUNBOOK_CANDIDATE_DOC = Path("/content/runbook_drive_candidates.json")
 RUNBOOK_SELECTED_DOC = Path("/content/runbook_selected_input.json")
 RUNBOOK_PATHS_DOC = Path("/content/runbook_paths.json")
 CONFIG_SNAPSHOT = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8")) if Path("/content/config_snapshot.json").exists() else {}
-PIPELINE_SLUG = CONFIG_SNAPSHOT.get("PIPELINE_SLUG", "da3_ngl_batch_v01")
+PIPELINE_SLUG = CONFIG_SNAPSHOT.get("PIPELINE_SLUG", "runtime_workspace")
 
 def infer_session_id(path: Path) -> str:
     return path.stem

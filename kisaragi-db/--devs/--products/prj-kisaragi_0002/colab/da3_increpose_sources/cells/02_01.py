@@ -6,7 +6,7 @@ from IPython.display import display
 
 CONFIG = {
     "PROJECT_SLUG": "da3_ngl_run_v01",
-    "PIPELINE_SLUG": "da3_ngl_batch_v01",
+    "PIPELINE_SLUG": "runtime_workspace",
     "MODEL_ID": "depth-anything/DA3NESTED-GIANT-LARGE-1.1",
     "BUNDLE_MODEL_SLUG": "nestedgiantlarge11",
     "BATCH_SIZE": 2,

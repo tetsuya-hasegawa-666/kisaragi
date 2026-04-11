@@ -46,7 +46,7 @@ final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
 final_outputs_manifests_dir = Path(ctx["final_outputs_manifests_dir"])
 final_outputs_chunk_evidence_dir = Path(ctx["final_outputs_chunk_evidence_dir"])
 
-pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
+pipeline_root = probe_root / ctx.get("pipeline_slug", "runtime_workspace")
 anchor_dir = persist_root / "01_anchor"
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
@@ -206,7 +206,7 @@ batch_summaries = sorted({
     str(p) for p in chunk_runs_dir.glob("batch_*/batch_summary.json")
 })
 summary_rows = [json.loads(Path(p).read_text(encoding="utf-8")) for p in batch_summaries]
-all_batch_summary_path = final_outputs_diagnostics_dir / "all_batch_summary_arc.json"
+all_batch_summary_path = merged_dir / "all_batch_summary_arc.json"
 all_batch_summary_path.write_text(json.dumps(summary_rows, indent=2, ensure_ascii=False), encoding="utf-8")
 merge_summary_path = final_outputs_diagnostics_dir / "merge_summary.json"
 graph_gate_report_path = graph_persist_only_dir / "graph_gate_report.json"
@@ -1177,7 +1177,6 @@ else:
         {"label": "owner_record_histogram_arc.csv", "path": str(final_outputs_diagnostics_dir / "owner_record_histogram_arc.csv")},
         {"label": "chunk_assignment_summary_arc.csv", "path": str(final_outputs_diagnostics_dir / "chunk_assignment_summary_arc.csv")},
         {"label": "merge_warning_summary_arc.json", "path": str(final_outputs_diagnostics_dir / "merge_warning_summary_arc.json")},
-        {"label": "all_batch_summary_arc.json", "path": str(all_batch_summary_path)},
         {"label": "merged_camera_pose_arc.csv", "path": str(merged_camera_pose_csv)},
         {"label": "merged_camera_matrix_arc.csv", "path": str(merged_camera_matrix_csv)},
         {"label": "merged_camera_c2w_arc.npy", "path": str(merged_camera_c2w_npy)},
@@ -1222,23 +1221,24 @@ else:
     })
     merge_resume_state_path.write_text(json.dumps(merge_resume_state, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    manifest_copy_plan = [
-        (input_manifest_path, final_outputs_manifests_dir / "da3_input_manifest.csv"),
-        (anchor_dir / "camera_center_matrix_arc.csv", final_outputs_manifests_dir / "camera_center_matrix_arc.csv"),
-        (anchor_dir / "camera_matrix_full_arc.csv", final_outputs_manifests_dir / "camera_matrix_full_arc.csv"),
-        (anchor_dir / "camera_anchor_full_arc.csv", final_outputs_manifests_dir / "camera_anchor_full_arc.csv"),
-        (chunk_execution_plan_path, final_outputs_manifests_dir / "chunk_execution_plan.csv"),
-    ]
+    merge_input_report_path = final_outputs_manifests_dir / "merge_input_report.json"
     final_output_files = []
-    for src, dst in manifest_copy_plan:
-        if src.exists():
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, dst)
-            final_output_files.append({
-                "label": dst.name,
-                "source_path": str(src),
-                "drive_path": str(dst),
-            })
+    save_json(merge_input_report_path, {
+        "status": "ok",
+        "runtime_workspace_root": str(pipeline_root),
+        "artifacts": {
+            "da3_input_manifest_csv": str(input_manifest_path),
+            "camera_center_matrix_csv": str(anchor_dir / "camera_center_matrix_arc.csv"),
+            "camera_matrix_full_csv": str(anchor_dir / "camera_matrix_full_arc.csv"),
+            "camera_anchor_full_csv": str(anchor_dir / "camera_anchor_full_arc.csv"),
+            "chunk_execution_plan_csv": str(chunk_execution_plan_path),
+        },
+    })
+    final_output_files.append({
+        "label": merge_input_report_path.name,
+        "source_path": str(merge_input_report_path),
+        "drive_path": str(merge_input_report_path),
+    })
     for path in [
         merged_ply_path,
         merged_glb_path,
@@ -1248,7 +1248,6 @@ else:
         final_outputs_diagnostics_dir / "owner_record_histogram_arc.csv",
         final_outputs_diagnostics_dir / "chunk_assignment_summary_arc.csv",
         final_outputs_diagnostics_dir / "merge_warning_summary_arc.json",
-        all_batch_summary_path,
         merged_camera_pose_csv,
         merged_camera_matrix_csv,
         merged_camera_c2w_npy,
@@ -1313,12 +1312,12 @@ else:
             "chunk_keep_summary_csv": str(keep_summary_path),
             "chunk_transform_quality_csv": str(transform_quality_path),
             "merge_warning_summary_json": str(final_outputs_diagnostics_dir / "merge_warning_summary_arc.json"),
-            "all_batch_summary_json": str(all_batch_summary_path),
             "merged_camera_pose_csv": str(merged_camera_pose_csv),
             "merged_camera_matrix_csv": str(merged_camera_matrix_csv),
             "merged_camera_c2w_npy": str(merged_camera_c2w_npy),
             "merged_extrinsics_w2c_npy": str(merged_camera_w2c_npy),
             "ngl_pose_bundle_summary_json": str(ngl_bundle_dir / "ngl_pose_bundle_summary.json"),
+            "merge_input_report_json": str(merge_input_report_path),
         },
     })
     stage_access_index_path.write_text(json.dumps({

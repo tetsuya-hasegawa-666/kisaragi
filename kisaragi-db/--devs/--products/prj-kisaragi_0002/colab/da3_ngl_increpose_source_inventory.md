@@ -739,12 +739,14 @@
 | chunk_execution_plan_path | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | merge_summary_path | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | merge_output_report_path | #11-2 | 11 Merge And Review | `DOC-I11-02` |
+| merge_input_report_path | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | required | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | missing | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | anchor_df | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | items_df | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | merge_summary | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | merge_output_report | #11-2 | 11 Merge And Review | `DOC-I11-02` |
+| merge_input_report | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | transform_df | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | anchor_center_cols | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | anchor_dir_cols | #11-2 | 11 Merge And Review | `DOC-I11-02` |

@@ -12,7 +12,7 @@ config = json.loads(Path("/content/config_snapshot.json").read_text(encoding="ut
 
 probe_root = Path(ctx["probe_root"])
 persist_root = Path(ctx.get("persist_root", probe_root))
-pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
+pipeline_root = probe_root / ctx.get("pipeline_slug", "runtime_workspace")
 anchor_dir = persist_root / "01_anchor"
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"

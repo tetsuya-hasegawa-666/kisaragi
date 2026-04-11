@@ -40,6 +40,7 @@ CRITICAL_ARTIFACT_KEYS = {
     "chunk_input_frames.csv",
     "premerge_pose_validation.json",
     "graph_gate_report.json",
+    "merge_input_report.json",
     "prepose_chunk_graph_solution_arc.csv",
     "chunk_global_transforms_arc.csv",
     "merge_output_report.json",

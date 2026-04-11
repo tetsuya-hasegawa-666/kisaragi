@@ -39,7 +39,7 @@ from IPython.display import display
 
 CONFIG = {
     "PROJECT_SLUG": "da3_ngl_run_v01",
-    "PIPELINE_SLUG": "da3_ngl_batch_v01",
+    "PIPELINE_SLUG": "runtime_workspace",
     "MODEL_ID": "depth-anything/DA3NESTED-GIANT-LARGE-1.1",
     "BUNDLE_MODEL_SLUG": "nestedgiantlarge11",
     "BATCH_SIZE": 2,
@@ -141,7 +141,7 @@ RUNBOOK_CANDIDATE_DOC = Path("/content/runbook_drive_candidates.json")
 RUNBOOK_SELECTED_DOC = Path("/content/runbook_selected_input.json")
 RUNBOOK_PATHS_DOC = Path("/content/runbook_paths.json")
 CONFIG_SNAPSHOT = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8")) if Path("/content/config_snapshot.json").exists() else {}
-PIPELINE_SLUG = CONFIG_SNAPSHOT.get("PIPELINE_SLUG", "da3_ngl_batch_v01")
+PIPELINE_SLUG = CONFIG_SNAPSHOT.get("PIPELINE_SLUG", "runtime_workspace")
 
 def infer_session_id(path: Path) -> str:
     return path.stem
@@ -392,7 +392,7 @@ frame_record_path = Path(paths["frame_record_path"])
 frame_pose_index_path = session_root / "frame_pose_index.csv"
 config = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8")) if Path("/content/config_snapshot.json").exists() else {}
 route_slug = config.get("PROJECT_SLUG", "da3_record_sequence_anchor_rebuild_v02")
-pipeline_slug = config.get("PIPELINE_SLUG", "da3_ngl_batch_v01")
+pipeline_slug = config.get("PIPELINE_SLUG", "runtime_workspace")
 legacy_source_pipeline_slug = "continuous_gs_v07_chunk18_step6_adopt6_incremental"
 modeling_session_id = session_id.replace("trajectreview-correcting-session-", "trajectreview-modeling-session-", 1) if session_id.startswith("trajectreview-correcting-session-") else f"trajectreview-modeling-session-{session_id}"
 probe_root_name = modeling_session_id
@@ -2575,7 +2575,7 @@ if "CFG" not in globals():
 
 probe_root = Path(ctx["probe_root"])
 persist_root = Path(ctx.get("persist_root", probe_root))
-pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
+pipeline_root = probe_root / ctx.get("pipeline_slug", "runtime_workspace")
 
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_manifest_dir.mkdir(parents=True, exist_ok=True)
@@ -2749,7 +2749,7 @@ import numpy as np
 
 ctx = load_ctx()
 probe_root = Path(ctx["probe_root"])
-pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
+pipeline_root = probe_root / ctx.get("pipeline_slug", "runtime_workspace")
 chunk_manifest_dir = pipeline_root / "manifests"
 
 chunk_execution_plan_path = chunk_manifest_dir / "chunk_execution_plan.csv"
@@ -2864,7 +2864,7 @@ display_stage_summary(
 
 ctx = load_ctx()
 probe_root = Path(ctx["probe_root"])
-pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
+pipeline_root = probe_root / ctx.get("pipeline_slug", "runtime_workspace")
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
 config_snapshot = load_json("/content/config_snapshot.json") if Path("/content/config_snapshot.json").exists() else {}
@@ -3059,7 +3059,7 @@ display_stage_summary(
 ctx = load_ctx()
 
 probe_root = Path(ctx["probe_root"])
-pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
+pipeline_root = probe_root / ctx.get("pipeline_slug", "runtime_workspace")
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
 
@@ -3198,7 +3198,7 @@ display_stage_summary(
 ctx = load_ctx()
 
 probe_root = Path(ctx["probe_root"])
-pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
+pipeline_root = probe_root / ctx.get("pipeline_slug", "runtime_workspace")
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
 chunk_runs_dir.mkdir(parents=True, exist_ok=True)
@@ -3560,7 +3560,7 @@ import numpy as np
 ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
 
 probe_root = Path(ctx["probe_root"])
-pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
+pipeline_root = probe_root / ctx.get("pipeline_slug", "runtime_workspace")
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
 chunk_runs_dir.mkdir(parents=True, exist_ok=True)
@@ -3878,7 +3878,7 @@ config = json.loads(Path("/content/config_snapshot.json").read_text(encoding="ut
 
 probe_root = Path(ctx["probe_root"])
 persist_root = Path(ctx.get("persist_root", probe_root))
-pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
+pipeline_root = probe_root / ctx.get("pipeline_slug", "runtime_workspace")
 anchor_dir = persist_root / "01_anchor"
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
@@ -4292,7 +4292,7 @@ ctx = load_ctx()
 
 probe_root = Path(ctx["probe_root"])
 persist_root = Path(ctx.get("persist_root", probe_root))
-pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
+pipeline_root = probe_root / ctx.get("pipeline_slug", "runtime_workspace")
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
 merged_dir = Path(ctx.get("merged_dir", str(pipeline_root / "merged")))
@@ -5014,7 +5014,7 @@ display(items_df[[c for c in ["chunk_id", "chunk_name", "batch_name", "batch_wor
 ctx = load_ctx()
 
 probe_root = Path(ctx["probe_root"])
-pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
+pipeline_root = probe_root / ctx.get("pipeline_slug", "runtime_workspace")
 chunk_manifest_dir = pipeline_root / "manifests"
 merged_dir = Path(ctx.get("merged_dir", str(pipeline_root / "merged")))
 merged_dir.mkdir(parents=True, exist_ok=True)
@@ -5163,7 +5163,7 @@ final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
 final_outputs_manifests_dir = Path(ctx["final_outputs_manifests_dir"])
 final_outputs_chunk_evidence_dir = Path(ctx["final_outputs_chunk_evidence_dir"])
 
-pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
+pipeline_root = probe_root / ctx.get("pipeline_slug", "runtime_workspace")
 anchor_dir = persist_root / "01_anchor"
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
@@ -5323,7 +5323,7 @@ batch_summaries = sorted({
     str(p) for p in chunk_runs_dir.glob("batch_*/batch_summary.json")
 })
 summary_rows = [json.loads(Path(p).read_text(encoding="utf-8")) for p in batch_summaries]
-all_batch_summary_path = final_outputs_diagnostics_dir / "all_batch_summary_arc.json"
+all_batch_summary_path = merged_dir / "all_batch_summary_arc.json"
 all_batch_summary_path.write_text(json.dumps(summary_rows, indent=2, ensure_ascii=False), encoding="utf-8")
 merge_summary_path = final_outputs_diagnostics_dir / "merge_summary.json"
 graph_gate_report_path = graph_persist_only_dir / "graph_gate_report.json"
@@ -6294,7 +6294,6 @@ else:
         {"label": "owner_record_histogram_arc.csv", "path": str(final_outputs_diagnostics_dir / "owner_record_histogram_arc.csv")},
         {"label": "chunk_assignment_summary_arc.csv", "path": str(final_outputs_diagnostics_dir / "chunk_assignment_summary_arc.csv")},
         {"label": "merge_warning_summary_arc.json", "path": str(final_outputs_diagnostics_dir / "merge_warning_summary_arc.json")},
-        {"label": "all_batch_summary_arc.json", "path": str(all_batch_summary_path)},
         {"label": "merged_camera_pose_arc.csv", "path": str(merged_camera_pose_csv)},
         {"label": "merged_camera_matrix_arc.csv", "path": str(merged_camera_matrix_csv)},
         {"label": "merged_camera_c2w_arc.npy", "path": str(merged_camera_c2w_npy)},
@@ -6339,23 +6338,24 @@ else:
     })
     merge_resume_state_path.write_text(json.dumps(merge_resume_state, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    manifest_copy_plan = [
-        (input_manifest_path, final_outputs_manifests_dir / "da3_input_manifest.csv"),
-        (anchor_dir / "camera_center_matrix_arc.csv", final_outputs_manifests_dir / "camera_center_matrix_arc.csv"),
-        (anchor_dir / "camera_matrix_full_arc.csv", final_outputs_manifests_dir / "camera_matrix_full_arc.csv"),
-        (anchor_dir / "camera_anchor_full_arc.csv", final_outputs_manifests_dir / "camera_anchor_full_arc.csv"),
-        (chunk_execution_plan_path, final_outputs_manifests_dir / "chunk_execution_plan.csv"),
-    ]
+    merge_input_report_path = final_outputs_manifests_dir / "merge_input_report.json"
     final_output_files = []
-    for src, dst in manifest_copy_plan:
-        if src.exists():
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, dst)
-            final_output_files.append({
-                "label": dst.name,
-                "source_path": str(src),
-                "drive_path": str(dst),
-            })
+    save_json(merge_input_report_path, {
+        "status": "ok",
+        "runtime_workspace_root": str(pipeline_root),
+        "artifacts": {
+            "da3_input_manifest_csv": str(input_manifest_path),
+            "camera_center_matrix_csv": str(anchor_dir / "camera_center_matrix_arc.csv"),
+            "camera_matrix_full_csv": str(anchor_dir / "camera_matrix_full_arc.csv"),
+            "camera_anchor_full_csv": str(anchor_dir / "camera_anchor_full_arc.csv"),
+            "chunk_execution_plan_csv": str(chunk_execution_plan_path),
+        },
+    })
+    final_output_files.append({
+        "label": merge_input_report_path.name,
+        "source_path": str(merge_input_report_path),
+        "drive_path": str(merge_input_report_path),
+    })
     for path in [
         merged_ply_path,
         merged_glb_path,
@@ -6365,7 +6365,6 @@ else:
         final_outputs_diagnostics_dir / "owner_record_histogram_arc.csv",
         final_outputs_diagnostics_dir / "chunk_assignment_summary_arc.csv",
         final_outputs_diagnostics_dir / "merge_warning_summary_arc.json",
-        all_batch_summary_path,
         merged_camera_pose_csv,
         merged_camera_matrix_csv,
         merged_camera_c2w_npy,
@@ -6430,12 +6429,12 @@ else:
             "chunk_keep_summary_csv": str(keep_summary_path),
             "chunk_transform_quality_csv": str(transform_quality_path),
             "merge_warning_summary_json": str(final_outputs_diagnostics_dir / "merge_warning_summary_arc.json"),
-            "all_batch_summary_json": str(all_batch_summary_path),
             "merged_camera_pose_csv": str(merged_camera_pose_csv),
             "merged_camera_matrix_csv": str(merged_camera_matrix_csv),
             "merged_camera_c2w_npy": str(merged_camera_c2w_npy),
             "merged_extrinsics_w2c_npy": str(merged_camera_w2c_npy),
             "ngl_pose_bundle_summary_json": str(ngl_bundle_dir / "ngl_pose_bundle_summary.json"),
+            "merge_input_report_json": str(merge_input_report_path),
         },
     })
     stage_access_index_path.write_text(json.dumps({
@@ -6554,7 +6553,7 @@ from plotly.subplots import make_subplots
 ctx = load_ctx()
 probe_root = Path(ctx["probe_root"])
 persist_root = Path(ctx.get("persist_root", probe_root))
-pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
+pipeline_root = probe_root / ctx.get("pipeline_slug", "runtime_workspace")
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
 merge_persist_only_dir = Path(ctx.get("stage_11_persist_only_dir", str(Path(ctx["final_outputs_dir"]) / "#11-1" / "persist_only")))
@@ -6569,6 +6568,7 @@ merged_camera_pose_path = merge_persist_only_dir / "diagnostics" / "merged_camer
 chunk_execution_plan_path = chunk_manifest_dir / "chunk_execution_plan.csv"
 merge_summary_path = merge_persist_only_dir / "diagnostics" / "merge_summary.json"
 merge_output_report_path = merge_persist_only_dir / "merge_output_report.json"
+merge_input_report_path = merge_persist_only_dir / "manifests" / "merge_input_report.json"
 
 required = [anchor_path, chunk_execution_plan_path]
 missing = [str(p) for p in required if not p.exists()]
@@ -6580,6 +6580,7 @@ if "is_target" in items_df.columns:
     items_df = items_df.loc[items_df["is_target"].fillna(False)].copy()
 merge_summary = load_json(merge_summary_path) if merge_summary_path.exists() else {}
 merge_output_report = load_json(merge_output_report_path) if merge_output_report_path.exists() else {}
+merge_input_report = load_json(merge_input_report_path) if merge_input_report_path.exists() else {}
 
 transform_df = pd.read_csv(graph_solution_path) if graph_solution_path.exists() else (pd.read_csv(transform_path) if transform_path.exists() else pd.DataFrame())
 
@@ -6825,6 +6826,7 @@ review_summary = {
     "status": "ok",
     "merge_status": merge_summary.get("status"),
     "merge_output_status": merge_output_report.get("status"),
+    "merge_input_status": merge_input_report.get("status"),
     "full_anchor_rows": int(len(anchor_df)),
     "chunk_review_rows": int(len(chunk_rows)),
     "merged_review_rows": int(len(merged_df)),
@@ -6845,6 +6847,7 @@ display_stage_summary(
         {"item": "chunk_global_transforms_or_graph_solution", "path": str(graph_solution_path if graph_solution_path.exists() else transform_path)},
         {"item": "merge_summary", "path": str(merge_summary_path)},
         {"item": "merge_output_report", "path": str(merge_output_report_path)},
+        {"item": "merge_input_report", "path": str(merge_input_report_path)},
     ],
     outputs=[
         {"item": "chunk_pose_review", "path": str(chunk_pose_review_csv)},

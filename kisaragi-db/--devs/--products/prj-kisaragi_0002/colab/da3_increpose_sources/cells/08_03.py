@@ -18,7 +18,7 @@ if "CFG" not in globals():
 
 probe_root = Path(ctx["probe_root"])
 persist_root = Path(ctx.get("persist_root", probe_root))
-pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
+pipeline_root = probe_root / ctx.get("pipeline_slug", "runtime_workspace")
 
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_manifest_dir.mkdir(parents=True, exist_ok=True)

@@ -9,7 +9,7 @@ import numpy as np
 ctx = json.loads(Path("/content/runbook_session_context.json").read_text(encoding="utf-8"))
 
 probe_root = Path(ctx["probe_root"])
-pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
+pipeline_root = probe_root / ctx.get("pipeline_slug", "runtime_workspace")
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
 chunk_runs_dir.mkdir(parents=True, exist_ok=True)

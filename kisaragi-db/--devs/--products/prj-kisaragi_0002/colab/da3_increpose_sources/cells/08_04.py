@@ -6,7 +6,7 @@ import numpy as np
 
 ctx = load_ctx()
 probe_root = Path(ctx["probe_root"])
-pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
+pipeline_root = probe_root / ctx.get("pipeline_slug", "runtime_workspace")
 chunk_manifest_dir = pipeline_root / "manifests"
 
 chunk_execution_plan_path = chunk_manifest_dir / "chunk_execution_plan.csv"
