@@ -1,11 +1,16 @@
 ---
 name: phase-task-orchestrator
-description: 複数 task を含む開発依頼を phase 構成へ分解し、authoritative context、設計確定、実装、文書同期、検証、closeout を崩さず進めたい時に使う。admin と Codex の文脈ずれを減らすため、task header、phase ごとの完了条件、非対象、未解決、最終検証を先に固定したい時に発動する。
+description: `skill-planner` から呼ばれた時に、複数 task 開発依頼を phase 構成へ分解し、authoritative context、設計確定、実装、文書同期、検証、closeout を崩さず進める phase specialist。発火判断は持たず、phase 化と完了条件固定だけを担当する。
 ---
 
 # Phase Task Orchestrator
 
 長い依頼を 1 塊で処理せず、phase ごとの checkpoint を先に固定してから進めるための skill とする。
+
+## Trigger Ownership
+
+- この skill 自身は発火判断を持たない。
+- `skill-planner` が multi-phase 管理が必要と判断した時だけ呼ばれる。
 
 ## Core Workflow
 
@@ -78,7 +83,7 @@ Phase 5: evidence / closeout
 
 ## Coordination With Other Skills
 
-- この skill を開発入口の既定 skill とする。
+- `skill-planner` から呼ばれる phase specialist とする。
 - 設計変更や関数責務整理がある時は `design-first-script-builder` を `Phase 2` から併用する。
 - path / contract / output 名の切替がある時は `reference-rewire-operator` を `Phase 2` から併用する。
 - 文書 drift を閉じる時は `documentation-watchkeeper` を `Phase 3` 以降で使う。

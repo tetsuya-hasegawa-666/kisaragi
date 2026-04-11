@@ -753,3 +753,55 @@
 - 新旧比較:
   - 旧: 統合計画書の shared 名称は `ux-b2t-hypo.md` だった。
   - 新: 統合計画書の shared 名称は `hi-ai-unified-blueprint.md`、略称は `HAUB` になった。
+### 2026-04-11 AGENTS.md admin 補助 mark の位置付け追加
+
+- 日時: `2026-04-11`
+- 文書名: `AGENTS.md`
+- 標題: admin prompt 補助 mark を optional trigger として定義
+- 背景: skill 側の強制度を admin が短い token で追加指定できるようにしたい一方、毎回 mark を書かないと通常運転が成立しない設計は継続しにくいという確認があった。
+- 目的: `//s` などの短い mark を shared rule として定義しつつ、mark 無しでも文書読込、関連文書更新、test、記録反映が既定で動く方針を明文化する。
+- 対処方法: 協調規則へ、admin が `//s`、`//d`、`//c`、`//m` などの補助 mark を使ってよいこと、これらは常用必須ではなく定義時だけ追加の強制動作を発火することを追記した。
+- 対応内容: `AGENTS.md` に mark の optional 運用と、mark 有無にかかわらず通常 rule を継続する方針を追加した。
+- 更新結果: 今後は mark を書いた時だけ skill が追加の強制動作を発火し、mark が無い通常 prompt でも既定の文書・test・記録 rule に従って作業できる。
+- 新旧比較:
+  - 旧: admin の短い mark を shared rule として明示していなかった。
+  - 新: `//s` などの mark を optional trigger として定義し、mark 無しでも通常運転する方針を shared rule 化した。
+### 2026-04-11 AGENTS.md skill trigger ownership を distributor 中央集約へ変更
+
+- 日時: `2026-04-11`
+- 文書名: `AGENTS.md`
+- 標題: `skill-distributor -> skill-planner -> specialist skills` の実行系へ整理
+- 背景: 共通前提の解釈、mark 解釈、発火条件を各 skill が個別に持つと、発火条件の drift と重複が生じやすく、運用上の説明責任も分散するという確認があった。
+- 目的: trigger ownership を `skill-distributor` へ一元化し、`skill-planner` が execution order と実行管理を担い、他 skill は受入前提と処理責務へ集中する構造へ整理する。
+- 対処方法: 協調規則へ、`skill-distributor` が prompt 全体 review、skill 要否判断、mark 解釈、必要 skill 候補の選定を担い、`skill-planner` が実行順と close 条件を管理することを追記した。
+- 対応内容: `AGENTS.md`、`kisaragi-skills/agents.md`、`skill-distributor`、`phase-task-orchestrator`、各専門 skill の役割境界を更新し、新設 `skill-planner` の位置づけを追加した。
+- 更新結果: 今後は `skill-distributor` が唯一の trigger owner、`skill-planner` が唯一の orchestration owner となり、他 skill は発火判断を持たず specialist として呼ばれる構造になる。
+- 新旧比較:
+  - 旧: `phase-task-orchestrator` を含む複数 skill が入口や発火条件を個別に持っていた。
+  - 新: `skill-distributor -> skill-planner -> specialist skills` へ整理し、trigger ownership を中央集約した。
+### 2026-04-12 AGENTS.md distributor と planner の責務境界を再整理
+
+- 日時: `2026-04-12`
+- 文書名: `AGENTS.md`
+- 標題: `skill-distributor` を最終選定 owner、`skill-planner` を発火と順序管理 owner へ整理
+- 背景: `skill-distributor` が選定し、`skill-planner` が再度選定に近い判断を持つと、選定が二重化して責務境界が曖昧になる懸念が出た。
+- 目的: skill 選定は 1 回にとどめ、`skill-distributor` が最終 skill 集合を確定し、`skill-planner` はその確定済み集合の発火、実行順、phase、handoff、close 条件だけを扱う構造へ統一する。
+- 対処方法: `AGENTS.md`、skill registry、`skill-distributor`、`skill-planner`、pilot spec、trigger system map の記述を同時に修正し、planner が skill の追加削除を行わないことを明記した。
+- 対応内容: `skill-distributor` を最終選定 owner、`skill-planner` を発火と execution order owner として定義し直した。
+- 更新結果: 今後は選定が 1 回で確定し、planner は選定済み skill 集合をどう動かすかだけを担当する。
+- 新旧比較:
+  - 旧: `skill-planner` が選定済み候補から実質的な再選定をしうる読め方があった。
+  - 新: 最終選定は `skill-distributor`、発火と順序管理は `skill-planner` と明確化した。
+### 2026-04-12 AGENTS.md skill trigger 方針を集中型へ変更
+
+- 日時: `2026-04-12`
+- 文書名: `AGENTS.md`
+- 標題: `skill-distributor` を集中型 trigger owner として固定
+- 背景: `rule / authority 系` や `task structuring 系` を補助 trigger controller として持つ半集中型は再利用性がある一方、実運用では trigger rule の所在が増えて distributor の責務説明が逆に重くなる懸念が出た。
+- 目的: trigger ownership を `skill-distributor` に集中させ、`skill-planner` は選定済み skill 集合の発火と実行順管理だけを担う形へ簡潔化する。
+- 対処方法: `AGENTS.md`、skill registry、`skill-distributor`、pilot spec、trigger system map を更新し、補助 trigger controller 前提を外した。
+- 対応内容: `skill-distributor` の責務を「集中型 trigger owner」として明記し、`skill-planner` は trigger 補助判断を持たないと整理した。
+- 更新結果: 今後は trigger 系統が 1 本化され、発火判断は distributor、発火後の順序管理は planner という役割で運用する。
+- 新旧比較:
+  - 旧: 半集中型を推奨し、補助 trigger controller の分担を前提にしていた。
+  - 新: 集中型を採り、trigger ownership を distributor へ集約した。

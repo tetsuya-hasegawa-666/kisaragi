@@ -7,6 +7,11 @@ description: BDD、TDD、release gate、handover を 1 本の流れとして扱�
 
 delivery planning を、`BDD -> TDD -> release gate -> handover` の連続した作業として扱うための skill とする。
 
+## Trigger Ownership
+
+- この skill 自身は発火判断を持たない。
+- `skill-distributor` と `skill-planner` が、BDD / TDD / gate / handover を扱う task だと判断した時だけ呼ばれる。
+
 ## 吸収した観点
 
 - `bdd-story-builder` の scenario から terminal behavior を作る観点

@@ -5,6 +5,11 @@ description: 会話起点の文書影響を検知し、新しい判断、前提�
 
 # Documentation Watchkeeper
 
+## Trigger Ownership
+
+- この skill 自身は発火判断を持たない。
+- `skill-distributor` と `skill-planner` が、文書同期または docs drift close が必要と判断した時だけ呼ばれる。
+
 ## 吸収した観点
 
 - `documentation-watchkeeper` の docs drift 検知
@@ -18,8 +23,8 @@ description: 会話起点の文書影響を検知し、新しい判断、前提�
 会話によって project truth が変わったら、その turn のうちに文書更新が必要かを確認する。
 可読性が壊れている文書を、そのまま真実として扱わない。
 
-## 発動チェック
-次のいずれかが起きたらこの skill を使う。
+## 呼び出し対象となる典型条件
+次のいずれかが起きた時に、通常は distributor / planner からこの skill が呼ばれる。
 - 新しい policy、rule、approval gate が決まった
 - 実装範囲や進め方が変わった
 - 新しい branch、release、deployment rule が導入された

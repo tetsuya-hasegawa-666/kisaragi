@@ -7,6 +7,11 @@ description: script、notebook、runbook を設計駆動で新規作成または
 
 script や notebook を「あとから継ぎ足す」形ではなく、「設計契約を先に固定してから実装する」流れへ戻す skill とする。
 
+## Trigger Ownership
+
+- この skill 自身は発火判断を持たない。
+- `skill-distributor` と `skill-planner` が、設計駆動の script / notebook / runbook 作業だと判断した時だけ呼ばれる。
+
 ## Workflow
 
 1. 対象 script の目的、入出力、制約、既存の詰まり方を短く整理する。

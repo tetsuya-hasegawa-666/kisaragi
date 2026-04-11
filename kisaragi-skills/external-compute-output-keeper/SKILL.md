@@ -7,6 +7,11 @@ description: `Colab`、remote notebook、remote GPU job などの外部コンピ
 
 外部コンピューティング task で、final output を download 成否に依存させず残すための skill とする。
 
+## Trigger Ownership
+
+- この skill 自身は発火判断を持たない。
+- `skill-distributor` と `skill-planner` が、`Colab`、remote notebook、remote GPU job などの外部 runtime task だと判断した時だけ呼ばれる。
+
 ## 適用条件
 
 - `Colab`
@@ -36,3 +41,9 @@ description: `Colab`、remote notebook、remote GPU job などの外部コンピ
 - final output を local zip 作成後に初めて保存する
 - cleanup plan に final output tree を delete candidate として載せる
 - final output の再解釈に必要な manifest / summary を local tmp にしか残さない
+
+## 参照
+
+- `references/drive-input-resolution-rule.md`
+- `references/persistent-output-minimum-set.md`
+- `scripts/check_drive_input_contract.py`

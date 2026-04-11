@@ -7,6 +7,11 @@ description: branch 同期、Docker 安定化、FastAPI 実装運用をまとめ
 
 runtime を、`git branch / container / app server` をまたいで安定化するための skill とする。
 
+## Trigger Ownership
+
+- この skill 自身は発火判断を持たない。
+- `skill-distributor` と `skill-planner` が、branch / Docker / FastAPI runtime 安定化 task だと判断した時だけ呼ばれる。
+
 ## 吸収した観点
 
 - `branch-sync-operator` の branch head 同期と hash 確認

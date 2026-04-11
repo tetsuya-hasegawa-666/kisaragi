@@ -7,6 +7,11 @@ description: 設計変更で path、file 名、docs_id、manifest 名、helper �
 
 設計変更で参照先を変える時に、「置換したから終わり」を防ぐ skill とする。
 
+## Trigger Ownership
+
+- この skill 自身は発火判断を持たない。
+- `skill-distributor` と `skill-planner` が、参照切替や contract 名変更や output / path 変更を含むと判断した時だけ呼ばれる。
+
 ## Core Workflow
 
 1. 何の参照を切り替えるのかを 1 行で固定する。
