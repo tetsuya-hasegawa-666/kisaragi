@@ -13,24 +13,29 @@ persist_root = Path(ctx.get("persist_root", probe_root))
 pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
-merged_dir = Path(ctx.get("merged_dir", str(pipeline_root / "merged")))
+merge_persist_only_dir = Path(ctx.get("stage_11_persist_only_dir", str(Path(ctx["final_outputs_dir"]) / "#11-1" / "persist_only")))
+merged_dir = merge_persist_only_dir / "diagnostics"
 merged_dir.mkdir(parents=True, exist_ok=True)
 anchor_dir = persist_root / "01_anchor"
 
 anchor_path = anchor_dir / "camera_anchor_full_arc.csv"
-graph_solution_path = merged_dir / "prepose_chunk_graph_solution_arc.csv"
+graph_solution_path = Path(ctx.get("stage_10_persist_only_dir", str(Path(ctx["final_outputs_dir"]) / "#10-1" / "persist_only"))) / "prepose_chunk_graph_solution_arc.csv"
 transform_path = chunk_manifest_dir / "chunk_global_transforms_arc.csv"
-merged_camera_pose_path = merged_dir / "merged_camera_pose_arc.csv"
-batch_execution_items_path = chunk_manifest_dir / "batch_execution_items.csv"
-merge_summary_path = merged_dir / "merge_summary.json"
+merged_camera_pose_path = merge_persist_only_dir / "diagnostics" / "merged_camera_pose_arc.csv"
+chunk_execution_plan_path = chunk_manifest_dir / "chunk_execution_plan.csv"
+merge_summary_path = merge_persist_only_dir / "diagnostics" / "merge_summary.json"
+merge_output_report_path = merge_persist_only_dir / "merge_output_report.json"
 
-required = [anchor_path, batch_execution_items_path]
+required = [anchor_path, chunk_execution_plan_path]
 missing = [str(p) for p in required if not p.exists()]
 assert not missing, {"missing_required": missing}
 
 anchor_df = pd.read_csv(anchor_path)
-items_df = pd.read_csv(batch_execution_items_path)
+items_df = pd.read_csv(chunk_execution_plan_path)
+if "is_target" in items_df.columns:
+    items_df = items_df.loc[items_df["is_target"].fillna(False)].copy()
 merge_summary = load_json(merge_summary_path) if merge_summary_path.exists() else {}
+merge_output_report = load_json(merge_output_report_path) if merge_output_report_path.exists() else {}
 
 transform_df = pd.read_csv(graph_solution_path) if graph_solution_path.exists() else (pd.read_csv(transform_path) if transform_path.exists() else pd.DataFrame())
 
@@ -275,6 +280,7 @@ fig.write_html(str(review_html), include_plotlyjs="cdn")
 review_summary = {
     "status": "ok",
     "merge_status": merge_summary.get("status"),
+    "merge_output_status": merge_output_report.get("status"),
     "full_anchor_rows": int(len(anchor_df)),
     "chunk_review_rows": int(len(chunk_rows)),
     "merged_review_rows": int(len(merged_df)),
@@ -291,9 +297,10 @@ display_stage_summary(
     "merge review visualization",
     inputs=[
         {"item": "camera_anchor_full", "path": str(anchor_path)},
-        {"item": "batch_execution_items", "path": str(batch_execution_items_path)},
+        {"item": "chunk_execution_plan", "path": str(chunk_execution_plan_path)},
         {"item": "chunk_global_transforms_or_graph_solution", "path": str(graph_solution_path if graph_solution_path.exists() else transform_path)},
         {"item": "merge_summary", "path": str(merge_summary_path)},
+        {"item": "merge_output_report", "path": str(merge_output_report_path)},
     ],
     outputs=[
         {"item": "chunk_pose_review", "path": str(chunk_pose_review_csv)},

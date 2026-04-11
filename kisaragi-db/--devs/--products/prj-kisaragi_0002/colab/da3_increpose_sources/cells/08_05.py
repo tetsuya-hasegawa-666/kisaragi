@@ -7,6 +7,7 @@ chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
 config_snapshot = load_json("/content/config_snapshot.json") if Path("/content/config_snapshot.json").exists() else {}
 
+chunk_execution_plan_path = chunk_manifest_dir / "chunk_execution_plan.csv"
 chunk_manifest_dir.mkdir(parents=True, exist_ok=True)
 chunk_runs_dir.mkdir(parents=True, exist_ok=True)
 
@@ -22,16 +23,8 @@ batch_execution_items_path = chunk_manifest_dir / "batch_execution_items.csv"
 chunk_index_all_path = chunk_manifest_dir / "chunk_index_all.csv"
 
 def build_target_chunk_and_batch_plan():
-    if batch_execution_items_path.exists():
-        base_df = pd.read_csv(batch_execution_items_path)
-    else:
-        assert chunk_index_all_path.exists(), {
-            "missing_required_manifest": [
-                str(batch_execution_items_path),
-                str(chunk_index_all_path),
-            ]
-        }
-        base_df = pd.read_csv(chunk_index_all_path)
+    assert chunk_execution_plan_path.exists(), chunk_execution_plan_path
+    base_df = pd.read_csv(chunk_execution_plan_path)
 
     assert not base_df.empty, {"reason": "base_chunk_manifest_empty", "chunk_manifest_dir": str(chunk_manifest_dir)}
     assert "chunk_id" in base_df.columns, base_df.columns.tolist()
@@ -63,22 +56,35 @@ def build_target_chunk_and_batch_plan():
     if "target_local_chunk_index" not in target_chunks_df.columns:
         target_chunks_df["target_local_chunk_index"] = range(len(target_chunks_df))
 
-    if "batch_index" not in target_chunks_df.columns:
+    if "execution_batch_index" not in target_chunks_df.columns:
         batch_size = int(config_snapshot.get("BATCH_SIZE", 1))
-        target_chunks_df["batch_index"] = target_chunks_df["target_local_chunk_index"].astype(int) // batch_size
+        target_chunks_df["execution_batch_index"] = target_chunks_df["target_local_chunk_index"].astype(int) // batch_size
 
-    if "batch_name" not in target_chunks_df.columns:
-        target_chunks_df["batch_name"] = target_chunks_df["batch_index"].astype(int).map(lambda x: f"batch_{x:03d}")
+    if "execution_batch_name" not in target_chunks_df.columns:
+        target_chunks_df["execution_batch_name"] = target_chunks_df["execution_batch_index"].astype(int).map(lambda x: f"batch_{x:03d}")
 
     batch_plan_df = (
-        target_chunks_df.groupby(["batch_index", "batch_name"], sort=True)
+        target_chunks_df.groupby(["execution_batch_index", "execution_batch_name"], sort=True)
         .agg(
             chunk_from=("target_local_chunk_index", "min"),
             chunk_to=("target_local_chunk_index", "max"),
             chunk_count=("chunk_name", "size"),
         )
         .reset_index()
+        .rename(columns={"execution_batch_index": "batch_index", "execution_batch_name": "batch_name"})
     )
+
+    base_df["is_target"] = base_df["chunk_name"].astype(str).isin(target_chunks_df["chunk_name"].astype(str))
+    target_index_map = dict(zip(target_chunks_df["chunk_name"].astype(str), target_chunks_df["target_local_chunk_index"].astype(int)))
+    target_batch_index_map = dict(zip(target_chunks_df["chunk_name"].astype(str), target_chunks_df["execution_batch_index"].astype(int)))
+    target_batch_name_map = dict(zip(target_chunks_df["chunk_name"].astype(str), target_chunks_df["execution_batch_name"].astype(str)))
+    base_df["target_local_chunk_index"] = base_df["chunk_name"].astype(str).map(target_index_map)
+    base_df["execution_batch_index"] = base_df["chunk_name"].astype(str).map(target_batch_index_map)
+    base_df["execution_batch_name"] = base_df["chunk_name"].astype(str).map(target_batch_name_map)
+    base_df["target_local_chunk_index"] = base_df["target_local_chunk_index"].astype("Int64")
+    base_df["execution_batch_index"] = base_df["execution_batch_index"].astype("Int64")
+    base_df["execution_batch_name"] = base_df["execution_batch_name"].fillna("")
+    base_df.to_csv(chunk_execution_plan_path, index=False, encoding="utf-8")
 
     target_chunks_df.to_csv(fallback_chunk_target_path, index=False, encoding="utf-8")
     batch_plan_df.to_csv(fallback_batch_plan_path, index=False, encoding="utf-8")
@@ -136,6 +142,7 @@ execution_batch_plan_df.to_csv(execution_batch_out, index=False, encoding="utf-8
 
 summary = {
     "status": "ok",
+    "chunk_execution_plan_path": str(chunk_execution_plan_path),
     "execution_mode_chunks": execution_mode_chunks,
     "execution_mode_batch_plan": execution_mode_batch_plan,
     "execution_chunk_source": str(execution_chunk_path),
@@ -160,6 +167,7 @@ display_stage_summary(
     "8-5",
     "execution target resolve",
     inputs=[
+        {"item": "chunk_execution_plan", "path": str(chunk_execution_plan_path)},
         {"item": "chunk_index_target", "path": str(fallback_chunk_target_path)},
         {"item": "batch_plan", "path": str(fallback_batch_plan_path)},
     ],

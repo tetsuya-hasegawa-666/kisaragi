@@ -108,7 +108,12 @@ REQUIRE_ALL_CHUNKS = True
 config_snapshot = json.loads(Path("/content/config_snapshot.json").read_text(encoding="utf-8")) if Path("/content/config_snapshot.json").exists() else {}
 MAKE_DRIVE_BUNDLE = bool(config_snapshot.get("MAKE_DRIVE_BUNDLE", False))
 INFER_GS = bool(config_snapshot.get("INFER_GS", config.get("INFER_GS", True)))
+chunk_execution_plan_path = chunk_manifest_dir / "chunk_execution_plan.csv"
 batch_execution_items_path = chunk_manifest_dir / "batch_execution_items.csv"
+assert chunk_execution_plan_path.exists(), chunk_execution_plan_path
+chunk_execution_plan_df = pd.read_csv(chunk_execution_plan_path)
+if "is_target" not in chunk_execution_plan_df.columns:
+    chunk_execution_plan_df["is_target"] = True
 
 TRANSFORM_SCALE_MIN = 0.8
 TRANSFORM_SCALE_MAX = 1.3
@@ -129,59 +134,18 @@ chunk_index_all_path = chunk_manifest_dir / "chunk_index_all.csv"
 if chunk_index_all_path.exists():
     all_chunks_df = pd.read_csv(chunk_index_all_path)
 else:
-    inferred_chunk_names = sorted({
-        p.parent.name
-        for p in chunk_runs_dir.glob("*/_SUCCESS.json")
-    } | {
-        p.parent.parent.name
-        for p in chunk_runs_dir.glob("*/gs_ply/0000.ply")
-    } | {
-        p.parent.parent.name
-        for p in chunk_runs_dir.glob("*/gs_video/0000_extend.mp4")
-    })
-    all_chunks_df = pd.DataFrame([
-        {
-            "chunk_id": i,
-            "chunk_name": name,
-            "global_start": None,
-            "global_end": None,
-            "frame_count": None,
-            "adopt_local_start": None,
-            "adopt_local_end": None,
-            "chunk_csv": None,
-        }
-        for i, name in enumerate(inferred_chunk_names)
-    ])
+    all_chunks_df = chunk_execution_plan_df.copy()
     chunk_manifest_dir.mkdir(parents=True, exist_ok=True)
     all_chunks_df.to_csv(chunk_index_all_path, index=False, encoding="utf-8")
 
 def ensure_target_chunk_manifest():
     target_path = chunk_manifest_dir / "chunk_index_target.csv"
-    if target_path.exists():
-        return pd.read_csv(target_path)
-    all_path = chunk_manifest_dir / "chunk_index_all.csv"
-    assert all_path.exists(), all_path
-    base_df = pd.read_csv(all_path)
-    target_mode = str(config.get("TARGET_CHUNK_MODE", "selected_chunk_ids_1based"))
-    if target_mode == "full_set":
-        target_chunks_df = base_df.copy().reset_index(drop=True)
-    elif target_mode == "selected_chunk_ids_1based":
-        valid_chunk_ids = set(base_df["chunk_id"].astype(int).tolist())
-        selected_chunk_ids = sorted({int(x) - 1 for x in config.get("TARGET_CHUNK_IDS_1BASED", []) if int(x) >= 1})
-        selected_chunk_ids = [x for x in selected_chunk_ids if x in valid_chunk_ids]
-        assert selected_chunk_ids, {
-            "reason": "selected target chunk ids resolved empty",
-            "selected_chunk_ids_1based": config.get("TARGET_CHUNK_IDS_1BASED", []),
-            "valid_chunk_ids_0based": sorted(valid_chunk_ids),
-        }
-        target_chunks_df = base_df.loc[base_df["chunk_id"].astype(int).isin(selected_chunk_ids)].copy()
-        target_chunks_df = target_chunks_df.sort_values("chunk_id", kind="stable").reset_index(drop=True)
-    elif config.get("USE_TARGET_CHUNK_WINDOW", False):
-        start_0 = max(0, int(config.get("TARGET_CHUNK_WINDOW_START_1BASED", 1)) - 1)
-        end_0 = min(start_0 + int(config.get("TARGET_CHUNK_WINDOW_COUNT", 3)), len(base_df))
-        target_chunks_df = base_df.iloc[start_0:end_0].copy().reset_index(drop=True)
-    else:
-        raise AssertionError({"reason": "unsupported target chunk mode", "target_mode": target_mode})
+    target_chunks_df = chunk_execution_plan_df.loc[chunk_execution_plan_df["is_target"].fillna(False)].copy()
+    if len(target_chunks_df) == 0:
+        target_chunks_df = chunk_execution_plan_df.copy()
+    sort_cols = [c for c in ["target_local_chunk_index", "execution_batch_index", "chunk_id"] if c in target_chunks_df.columns]
+    if sort_cols:
+        target_chunks_df = target_chunks_df.sort_values(sort_cols, kind="stable").reset_index(drop=True)
     target_chunks_df.to_csv(target_path, index=False, encoding="utf-8")
     return target_chunks_df
 
@@ -214,7 +178,7 @@ def resolve_chunk_output_dir(chunk_name: str) -> Path:
 def resolve_chunk_input_dir(chunk_name: str) -> Path:
     return resolve_chunk_output_dir(chunk_name)
 
-all_chunks_df = pd.read_csv(chunk_manifest_dir / "chunk_index_all.csv")
+all_chunks_df = chunk_execution_plan_df.copy()
 target_chunks_df = ensure_target_chunk_manifest()
 completed_chunk_names = []
 pred_ready_chunk_names = []
@@ -245,7 +209,10 @@ summary_rows = [json.loads(Path(p).read_text(encoding="utf-8")) for p in batch_s
 all_batch_summary_path = final_outputs_diagnostics_dir / "all_batch_summary_arc.json"
 all_batch_summary_path.write_text(json.dumps(summary_rows, indent=2, ensure_ascii=False), encoding="utf-8")
 merge_summary_path = final_outputs_diagnostics_dir / "merge_summary.json"
-premerge_pose_validation_path = graph_persist_only_dir / "premerge_pose_validation.json"
+graph_gate_report_path = graph_persist_only_dir / "graph_gate_report.json"
+graph_gate_report = load_json(graph_gate_report_path) if graph_gate_report_path.exists() else {}
+graph_artifacts = graph_gate_report.get("artifacts", {})
+premerge_pose_validation_path = Path(graph_artifacts.get("premerge_pose_validation_json", graph_persist_only_dir / "premerge_pose_validation.json"))
 
 if not premerge_pose_validation_path.exists():
     merge_summary = {
@@ -260,10 +227,10 @@ if not premerge_pose_validation_path.exists():
     raise AssertionError("run #13-1 pre-merge pose gate before #14-1 merge")
 
 premerge_pose_validation = json.loads(premerge_pose_validation_path.read_text(encoding="utf-8"))
-premerge_route_compare_path = graph_persist_only_dir / "premerge_route_compare_summary.json"
-prepose_chunk_graph_solution_path = graph_persist_only_dir / "prepose_chunk_graph_solution_arc.csv"
-prepose_chunk_graph_summary_path = graph_persist_only_dir / "prepose_chunk_graph_summary.json"
-premerge_validation_csv_path = graph_persist_only_dir / "premerge_pose_validation.csv"
+premerge_route_compare_path = Path(graph_artifacts.get("premerge_route_compare_summary_json", graph_persist_only_dir / "premerge_route_compare_summary.json"))
+prepose_chunk_graph_solution_path = Path(graph_artifacts.get("prepose_chunk_graph_solution_csv", graph_persist_only_dir / "prepose_chunk_graph_solution_arc.csv"))
+prepose_chunk_graph_summary_path = Path(graph_artifacts.get("prepose_chunk_graph_summary_json", graph_persist_only_dir / "prepose_chunk_graph_summary.json"))
+premerge_validation_csv_path = Path(graph_artifacts.get("premerge_pose_validation_csv", graph_persist_only_dir / "premerge_pose_validation.csv"))
 allowed_premerge_status = {"ok", "warning"}
 if str(premerge_pose_validation.get("status")) not in allowed_premerge_status:
     merge_summary = {
@@ -1260,8 +1227,7 @@ else:
         (anchor_dir / "camera_center_matrix_arc.csv", final_outputs_manifests_dir / "camera_center_matrix_arc.csv"),
         (anchor_dir / "camera_matrix_full_arc.csv", final_outputs_manifests_dir / "camera_matrix_full_arc.csv"),
         (anchor_dir / "camera_anchor_full_arc.csv", final_outputs_manifests_dir / "camera_anchor_full_arc.csv"),
-        (chunk_manifest_dir / "chunk_index_all.csv", final_outputs_manifests_dir / "chunk_index_all.csv"),
-        (chunk_manifest_dir / "batch_plan.csv", final_outputs_manifests_dir / "batch_plan.csv"),
+        (chunk_execution_plan_path, final_outputs_manifests_dir / "chunk_execution_plan.csv"),
     ]
     final_output_files = []
     for src, dst in manifest_copy_plan:
@@ -1312,6 +1278,7 @@ else:
             "download_requested": False,
         }
 
+    merge_output_report_path = merge_persist_only_dir / "merge_output_report.json"
     final_output_manifest = {
         "status": "ok" if final_output_files else "partial",
         "drive_visible_dir": str(probe_root),
@@ -1328,14 +1295,40 @@ else:
         "file_count": int(len(final_output_files)),
         "files": final_output_files,
     }
-    (final_outputs_dir / "final_output_manifest_arc.json").write_text(json.dumps(final_output_manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+    final_output_manifest_path = final_outputs_dir / "final_output_manifest_arc.json"
+    final_output_manifest_path.write_text(json.dumps(final_output_manifest, indent=2, ensure_ascii=False), encoding="utf-8")
+    save_json(merge_output_report_path, {
+        "stage": "#11-1",
+        "status": final_output_manifest["status"],
+        "canonical_root": str(merge_persist_only_dir),
+        "chunk_execution_plan_path": str(chunk_execution_plan_path),
+        "graph_gate_report_path": str(graph_gate_report_path) if graph_gate_report_path.exists() else None,
+        "merge_summary_path": str(merge_summary_path),
+        "final_output_manifest_path": str(final_output_manifest_path),
+        "artifacts": {
+            "merged_gs_arc_ply": str(merged_ply_path) if merged_ply_path.exists() else None,
+            "merged_scene_arc_glb": str(merged_glb_path) if merged_glb_path.exists() else None,
+            "chunk_global_transforms_csv": str(chunk_manifest_dir / "chunk_global_transforms_arc.csv"),
+            "merge_route_compare_csv": str(route_compare_path),
+            "chunk_keep_summary_csv": str(keep_summary_path),
+            "chunk_transform_quality_csv": str(transform_quality_path),
+            "merge_warning_summary_json": str(final_outputs_diagnostics_dir / "merge_warning_summary_arc.json"),
+            "all_batch_summary_json": str(all_batch_summary_path),
+            "merged_camera_pose_csv": str(merged_camera_pose_csv),
+            "merged_camera_matrix_csv": str(merged_camera_matrix_csv),
+            "merged_camera_c2w_npy": str(merged_camera_c2w_npy),
+            "merged_extrinsics_w2c_npy": str(merged_camera_w2c_npy),
+            "ngl_pose_bundle_summary_json": str(ngl_bundle_dir / "ngl_pose_bundle_summary.json"),
+        },
+    })
     stage_access_index_path.write_text(json.dumps({
         "stage": "#11-1",
         "canonical_root": str(merge_persist_only_dir),
+        "merge_output_report_path": str(merge_output_report_path),
         "stage_11_2_manifest_path": str(stage_11_2_manifest_path),
         "stage_11_3_manifest_path": str(stage_11_3_manifest_path),
         "merge_resume_state_path": str(merge_resume_state_path),
-        "final_output_manifest_path": str(final_outputs_dir / "final_output_manifest_arc.json"),
+        "final_output_manifest_path": str(final_output_manifest_path),
     }, indent=2, ensure_ascii=False), encoding="utf-8")
 
     if not all_vertices and not INFER_GS:
@@ -1384,7 +1377,8 @@ else:
         "fallback_used_count": fallback_used_count,
         "preferred_fallback_used_count": preferred_fallback_used_count,
         "final_outputs_dir": str(final_outputs_dir),
-        "final_output_manifest_path": str(final_outputs_dir / "final_output_manifest_arc.json"),
+        "merge_output_report_path": str(merge_output_report_path),
+        "final_output_manifest_path": str(final_output_manifest_path),
         "bundle_summary": bundle_summary,
     }
     merge_summary_path.write_text(json.dumps(merge_summary, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -1393,15 +1387,16 @@ else:
         "11-1",
         "merge",
         inputs=[
-            {"item": "batch_execution_items", "path": str(batch_execution_items_path)},
+            {"item": "chunk_execution_plan", "path": str(chunk_execution_plan_path)},
             {"item": "camera_anchor_full", "path": str(anchor_dir / "camera_anchor_full_arc.csv")},
             {"item": "da3_input_manifest", "path": str(input_manifest_path)},
         ],
         outputs=[
             {"item": "merge_summary", "path": str(merge_summary_path)},
+            {"item": "merge_output_report", "path": str(merge_output_report_path)},
             {"item": "merged_gs", "path": str(merged_ply_path)},
             {"item": "merged_scene_glb", "path": str(merged_glb_path)},
-            {"item": "final_output_manifest", "path": str(final_outputs_dir / "final_output_manifest_arc.json")},
+            {"item": "final_output_manifest", "path": str(final_output_manifest_path)},
             {"item": "chunk_global_transforms", "path": str(chunk_manifest_dir / "chunk_global_transforms_arc.csv")},
             {"item": "merge_route_compare", "path": str(route_compare_path)},
             {"item": "chunk_keep_summary", "path": str(keep_summary_path)},

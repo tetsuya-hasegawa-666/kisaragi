@@ -26,6 +26,7 @@ MANUAL_EXTERNAL_KEYS = {
 }
 
 CRITICAL_ARTIFACT_KEYS = {
+    "chunk_execution_plan.csv",
     "batch_execution_items.csv",
     "chunk_input_manifest_arc.csv",
     "chunk_index_all.csv",
@@ -38,8 +39,10 @@ CRITICAL_ARTIFACT_KEYS = {
     "pred_extrinsics.npy",
     "chunk_input_frames.csv",
     "premerge_pose_validation.json",
+    "graph_gate_report.json",
     "prepose_chunk_graph_solution_arc.csv",
     "chunk_global_transforms_arc.csv",
+    "merge_output_report.json",
     "merged_camera_pose_arc.csv",
 }
 

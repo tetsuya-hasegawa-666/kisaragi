@@ -20,11 +20,14 @@ final_outputs_diagnostics_dir.mkdir(parents=True, exist_ok=True)
 wrapper_path = Path("/content/Depth-Anything-3/run_da3_chunk_local.py")
 assert wrapper_path.exists(), wrapper_path
 
+chunk_execution_plan_path = chunk_manifest_dir / "chunk_execution_plan.csv"
 batch_execution_items_path = chunk_manifest_dir / "batch_execution_items.csv"
-assert batch_execution_items_path.exists(), batch_execution_items_path
+assert chunk_execution_plan_path.exists(), chunk_execution_plan_path
 
-items_df = pd.read_csv(batch_execution_items_path)
-assert not items_df.empty, batch_execution_items_path
+items_df = pd.read_csv(chunk_execution_plan_path)
+if "is_target" in items_df.columns:
+    items_df = items_df.loc[items_df["is_target"].fillna(False)].copy()
+assert not items_df.empty, chunk_execution_plan_path
 sort_cols = [c for c in ["chunk_id", "batch_index", "target_local_chunk_index", "chunk_name"] if c in items_df.columns]
 if sort_cols:
     items_df = items_df.sort_values(sort_cols, kind="stable").reset_index(drop=True)
@@ -280,7 +283,7 @@ display_stage_summary(
     "8-9",
     "chunk execution (sequential seeded sliding-window)",
     inputs=[
-        {"item": "batch_execution_items", "path": str(batch_execution_items_path)},
+        {"item": "chunk_execution_plan", "path": str(chunk_execution_plan_path)},
         {"item": "wrapper", "path": str(wrapper_path)},
     ],
     outputs=[

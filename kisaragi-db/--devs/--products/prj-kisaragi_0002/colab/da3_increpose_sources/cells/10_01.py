@@ -27,15 +27,18 @@ stage_10_persist_only_dir.mkdir(parents=True, exist_ok=True)
 anchor_dir = persist_root / "01_anchor"
 camera_anchor_full_path = anchor_dir / "camera_anchor_full_arc.csv"
 
+chunk_execution_plan_path = chunk_manifest_dir / "chunk_execution_plan.csv"
 batch_execution_items_path = chunk_manifest_dir / "batch_execution_items.csv"
 run_status_path = final_outputs_diagnostics_dir / "batch_run_status_arc.csv"
 seed_trace_path = final_outputs_diagnostics_dir / "incremental_seed_trace_arc.csv"
 
-assert batch_execution_items_path.exists(), batch_execution_items_path
+assert chunk_execution_plan_path.exists(), chunk_execution_plan_path
 assert camera_anchor_full_path.exists(), camera_anchor_full_path
 
-items_df = pd.read_csv(batch_execution_items_path)
-assert not items_df.empty, batch_execution_items_path
+items_df = pd.read_csv(chunk_execution_plan_path)
+if "is_target" in items_df.columns:
+    items_df = items_df.loc[items_df["is_target"].fillna(False)].copy()
+assert not items_df.empty, chunk_execution_plan_path
 sort_cols = [c for c in ["chunk_id", "batch_index", "batch_name", "chunk_name"] if c in items_df.columns]
 if sort_cols:
     items_df = items_df.sort_values(sort_cols, kind="stable").reset_index(drop=True)
@@ -82,6 +85,7 @@ graph_summary_json = stage_10_persist_only_dir / "prepose_chunk_graph_summary.js
 graph_opt_summary_json = stage_10_persist_only_dir / "prepose_graph_optimization_summary.json"
 validation_json = stage_10_persist_only_dir / "premerge_pose_validation.json"
 validation_csv = stage_10_persist_only_dir / "premerge_pose_validation.csv"
+graph_gate_report_path = stage_10_persist_only_dir / "graph_gate_report.json"
 graph_contract_manifest_path = stage_10_reaccess_dir / "graph_contract_manifest.json"
 identity_transform_csv = chunk_manifest_dir / "chunk_global_transforms_arc.csv"
 
@@ -649,10 +653,30 @@ save_json(graph_opt_summary_json, {
     "reason": "sim3_graph_mainflow_removed",
     "status": status,
 })
+save_json(graph_gate_report_path, {
+    "stage": "#10-1",
+    "status": status,
+    "canonical_root": str(stage_10_persist_only_dir),
+    "chunk_execution_plan_path": str(chunk_execution_plan_path),
+    "artifacts": {
+        "premerge_pose_validation_json": str(validation_json),
+        "premerge_pose_validation_csv": str(validation_csv),
+        "prepose_chunk_graph_solution_csv": str(graph_solution_csv),
+        "prepose_chunk_graph_summary_json": str(graph_summary_json),
+        "prepose_graph_optimization_summary_json": str(graph_opt_summary_json),
+        "premerge_route_compare_summary_json": str(route_compare_json),
+        "premerge_route_compare_csv": str(route_compare_csv),
+        "pred_vs_anchor_pose_residual_csv": str(residual_csv),
+        "pred_vs_anchor_pose_residual_missing_pred_csv": str(missing_pred_csv),
+        "premerge_pose_gate_csv": str(gate_csv),
+        "chunk_global_transforms_csv": str(identity_transform_csv),
+    },
+})
 save_json(graph_contract_manifest_path, {
     "stage": "#10-1",
     "status": status,
     "canonical_root": str(stage_10_persist_only_dir),
+    "graph_gate_report_path": str(graph_gate_report_path),
     "canonical_artifacts": {
         "premerge_pose_validation_json": str(validation_json),
         "premerge_pose_validation_csv": str(validation_csv),
@@ -687,9 +711,9 @@ display_stage_summary(
         {"item": "residual_csv", "path": str(residual_csv)},
         {"item": "graph_solution_csv_compat", "path": str(graph_solution_csv)},
         {"item": "identity_transform_csv", "path": str(identity_transform_csv)},
+        {"item": "graph_gate_report", "path": str(graph_gate_report_path)},
         {"item": "graph_contract_manifest", "path": str(graph_contract_manifest_path)},
     ],
 )
 
-items_df = pd.read_csv(batch_execution_items_path)
-display(items_df[["chunk_id", "chunk_name", "batch_name", "batch_work_dir"]].head(20))
+display(items_df[[c for c in ["chunk_id", "chunk_name", "batch_name", "batch_work_dir"] if c in items_df.columns]].head(20))

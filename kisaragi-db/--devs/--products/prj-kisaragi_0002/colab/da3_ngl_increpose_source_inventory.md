@@ -22,17 +22,17 @@
 | #8-1 | `cells/08_01.py` | `direct` | 8 Chunk Run Preparation And Execution | ranked_image_dirs, lap_var, read_actual_wh, normalize_intrinsics_to_upright, quat_to_rot, pose_to_w2c, build_K | ctx, images_dir, frame_record_path, frame_pose_index_path, manifest_dir, CANONICAL_ORIENTATION_POLICY, BLUR_THRESHOLD, frame_pose_df, image_name_by_record_index, image_dir_ranking, resolved_images_dir, rows | `DOC-I08-01` |
 | #8-2 | `cells/08_02.py` | `direct` | 8 Chunk Run Preparation And Execution | - | ctx, manifest_dir, managed_dirs, record_dir, p, df, ts_col, df | `DOC-I08-02` |
 | #8-3 | `cells/08_03.py` | `direct` | 8 Chunk Run Preparation And Execution | - | ctx, probe_root, persist_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, anchor_dir, camera_anchor_full_path, anchor_df, CHUNK_SIZE, CHUNK_STEP, CONTEXT_SIZE | `DOC-I08-03` |
-| #8-4 | `cells/08_04.py` | `direct` | 8 Chunk Run Preparation And Execution | - | ctx, probe_root, pipeline_root, chunk_manifest_dir, batch_execution_items_path, chunk_input_manifest_path, chunk_index_all_path, input_manifest_df, rows, precheck_df, precheck_path, bad_chunk_count | `DOC-I08-04` |
-| #8-5 | `cells/08_05.py` | `direct` | 8 Chunk Run Preparation And Execution | build_target_chunk_and_batch_plan | ctx, probe_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, config_snapshot, test_chunk_with_batch_path, test_batch_plan_path, canonical_chunk_with_batch_path, canonical_batch_plan_path, fallback_chunk_target_path, fallback_batch_plan_path | `DOC-I08-05` |
-| #8-6 | `cells/08_06.py` | `direct` | 8 Chunk Run Preparation And Execution | - | ctx, probe_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, merged_dir, final_outputs_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir, final_outputs_chunk_evidence_dir, final_outputs_merged_dir, execution_chunks_path | `DOC-I08-06` |
-| #8-7 | `cells/08_07.py` | `direct` | 8 Chunk Run Preparation And Execution | - | ctx, probe_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, final_outputs_diagnostics_dir, execution_chunks_path, execution_batch_plan_path, execution_chunks_df, execution_batch_plan_df, batch_execution_items_df, batch_execution_items_path | `DOC-I08-07` |
+| #8-4 | `cells/08_04.py` | `direct` | 8 Chunk Run Preparation And Execution | - | ctx, probe_root, pipeline_root, chunk_manifest_dir, chunk_execution_plan_path, batch_execution_items_path, chunk_input_manifest_path, chunk_index_all_path, input_manifest_df, rows, precheck_df, precheck_path | `DOC-I08-04` |
+| #8-5 | `cells/08_05.py` | `direct` | 8 Chunk Run Preparation And Execution | build_target_chunk_and_batch_plan | ctx, probe_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, config_snapshot, chunk_execution_plan_path, test_chunk_with_batch_path, test_batch_plan_path, canonical_chunk_with_batch_path, canonical_batch_plan_path, fallback_chunk_target_path | `DOC-I08-05` |
+| #8-6 | `cells/08_06.py` | `direct` | 8 Chunk Run Preparation And Execution | - | ctx, probe_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, merged_dir, final_outputs_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir, final_outputs_chunk_evidence_dir, final_outputs_merged_dir, chunk_execution_plan_path | `DOC-I08-06` |
+| #8-7 | `cells/08_07.py` | `direct` | 8 Chunk Run Preparation And Execution | - | ctx, probe_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, final_outputs_diagnostics_dir, chunk_execution_plan_path, execution_chunks_path, execution_batch_plan_path, execution_chunks_df, execution_batch_plan_df, batch_execution_items_df | `DOC-I08-07` |
 | #8-8 | `cells/08_08.py` | `direct` | 8 Chunk Run Preparation And Execution | - | repo_root, src_root, wrapper_path, wrapper_code | `DOC-I08-08` |
-| #8-9 | `cells/08_09.py` | `direct` | 8 Chunk Run Preparation And Execution | ensure_pose4x4_batch, apply_incremental_seed_to_chunk_df, update_accepted_pose_map_from_chunk | ctx, probe_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, final_outputs_diagnostics_dir, wrapper_path, batch_execution_items_path, items_df, sort_cols, config_snapshot, DRY_RUN | `DOC-I08-09` |
+| #8-9 | `cells/08_09.py` | `direct` | 8 Chunk Run Preparation And Execution | ensure_pose4x4_batch, apply_incremental_seed_to_chunk_df, update_accepted_pose_map_from_chunk | ctx, probe_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, final_outputs_diagnostics_dir, wrapper_path, chunk_execution_plan_path, batch_execution_items_path, items_df, sort_cols, config_snapshot | `DOC-I08-09` |
 | #9-1 | `cells/09_01.py` | `direct` | 9 Chunk Alignment Coefficient Derivation | resolve_matching_chunk_names, resolve_chunk_artifact, c2w_list_from_extrinsics, pose_rows_to_frame_df, plot_pose_match, write_pose_match_html | ctx, config, probe_root, persist_root, pipeline_root, anchor_dir, chunk_manifest_dir, chunk_runs_dir, final_outputs_chunk_evidence_dir, final_outputs_diagnostics_dir, matching_dir, LOCAL_EXTRINSIC_MODE | `DOC-I09-01` |
 | #10-1 | `cells/10_01.py` | `direct` | 10 Global Prepose Graph And Gate | _record_col, _safe_int, _normalize, _angle_deg, _p95, _max_abs, _ensure_pose_batch, _w2c_to_c2w_batch, _poses_to_center_lens, _resolve_pred_path, _resolve_chunk_csv, _load_chunk_pose_df | ctx, probe_root, persist_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, merged_dir, final_outputs_diagnostics_dir, stage_10_reaccess_dir, stage_10_persist_only_dir, anchor_dir, camera_anchor_full_path | `DOC-I10-01` |
 | #10-2 | `cells/10_02.py` | `direct` | 10 Global Prepose Graph And Gate | - | ctx, probe_root, pipeline_root, chunk_manifest_dir, merged_dir, final_outputs_diagnostics_dir, validation_json, route_compare_json, route_compare_csv, graph_solution_csv, graph_summary_json, batch_execution_items_path | `DOC-I10-02` |
 | #11-1 | `cells/11_01.py` | `direct` | 11 Merge And Review | ensure_target_chunk_manifest, resolve_chunk_output_dir, resolve_chunk_input_dir | missing_merge_deps, batch_preflight_status_path, ctx, probe_root, results_root, persist_root, modeling_session_id, manifest_dir, final_outputs_dir, final_outputs_merged_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir | `DOC-I11-01` |
-| #11-2 | `cells/11_02.py` | `direct` | 11 Merge And Review | _resolve_center_cols, _resolve_dir_cols, _load_transform_map, _resolve_chunk_output_dir, _sample_indices, _py_bool, _poses_to_centers_dirs | ctx, probe_root, persist_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, merged_dir, anchor_dir, anchor_path, graph_solution_path, transform_path, merged_camera_pose_path | `DOC-I11-02` |
+| #11-2 | `cells/11_02.py` | `direct` | 11 Merge And Review | _resolve_center_cols, _resolve_dir_cols, _load_transform_map, _resolve_chunk_output_dir, _sample_indices, _py_bool, _poses_to_centers_dirs | ctx, probe_root, persist_root, pipeline_root, chunk_manifest_dir, chunk_runs_dir, merge_persist_only_dir, merged_dir, anchor_dir, anchor_path, graph_solution_path, transform_path | `DOC-I11-02` |
 
 ## Markdown Inventory
 
@@ -387,10 +387,13 @@
 | chunk_input_manifest_path | #8-3 | 8 Chunk Run Preparation And Execution | `DOC-I08-03` |
 | chunk_index_all_df | #8-3 | 8 Chunk Run Preparation And Execution | `DOC-I08-03` |
 | chunk_index_all_path | #8-3 | 8 Chunk Run Preparation And Execution | `DOC-I08-03` |
+| chunk_execution_plan_df | #8-3 | 8 Chunk Run Preparation And Execution | `DOC-I08-03` |
+| chunk_execution_plan_path | #8-3 | 8 Chunk Run Preparation And Execution | `DOC-I08-03` |
 | ctx | #8-4 | 8 Chunk Run Preparation And Execution | `DOC-I08-04` |
 | probe_root | #8-4 | 8 Chunk Run Preparation And Execution | `DOC-I08-04` |
 | pipeline_root | #8-4 | 8 Chunk Run Preparation And Execution | `DOC-I08-04` |
 | chunk_manifest_dir | #8-4 | 8 Chunk Run Preparation And Execution | `DOC-I08-04` |
+| chunk_execution_plan_path | #8-4 | 8 Chunk Run Preparation And Execution | `DOC-I08-04` |
 | batch_execution_items_path | #8-4 | 8 Chunk Run Preparation And Execution | `DOC-I08-04` |
 | chunk_input_manifest_path | #8-4 | 8 Chunk Run Preparation And Execution | `DOC-I08-04` |
 | chunk_index_all_path | #8-4 | 8 Chunk Run Preparation And Execution | `DOC-I08-04` |
@@ -405,6 +408,7 @@
 | chunk_manifest_dir | #8-5 | 8 Chunk Run Preparation And Execution | `DOC-I08-05` |
 | chunk_runs_dir | #8-5 | 8 Chunk Run Preparation And Execution | `DOC-I08-05` |
 | config_snapshot | #8-5 | 8 Chunk Run Preparation And Execution | `DOC-I08-05` |
+| chunk_execution_plan_path | #8-5 | 8 Chunk Run Preparation And Execution | `DOC-I08-05` |
 | test_chunk_with_batch_path | #8-5 | 8 Chunk Run Preparation And Execution | `DOC-I08-05` |
 | test_batch_plan_path | #8-5 | 8 Chunk Run Preparation And Execution | `DOC-I08-05` |
 | canonical_chunk_with_batch_path | #8-5 | 8 Chunk Run Preparation And Execution | `DOC-I08-05` |
@@ -430,6 +434,7 @@
 | final_outputs_manifests_dir | #8-6 | 8 Chunk Run Preparation And Execution | `DOC-I08-06` |
 | final_outputs_chunk_evidence_dir | #8-6 | 8 Chunk Run Preparation And Execution | `DOC-I08-06` |
 | final_outputs_merged_dir | #8-6 | 8 Chunk Run Preparation And Execution | `DOC-I08-06` |
+| chunk_execution_plan_path | #8-6 | 8 Chunk Run Preparation And Execution | `DOC-I08-06` |
 | execution_chunks_path | #8-6 | 8 Chunk Run Preparation And Execution | `DOC-I08-06` |
 | execution_batch_plan_path | #8-6 | 8 Chunk Run Preparation And Execution | `DOC-I08-06` |
 | target_chunks_df | #8-6 | 8 Chunk Run Preparation And Execution | `DOC-I08-06` |
@@ -457,6 +462,7 @@
 | chunk_manifest_dir | #8-7 | 8 Chunk Run Preparation And Execution | `DOC-I08-07` |
 | chunk_runs_dir | #8-7 | 8 Chunk Run Preparation And Execution | `DOC-I08-07` |
 | final_outputs_diagnostics_dir | #8-7 | 8 Chunk Run Preparation And Execution | `DOC-I08-07` |
+| chunk_execution_plan_path | #8-7 | 8 Chunk Run Preparation And Execution | `DOC-I08-07` |
 | execution_chunks_path | #8-7 | 8 Chunk Run Preparation And Execution | `DOC-I08-07` |
 | execution_batch_plan_path | #8-7 | 8 Chunk Run Preparation And Execution | `DOC-I08-07` |
 | execution_chunks_df | #8-7 | 8 Chunk Run Preparation And Execution | `DOC-I08-07` |
@@ -478,6 +484,7 @@
 | chunk_runs_dir | #8-9 | 8 Chunk Run Preparation And Execution | `DOC-I08-09` |
 | final_outputs_diagnostics_dir | #8-9 | 8 Chunk Run Preparation And Execution | `DOC-I08-09` |
 | wrapper_path | #8-9 | 8 Chunk Run Preparation And Execution | `DOC-I08-09` |
+| chunk_execution_plan_path | #8-9 | 8 Chunk Run Preparation And Execution | `DOC-I08-09` |
 | batch_execution_items_path | #8-9 | 8 Chunk Run Preparation And Execution | `DOC-I08-09` |
 | items_df | #8-9 | 8 Chunk Run Preparation And Execution | `DOC-I08-09` |
 | sort_cols | #8-9 | 8 Chunk Run Preparation And Execution | `DOC-I08-09` |
@@ -547,6 +554,7 @@
 | stage_10_persist_only_dir | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
 | anchor_dir | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
 | camera_anchor_full_path | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
+| chunk_execution_plan_path | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
 | batch_execution_items_path | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
 | run_status_path | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
 | seed_trace_path | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
@@ -571,6 +579,7 @@
 | graph_opt_summary_json | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
 | validation_json | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
 | validation_csv | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
+| graph_gate_report_path | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
 | graph_contract_manifest_path | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
 | identity_transform_csv | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
 | MAT_COLS | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
@@ -601,7 +610,6 @@
 | validation | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
 | graph_summary | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
 | missing_chunk_df | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
-| items_df | #10-1 | 10 Global Prepose Graph And Gate | `DOC-I10-01` |
 | ctx | #10-2 | 10 Global Prepose Graph And Gate | `DOC-I10-02` |
 | probe_root | #10-2 | 10 Global Prepose Graph And Gate | `DOC-I10-02` |
 | pipeline_root | #10-2 | 10 Global Prepose Graph And Gate | `DOC-I10-02` |
@@ -665,7 +673,9 @@
 | config_snapshot | #11-1 | 11 Merge And Review | `DOC-I11-01` |
 | MAKE_DRIVE_BUNDLE | #11-1 | 11 Merge And Review | `DOC-I11-01` |
 | INFER_GS | #11-1 | 11 Merge And Review | `DOC-I11-01` |
+| chunk_execution_plan_path | #11-1 | 11 Merge And Review | `DOC-I11-01` |
 | batch_execution_items_path | #11-1 | 11 Merge And Review | `DOC-I11-01` |
+| chunk_execution_plan_df | #11-1 | 11 Merge And Review | `DOC-I11-01` |
 | TRANSFORM_SCALE_MIN | #11-1 | 11 Merge And Review | `DOC-I11-01` |
 | TRANSFORM_SCALE_MAX | #11-1 | 11 Merge And Review | `DOC-I11-01` |
 | TRANSFORM_CENTER_RMSE_MAX | #11-1 | 11 Merge And Review | `DOC-I11-01` |
@@ -691,6 +701,9 @@
 | summary_rows | #11-1 | 11 Merge And Review | `DOC-I11-01` |
 | all_batch_summary_path | #11-1 | 11 Merge And Review | `DOC-I11-01` |
 | merge_summary_path | #11-1 | 11 Merge And Review | `DOC-I11-01` |
+| graph_gate_report_path | #11-1 | 11 Merge And Review | `DOC-I11-01` |
+| graph_gate_report | #11-1 | 11 Merge And Review | `DOC-I11-01` |
+| graph_artifacts | #11-1 | 11 Merge And Review | `DOC-I11-01` |
 | premerge_pose_validation_path | #11-1 | 11 Merge And Review | `DOC-I11-01` |
 | premerge_pose_validation | #11-1 | 11 Merge And Review | `DOC-I11-01` |
 | premerge_route_compare_path | #11-1 | 11 Merge And Review | `DOC-I11-01` |
@@ -716,19 +729,22 @@
 | pipeline_root | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | chunk_manifest_dir | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | chunk_runs_dir | #11-2 | 11 Merge And Review | `DOC-I11-02` |
+| merge_persist_only_dir | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | merged_dir | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | anchor_dir | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | anchor_path | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | graph_solution_path | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | transform_path | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | merged_camera_pose_path | #11-2 | 11 Merge And Review | `DOC-I11-02` |
-| batch_execution_items_path | #11-2 | 11 Merge And Review | `DOC-I11-02` |
+| chunk_execution_plan_path | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | merge_summary_path | #11-2 | 11 Merge And Review | `DOC-I11-02` |
+| merge_output_report_path | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | required | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | missing | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | anchor_df | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | items_df | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | merge_summary | #11-2 | 11 Merge And Review | `DOC-I11-02` |
+| merge_output_report | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | transform_df | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | anchor_center_cols | #11-2 | 11 Merge And Review | `DOC-I11-02` |
 | anchor_dir_cols | #11-2 | 11 Merge And Review | `DOC-I11-02` |

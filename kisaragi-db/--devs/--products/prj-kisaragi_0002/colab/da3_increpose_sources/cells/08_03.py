@@ -151,11 +151,25 @@ chunk_index_all_df = pd.DataFrame(chunk_index_rows)
 chunk_index_all_path = chunk_manifest_dir / "chunk_index_all.csv"
 chunk_index_all_df.to_csv(chunk_index_all_path, index=False, encoding="utf-8")
 
+chunk_execution_plan_df = batch_execution_items_df.merge(
+    chunk_index_all_df,
+    on=["chunk_id", "chunk_name", "batch_index", "batch_name", "batch_work_dir", "chunk_out_dir"],
+    how="outer",
+)
+chunk_execution_plan_df["is_target"] = False
+chunk_execution_plan_df["target_local_chunk_index"] = pd.Series([pd.NA] * len(chunk_execution_plan_df), dtype="Int64")
+chunk_execution_plan_df["execution_batch_index"] = chunk_execution_plan_df["batch_index"].astype("Int64")
+chunk_execution_plan_df["execution_batch_name"] = chunk_execution_plan_df["batch_name"].astype(str)
+chunk_execution_plan_path = chunk_manifest_dir / "chunk_execution_plan.csv"
+chunk_execution_plan_df.to_csv(chunk_execution_plan_path, index=False, encoding="utf-8")
+
 display(batch_execution_items_df.head(10))
 display(chunk_input_manifest_df.head(20))
 display(chunk_index_all_df.head(10))
+display(chunk_execution_plan_df.head(10))
 
 print("chunks:", len(batch_execution_items_df))
 print("chunk execution manifest:", batch_execution_items_path)
 print("chunk input manifest:", chunk_input_manifest_path)
 print("chunk index manifest:", chunk_index_all_path)
+print("chunk execution plan:", chunk_execution_plan_path)

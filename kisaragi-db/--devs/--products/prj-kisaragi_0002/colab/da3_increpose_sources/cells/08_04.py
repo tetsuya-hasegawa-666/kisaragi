@@ -9,11 +9,15 @@ probe_root = Path(ctx["probe_root"])
 pipeline_root = probe_root / ctx.get("pipeline_slug", "da3_ngl_batch_v01")
 chunk_manifest_dir = pipeline_root / "manifests"
 
+chunk_execution_plan_path = chunk_manifest_dir / "chunk_execution_plan.csv"
 batch_execution_items_path = chunk_manifest_dir / "batch_execution_items.csv"
 chunk_input_manifest_path = chunk_manifest_dir / "chunk_input_manifest_arc.csv"
 chunk_index_all_path = chunk_manifest_dir / "chunk_index_all.csv"
 
-if batch_execution_items_path.exists():
+if chunk_execution_plan_path.exists():
+    chunk_index_df = pd.read_csv(chunk_execution_plan_path)
+    source_label = "chunk_execution_plan"
+elif batch_execution_items_path.exists():
     chunk_index_df = pd.read_csv(batch_execution_items_path)
     source_label = "batch_execution_items"
 elif chunk_index_all_path.exists():
@@ -22,6 +26,7 @@ elif chunk_index_all_path.exists():
 else:
     raise AssertionError({
         "missing_required_manifest": [
+            str(chunk_execution_plan_path),
             str(batch_execution_items_path),
             str(chunk_index_all_path),
         ]
@@ -89,7 +94,7 @@ display_stage_summary(
     "8-4",
     "batch chunk sequence precheck",
     inputs=[
-        {"item": source_label, "path": str(batch_execution_items_path if source_label == "batch_execution_items" else chunk_index_all_path)},
+        {"item": source_label, "path": str(chunk_execution_plan_path if source_label == "chunk_execution_plan" else (batch_execution_items_path if source_label == "batch_execution_items" else chunk_index_all_path))},
         {"item": "chunk_input_manifest_arc", "path": str(chunk_input_manifest_path)},
     ],
     outputs=[

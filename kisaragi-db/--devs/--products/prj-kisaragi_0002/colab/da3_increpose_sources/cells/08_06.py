@@ -14,9 +14,11 @@ final_outputs_manifests_dir = Path(ctx["final_outputs_manifests_dir"])
 final_outputs_chunk_evidence_dir = Path(ctx["final_outputs_chunk_evidence_dir"])
 final_outputs_merged_dir = Path(ctx["final_outputs_merged_dir"])
 
+chunk_execution_plan_path = chunk_manifest_dir / "chunk_execution_plan.csv"
 execution_chunks_path = chunk_manifest_dir / "execution_target_chunks.csv"
 execution_batch_plan_path = chunk_manifest_dir / "execution_target_batch_plan.csv"
 
+assert chunk_execution_plan_path.exists(), chunk_execution_plan_path
 assert execution_chunks_path.exists(), execution_chunks_path
 assert execution_batch_plan_path.exists(), execution_batch_plan_path
 
@@ -109,6 +111,7 @@ display_stage_summary(
     inputs=[
         {"item": "record_manifest", "path": str(record_manifest_path)},
         {"item": "sequence_precheck", "path": str(sequence_precheck_path)},
+        {"item": "chunk_execution_plan", "path": str(chunk_execution_plan_path)},
         {"item": "execution_target_chunks", "path": str(execution_chunks_path)},
         {"item": "execution_target_batch_plan", "path": str(execution_batch_plan_path)},
     ],
