@@ -260,7 +260,6 @@ def _managed_ref(ref: PathRef) -> bool:
         "<anchor_dir>",
         "<final_outputs_dir>",
         "<final_outputs_diagnostics_dir>",
-        "<final_outputs_manifests_dir>",
         "<final_outputs_chunk_evidence_dir>",
         "<batch_work_dir>",
         "<out_dir>",

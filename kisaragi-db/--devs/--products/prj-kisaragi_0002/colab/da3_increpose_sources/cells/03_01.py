@@ -148,12 +148,9 @@ def resolve_and_validate_paths(selected_doc: dict):
     world_dir = probe_root / "world_fusion_v01"
     manifest_dir = probe_root / "manifests"
     final_outputs_dir = probe_root / "final_outputs"
-    final_outputs_merged_dir = final_outputs_dir / "merged"
     final_outputs_diagnostics_dir = final_outputs_dir / "diagnostics"
-    final_outputs_manifests_dir = final_outputs_dir / "manifests"
     final_outputs_chunk_evidence_dir = final_outputs_dir / "chunk_evidence"
     stage_10_dir = final_outputs_dir / "#10-1"
-    stage_10_reaccess_dir = stage_10_dir / "re_access"
     stage_10_persist_only_dir = stage_10_dir / "persist_only"
     stage_11_dir = final_outputs_dir / "#11-1"
     stage_11_reaccess_dir = stage_11_dir / "re_access"
@@ -165,11 +162,9 @@ def resolve_and_validate_paths(selected_doc: dict):
         world_dir,
         manifest_dir,
         final_outputs_dir,
-        final_outputs_merged_dir,
         final_outputs_diagnostics_dir,
-        final_outputs_manifests_dir,
         final_outputs_chunk_evidence_dir,
-        stage_10_reaccess_dir,
+        stage_10_dir,
         stage_10_persist_only_dir,
         stage_11_reaccess_dir,
         stage_11_persist_only_dir,
@@ -189,12 +184,9 @@ def resolve_and_validate_paths(selected_doc: dict):
         "da3_nested_gs_dir": str(da3_nested_gs_dir),
         "world_dir": str(world_dir),
         "final_outputs_dir": str(final_outputs_dir),
-        "final_outputs_merged_dir": str(final_outputs_merged_dir),
         "final_outputs_diagnostics_dir": str(final_outputs_diagnostics_dir),
-        "final_outputs_manifests_dir": str(final_outputs_manifests_dir),
         "final_outputs_chunk_evidence_dir": str(final_outputs_chunk_evidence_dir),
         "stage_10_dir": str(stage_10_dir),
-        "stage_10_reaccess_dir": str(stage_10_reaccess_dir),
         "stage_10_persist_only_dir": str(stage_10_persist_only_dir),
         "stage_11_dir": str(stage_11_dir),
         "stage_11_reaccess_dir": str(stage_11_reaccess_dir),

@@ -16,9 +16,7 @@ manifest_dir = Path(ctx["manifest_dir"])
 da3_nested_dir = Path(ctx["da3_nested_dir"])
 world_dir = Path(ctx["world_dir"])
 final_outputs_dir = Path(ctx["final_outputs_dir"])
-final_outputs_merged_dir = Path(ctx["final_outputs_merged_dir"])
 final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
-final_outputs_manifests_dir = Path(ctx["final_outputs_manifests_dir"])
 final_outputs_chunk_evidence_dir = Path(ctx["final_outputs_chunk_evidence_dir"])
 images_dir = Path(ctx["images_dir"])
 frame_record_path = Path(ctx["frame_record_path"])
@@ -34,7 +32,7 @@ assert repo_root.exists(), repo_root
 assert src_root.exists(), src_root
 assert (src_root / "depth_anything_3" / "api.py").exists(), src_root / "depth_anything_3" / "api.py"
 
-for p in [manifest_dir, da3_nested_dir, world_dir, final_outputs_dir, final_outputs_merged_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir, final_outputs_chunk_evidence_dir]:
+for p in [manifest_dir, da3_nested_dir, world_dir, final_outputs_dir, final_outputs_diagnostics_dir, final_outputs_chunk_evidence_dir]:
     p.mkdir(parents=True, exist_ok=True)
 
 required_files = {

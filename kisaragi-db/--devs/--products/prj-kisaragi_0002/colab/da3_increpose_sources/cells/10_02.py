@@ -5,17 +5,17 @@ ctx = load_ctx()
 probe_root = Path(ctx["probe_root"])
 pipeline_root = probe_root / ctx.get("pipeline_slug", "runtime_workspace")
 chunk_manifest_dir = pipeline_root / "manifests"
-merged_dir = Path(ctx.get("merged_dir", str(pipeline_root / "merged")))
-merged_dir.mkdir(parents=True, exist_ok=True)
+stage_10_persist_only_dir = Path(ctx.get("stage_10_persist_only_dir", str(Path(ctx["final_outputs_dir"]) / "#10-1" / "persist_only")))
+stage_10_persist_only_dir.mkdir(parents=True, exist_ok=True)
 
 final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
 final_outputs_diagnostics_dir.mkdir(parents=True, exist_ok=True)
 
-validation_json = merged_dir / "premerge_pose_validation.json"
-route_compare_json = merged_dir / "premerge_route_compare_summary.json"
-route_compare_csv = merged_dir / "premerge_route_compare_arc.csv"
-graph_solution_csv = merged_dir / "prepose_chunk_graph_solution_arc.csv"   # compat: chunk validation summary
-graph_summary_json = merged_dir / "prepose_chunk_graph_summary.json"
+validation_json = stage_10_persist_only_dir / "premerge_pose_validation.json"
+route_compare_json = stage_10_persist_only_dir / "premerge_route_compare_summary.json"
+route_compare_csv = stage_10_persist_only_dir / "premerge_route_compare_arc.csv"
+graph_solution_csv = stage_10_persist_only_dir / "prepose_chunk_graph_solution_arc.csv"   # compat: chunk validation summary
+graph_summary_json = stage_10_persist_only_dir / "prepose_chunk_graph_summary.json"
 batch_execution_items_path = chunk_manifest_dir / "batch_execution_items.csv"
 
 required_paths = [

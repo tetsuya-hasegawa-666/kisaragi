@@ -1,0 +1,31 @@
+{
+  "sessionId": "session-20260403-194043",
+  "targetStage": "SpaceReconstruction",
+  "readyForSpaceReconstruction": true,
+  "allowModelingProceed": true,
+  "warnings": [],
+  "blockers": [],
+  "recommendedCorrections": [
+    "この session は correcting を通過し、次段の modeling へ進めます。"
+  ],
+  "imageOrientation": {
+    "policy": "rotate_right_90_upright",
+    "rotationClockwiseDegrees": 90,
+    "rawWidth": 640,
+    "rawHeight": 480,
+    "normalizedWidth": 480,
+    "normalizedHeight": 640
+  },
+  "requiredArtifacts": [
+    "session_package.json",
+    "input_readiness.json",
+    "sensor_quality.json",
+    "frame_pose_index.csv",
+    "camera_calibration_summary.json",
+    "frame_record.jsonl"
+  ],
+  "optionalArtifacts": [
+    "image"
+  ],
+  "recommendedNextAction": "modeling へ進める。frame画像群は record 単位の trajectreview\/image を優先して渡す"
+}

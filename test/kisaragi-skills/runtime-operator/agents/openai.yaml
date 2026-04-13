@@ -1,0 +1,7 @@
+interface:
+  display_name: "Runtime Operator"
+  short_description: "Stabilize branch state, Docker runtime, and FastAPI application paths before implementation work continues."
+  default_prompt: "Use $runtime-operator to verify branch state, recover Docker runtime issues, and keep FastAPI work on a stable startup path."
+
+policy:
+  allow_implicit_invocation: true

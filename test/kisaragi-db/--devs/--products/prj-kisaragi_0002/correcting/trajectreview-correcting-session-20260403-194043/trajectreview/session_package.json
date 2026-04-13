@@ -1,0 +1,87 @@
+{
+  "sessionId": "session-20260403-194043",
+  "status": "finalized",
+  "deviceModel": "SO-53B",
+  "sessionMode": "standard_handheld",
+  "timebase": {
+    "sessionStartWallTimeMs": 1775212843461,
+    "sessionStartElapsedRealtimeNanos": 1468035602956179
+  },
+  "requiredInputs": {
+    "session_manifest": true,
+    "video": true,
+    "frames": true,
+    "imu": true,
+    "bt": true
+  },
+  "optionalInputs": {
+    "poses": true,
+    "gnss": true,
+    "video_events": true
+  },
+  "streamCounts": {
+    "frames": 1170,
+    "imu": 3181,
+    "gnss": 5,
+    "bt": 18,
+    "poses": 1170
+  },
+  "collectorStatus": {
+    "camera2": "closed",
+    "sharedCamera": "closed",
+    "video": "captured",
+    "pose": "stopped",
+    "gnss": "active",
+    "ble": "active",
+    "arcore": "stopped"
+  },
+  "warnings": [],
+  "blockers": [],
+  "scores": {
+    "completenessScore": 1,
+    "poseCoverageRatio": 0.9906858594411516,
+    "imageIntrinsicsCoverageRatio": 1,
+    "lensDistortionCoverageRatio": 1
+  },
+  "cameraCalibration": {
+    "calibrationFrameCount": 1170,
+    "imageIntrinsicsCount": 1170,
+    "textureIntrinsicsCount": 1170,
+    "lensDistortionCount": 1170
+  },
+  "nearestDeltaNs": {
+    "imuNearestDeltaNs": 156,
+    "gnssNearestDeltaNs": 5028530831,
+    "btNearestDeltaNs": 8538594,
+    "poseNearestDeltaNs": 0
+  },
+  "mainVideoPath": "video.mp4",
+  "imageDirectory": "trajectreview\/image",
+  "framePoseIndexPath": "trajectreview\/frame_pose_index.csv",
+  "cameraCalibrationSummaryPath": "trajectreview\/camera_calibration_summary.json",
+  "frameRecordPath": "frame_record.jsonl",
+  "arcorePosePath": "frame_record.jsonl",
+  "imageOrientation": {
+    "policy": "rotate_right_90_upright",
+    "rotationClockwiseDegrees": 90,
+    "rawWidth": 640,
+    "rawHeight": 480,
+    "normalizedWidth": 480,
+    "normalizedHeight": 640
+  },
+  "sourceFiles": {
+    "manifest": "session_manifest.json",
+    "video": "video.mp4",
+    "frames": "frame_record.jsonl",
+    "imu": "imu.csv",
+    "gnss": "gnss.csv",
+    "bt": "ble_scan.jsonl",
+    "frameRecord": "frame_record.jsonl",
+    "poses": "frame_record.jsonl",
+    "videoEvents": "video_events.jsonl",
+    "cameraCalibrationSummary": "camera_calibration_summary.json",
+    "images": "trajectreview\/image"
+  },
+  "rawBundleRoot": "\/storage\/emulated\/0\/Android\/data\/com.reviework.correcting\/files\/Documents\/sessions\/session-20260403-194043",
+  "derivedBundleRoot": "\/storage\/emulated\/0\/Android\/data\/com.reviework.correcting\/files\/Documents\/sessions\/session-20260403-194043\/trajectreview"
+}

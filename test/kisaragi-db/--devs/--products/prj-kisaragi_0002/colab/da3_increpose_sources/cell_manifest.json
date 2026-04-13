@@ -1,0 +1,191 @@
+[
+  {
+    "token": "#1-1",
+    "source_file": "cells/01_01.py",
+    "kind": "direct",
+    "heading": "1 Runtime Bootstrap",
+    "docs_id": "DOC-I01-01"
+  },
+  {
+    "token": "#2-1",
+    "source_file": "cells/02_01.py",
+    "kind": "direct",
+    "heading": "2 Config",
+    "docs_id": "DOC-I02-01"
+  },
+  {
+    "token": "#3-1",
+    "source_file": "cells/03_01.py",
+    "kind": "direct",
+    "heading": "3 Input Select And Path Check",
+    "docs_id": "DOC-I03-01"
+  },
+  {
+    "token": "#4-1",
+    "source_file": "cells/04_01.py",
+    "kind": "direct",
+    "heading": "4 Tree Init",
+    "docs_id": "DOC-I04-01"
+  },
+  {
+    "token": "#4-2",
+    "source_file": "cells/04_02.py",
+    "kind": "direct",
+    "heading": "4 Tree Init",
+    "docs_id": "DOC-I04-02"
+  },
+  {
+    "token": "#5-1",
+    "source_file": "cells/05_01.py",
+    "kind": "direct",
+    "heading": "5 Install",
+    "docs_id": "DOC-I05-01"
+  },
+  {
+    "token": "#6-1",
+    "source_file": "cells/06_01.py",
+    "kind": "direct",
+    "heading": "6 Shared Helpers",
+    "docs_id": "DOC-I06-01"
+  },
+  {
+    "token": "#6-2",
+    "source_file": "cells/06_02.py",
+    "kind": "direct",
+    "heading": "6 Shared Helpers",
+    "docs_id": "DOC-I06-02"
+  },
+  {
+    "token": "#7-1",
+    "source_file": "cells/07_01.py",
+    "kind": "direct",
+    "heading": "7 Full Anchor Build",
+    "docs_id": "DOC-I07-01"
+  },
+  {
+    "token": "#7-2",
+    "source_file": "cells/07_02.py",
+    "kind": "direct",
+    "heading": "7 Full Anchor Build",
+    "docs_id": "DOC-I07-02"
+  },
+  {
+    "token": "#7-3",
+    "source_file": "cells/07_03.py",
+    "kind": "direct",
+    "heading": "7 Full Anchor Build",
+    "docs_id": "DOC-I07-03"
+  },
+  {
+    "token": "#7-4",
+    "source_file": "cells/07_04.py",
+    "kind": "direct",
+    "heading": "7 Full Anchor Build",
+    "docs_id": "DOC-I07-04"
+  },
+  {
+    "token": "#7-5",
+    "source_file": "cells/07_05.py",
+    "kind": "direct",
+    "heading": "7 Full Anchor Build",
+    "docs_id": "DOC-I07-05"
+  },
+  {
+    "token": "#8-1",
+    "source_file": "cells/08_01.py",
+    "kind": "direct",
+    "heading": "8 Chunk Run Preparation And Execution",
+    "docs_id": "DOC-I08-01"
+  },
+  {
+    "token": "#8-2",
+    "source_file": "cells/08_02.py",
+    "kind": "direct",
+    "heading": "8 Chunk Run Preparation And Execution",
+    "docs_id": "DOC-I08-02"
+  },
+  {
+    "token": "#8-3",
+    "source_file": "cells/08_03.py",
+    "kind": "direct",
+    "heading": "8 Chunk Run Preparation And Execution",
+    "docs_id": "DOC-I08-03"
+  },
+  {
+    "token": "#8-4",
+    "source_file": "cells/08_04.py",
+    "kind": "direct",
+    "heading": "8 Chunk Run Preparation And Execution",
+    "docs_id": "DOC-I08-04"
+  },
+  {
+    "token": "#8-5",
+    "source_file": "cells/08_05.py",
+    "kind": "direct",
+    "heading": "8 Chunk Run Preparation And Execution",
+    "docs_id": "DOC-I08-05"
+  },
+  {
+    "token": "#8-6",
+    "source_file": "cells/08_06.py",
+    "kind": "direct",
+    "heading": "8 Chunk Run Preparation And Execution",
+    "docs_id": "DOC-I08-06"
+  },
+  {
+    "token": "#8-7",
+    "source_file": "cells/08_07.py",
+    "kind": "direct",
+    "heading": "8 Chunk Run Preparation And Execution",
+    "docs_id": "DOC-I08-07"
+  },
+  {
+    "token": "#8-8",
+    "source_file": "cells/08_08.py",
+    "kind": "direct",
+    "heading": "8 Chunk Run Preparation And Execution",
+    "docs_id": "DOC-I08-08"
+  },
+  {
+    "token": "#8-9",
+    "source_file": "cells/08_09.py",
+    "kind": "direct",
+    "heading": "8 Chunk Run Preparation And Execution",
+    "docs_id": "DOC-I08-09"
+  },
+  {
+    "token": "#9-1",
+    "source_file": "cells/09_01.py",
+    "kind": "direct",
+    "heading": "9 Chunk Alignment Coefficient Derivation",
+    "docs_id": "DOC-I09-01"
+  },
+  {
+    "token": "#10-1",
+    "source_file": "cells/10_01.py",
+    "kind": "direct",
+    "heading": "10 Global Prepose Graph And Gate",
+    "docs_id": "DOC-I10-01"
+  },
+  {
+    "token": "#10-2",
+    "source_file": "cells/10_02.py",
+    "kind": "direct",
+    "heading": "10 Global Prepose Graph And Gate",
+    "docs_id": "DOC-I10-02"
+  },
+  {
+    "token": "#11-1",
+    "source_file": "cells/11_01.py",
+    "kind": "direct",
+    "heading": "11 Merge And Review",
+    "docs_id": "DOC-I11-01"
+  },
+  {
+    "token": "#11-2",
+    "source_file": "cells/11_02.py",
+    "kind": "direct",
+    "heading": "11 Merge And Review",
+    "docs_id": "DOC-I11-02"
+  }
+]

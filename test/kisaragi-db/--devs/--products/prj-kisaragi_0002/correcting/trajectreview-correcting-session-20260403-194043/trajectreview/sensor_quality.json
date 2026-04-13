@@ -1,0 +1,62 @@
+{
+  "sessionId": "session-20260403-194043",
+  "timebase": {
+    "sessionStartWallTimeMs": 1775212843461,
+    "sessionStartElapsedRealtimeNanos": 1468035602956179
+  },
+  "streamCounts": {
+    "frames": 1170,
+    "imu": 3181,
+    "gnss": 5,
+    "bt": 18,
+    "poses": 1170
+  },
+  "collectorStatus": {
+    "camera2": "closed",
+    "sharedCamera": "closed",
+    "video": "captured",
+    "pose": "stopped",
+    "gnss": "active",
+    "ble": "active",
+    "arcore": "stopped"
+  },
+  "nearestDeltaNs": {
+    "imuNearestDeltaNs": 156,
+    "gnssNearestDeltaNs": 5028530831,
+    "btNearestDeltaNs": 8538594,
+    "poseNearestDeltaNs": 0
+  },
+  "timeAlignmentDeltaMs": 0,
+  "scores": {
+    "completenessScore": 1,
+    "poseCoverageRatio": 0.9906858594411516,
+    "imageIntrinsicsCoverageRatio": 1,
+    "textureIntrinsicsCoverageRatio": 1,
+    "lensDistortionCoverageRatio": 1
+  },
+  "trackingQualitySummary": {
+    "validPoseCount": 1170,
+    "trackingFrameCount": 1170,
+    "nonTrackingFrameCount": 0,
+    "nonTrackingCoverageRatio": 0
+  },
+  "qualityFlags": {
+    "hasMonotonicSessionBase": true,
+    "hasWallClockBase": true,
+    "hasVideoFrameTimeline": true,
+    "hasImuTimeline": true,
+    "hasGnssTimeline": true,
+    "hasBtTimeline": true,
+    "hasPoseTimeline": true,
+    "hasImageIntrinsicsTimeline": true,
+    "hasTextureIntrinsicsTimeline": true,
+    "hasLensDistortionTimeline": true,
+    "hasCalibrationCaptureDiagnostics": true,
+    "hasCollectorStatus": true
+  },
+  "warnings": [],
+  "blockers": [],
+  "recommendedCorrections": [
+    "この session は correcting を通過し、次段の modeling へ進めます。"
+  ]
+}

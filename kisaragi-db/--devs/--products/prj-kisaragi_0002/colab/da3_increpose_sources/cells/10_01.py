@@ -14,14 +14,12 @@ persist_root = Path(ctx.get("persist_root", probe_root))
 pipeline_root = probe_root / ctx.get("pipeline_slug", "runtime_workspace")
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
-merged_dir = Path(ctx.get("merged_dir", str(pipeline_root / "merged")))
-merged_dir.mkdir(parents=True, exist_ok=True)
 
 final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
 final_outputs_diagnostics_dir.mkdir(parents=True, exist_ok=True)
-stage_10_reaccess_dir = Path(ctx.get("stage_10_reaccess_dir", str(final_outputs_diagnostics_dir.parent / "#10-1" / "re_access")))
+stage_10_dir = Path(ctx.get("stage_10_dir", str(final_outputs_diagnostics_dir.parent / "#10-1")))
 stage_10_persist_only_dir = Path(ctx.get("stage_10_persist_only_dir", str(final_outputs_diagnostics_dir.parent / "#10-1" / "persist_only")))
-stage_10_reaccess_dir.mkdir(parents=True, exist_ok=True)
+stage_10_dir.mkdir(parents=True, exist_ok=True)
 stage_10_persist_only_dir.mkdir(parents=True, exist_ok=True)
 
 anchor_dir = persist_root / "01_anchor"
@@ -86,7 +84,7 @@ graph_opt_summary_json = stage_10_persist_only_dir / "prepose_graph_optimization
 validation_json = stage_10_persist_only_dir / "premerge_pose_validation.json"
 validation_csv = stage_10_persist_only_dir / "premerge_pose_validation.csv"
 graph_gate_report_path = stage_10_persist_only_dir / "graph_gate_report.json"
-graph_contract_manifest_path = stage_10_reaccess_dir / "graph_contract_manifest.json"
+graph_contract_manifest_path = stage_10_dir / "graph_contract_manifest.json"
 identity_transform_csv = chunk_manifest_dir / "chunk_global_transforms_arc.csv"
 
 MAT_COLS = [f"t{r}{c}" for r in range(4) for c in range(4)]

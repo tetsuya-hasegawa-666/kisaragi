@@ -1,0 +1,4 @@
+interface:
+  display_name: "Frontier Research Curator"
+  short_description: "Curate frontier tech and research notes"
+  default_prompt: "Summarize, compare, and add frontier technology or research reference notes."

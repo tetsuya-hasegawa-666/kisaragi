@@ -1,0 +1,9 @@
+- 設計審査票が先に更新されているか
+- stage / pipeline ごとの責務境界が残っているか
+- 関数 / クラス一覧表と code が追跡可能か
+- `docs_id` が code comment / docstring / table のいずれかで参照可能か
+- validation が変換直後にあるか
+- error が recoverable / fatal を区別しているか
+- notebook が orchestration に寄り、helper 実装が埋め込み過多になっていないか
+- `HAUB` などの handoff 対照表を持つ project では、producer / consumer / path row が code 変更へ追随しているか
+- contract probe / source test を持つ project では、同じ task で実行して pass を確認したか

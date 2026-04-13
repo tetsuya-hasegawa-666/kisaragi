@@ -1,0 +1,7 @@
+interface:
+  display_name: "Reference Rewire Operator"
+  short_description: "参照切替を HAUB row 更新と probe 実行まで含めて固定する。"
+  default_prompt: "Use $reference-rewire-operator to inventory current references, change them safely, update HAUB handoff rows when present, verify downstream impact with the project probe and related tests, and update docs in the same task when a design change rewires paths, ids, contracts, helper ownership, or output names."
+
+policy:
+  allow_implicit_invocation: true

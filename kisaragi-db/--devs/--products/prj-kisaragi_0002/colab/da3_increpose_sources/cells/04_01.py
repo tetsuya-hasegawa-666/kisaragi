@@ -23,18 +23,14 @@ modeling_session_id = session_id.replace("trajectreview-correcting-session-", "t
 probe_root_name = modeling_session_id
 probe_root = Path(paths["probe_root"])
 pipeline_root = probe_root / pipeline_slug
-merged_dir = pipeline_root / "merged"
 da3_nested_dir = Path(paths["da3_nested_dir"])
 da3_nested_gs_dir = Path(paths["da3_nested_gs_dir"])
 world_dir = Path(paths["world_dir"])
 manifest_dir = Path(paths["manifest_dir"])
 final_outputs_dir = Path(paths["final_outputs_dir"])
-final_outputs_merged_dir = Path(paths["final_outputs_merged_dir"])
 final_outputs_diagnostics_dir = Path(paths["final_outputs_diagnostics_dir"])
-final_outputs_manifests_dir = Path(paths["final_outputs_manifests_dir"])
 final_outputs_chunk_evidence_dir = Path(paths["final_outputs_chunk_evidence_dir"])
 stage_10_dir = Path(paths["stage_10_dir"])
-stage_10_reaccess_dir = Path(paths["stage_10_reaccess_dir"])
 stage_10_persist_only_dir = Path(paths["stage_10_persist_only_dir"])
 stage_11_dir = Path(paths["stage_11_dir"])
 stage_11_reaccess_dir = Path(paths["stage_11_reaccess_dir"])
@@ -58,11 +54,9 @@ for p in [
     world_dir,
     manifest_dir,
     final_outputs_dir,
-    final_outputs_merged_dir,
     final_outputs_diagnostics_dir,
-    final_outputs_manifests_dir,
     final_outputs_chunk_evidence_dir,
-    stage_10_reaccess_dir,
+    stage_10_dir,
     stage_10_persist_only_dir,
     stage_11_reaccess_dir,
     stage_11_persist_only_dir,
@@ -90,14 +84,10 @@ context_doc = {
     "da3_nested_gs_dir": str(da3_nested_gs_dir),
     "world_dir": str(world_dir),
     "manifest_dir": str(manifest_dir),
-    "merged_dir": str(merged_dir),
     "final_outputs_dir": str(final_outputs_dir),
-    "final_outputs_merged_dir": str(final_outputs_merged_dir),
     "final_outputs_diagnostics_dir": str(final_outputs_diagnostics_dir),
-    "final_outputs_manifests_dir": str(final_outputs_manifests_dir),
     "final_outputs_chunk_evidence_dir": str(final_outputs_chunk_evidence_dir),
     "stage_10_dir": str(stage_10_dir),
-    "stage_10_reaccess_dir": str(stage_10_reaccess_dir),
     "stage_10_persist_only_dir": str(stage_10_persist_only_dir),
     "stage_11_dir": str(stage_11_dir),
     "stage_11_reaccess_dir": str(stage_11_reaccess_dir),

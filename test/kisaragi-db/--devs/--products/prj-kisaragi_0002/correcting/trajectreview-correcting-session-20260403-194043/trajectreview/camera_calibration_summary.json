@@ -1,0 +1,44 @@
+{
+  "sessionId": "session-20260403-194043",
+  "specVersion": "2026-03-27-calibration-export-v1",
+  "recordCount": 1170,
+  "validPoseCount": 1170,
+  "imageIntrinsicsCount": 1170,
+  "textureIntrinsicsCount": 1170,
+  "lensDistortionCount": 1170,
+  "calibrationFrameCount": 1170,
+  "imageIntrinsicsCoverageRatio": 1,
+  "textureIntrinsicsCoverageRatio": 1,
+  "lensDistortionCoverageRatio": 1,
+  "timestampStartNs": 1468037636381928,
+  "timestampEndNs": 1468076643206253,
+  "intrinsicsModeCandidate": "session_fixed",
+  "intrinsicsChangedDuringRecording": false,
+  "legacySessionWithoutCalibration": false,
+  "possiblePreCalibrationImplementationData": false,
+  "captureDiagnostics": {
+    "imageIntrinsicsAttemptCount": 1170,
+    "imageIntrinsicsSuccessCount": 1170,
+    "textureIntrinsicsAttemptCount": 1170,
+    "textureIntrinsicsSuccessCount": 1170,
+    "lensDistortionAttemptCount": 1170,
+    "lensDistortionSuccessCount": 1170,
+    "failureReasons": []
+  },
+  "recommendedModelingRoutes": [
+    "route-da3metric-large-5fps-static-intrinsics",
+    "route-da3metric-large-10fps-static-intrinsics",
+    "route-da3metric-large-10fps-per-frame-intrinsics"
+  ],
+  "warnings": [],
+  "blockers": [],
+  "coordinateSystem": "right-handed world space from ARCore camera.pose",
+  "imageOrientation": {
+    "policy": "rotate_right_90_upright",
+    "rotationClockwiseDegrees": 90,
+    "rawWidth": 640,
+    "rawHeight": 480,
+    "normalizedWidth": 480,
+    "normalizedHeight": 640
+  }
+}

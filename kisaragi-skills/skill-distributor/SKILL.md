@@ -31,6 +31,14 @@ prompt を受けた最初の段階で、「今回 skill を使うべきか」「
 7. 最低限の文脈読込対象と handoff 条件を決める。
 8. 確定済み skill 集合を `skill-planner` へ handoff する。
 
+## Child Skills
+
+- `rule-snapshot-reader`
+- `authoritative-doc-scope-resolver`
+- `rule-diff-clarifier`
+
+必要時だけ上記 child skill を参照し、rule 確定と文書範囲切り出しを補助させる。
+
 ## Decision Outputs
 
 - `use_skills`: `yes` / `no`
@@ -123,6 +131,6 @@ why:
 
 ## When To Read References
 
-- routing ルールに迷う時だけ `references/skill-routing-matrix.md` を読む。
+- routing ルールに迷う時だけ `references/skill-trigger-matrix.md` を読む。
 - trigger 条件や mark 解釈を確認する時は `references/skill-trigger-matrix.md` と `references/admin-mark-table.md` を読む。
 - prompt review 補助が必要な時は `scripts/review_prompt_checklist.py` を使ってよい。

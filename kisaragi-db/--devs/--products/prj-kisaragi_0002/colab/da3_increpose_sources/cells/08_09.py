@@ -267,9 +267,7 @@ run_df_summary.to_csv(run_status_path, index=False, encoding="utf-8")
 seed_trace_path = final_outputs_diagnostics_dir / "incremental_seed_trace_arc.csv"
 pd.DataFrame(seed_trace_rows).to_csv(seed_trace_path, index=False, encoding="utf-8")
 
-all_batch_summary_path = merged_dir = pipeline_root / "merged"
-merged_dir.mkdir(parents=True, exist_ok=True)
-all_batch_summary_json = merged_dir / "all_batch_summary_arc.json"
+all_batch_summary_json = pipeline_root / "all_batch_summary_arc.json"
 save_json(all_batch_summary_json, {
     "route": "sliding_window_incremental_seeded",
     "chunk_count": int(len(run_df_summary)),

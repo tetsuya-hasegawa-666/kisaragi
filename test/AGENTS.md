@@ -1,0 +1,449 @@
+<order>
+
+# AGENTS.md
+- 概案名: `Shared Governance Core`
+## 前提事項
+### 目的
+- admin が Codex を senior software / UX engineer として活用し、有益な software を速く社会実装することを目的としている。
+
+### ルール
+- `<order>` と `</order>` の間は admin 専用の編集領域とし、最優先で厳守する。Codex は無断で書き換えてはならない。
+- すべての文書は、人が読みやすく、文字数当たりの情報量が最大になるように書く。
+- この配下の配置規則は本書に従う。
+- 本文は日本語を基本とし、識別子、command、path、API 名、service 名、英字略語は必要時のみ原文を使う。
+- file 名は半角英数字と、各 program で混乱しにくい半角記号のみを使う。
+- 日本語文書は UTF-8 前提で扱う。
+- `README.md` と `index.md` は原則禁止とし、必要時だけ `AGENTS.md` または各階層の `agents.md` 冒頭で用途を明示して使う。
+- `kisaragi/` 直下から対象文書の階層までにある `AGENTS.md` と `agents.md` を上位から読み、規則に従って把握・編集する。
+- 最上位 shared control file は `AGENTS.md` とする。
+- `AGENTS.md`や 各 directory の `agents.md` は、その配下全体に効く directory rule とする。
+- 各 project の内容は、project truth 正本と統合計画書を最初に参照すること。この 2 文書が目的と計画の根幹を示している。
+
+</order>
+
+<order>
+
+## project名称のルール
+- project名と関連ディレクトリやデータ名称に用いる固有名称のルールを規定する
+- project名は、その project の機能を示す名称とし、後で変更してよい。
+- project ごとに、発生順が分かる半角英数記号の code name を与える。code name は付与後の変更を禁止し、変更不要で運用する。
+- code name と project 名の対応は、以下の対応表だけで定義する。
+- `kisaragi/` 配下の data に project 固有名称を与える時は、project 名ではなく project code を使う。
+- project directory 名は `prj-kisaragi_****` 形式とし、project 名を directory 名へ使わない。
+```text
+<凡例> project-code : project-name
+No.1 | prj-kisaragi_0001 : prj-direview
+No.2 | prj-kisaragi_0002 : prj-trajectreview
+No.3 | prj-kisaragi_0003 : remote-pwsh
+
+
+```
+</order>
+
+
+
+## ディレクトリ構造と保管内容
+### `kisaragi/` (TOPディレクトリ)
+- `kisaragi/` の最上位運用正本は `AGENTS.md` とする。
+- top の `README.md` は、GitHub 公開時に repository 全体の構成と正本文書への入口を示す用途に限って許容する。
+- workspace 管理に必要な最小 file は、top 構造の例外として許容する。
+```text
+kisaragi/
+  kisaragi-db/
+  kisaragi-skills/
+  kisaragi-tree/
+  AGENTS.md
+  README.md
+
+```
+
+### `kisaragi-db/`
+- project で発生する方針、構想、経過、成果物は原則ここに置く。
+- `prj-kisaragi_****` 以外の directory 名は `--` で始める。
+- `--` directory は親階層の情報区分であり、新設・削除は user 了解なしでは行わない。
+- `--` directory 直下には `agents.md` 以外を置かない。
+- `--` directory 配下に `prj-kisaragi_****` がある場合、その直下へ別の `--` directory を並置しない。
+- `prj-kisaragi_****` 直下に `agents.md` は置かない。
+- `--exsams/` 配下は、性質上 Codex による自由な書き換えを許容する。
+```text
+kisaragi-db/
+  --devs/
+  --exsams/
+  agents.md
+```
+
+### `kisaragi-skills/`
+- skills の唯一の正本とする。
+```text
+kisaragi-skills/
+  ...
+  agents.md
+```
+
+### `kisaragi-tree/`
+- `kisaragi-tree/` 配下は junction によって構成し、実データ copy は持たない。
+- 直接編集せず、更新は常に `kisaragi-db/` 正本側で行う。
+- data の追加削除時は tree sync 実行物で追従させ、閲覧 UI が対応できる状態を保つ。
+```text
+kisaragi-tree/
+  ...
+  agents.md
+```
+
+### `--devs/`
+- 計画、状態、証跡、test code、product 実装物、および trace として有益な test 記録を置く。
+- `--testlogs/` には記録、要約、manifest などを置き、それ以外の生成物は `--exsams/` に置く。
+- `--tgpce-map/` は `truth, goal, plan, current, evidence-map` を束ねる統合文書置き場とする。
+- 人と AI が notebook cell、長い script、error 全文、実行結果を往復する可読性重視の共有 log は、raw 生成物ではなく project 運用文書として `--tgpce-map/prj-kisaragi_****/` 直下に置く。
+- 上記の共有 log 名は、各 project が採用する canonical 名に従う。
+- `--tgpce-map/` への統合は承認済み `prj-kisaragi_****` から段階的に行う。
+- `--tgpce-map/` 採用済み `prj-kisaragi_****` では、project 固有の `current_state` と `decision` も統合計画書を中心に集約し、旧 category の同 project 文書は `--tgpce-map/` 側へ移す。
+- `--plans/`、`--evidence/`、`--project-truth/`、`--state/` は旧 category とし、`--tgpce-map/` へ吸収し終えたら directory 実体ごと削除する。
+```text
+--devs/
+  --tgpce-map/
+    prj-kisaragi_****/
+      <project-truth>
+      <integrated-plan>
+      <admin-method>
+      <shared-worklog>
+  --products/
+  --testcode/
+  --testlogs/
+  agents.md
+```
+
+### `--exsams/`
+- 開発中 test の raw 生成物はすべてここに置く。
+- 直下は `prj-kisaragi_****/` とする。
+- `device dump`、画面構造 dump、実機調査 XML、screen capture、tmp など、正本でない一時調査出力も `--exsams/` 配下だけに置く。
+- `--exsams/` 外に一時調査出力を生成した時は、その場で `--exsams/` へ移動するか削除し、workspace root や他 category に残してはならない。
+- 人と AI の共同作業 log は raw 生成物ではないため `--exsams/` に置かず、`--tgpce-map/` 側の shared worklog を使う。
+
+
+## 更新規則
+- 共通 rule を追加した時は、この文書末尾の更新情報に記録する。
+- 更新情報は日時、文書名、標題、背景、目的、対処方法、対応内容、更新結果、新旧比較を持つ。
+- `AGENTS.md` の更新履歴は `AGENTSmd-RH.md` を参照する rule とし、この文書末尾には履歴本文を置かず、参照だけを置く。
+
+## skill dispatch
+
+| 案件 | `skill-distributor` | `skill-planner` | 終点 |
+| --- | --- | --- | --- |
+| codex への prompt すべて | ◎ | ○ | skill 要否と最終集合確定 |
+
+- 記号は `◎=必須`、`○=条件付き` とする。
+- 個別 route、選定候補、mark 補正は `test/kisaragi-skills/skill-distributor/references/skill-trigger-matrix.md` を authoritative とする。
+
+## shared / project 境界
+- `AGENTS.md` は、project 横断で共有する rule、directory、state、branch、文書運用、判定語、共通 hygiene だけを持つ。
+- project の目的、提供 UX、app 分割、artifact 名、外部 service route、package 設計、`MRL` / `INITL` の中身、個別判断は project 側正本に置く。
+- `AGENTS.md` に project path や project code を書く時は、共有構造の説明か例示に限る。
+- 特定 project の現時点判断、暫定 route、URL、workflow、platform 前提を `AGENTS.md` の rule として固定してはならない。
+- project ごとに変わりうる内容を見つけた時は、shared rule へ一般化できるものだけを `AGENTS.md` に残し、固有部分は project 文書へ戻す。
+- project 計画や truth に shared rule が混入していた時も同様に整理し、shared rule は `AGENTS.md`、project 固有 truth は project 文書へ分離する。
+- `--tgpce-map/` を使う project では、project 固有の `truth`、`goal`、`plan`、`current`、`evidence-map` を同一 project directory に集約してよい。
+- `--tgpce-map/` を使う project でも、shared governance、shared directory rule、shared branch rule、shared 判定語、shared hygiene は `AGENTS.md` に残す。
+
+## directory 統制
+- `--` で始まる top category directory は shared structure とし、Codex 判断で新設してはならない。
+- 生成物出力先を rule 外の `--trial-data` のような新規 `--` directory で迂回してはならず、許可済み category のみを使う。
+- 生成物や cache の出力先を変更する時は、既存 shared rule に適合する path へ修正し、rule 外 path を残さない。
+
+## workspace 外 access
+- `C:\Users\tetsuya\kisaragi` を workspace として作業している時は、`kisaragi/` 配下以外の directory に対する access は `READ` のみ許可する。
+- `kisaragi/` 配下以外の directory に対して、作成、編集、移動、削除、rename、生成物出力、cache 出力、install 元配置などの `READ` 以外の access を行ってはならない。
+- 外部 directory の情報が必要な時は、参照後に `kisaragi/` 配下の正本へ吸収し、外部 directory 自体は変更しない。
+
+## 実装原則
+- terminal behavior は BDD で定義し、user / operator から観測可能な振る舞いで書く。
+- 自動検証できる変更は TDD を基本とし、fail する test を先に置く。
+- green 後の refactor は visible behavior を壊さない範囲で行う。
+- MVC を採る project では、View は表示と入力、Controller は状態遷移と orchestration、Model は contract と record structure を担当する。
+- 完了した挙動は docs、plan、evidence のいずれかへ trace を残す。
+- `UX 確認済み`、`contract 固定済み`、`build / install 済み`、`local sample 済み` は、それぞれ `本来機能が実行できる` ことと同義に扱ってはならない。
+- mock、stub、sample、代替 route、説明用 UI、表示だけの接続で確認した内容は、対応する本機能 `MRL` / `mRL` を `i-pass` にしてはならず、必要なら `UX-only` または `補助 gate` と明記した別 gate で管理する。
+- 本機能 gate の `i-pass` には、対象 app 自身で本来の入出力を扱い、後段が消費する実生成物を出し、主要 blocker が plan 上で解消済みであり、かつ admin の `UX check 完了` が明示記録されていることを要件とする。
+- `MRL` / `mRL` の `i-pass` は、既存 gate を含めて admin `UX check 完了` が確認できたものだけに付与する。
+- admin の `UX check` は、関連する複数 `MRL` / `mRL` を 1 回の batch でまとめて実施してよい。
+- `warning` は後続へ注意を渡すための情報であり、データ欠落や品質低下を明示してよいが、`warning` の存在だけを理由に後続処理や user の継続操作を停止してはならない。
+- 後続処理を停止してよいのは、file 不在、contract 不成立、実行時例外などで対象処理そのものが物理的または論理的に実行不能な場合だけとし、`warning` と `blocker` を混同してはならない。
+
+## 開発計画
+- terminal behavior は BDD を起点に確認する。
+- 到達段階は `MRL`、実行単位は `mRL` で管理する。
+- 機能の振る舞いではなく、その機能を使うための準備 UX、配布、install、bootstrap、実行環境整備は `INITL`、`mINITL` で管理する。
+- release 計画、truth、evidence-map は `kisaragi-db/--devs/--tgpce-map/prj-kisaragi_****/` に置く。
+- 実装に着手する project は、原則として先に統合計画書を作成または更新する。
+- gate 状態語は `ready`、`active`、`p-done`、`i-pass` の 4 値を使う。
+- `ready` は未着手または開始待ち、`active` は実装・検証・評価の進行中、`p-done` は当該 phase 範囲で成立確認済み、`i-pass` は関連統合範囲まで成立確認済みを表す。
+- `aspass` は「現時点では合格相当」を表す補助語として会話や短い補足メモで使ってよいが、正本文書の状態語には使わず、`p-done` または `i-pass` へ正規化する。
+- 直近で具体的に検証する visible target は番号付き `MRL` / `mRL` で置き、最終目標へ向かう後続残件は粒度や順番が未確定な間だけ `MRL-**` / `mRL-**` で束ねてよい。
+- `MRL-**` / `mRL-**` を使う時も、元の north star に対して何が未達かを項目として明記し、単なる「後でやること」へぼかしてはならない。
+- `MRL` または `mRL` が `p-done` または `i-pass` になったら、その根拠を project 側の統合計画書または admin 証跡正本へ記録する。
+- `INITL` または `mINITL` が `p-done` または `i-pass` になった時も、準備 UX と install / bootstrap 証跡を project 側の統合計画書または admin 証跡正本へ記録する。
+- UX 検証成果は project 側の admin 証跡正本へ集約する。
+
+### plan 文書標準
+- 統合計画書は、`current_state` 章、BDD 章、TDD 章を持つ。
+- 統合計画書の `current_state` 章の冒頭には `疑問点不整合一覧` を表で置き、列は少なくとも `id`、`論点`、`影響`、`現在の扱い`、`admin 状態`、`関連文書` を持つ。
+- `疑問点不整合一覧` の `admin 状態` は `big-open`、`small-open`、`close`、`no judge` を使う。
+- `big-open` は影響が大きい未解決、`small-open` は影響が小さい未解決、`close` は解決済み、`no judge` は問題かどうか未判定を表す。
+- 統合計画書は、局所 current state、target behavior、受け入れ基準、検証方針、到達したい小さい milestone をまとめる正本計画書とする。
+- `Purpose Story` は `s1` 形式の識別子で、project の目的に直結する利用価値の流れとして記述する。
+- `System Behaviors` は `b1` 形式の識別子で、観測可能な振る舞いとして記述する。
+- `受け入れ基準` は `s-id`、`b-id`、観点、受け入れ基準の表で持つ。
+- `MRL` 対応表は、admin がどの gate test 項目を `UX check` すべきかを定義する表とする。
+- `MRL` 対応表の各 row は「この gate で何を確認するか」を 1 つの test 項目として持ち、`task-id` が空でない限り下の `TDD` と追跡可能でなければならない。
+- `MRL` 対応表は、少なくとも `MRL`、`mRL`、`gate test 項目`、関連 `s-id`、関連 `b-id`、`task-id`、`現在 gate` を持つ。
+- `MRL` 対応表の gate 状態語は `ready`、`active`、`p-done`、`i-pass` を使う。
+- `MRL` 対応表の記載順は、`ready` から `i-pass` への時系列ではなく、既定で運用順 `correcting`、`modeling`、`reviewing` を優先する。
+- `MRL` 対応表では、直近の visible target は番号付き `MRL` / `mRL` で明記し、後続で粒度未確定の残件だけを `MRL-**` / `mRL-**` で置いてよい。
+- `MRL` 対応表に admin `UX check` 列を持たせる時は、`admin UX確認手順` は admin 手順正本の章名または操作手順番号をそのまま書き、`admin evidence` は admin 証跡正本の章名または row をそのまま書く。
+- `INITL` 対応表は、`MRL` 対応表の直下に別 subsection として置き、`INITL`、`mINITL`、目的、関連 `MRL` または関連段階、現在 gate を少なくとも持つ。
+- `INITL-*` と `mINITL-*` は、package、install、bootstrap、実行環境、account 準備、remote 配置、配布導線などの準備 UX を表す識別子とする。
+- `INITL` は機能 behavior そのものではないため、`Purpose Story` / `System Behaviors` へ無理に混ぜず、対応する `MRL` を滑らかに開始する別 process として扱う。
+- BDD 章は、目的文、ノーススター、提供方針、`Purpose Story`、`System Behaviors`、受け入れ基準、`MRL` 対応表を持つ。
+- TDD 章は、目的文、TDD タスク表、実行方針、現在の見立てを持つ。
+- タスク表の列は `task_id`、`behavior_id`、`test_target`、`criterion`、`status`、`evidence` とし、1 task 1 責務を守る。
+- `behavior_id` は対応する BDD behavior を参照し、`criterion` は自動検証または明確な確認条件で書く。
+- 各 entry は `record date`、`target MRL`、`target mRL`、`gate change`、`issue`、`cause`、`resolution`、`recurrence prevention`、`remaining work`、`evidence path` を持つ。
+- project ごとの局所 current state は、原則として統合計画書の `current_state` 章で管理する。
+- project ごとの局所 decision も、`--tgpce-map/` 適用済み project では統合計画書の `current_state` 章へ要約して持たせてよい。
+- 既存 project が `market_release_lines.md` や `micro_release_lines.md` を持つ場合でも、それらは統合計画書を補助する参考情報として扱う。
+- `MRL` と `mRL` の内容は、原則として統合計画書に吸収し、closeout が必要になった時点で Codex 側 gate closeout 記録文書を追加または移行する。
+- 一時的な横断 hygiene、directory stabilization、reference safety のように本機能そのものではないが一定期間は開発を支える補助目標が必要な時は、project 側で `support-MRL` を置いてよい。`support-MRL` は temporary goal、適用範囲、除去条件、admin が close を判断する基準を同じ表または節で明記し、chat だけに残してはならない。
+- `UX評価状態` も `ready`、`active`、`p-done`、`i-pass` の 4 値で表す。
+- `UX評価状態` の `ready` は、まだ admin `UX check` に出す段階ではないことを示す。
+- `UX評価状態` の `active` は、manual、実行環境、対象機能がそろい、admin が今すぐ test できるか、または test を進行中であることを示す。
+- `UX評価状態` の `p-done` は、当該 phase の UX 確認が一通り完了した状態を示す。
+- `UX評価状態` の `i-pass` は、関連統合範囲まで含む admin `UX check` が完了し、結果が admin 証跡正本または統合計画書へ記録済みであることを示す。
+- `未収載` は、まだ admin 手順正本に具体手順が無いことを明示する補助語として使ってよい。
+
+## ブランチ規則
+- branch 運用の authoritative section はこの節とする。
+- 人間向け基準 branch は `dev`、Codex 向け基準 branch は `codex/dev` とする。
+- Codex の通常 push 先は `codex/dev` とする。
+- 人間向け `dev` に反映した内容は、Codex の判断で `codex/dev` にも反映してよい。
+- Codex は必要時のみ `codex/<topic>` 形式の補助 branch へ push する。
+- 人間から `push` の指示を受けた場合は、明示例外がない限り `dev` へ反映する。
+- remote `dev` を再構成する時は、既存 `dev` を空にした後で基準内容を反映する。
+- `git add`、`git commit`、`git push`、file 移動、削除、rename など前段に依存する command は直列実行する。
+- `git commit` と `git push` は並列実行しない。
+- push 後は `git status` で working tree が空であることを確認する。
+
+## 文字コードと commit / push hygiene
+- text file は UTF-8 を使う。
+- 調査、検索、確認 command は UTF-8 入出力前提で実行する。
+- PowerShell では必要に応じて `$OutputEncoding = [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)` を先に設定する。
+- Python を使う場合も UTF-8 を明示して読む。
+- 文字化けが疑われる表示は再読込なしに真実とみなさない。
+- build output、generated file、cache、device dump、screen capture、tmp、`__pycache__`、`.pytest_cache`、`*.egg-info` は commit / push しない。
+- 100MB を超える file は repository 管理対象に入れず、手元管理とする。
+- 100MB 超の evidence が必要な時は、正本には manifest、summary、screenshot、reduced derivative、download 手順などの軽量 trace だけを置き、実体 binary は commit / push しない。
+- stage は原則として明示 path で行う。
+
+## Guard
+- project から移した内部情報は、根拠なく削減しない。
+- 構造や rule を変える時は、対応する正本と pointer の両方を確認する。
+- user の明示指示がない限り、未整理データや未解決項目を消さない。
+- 迷いがある場合は、関連 project の正本と共有制御ファイルを先に確認する。
+
+# 協調規則
+## 役割
+### AI
+- 調査、仮説生成、設計提案、実装支援、文書更新、影響確認を行う。
+- 正本文書変更前に既存文脈を読む。
+- 重要判断は `decision_log` 候補として抽出する。
+
+### 人間
+- 価値判断、優先順位付け、不可逆な選択、最終承認を担う。
+- 実運用上のリスク許容度と現実検証の境界を決める。
+
+## shared worklog 利用状況
+| 場面 | 人間 | AI | 正本化先 |
+| --- | --- | --- | --- |
+| notebook / 長い script / error 全文の往復 | `sharedlog` に追記 | 最新追記を確認して応答 | runbook / plan / evidence |
+| 実行順や trial の往復 | `sharedlog` を基準面として使う | `sharedlog` を基準面として使う | 統合計画書 / product runbook |
+| 持続価値が出た内容 | 昇格確認 | 昇格候補を抽出 | truth / plan / admin method / evidence |
+| reset / rotate 前 | 反映先を確認 | 昇格漏れを確認 | 永続文書更新後のみ reset 可 |
+
+## 協調原則
+- 新しい運用規則を chat だけに残さない。
+- 人間承認事項は、shared rule なら `AGENTS.md` と `AGENTSmd-RH.md`、project 固有事項なら該当 project の正本文書へ直接記録する。
+- 短命な推論はその task の短命な記録にとどめ、持続する真実だけを正本文書へ残す。
+- 投機的拡張より、現在制約下で実行可能な前進を優先する。
+- 人間への依頼は、小さく、拒否されても全体計画が崩れない単位で行う。
+- 複数指示を含む prompt を処理する時は、未完了指示を task 内の残件として保持し、理由説明なしに取りこぼしたまま入力待ちへ移ってはならない。
+- 開発 prompt を受けた時は、まず `skill-distributor` を既定で使い、その prompt 全体を必ず review したうえで、skill を使うか、使わないか、使うなら何を使うかを先に決める。局所 task で skill 不要と判断する場合も、この段で明示する。
+- `skill-distributor` は、skill 不要判断、admin mark 解釈、必要な文書読込の下限、および今回使う最終 skill 集合の確定を行い、その確定済み skill 集合を `skill-planner` へ handoff する。
+- `skill-planner` は、`skill-distributor` から渡された確定済み skill 集合と前提情報を受け取り、skill の追加削除は行わず、どの順番で何を実行するか、どの phase で何を完了条件にするか、どこで検証と closeout を行うかだけを管理する既定 orchestration skill とする。
+- admin は prompt 上で補助 mark として `//s`、`//d`、`//c`、`//m` などの短い token を付けてよい。これらは常用必須の記法ではなく、mark が無くても通常 rule で動くことを前提とする。
+- 上記 mark の解釈責務は `skill-distributor` が持つ。mark は、定義された時だけ強く効く補助トリガーとして扱い、mark が書かれた時は `skill-distributor` が最終 skill 集合と handoff 条件へ反映し、`skill-planner` はその確定結果を実行順へ展開する。
+- 複数 task を含む開発依頼では、editing や command 実行へ入る前に `skill-planner` が実行順を固定し、必要時に `phase-task-orchestrator` を呼び出して少なくとも `Phase 1: authoritative context 確定`、`Phase 2: 設計確定と参照面棚卸し`、`Phase 3: code / docs 編集`、`Phase 4: probe / test / link check`、`Phase 5: evidence / closeout` を明示する。局所 task では phase を併合してよいが、`Phase 1` と `Phase 4` を無言で省略してはならない。
+- script、notebook、runbook source を編集する task では、対象に合う skill を必ず起動し、設計系変更は `design-first-script-builder`、参照切替や output / path / contract 変更は `reference-rewire-operator` を既定で使う。
+- 上記 task では、phase header に少なくとも `Goal`、`Authoritative`、`Working files`、`Do not treat as truth`、`Close condition` を置き、各 phase の完了条件を先に固定する。長い task では phase 完了ごとに、確定事項、未解決、次 phase を commentary で再宣言する。
+- 上記 task では、script 編集そのものに着手する前に `phase-task-orchestrator` 付属の authoritative doc check を必ず実行し、事前に読むべき正本文書と、事後に見直すべき正本文書を機械的に洗い出す。project が guard script を持つ時はその script を実行し、持たない時も同じ観点で `AGENTS.md`、対象 project の truth / plan 正本、関連設計契約を先に確認する。
+- 上記 task の対象 project が handoff 対照表と contract probe / test を持つ時は、それを authoritative contract として扱い、code 変更と同じ task で対照表更新、probe 実行、関連 test 実行まで終える。
+- notebook cell、長い script、error 全文、admin 実行結果の往復を伴う task では、main code thread を chat の直接往復ではなく project ごとの shared worklog へ集約することを既定とする。
+- 上記の task では、Codex は回答前に shared worklog の最新追記を先に確認し、chat では「どの worklog を基準に答えるか」を明示する。
+- shared worklog は context window の代替ではなく、誤送信と文脈取り違えを減らすための canonical な往復面として使う。main code、実行順、admin の raw response は原則そこで管理する。
+- chat には要点、判断、次 action を短く返し、長い code block や長い error 全文は shared worklog を基準に扱う。
+- shared worklog の `# codex` 追記には、必ず単調増加の通し番号 `v**` を付ける。番号を飛ばしてよいが、逆行や重複をしてはならない。
+- `Colab`、remote notebook、揮発 container のように runtime state が消える系の task では、途中修復を正にせず、fresh runtime からの最短 clean bootstrap を canonical route とする。
+- 上記の task では、shared worklog の trial 往復とは別に、真に必要だった command と file 操作だけを合成した `最小 clean bootstrap runbook` を product 系文書として保持することを必須とする。
+- `最小 clean bootstrap runbook` は、`いま最短で再現できる候補` と `admin 実測で truly pass 済みの採用手順` を明確に分け、後者だけを `truly pass` と表現する。
+- `最小 clean bootstrap runbook` は、それ単体で再現可能でなければならず、evidence notebook、evidence log、chat、shared worklog を参照しないと再実行できない状態を許容しない。
+- evidence notebook や evidence log は証跡であり runbook ではない。runbook に必要な install、config、file 配置、実行順、確認条件は、evidence 側ではなく runbook 正本へ昇格してから使う。
+- `Colab`、remote notebook、shared notebook のように code block を admin が貼り付けて進める runbook は、shared rule として `.md` と `.ipynb` の 2 file set で管理する。
+- `.md` は正本 runbook とし、構築途中の判断、周辺情報、OK 条件、採用 route、補助説明を含めて保持する。
+- `.ipynb` は `.md` と同内容を cell 構造へ移した実行 companion とし、情報を削らずに markdown cell と code cell へ写す。
+- 上記 2 file set は片方だけ更新してはならず、rename、追加、削除、内容更新は常に同じ task で同期する。
+- `Colab`、remote notebook、remote GPU job などの外部コンピューティング task では、最終的に出力すると決まっている file と、それを解釈する最低限の manifest / summary / transform 情報を、download や local zip より先に Drive などの永続 visible storage へ保存する。
+- 上記の task では、最終保存先 tree を runbook の早い block で先に作成し、runtime 切断、download timeout、local zip failure が起きても、確定出力が永続 visible storage 側で蒸発しない構成を必須とする。
+- cleanup script は、永続 visible storage 側へ保存済みの final output tree と、その tree を再解釈する最低限の付随情報を保持対象として明示し、それ以外の不可視中間生成物だけを削除候補へ載せる。
+- 揮発 runtime task で 1 回の session で完了しなかった時は、原則として partial recovery の説明を積み増すより `最小 clean bootstrap runbook` を更新し、次回は先頭から再実行できる形へ収束させる。
+- product 系文書に未反映のまま shared worklog だけへ bootstrap 手順を積み続けることを禁止する。最短再現経路が見えた時点で、同じ task 内で product 系文書へ昇格させる。
+- shared worklog 上で bootstrap、install、config、実行順の修正が 1 回でも通った時は、その成功を待って同じ task 内で runbook 正本へ即時反映する。次の案内や次 command は、反映後の正本と矛盾してはならない。
+- shared worklog は定期的に振り返り、持続価値のある内容を正本、manual、evidence、product runbook へ反映した後、old log 本文を削除または reset してよい。
+- 上記の削除または reset を行う時は、有益部分の反映先が先に更新済みであることを条件とし、shared worklog 単独を唯一の保持場所にしてはならない。
+- shared worklog の reset は、fixed header を残したうえで本文を blank に戻すか、新 file へ切り替える。どちらの場合も「何を正本へ反映済みか」を先に確定させる。
+- shared worklog は reset / 削除前提の共同作業 log であり、永続証跡そのものとして扱ってはならない。
+- gate close、admin 証跡、product evidence、runbook 根拠として持続させる必要がある内容は、shared worklog を参照先にせず、対応する永続文書または永続 artifact へ転記または保存してから扱う。
+
+## 並行作業
+- 共有制御ファイル編集時は、同じ task で `AGENTS.md` と `AGENTSmd-RH.md` を更新し、変更理由を追跡可能にする。
+- 重要変更は履歴用文書で追跡可能でなければならない。
+- 文書更新は対応する変更と同じ task で完了させる。
+- 文書更新を伴う task では、影響を受ける正本文書群を先に洗い出し、最低限の整合更新が完了するまで入力待ちへ入ってはならない。未更新を残す時は、理由と残件を commentary で明示する。
+
+# 意思決定方針
+## 原則
+- 可逆な意思決定は、承認済み方向性の範囲で AI が進めてよい。
+- 不可逆な意思決定には人間の明示承認が必要である。
+- 重要な意思決定は、決まった時点で記録する。
+
+## 可逆な意思決定
+- 文言整理
+- 局所的 refactor
+- test 追加
+- project 価値、governance、運用境界を変えない明確化
+
+## 不可逆な意思決定
+- 大きな architecture 転換
+- project 目的または成功条件の変更
+- 文書構造または正本方針の変更
+- 安全主張、精度目標、現場導入前提への強い commit
+- データ保持方針の変更
+
+## ゲート
+- 承認依頼には文脈、選択肢、採用案、予想される帰結を含める。
+- 承認待ちは、shared governance なら `AGENTS.md` の該当節、project 固有事項なら該当 project の正本文書へ列挙する。
+
+# 文書規則
+## 中核規則
+- `正本` という語は、`AGENTS.md`、`agents.md`、project truth 正本、統合計画書、admin 手順正本、admin 証跡正本などの管理文書にだけ使う。
+- script、runbook、notebook、source file、manifest、inventory、補助契約書、生成物保存先などには `正本` を使わず、`根拠情報`、`管理文書`、`基準 file`、`保持先`、`参照元` などの語で表現する。
+- 文書体系は最小かつ安定に保つ。
+- 新しい永続文書を増やすより既存正本文書の更新を優先する。
+- shared rule の重要な意思決定は `AGENTS.md` に反映し、変更履歴は `AGENTSmd-RH.md` に置く。
+- project 固有の重要な意思決定、人間確認事項、次 action は該当 project の正本文書に置く。
+- 人が読む各 project の構築物の試用、使用、利用、運用手順は、内容ごとに整理した上で admin 手順正本へ集約する。
+- 非 text 資産の inventory 規則は、実装 code や chat だけに残さず正本文書へ反映する。
+- active task に必要な文書更新は、project 上の真実が変わった同じ task 単位で完了させる。
+- `疑問点不整合一覧` に `big-open` が 1 件以上ある project の文書を更新した時は、response で `big-open` の存在を必ず明示する。
+- notebook、evidence export、session dump などの永続管理する証跡 data を directory へ保存する時は、その同一 directory に `agents.md` を置き、対象 data が何の data であるか、何を保存しているか、どう扱うかを明記する。
+- 上記の rule は `*.ipynb` だけに限定せず、将来保存する同種の証跡 data 全体へ同様に適用する。
+- `--tgpce-map/` 採用 project で blocker、優先順位、gate 状態、次の一手が変わった時は、同じ task で `current_state`、`疑問点不整合一覧`、`MRL` / `mRL` 対応表、必要なら implementation step 表まで更新し、相互参照をずらしたままにしてはならない。
+- `BLK-**` を使う project では、各 blocker がどの `MRL` / `mRL` に影響するかを `current_state` 正本で追跡可能にし、gate 状態が変わった時は blocker 側と `MRL` 側の両方を同時更新する。
+- `MRL` / `mRL` を現状追従させるために必要な supporting 情報、たとえば `現在の扱い`、phase 実態、evidence の所在、close 条件が変わった時も、表の gate 値だけで済ませず同じ task で補足欄まで更新する。
+- shared worklog を使う task では、その file は project に対する truth / plan / evidence の正本ではないが、共同作業の保持情報としては authoritative な worklog として扱う。
+- shared worklog は、truth / current / plan / evidence へ反映する時の根拠 log として保持し、shared rule 変更は `AGENTS.md`、project truth / plan / gate 影響は対応する project 正本文書へ必ず別途反映する。
+- refresh の shared worklog は本文 `50k` 上限の ring buffer とし、上限前に durable fact を正本へ昇格し、本文は最新側を優先して循環更新する。
+- shared worklog 自体を admin 証跡正本や evidence path の永続参照先にしてはならない。持続が必要な内容は、永続文書または永続 artifact 側へ転記後、その反映先を evidence path とする。
+- shared worklog は、原則として「固定 header」と「時系列本文」に分け、header より下は `# codex` または `# admin` 見出しによる末尾追記だけを許可する。途中挿入、途中修正、本文中ほどへの要約追記は禁止とする。
+- admin / Codex が次に読む場所を迷わないよう、shared worklog の運用上の正規読み順は「最下部から上へ」とする。Codex は回答前に最下部の最新 `# admin` / `# codex` を先に確認する。
+- `# admin` の入力欄は admin の入力時間短縮を優先し、原則として次の template を最下部に置いて引き渡す。
+```text
+# admin
+
+```text
+# <コードブロックのタイトル> res
+
+```
+```
+
+## 文書役割境界
+- project truth 正本は、目的、完成判定、利用入口、UX 原則、段階構造、app 責務、artifact 契約、外部連携境界のような恒久事項だけを持つ。
+- project truth 正本には、現在状態、未完 gate、優先度、open issue、進行中、admin 確認待ちのような時間変化する情報を書かない。
+- 統合計画書は、`current_state`、BDD、TDD、`MRL` / `mRL` / `INITL` の進行管理を持つ。
+- 統合計画書の `current_state` は、現在状態、優先順位、未完 gate、疑問点不整合一覧、project 固有 decision 要約の正本とする。
+- admin 手順正本は、人が実際に操作する時の手順と `p-done` / `i-pass` / `fail` 判断を持つ。
+- admin 証跡正本は、admin `UX check`、実行証跡、candidate evidence、gate close の根拠を持つ。
+- Codex closeout 正本は、実装側の gate 変化、issue、cause、resolution、再発防止、残課題を持つ。
+
+## 共有制御
+- 最上位 shared control file は `AGENTS.md` とする。
+- directory 単位の shared control file は各階層の `agents.md` とする。
+- `agents.md` は配下全体に効く directory rule を持つ。
+- shared control file と個別 file が衝突した場合は shared control file を優先し、個別 file を修正する。
+- 共有制御ファイルは可能な限り追記優先で扱う。
+- 大きな構造変更には人間承認が必要である。
+
+## 記述整合
+- 本文は日本語を既定とする。
+- 固有名詞、API 名、file 名、command 名、固定技術用語など、原文でないと意味を損なうものだけ英語または原文を許可する。
+- 一文一意を基本とし、数値目標には単位を含める。
+- 更新後は欠落、矛盾、古い参照、重複、所有権衝突を確認する。
+- 上位文書と下位文書が衝突した場合は下位文書を修正する。
+- 上位文書同士が衝突した場合は停止し、`人間確認待ち` に記録する。
+
+# 研究方法
+## codex 研究スタンス
+- AI は人間の取得能力を無制限と仮定しない。
+- 新しい取得依頼の前に、目的、予想時間、成功条件、未実施時の代替を示す。
+- 人間に依頼する実験単位は、既定で一度に小さな 1 件とする。
+- codexは、adminに人ではやりきれない思考装置としての役割を期待されている
+- codexは常に、問題探索-->要因推定-->課題仮説-->解決-->問題探索…を繰り返すこと
+- - codexの作業が始まったら、計画上進められるところを見つけて継続しなければならず、計画がであっても、その計画に必要な別アプローチの場合は、適切に文書を改訂したうえで、作業を計画実行する必要がある
+- 可逆で、およそ30min以内にロールバックできそうなものは、codexの判断で調査構築まですること
+- 不可逆なものは、どれだけ短い時間であっても、admin判断を求めること
+- user が `再開してください` と言った場合は、現在の正本と実装状態から再開する要求として扱う
+- セッション最初と、前回 prompt から 6 時間以上空いた時は、作業前に正本群を再読込する
+- 矛盾が見つかった場合は、作業継続しながら、該当する shared 正本または project 正本を更新する
+
+## 実行ルール
+- adminが後で見たり、対話で理解しやすいよう、特定した文書の記録を確実にとること
+- 仮説は採用まで短命な作業痕跡にとどめる。
+- 採用した設計変更は MRL 文書に反映し、shared rule 変更なら `AGENTS.md` と `AGENTSmd-RH.md`、project 固有判断なら project 正本文書にも記録する。
+- 評価では、ローカル推論、実行可能検証、現実世界で必要な検証を区別する。
+- 最小再読込対象は `AGENTS.md`＋`tgpce-map.md` とする
+- 実際の検証ステップへ近づく最短経路を優先する
+
+## 自律アーキテクト既定
+- 自律継続は現在の project 範囲内に限って許可する。
+- 新しい idea が出ただけで新規恒久文書を作らず、まず既存正本文書を更新する。
+- 新しい文書 category が必要に見える場合は停止し、人間承認を求める。
+
+# Windows 運用マニュアル
+## 目的
+- 実行可能な入口がある時、この repository 向けの簡潔で再現可能な Windows 手順を提供する。
+- Windows 前提の操作の単一正本とする。
+
+## 規則
+- Windows ベースの再現可能手順を追加したら、chat に散在させずここへ記録する。
+
+## tree sync
+- `kisaragi-tree/` の同期は `kisaragi-tree/tree-sync.cmd` または `kisaragi-tree/tree-sync.ps1` を使う。
+- PowerShell からは `powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\kisaragi-tree\tree-sync.ps1` を用いる。
+- 実行後は `kisaragi-tree/prj-kisaragi_****/` 配下に category ごとの junction が生成または更新されることを確認する。
+- `kisaragi-tree/` 配下に実データ copy を追加してはならない。
+
+## tree sync 再生成
+- 配布用実行物は `kisaragi-tree/kisaragi-tree-sync.exe` とする。
+- 再生成時の正本は `kisaragi-tree/tree-sync.ps1` と `kisaragi-tree/tree-sync-build.sed` とする。
+- Windows 標準の IExpress で `tree-sync-build.sed` を読み込み、`kisaragi-tree-sync.exe` を再生成する。
+- 再生成後は `tree-sync.ps1` を直接実行して同期結果を確認し、その後 `kisaragi-tree-sync.exe` でも起動確認する。
+
+# 更新情報
+- `AGENTS.md` の更新履歴は `C:\Users\tetsuya\kisaragi\AGENTSmd-RH.md` を参照する。

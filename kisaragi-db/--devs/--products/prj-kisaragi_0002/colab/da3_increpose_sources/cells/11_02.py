@@ -25,7 +25,7 @@ merged_camera_pose_path = merge_persist_only_dir / "diagnostics" / "merged_camer
 chunk_execution_plan_path = chunk_manifest_dir / "chunk_execution_plan.csv"
 merge_summary_path = merge_persist_only_dir / "diagnostics" / "merge_summary.json"
 merge_output_report_path = merge_persist_only_dir / "merge_output_report.json"
-merge_input_report_path = merge_persist_only_dir / "manifests" / "merge_input_report.json"
+merge_input_report_path = merge_persist_only_dir / "merge_input_report.json"
 
 required = [anchor_path, chunk_execution_plan_path]
 missing = [str(p) for p in required if not p.exists()]

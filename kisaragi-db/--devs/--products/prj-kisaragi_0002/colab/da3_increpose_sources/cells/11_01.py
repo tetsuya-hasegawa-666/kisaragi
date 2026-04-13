@@ -41,42 +41,34 @@ persist_root = Path(ctx.get("persist_root", probe_root))
 modeling_session_id = ctx["modeling_session_id"]
 manifest_dir = Path(ctx["manifest_dir"])
 final_outputs_dir = Path(ctx["final_outputs_dir"])
-final_outputs_merged_dir = Path(ctx["final_outputs_merged_dir"])
 final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
-final_outputs_manifests_dir = Path(ctx["final_outputs_manifests_dir"])
 final_outputs_chunk_evidence_dir = Path(ctx["final_outputs_chunk_evidence_dir"])
 
 pipeline_root = probe_root / ctx.get("pipeline_slug", "runtime_workspace")
 anchor_dir = persist_root / "01_anchor"
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
-graph_reaccess_dir = Path(ctx.get("stage_10_reaccess_dir", str(final_outputs_dir / "#10-1" / "re_access")))
+stage_10_dir = Path(ctx.get("stage_10_dir", str(final_outputs_dir / "#10-1")))
 graph_persist_only_dir = Path(ctx.get("stage_10_persist_only_dir", str(final_outputs_dir / "#10-1" / "persist_only")))
 merge_reaccess_dir = Path(ctx.get("stage_11_reaccess_dir", str(final_outputs_dir / "#11-1" / "re_access")))
 merge_persist_only_dir = Path(ctx.get("stage_11_persist_only_dir", str(final_outputs_dir / "#11-1" / "persist_only")))
 final_outputs_merged_dir = merge_persist_only_dir / "merged"
 final_outputs_diagnostics_dir = merge_persist_only_dir / "diagnostics"
-final_outputs_manifests_dir = merge_persist_only_dir / "manifests"
 final_outputs_chunk_evidence_dir = merge_persist_only_dir / "chunk_evidence"
 merged_dir = final_outputs_merged_dir
-stage_11_2_dir = merge_reaccess_dir / "11_2_handoff"
-stage_11_3_dir = merge_reaccess_dir / "11_3_handoff"
-stage_11_2_manifest_path = stage_11_2_dir / "11_2_handoff_manifest.json"
-stage_11_3_manifest_path = stage_11_3_dir / "11_3_handoff_manifest.json"
+stage_11_2_manifest_path = merge_reaccess_dir / "11_2_handoff_manifest.json"
+stage_11_3_manifest_path = merge_reaccess_dir / "11_3_handoff_manifest.json"
 stage_access_index_path = merge_reaccess_dir / "stage_access_index.json"
 merge_resume_state_path = merge_reaccess_dir / "merge_resume_state.json"
 for p in [
     final_outputs_dir,
-    graph_reaccess_dir,
+    stage_10_dir,
     graph_persist_only_dir,
     merge_reaccess_dir,
     merge_persist_only_dir,
     final_outputs_merged_dir,
     final_outputs_diagnostics_dir,
-    final_outputs_manifests_dir,
     final_outputs_chunk_evidence_dir,
-    stage_11_2_dir,
-    stage_11_3_dir,
 ]:
     p.mkdir(parents=True, exist_ok=True)
 
@@ -206,7 +198,7 @@ batch_summaries = sorted({
     str(p) for p in chunk_runs_dir.glob("batch_*/batch_summary.json")
 })
 summary_rows = [json.loads(Path(p).read_text(encoding="utf-8")) for p in batch_summaries]
-all_batch_summary_path = merged_dir / "all_batch_summary_arc.json"
+all_batch_summary_path = pipeline_root / "all_batch_summary_arc.json"
 all_batch_summary_path.write_text(json.dumps(summary_rows, indent=2, ensure_ascii=False), encoding="utf-8")
 merge_summary_path = final_outputs_diagnostics_dir / "merge_summary.json"
 graph_gate_report_path = graph_persist_only_dir / "graph_gate_report.json"
@@ -1196,7 +1188,6 @@ else:
         "stage": "11-2-complete",
         "completed_chunk_count": int(len(completed_chunks_df)),
         "all_chunk_count": int(len(target_chunks_df)),
-        "stage_11_2_dir": str(stage_11_2_dir),
         "stage_11_2_manifest_path": str(stage_11_2_manifest_path),
         "merged_ply_path": str(merged_ply_path) if merged_ply_path.exists() else None,
     }
@@ -1215,13 +1206,12 @@ else:
     stage_11_3_manifest_path.write_text(json.dumps(stage_11_3_manifest, indent=2, ensure_ascii=False), encoding="utf-8")
     merge_resume_state.update({
         "stage": "11-3-complete",
-        "stage_11_3_dir": str(stage_11_3_dir),
         "stage_11_3_manifest_path": str(stage_11_3_manifest_path),
         "merged_glb_path": str(merged_glb_path) if merged_glb_path.exists() else None,
     })
     merge_resume_state_path.write_text(json.dumps(merge_resume_state, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    merge_input_report_path = final_outputs_manifests_dir / "merge_input_report.json"
+    merge_input_report_path = merge_persist_only_dir / "merge_input_report.json"
     final_output_files = []
     save_json(merge_input_report_path, {
         "status": "ok",
@@ -1282,12 +1272,8 @@ else:
         "status": "ok" if final_output_files else "partial",
         "drive_visible_dir": str(probe_root),
         "final_outputs_dir": str(final_outputs_dir),
-        "final_outputs_merged_dir": str(final_outputs_merged_dir),
         "final_outputs_diagnostics_dir": str(final_outputs_diagnostics_dir),
-        "final_outputs_manifests_dir": str(final_outputs_manifests_dir),
         "final_outputs_chunk_evidence_dir": str(final_outputs_chunk_evidence_dir),
-        "stage_11_2_dir": str(stage_11_2_dir),
-        "stage_11_3_dir": str(stage_11_3_dir),
         "stage_11_2_manifest_path": str(stage_11_2_manifest_path),
         "stage_11_3_manifest_path": str(stage_11_3_manifest_path),
         "chunk_evidence_dirs": sorted([str(p) for p in final_outputs_chunk_evidence_dir.glob("*") if p.is_dir()]),

@@ -7,12 +7,9 @@ pipeline_root = probe_root / ctx.get("pipeline_slug", "runtime_workspace")
 chunk_manifest_dir = pipeline_root / "manifests"
 chunk_runs_dir = pipeline_root / "chunk_runs"
 
-merged_dir = Path(ctx["merged_dir"])
 final_outputs_dir = Path(ctx["final_outputs_dir"])
 final_outputs_diagnostics_dir = Path(ctx["final_outputs_diagnostics_dir"])
-final_outputs_manifests_dir = Path(ctx["final_outputs_manifests_dir"])
 final_outputs_chunk_evidence_dir = Path(ctx["final_outputs_chunk_evidence_dir"])
-final_outputs_merged_dir = Path(ctx["final_outputs_merged_dir"])
 
 chunk_execution_plan_path = chunk_manifest_dir / "chunk_execution_plan.csv"
 execution_chunks_path = chunk_manifest_dir / "execution_target_chunks.csv"
@@ -39,13 +36,12 @@ if bool(config_snapshot.get("RESET_TARGET_OUTPUTS_BEFORE_RUN", True)):
     for row in target_chunks_df.itertuples(index=False):
         chunk_name = str(getattr(row, chunk_name_col))
         delete_targets.append(chunk_runs_dir / chunk_name)
-        delete_targets.append(merged_dir / chunk_name)
+        delete_targets.append(pipeline_root / chunk_name)
     delete_targets.extend([
         final_outputs_dir,
         final_outputs_diagnostics_dir,
-        final_outputs_manifests_dir,
         final_outputs_chunk_evidence_dir,
-        final_outputs_merged_dir,
+        pipeline_root / "all_batch_summary_arc.json",
     ])
 
 delete_status = []
@@ -60,7 +56,7 @@ for target in delete_targets:
     else:
         delete_status.append({"path": str(target), "deleted": False, "kind": "missing"})
 
-for p in [chunk_runs_dir, merged_dir, final_outputs_dir, final_outputs_diagnostics_dir, final_outputs_manifests_dir, final_outputs_chunk_evidence_dir, final_outputs_merged_dir]:
+for p in [chunk_runs_dir, final_outputs_dir, final_outputs_diagnostics_dir, final_outputs_chunk_evidence_dir]:
     p.mkdir(parents=True, exist_ok=True)
 
 record_manifest_path = Path(json.loads(Path("/content/runbook_managed_dirs.json").read_text(encoding="utf-8"))["02_records"]) / "record_manifest.csv"
