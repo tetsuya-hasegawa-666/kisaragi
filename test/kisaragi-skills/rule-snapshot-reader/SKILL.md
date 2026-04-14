@@ -27,7 +27,7 @@ shared rule と project rule の最新有効面を、その task に必要な最
 
 ## Coordination
 
-- `skill-distributor` から必要時にだけ参照される。
+- `skill-invoker` から必要時にだけ参照される。
 - `authoritative-doc-scope-resolver` と `rule-diff-clarifier` の前段材料を返す。
 
 

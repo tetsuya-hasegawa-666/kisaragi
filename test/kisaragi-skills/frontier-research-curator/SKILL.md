@@ -10,7 +10,7 @@ description: `docs/reference/` 配下の frontier technology / frontier research
 ## Trigger Ownership
 
 - この skill 自身は発火判断を持たない。
-- `skill-distributor` と `skill-planner` が、frontier research の収集、比較、reference note 更新 task だと判断した時だけ呼ばれる。
+- `skill-invoker` と `skill-planner` が、frontier research の収集、比較、reference note 更新 task だと判断した時だけ呼ばれる。
 
 ## Workflow
 1. `docs/reference/` 内の対象 file と、少なくとも 1 つの sibling note を読み、現地の書式に合わせる。

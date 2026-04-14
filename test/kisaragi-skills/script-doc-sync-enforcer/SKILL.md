@@ -1,6 +1,6 @@
 ---
 name: script-doc-sync-enforcer
-description: `script`、`notebook`、`runbook` の変更を、関連する正本文書更新、test 実行、記録反映まで同一 task で閉じる specialist skill。発火判断は持たず、`skill-distributor` と `skill-planner` から同期担当として割り当てられた時だけ動く。
+description: `script`、`notebook`、`runbook` の変更を、関連する正本文書更新、test 実行、記録反映まで同一 task で閉じる specialist skill。発火判断は持たず、`skill-invoker` と `skill-planner` から同期担当として割り当てられた時だけ動く。
 ---
 
 # Script Doc Sync Enforcer
@@ -10,7 +10,7 @@ code 変更だけが先行し、正本文書更新、test、記録反映が shar
 ## Trigger Ownership
 
 - この skill 自身は発火判断を持たない。
-- `skill-distributor` が code / notebook / runbook 変更と文書同期が必要だと判断し、`skill-planner` が同期担当として割り当てた時だけ動く。
+- `skill-invoker` が code / notebook / runbook 変更と文書同期が必要だと判断し、`skill-planner` が同期担当として割り当てた時だけ動く。
 
 ## 受入前提
 

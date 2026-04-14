@@ -1,0 +1,7 @@
+interface:
+  display_name: "Skill Distributor"
+  short_description: "依頼ごとの skill を先に決める。"
+  default_prompt: "Use $skill-invoker to inspect a development request, propose the minimum required skills for this prompt, explain the order, and hand off to those skills before substantive work starts."
+
+policy:
+  allow_implicit_invocation: true

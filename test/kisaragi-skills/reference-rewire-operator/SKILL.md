@@ -10,7 +10,7 @@ description: 設計変更で path、file 名、docs_id、manifest 名、helper �
 ## Trigger Ownership
 
 - この skill 自身は発火判断を持たない。
-- `skill-distributor` と `skill-planner` が、参照切替や contract 名変更や output / path 変更を含むと判断した時だけ呼ばれる。
+- `skill-invoker` と `skill-planner` が、参照切替や contract 名変更や output / path 変更を含むと判断した時だけ呼ばれる。
 
 ## Core Workflow
 

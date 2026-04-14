@@ -10,7 +10,7 @@ script や notebook を「あとから継ぎ足す」形ではなく、「設計
 ## Trigger Ownership
 
 - この skill 自身は発火判断を持たない。
-- `skill-distributor` と `skill-planner` が、設計駆動の script / notebook / runbook 作業だと判断した時だけ呼ばれる。
+- `skill-invoker` と `skill-planner` が、設計駆動の script / notebook / runbook 作業だと判断した時だけ呼ばれる。
 
 ## Workflow
 

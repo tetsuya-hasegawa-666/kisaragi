@@ -28,5 +28,5 @@ description: 今回の task で実質的な管理対象になる正本文書と�
 
 ## Coordination
 
-- `skill-distributor` から必要時にだけ参照される。
+- `skill-invoker` から必要時にだけ参照される。
 - `script-doc-sync-enforcer` と `documentation-watchkeeper` の事前条件を固める。

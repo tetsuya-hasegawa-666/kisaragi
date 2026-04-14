@@ -2,8 +2,8 @@
 
 ## 目的
 
-- `skill-distributor` が prompt review 後に、必要 skill 候補を過不足なく選ぶための基準表とする。
-- trigger ownership は `skill-distributor` が持ち、この表はその判断根拠の軽量 reference とする。
+- `skill-invoker` が prompt review 後に、必要 skill 候補を過不足なく選ぶための基準表とする。
+- trigger ownership は `skill-invoker` が持ち、この表はその判断根拠の軽量 reference とする。
 
 ## 基本方針
 
@@ -13,7 +13,7 @@
 
 ## trigger matrix
 
-| 案件 | `skill-distributor` | `skill-planner` | 既定 child / specialist | 終点 |
+| 案件 | `skill-invoker` | `skill-planner` | 既定 child / specialist | 終点 |
 | --- | --- | --- | --- | --- |
 | codex への prompt すべて | ◎ | ○ | `rule-snapshot-reader` / `authoritative-doc-scope-resolver` / `rule-diff-clarifier` | skill 要否と最終集合確定 |
 | 複数 task のとき | ◎ | ◎ | `task-intent-normalizer` / `task-scope-splitter` / `close-condition-definer` / `phase-task-orchestrator` | phase 固定 |
@@ -58,5 +58,5 @@
 | `# admin` / `# codex` template と append-only を強制したい | `log-promotable-facts-extractor` | 新規 `worklog-template-enforcer` |
 | `kisaragi-tree` の sync / exe 再生成 / 確認を定型化したい | `runtime-operator` | 新規 `tree-sync-operator` |
 
-- 上記条件に当てはまる時は、`skill-distributor` は既存 skill だけで閉じるか、新規 skill 候補が必要かを必ず short note で明示する。
+- 上記条件に当てはまる時は、`skill-invoker` は既存 skill だけで閉じるか、新規 skill 候補が必要かを必ず short note で明示する。
 - 新規 skill 候補が必要でも、その場で自動新設はせず、まず候補名と不足理由を handoff または review 文書へ残す。

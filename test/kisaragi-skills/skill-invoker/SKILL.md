@@ -1,6 +1,6 @@
 ---
-name: skill-distributor
-description: 開発 prompt を受け取った直後に prompt 全体を必ず review し、skill を使うかどうか、使うなら何を使うか、admin mark をどう解釈するかを最初に決める最上位入口 skill。必要 skill の最終集合を確定して `skill-planner` へ handoff し、skill 不要判断もこの skill が持つ。
+name: skill-invoker
+description: refresh 以前から使っている最上位入口 skill。旧名称は使わず、必要 skill の最終集合確定を担う入口として `skill-invoker` に統一する。
 ---
 
 # Skill Distributor
@@ -117,8 +117,8 @@ why:
 
 ## Guard Rails
 
-- `skill-distributor` と `skill-planner` の役割の違いを理解し、実運用で混同させない。
-  役割は、`skill-distributor` は review と最終選定、`skill-planner` は実行順と管理の担当である。
+- `skill-invoker` と `skill-planner` の役割の違いを理解し、実運用で混同させない。
+  役割は、`skill-invoker` は review と最終選定、`skill-planner` は実行順と管理の担当である。
 - 既に出力された履歴やデータの現状表示には、文脈が求めない限り skill を使用しない。
 - skill は必要十分に選択することが基本。
 - skill は最小限の数を目指すものとする。

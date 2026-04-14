@@ -13,8 +13,8 @@
 
 | 原本 | `C` | `O` | 備考 |
 | --- | --- | --- | --- |
-| `AGENTS.md` | `AGENTS.md` | `temp-current-origin-AGENTS.md` | refresh control |
-| `AGENTSmd-RH.md` | `AGENTSmd-RH.md` | `temp-current-origin-AGENTSmd-RH.md` | refresh history |
+| `AGENTS.md` | `AGENTS.md` | `kisaragi-db/--devs/temp-current-origin-AGENTS.md` | refresh control |
+| `AGENTSmd-RH.md` | `kisaragi-db/--devs/AGENTSmd-RH.md` | `kisaragi-db/--devs/temp-current-origin-AGENTSmd-RH.md` | refresh history |
 | `kisaragi-skills/agents.md` | `kisaragi-skills/agents.md` | `kisaragi-skills/temp-current-origin-agents.md` | refresh skill ledger |
 
 ## `prj-kisaragi_0002` `--tgpce-map`
@@ -41,7 +41,7 @@
 | 区分 | file |
 | --- | --- |
 | shared control | `AGENTS.md` |
-| shared history | `AGENTSmd-RH.md` |
+| shared history | `kisaragi-db/--devs/AGENTSmd-RH.md` |
 | skill ledger | `kisaragi-skills/agents.md` |
 | project truth | `project-truth-core.md` |
 | project compass | `realtime-compass-and-status.md` |

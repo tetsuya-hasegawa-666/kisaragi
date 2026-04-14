@@ -10,7 +10,7 @@ runtime を、`git branch / container / app server` をまたいで安定化す�
 ## Trigger Ownership
 
 - この skill 自身は発火判断を持たない。
-- `skill-distributor` と `skill-planner` が、branch / Docker / FastAPI runtime 安定化 task だと判断した時だけ呼ばれる。
+- `skill-invoker` と `skill-planner` が、branch / Docker / FastAPI runtime 安定化 task だと判断した時だけ呼ばれる。
 
 ## 吸収した観点
 

@@ -1,20 +1,20 @@
 ---
 name: skill-planner
-description: `skill-distributor` が確定した skill 集合と前提情報を受け取り、実行順、phase、handoff、完了条件、検証順、closeout 順を決める orchestration skill。複数 skill をどの順番で実行させるかと、実際の実行管理を担う。skill の追加削除は行わない。
+description: `skill-invoker` が確定した skill 集合と前提情報を受け取り、実行順、phase、handoff、完了条件、検証順、closeout 順を決める orchestration skill。複数 skill をどの順番で実行させるかと、実際の実行管理を担う。skill の追加削除は行わない。
 ---
 
 # Skill Planner
 
-`skill-distributor` の次段で動き、確定済み skill 群を実行可能な計画へ落とす orchestration skill とする。
+`skill-invoker` の次段で動き、確定済み skill 群を実行可能な計画へ落とす orchestration skill とする。
 
 ## Trigger Ownership
 
 - この skill 自身は発火判断を持たない。
-- `skill-distributor` から `selected_skills`、`no_skill_reason`、mark 解釈、最低限の文脈情報が渡された時だけ起動する。
+- `skill-invoker` から `selected_skills`、`deferred_skills`、`blocked_skills`、`read_set_minimum`、最低限の文脈情報が渡された時だけ起動する。
 
 ## Core Workflow
 
-1. `skill-distributor` から受け取った確定済み skill 集合と理由を確認する。
+1. `skill-invoker` から受け取った確定済み skill 集合と理由を確認する。
 2. task を、`single-step`、`multi-step`、`multi-phase` のいずれかへ分類する。
 3. 実行順を決める。
    - 文脈固定
@@ -54,7 +54,7 @@ description: `skill-distributor` が確定した skill 集合と前提情報を�
 
 ## Guard Rails
 
-- 自分で skill 選定をやり直さない。skill 要否判断と最終選定は `skill-distributor` の ownership とする。
+- 自分で skill 選定をやり直さない。skill 要否判断と最終選定は `skill-invoker` の ownership とする。
 - 実行順を決めずに下位 skill を並列乱発しない。
 - `Phase 1` と `Phase 4` を必要時に落とさない。
 - 下位 skill の expected result を固定せずに handoff しない。

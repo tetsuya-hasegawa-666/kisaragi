@@ -46,7 +46,7 @@ def _extra_review_docs(workspace_root: Path, project_code: str, touched: list[Pa
             add(tgpce / "realtime-compass-and-status.md")
         if "\\kisaragi-skills\\" in p:
             add(workspace_root / "kisaragi-skills" / "agents.md")
-            add(workspace_root / "AGENTSmd-RH.md")
+            add(workspace_root / "kisaragi-db" / "--devs" / "AGENTSmd-RH.md")
 
     unique: list[Path] = []
     seen = set()
@@ -90,8 +90,8 @@ def build_report(workspace_root: Path, touched: list[Path]) -> dict:
             must.append(workspace_root / "kisaragi-skills" / "agents.md")
             after.append(workspace_root / "kisaragi-skills" / "agents.md")
         if text.endswith("\\AGENTS.md"):
-            must.append(workspace_root / "AGENTSmd-RH.md")
-            after.append(workspace_root / "AGENTSmd-RH.md")
+            must.append(workspace_root / "kisaragi-db" / "--devs" / "AGENTSmd-RH.md")
+            after.append(workspace_root / "kisaragi-db" / "--devs" / "AGENTSmd-RH.md")
 
     def uniq(paths: list[Path]) -> list[str]:
         out: list[str] = []

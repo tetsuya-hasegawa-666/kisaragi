@@ -28,7 +28,7 @@ prompt が現行 rule の追認なのか、差分なのか、例外なのかを�
 
 ## Coordination
 
-- `skill-distributor` から必要時にだけ参照される。
+- `skill-invoker` から必要時にだけ参照される。
 - `AGENTS.md` 変更か project 文書変更かの切り分け材料を返す。
 
 

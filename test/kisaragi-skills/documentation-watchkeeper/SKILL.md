@@ -8,7 +8,7 @@ description: 会話起点の文書影響を検知し、新しい判断、前提�
 ## Trigger Ownership
 
 - この skill 自身は発火判断を持たない。
-- `skill-distributor` と `skill-planner` が、文書同期または docs drift close が必要と判断した時だけ呼ばれる。
+- `skill-invoker` と `skill-planner` が、文書同期または docs drift close が必要と判断した時だけ呼ばれる。
 
 ## 吸収した観点
 

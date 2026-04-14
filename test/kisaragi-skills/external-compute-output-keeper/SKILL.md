@@ -10,7 +10,7 @@ description: `Colab`、remote notebook、remote GPU job などの外部コンピ
 ## Trigger Ownership
 
 - この skill 自身は発火判断を持たない。
-- `skill-distributor` と `skill-planner` が、`Colab`、remote notebook、remote GPU job などの外部 runtime task だと判断した時だけ呼ばれる。
+- `skill-invoker` と `skill-planner` が、`Colab`、remote notebook、remote GPU job などの外部 runtime task だと判断した時だけ呼ばれる。
 
 ## 適用条件
 

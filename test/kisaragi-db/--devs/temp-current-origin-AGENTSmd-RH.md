@@ -1,4 +1,4 @@
-# AGENTSmd-RH.md
+# AGENTS.md 更新履歴
 
 ## 目的
 
@@ -26,19 +26,19 @@
   - 旧: temporary objective の扱いは task ごとの説明へ寄りやすく、継続条件と除去条件が shared rule では定義されていなかった。
   - 新: `support-MRL` を使って project 文書へ昇格し、temporary goal と close 条件を明示して運用できる。
 
-### 2026-04-11 AGENTS.md 開発 prompt の skill 選定を `skill-distributor` へ固定
+### 2026-04-11 AGENTS.md 開発 prompt の skill 選定を `skill-invoker` へ固定
 
 - 日時: `2026-04-11`
 - 文書名: `AGENTS.md`
-- 標題: 開発 prompt ごとの必須 skill 提案を `skill-distributor` へ固定
+- 標題: 開発 prompt ごとの必須 skill 提案を `skill-invoker` へ固定
 - 背景: 現状は `phase-task-orchestrator` などの入口 skill を整備しても、依頼ごとにどの skill を使うべきかの選定自体が暗黙で、結局 Codex の裁量に寄っていた。
 - 目的: 開発 prompt を受けた最初の段階で、その prompt に必要な最小 skill 群と適用順を必ず先に決める入口を追加し、運用の安定性を上げる。
-- 対処方法: `kisaragi-skills/skill-distributor/` を新設し、routing matrix、UI metadata、workflow を追加したうえで、`AGENTS.md` に開発 prompt ではまず `skill-distributor` を使う shared rule を追記した。
-- 対応内容: skill 一覧では `skill-distributor` を最上位入口、`phase-task-orchestrator` を複数 task 開発依頼の進行管理 skill、そのほかを専門 skill として再配置した。
+- 対処方法: `kisaragi-skills/skill-invoker/` を新設し、routing matrix、UI metadata、workflow を追加したうえで、`AGENTS.md` に開発 prompt ではまず `skill-invoker` を使う shared rule を追記した。
+- 対応内容: skill 一覧では `skill-invoker` を最上位入口、`phase-task-orchestrator` を複数 task 開発依頼の進行管理 skill、そのほかを専門 skill として再配置した。
 - 更新結果: 今後は開発 prompt ごとに、まず使う skill と順序を先に提案してから作業へ入る運用を shared rule として扱える。
 - 新旧比較:
   - 旧: 入口 skill はあっても、依頼ごとの skill 選定自体は暗黙だった。
-  - 新: `skill-distributor` が prompt ごとの skill 選定を担当し、必要 skill と順序を先に固定する運用になった。
+  - 新: `skill-invoker` が prompt ごとの skill 選定を担当し、必要 skill と順序を先に固定する運用になった。
 
 ### 2026-04-11 AGENTS.md phase 入口 skill へ authoritative guard を統合
 
@@ -398,11 +398,11 @@
 - 背景: `prj-kisaragi_0002` で先行していた `--tgpce-map` と新文書名の運用を、`prj-kisaragi_0001` と `prj-kisaragi_0003` にも適用する必要が生じた。
 - 目的: `prj-kisaragi_0001`、`prj-kisaragi_0002`、`prj-kisaragi_0003` が同じ正本構造と file 名で運用できるようにし、以後の project 展開時に rule の差分を減らす。
 - 対処方法: `AGENTS.md` の shared rule を `kisaragi_****` 共通の表現へ保ちつつ、admin 手順正本の記載も `--tgpce-map` 採用 project 基準へそろえた。
-- 対応内容: admin 手順の共有記述を `admin-ux-method.md` 基準へ更新し、`0001` / `0003` 側の移行に追従できる shared rule に整えた。
+- 対応内容: admin 手順の共有記述を `admin-mrl-test-method.md` 基準へ更新し、`0001` / `0003` 側の移行に追従できる shared rule に整えた。
 - 更新結果: `0001`、`0002`、`0003` は同じ `--tgpce-map` 正式構成で読める前提になり、個別 project ごとの差は project 文書側で管理できる。
 - 新旧比較:
   - 旧: admin 手順の shared 記述が旧 `ux_check_manual.md` path 前提のままだった。
-  - 新: `--tgpce-map` 採用 project では `admin-ux-method.md` を正本に使う前提で統一した。
+  - 新: `--tgpce-map` 採用 project では `admin-mrl-test-method.md` を正本に使う前提で統一した。
 
 ### 2026-03-28 AGENTS.md `--tgpce-map` 運用の `kisaragi_****` 一般化
 
@@ -412,7 +412,7 @@
 - 背景: `prj-kisaragi_0002` で固めた `--tgpce-map`、統合計画書、admin 手順 / 証跡、Codex closeout の運用を、他 project にも同じ format で展開する前提が生まれた。
 - 目的: `AGENTS.md` に残る `0002` 固有の開発運用表現を `prj-kisaragi_****` 共通 rule へ置き換え、shared rule と project 固有事項の境界を明確にする。
 - 対処方法: `AGENTS.md` と `--devs/agents.md` の `0002` 固有表現を、`--tgpce-map/` 採用 project 共通の file 名と運用 rule に一般化した。
-- 対応内容: `ux-b2t-hypo.md`、`codex-gate-closeout.md`、`admin-ux-method.md`、`admin-ux-evidence.md` を `prj-kisaragi_****` 共通の正式名称として定義し、旧 `0002` 固有運用文言を shared rule から外した。
+- 対応内容: `ux-b2t-hypo.md`、`codex-mrl-test-evidence.md`、`admin-mrl-test-method.md`、`admin-mrl-test-evidence.md` を `prj-kisaragi_****` 共通の正式名称として定義し、旧 `0002` 固有運用文言を shared rule から外した。
 - 更新結果: `AGENTS.md` は project code 対応表を除き、`0002` 固有運用に依存せず、今後の `--tgpce-map` 展開にそのまま使える状態になった。
 - 新旧比較:
   - 旧: `0002` 固有の file 名と運用が shared rule に混在していた。
@@ -464,12 +464,12 @@
 
 - 日時: `2026-03-28`
 - 文書名: `AGENTS.md`
-- 標題: `project-truth-core.md`、`b2t-plans-result.md`、evidence 文書の役割境界固定
-- 背景: `prj-kisaragi_0002` の整理で、`project-truth-core.md` に現在状態や UX の進行中情報が混在し、`b2t-plans-result.md` と役割が重なって読みにくくなっていた。
+- 標題: `project-truth.md`、`b2t-plans-result.md`、evidence 文書の役割境界固定
+- 背景: `prj-kisaragi_0002` の整理で、`project-truth.md` に現在状態や UX の進行中情報が混在し、`b2t-plans-result.md` と役割が重なって読みにくくなっていた。
 - 目的: shared rule として、`truth`、`b2t`、`ux_check_manual`、`mrl-ux-valid` の責務を明確に分け、同じ情報の二重管理を防ぐ。
 - 対処方法: `文書規則` に `文書の役割境界` 節を追加し、各文書に書くべき内容と書かない内容を明文化した。
-- 対応内容: `project-truth-core.md` は恒久事項のみ、`b2t-plans-result.md` は current state と gate 管理、`ux_check_manual.md` は操作手順、`mrl-ux-valid.md` は UX 証跡と close 根拠を持つ rule を追加した。
-- 更新結果: 今後は `project-truth-core.md` から現在状態を除去しやすくなり、project 文書の境界を shared rule で再利用できる。
+- 対応内容: `project-truth.md` は恒久事項のみ、`b2t-plans-result.md` は current state と gate 管理、`ux_check_manual.md` は操作手順、`mrl-ux-valid.md` は UX 証跡と close 根拠を持つ rule を追加した。
+- 更新結果: 今後は `project-truth.md` から現在状態を除去しやすくなり、project 文書の境界を shared rule で再利用できる。
 - 新旧比較:
   - 旧: 文書境界は project 内の局所判断に近く、shared rule としては固定されていなかった。
   - 新: `truth`、`b2t`、evidence 文書の責務を `AGENTS.md` で共有 rule 化した。
@@ -594,7 +594,7 @@
 - 背景: `project-code` は維持したまま、No.2 の project-name を現在の機能表現へ合わせて更新する指示が出た。
 - 目的: immutable な `project-code` と可変な `project-name` の対応表を最新化し、関連文書と表示名の整合を保つ。
 - 対処方法: `AGENTS.md` の対応表を更新し、`prj-kisaragi_0002` 配下の正本文書、README、表示名、Gradle project 名を `trajectreview` 基準へ同期した。
-- 対応内容: `project-truth-core.md`、`b2t-plans-result.md`、`restart-launch-pad.md`、`mrl-record.md`、`README.md`、`strings.xml`、`settings.gradle.kts` などの人向け名称を更新した。
+- 対応内容: `project-truth.md`、`b2t-plans-result.md`、`resume-startup-plan.md`、`mrl-record.md`、`README.md`、`strings.xml`、`settings.gradle.kts` などの人向け名称を更新した。
 - 更新結果: `prj-kisaragi_0002` は directory 名を維持したまま、project-name と表示名を `prj-trajectreview` / `trajectreview` として扱う。
 - 新旧比較:
   - 旧: No.2 は `prj-kisaragi_0002 : prj-reviework` だった。
@@ -646,15 +646,15 @@
 
 - 日時: `2026-03-25`
 - 文書名: `AGENTS.md`
-- 標題: `restart-launch-pad.md` の用途固定
+- 標題: `resume-startup-plan.md` の用途固定
 - 背景: `reviework` の補助計画書を残す理由が file 名だけでは伝わらず、通常計画書との違いが分かりにくかった。
 - 目的: 中断後の再開時に現在地と立ち上げ順を短く掴むための補助文書であることを shared rule として明確にする。
-- 対処方法: 開発計画節へ `restart-launch-pad.md` の役割を追記した。
+- 対処方法: 開発計画節へ `resume-startup-plan.md` の役割を追記した。
 - 対応内容: 正本を置き換えず、再開導線と初動確認項目を補助する文書として位置付けた。
 - 更新結果: 今後は、補助計画を残す理由と使いどころを file 名と shared rule の両方から理解できる。
 - 新旧比較:
   - 旧: 補助計画書を残す理由が文書構造上は明確でなかった。
-  - 新: `restart-launch-pad.md` は再開時の現在地把握と立ち上げ順確認のための補助文書だと明示した。
+  - 新: `resume-startup-plan.md` は再開時の現在地把握と立ち上げ順確認のための補助文書だと明示した。
 
 ### 2026-03-25 AGENTS.md B2T 統合正本への移行
 
@@ -720,7 +720,7 @@
 - 背景: `prj-kisaragi_0002` の `ux-b2t-hypo.md` で、`MRL` 対応表の役割、row の追跡性、状態語、`未収載` の意味など shared 化できる前書きが project 文書側へ残っていた。
 - 目的: `MRL` 対応表の読み方と記載 rule を shared governance へ戻し、project 文書には project 固有の参照先だけを残す。
 - 対処方法: `開発計画` 節へ `MRL` 対応表の目的、必須列、TDD 追跡性、admin `UX check` 列の書き方、`未収載` の意味を追記した。
-- 対応内容: `ux-b2t-hypo.md` 側の前書きから shared rule を削り、`admin-ux-method.md` と `admin-ux-evidence.md` への project 固有参照だけを残した。
+- 対応内容: `ux-b2t-hypo.md` 側の前書きから shared rule を削り、`admin-mrl-test-method.md` と `admin-mrl-test-evidence.md` への project 固有参照だけを残した。
 - 更新結果: 今後は `MRL` 対応表の汎用 rule を `AGENTS.md` で統一し、project 文書では個別の運用先だけを読む構造になる。
 - 新旧比較:
   - 旧: `MRL` 対応表の汎用 rule が project 文書ごとに重複し得た。
@@ -744,15 +744,15 @@
 
 - 日時: `2026-04-04`
 - 文書名: `AGENTS.md`
-- 標題: 統合計画書の正式名称を `realtime-compass-and-status.md` に統一
+- 標題: 統合計画書の正式名称を `hi-ai-unified-blueprint.md` に統一
 - 背景: `ux-b2t-hypo.md` は略称依存で意味が伝わりにくく、human / AI 協調の設計文書であることが file 名から読み取りにくかった。
 - 目的: `--tgpce-map/` 配下の統合計画書を意味の通る正式名称へ統一し、略称も `HAUB` で固定する。
-- 対処方法: shared rule、README、各 project の正本 file 名、関連 pointer を `realtime-compass-and-status.md` 基準へ切り替えた。
+- 対処方法: shared rule、README、各 project の正本 file 名、関連 pointer を `hi-ai-unified-blueprint.md` 基準へ切り替えた。
 - 対応内容: `AGENTS.md` と `kisaragi-db/--devs/agents.md` の rule を更新し、`prj-kisaragi_0001`、`0002`、`0003` の統合計画書 file を rename して参照を追従させた。
-- 更新結果: 今後 `--tgpce-map/` 採用 project の統合計画書は `realtime-compass-and-status.md` を正本とし、略称は `HAUB` で統一して扱う。
+- 更新結果: 今後 `--tgpce-map/` 採用 project の統合計画書は `hi-ai-unified-blueprint.md` を正本とし、略称は `HAUB` で統一して扱う。
 - 新旧比較:
   - 旧: 統合計画書の shared 名称は `ux-b2t-hypo.md` だった。
-  - 新: 統合計画書の shared 名称は `realtime-compass-and-status.md`、略称は `HAUB` になった。
+  - 新: 統合計画書の shared 名称は `hi-ai-unified-blueprint.md`、略称は `HAUB` になった。
 ### 2026-04-11 AGENTS.md admin 補助 mark の位置付け追加
 
 - 日時: `2026-04-11`
@@ -770,42 +770,39 @@
 
 - 日時: `2026-04-11`
 - 文書名: `AGENTS.md`
-- 標題: `skill-distributor -> skill-planner -> specialist skills` の実行系へ整理
+- 標題: `skill-invoker -> skill-planner -> specialist skills` の実行系へ整理
 - 背景: 共通前提の解釈、mark 解釈、発火条件を各 skill が個別に持つと、発火条件の drift と重複が生じやすく、運用上の説明責任も分散するという確認があった。
-- 目的: trigger ownership を `skill-distributor` へ一元化し、`skill-planner` が execution order と実行管理を担い、他 skill は受入前提と処理責務へ集中する構造へ整理する。
-- 対処方法: 協調規則へ、`skill-distributor` が prompt 全体 review、skill 要否判断、mark 解釈、必要 skill 候補の選定を担い、`skill-planner` が実行順と close 条件を管理することを追記した。
-- 対応内容: `AGENTS.md`、`kisaragi-skills/agents.md`、`skill-distributor`、`phase-task-orchestrator`、各専門 skill の役割境界を更新し、新設 `skill-planner` の位置づけを追加した。
-- 更新結果: 今後は `skill-distributor` が唯一の trigger owner、`skill-planner` が唯一の orchestration owner となり、他 skill は発火判断を持たず specialist として呼ばれる構造になる。
+- 目的: trigger ownership を `skill-invoker` へ一元化し、`skill-planner` が execution order と実行管理を担い、他 skill は受入前提と処理責務へ集中する構造へ整理する。
+- 対処方法: 協調規則へ、`skill-invoker` が prompt 全体 review、skill 要否判断、mark 解釈、必要 skill 候補の選定を担い、`skill-planner` が実行順と close 条件を管理することを追記した。
+- 対応内容: `AGENTS.md`、`kisaragi-skills/agents.md`、`skill-invoker`、`phase-task-orchestrator`、各専門 skill の役割境界を更新し、新設 `skill-planner` の位置づけを追加した。
+- 更新結果: 今後は `skill-invoker` が唯一の trigger owner、`skill-planner` が唯一の orchestration owner となり、他 skill は発火判断を持たず specialist として呼ばれる構造になる。
 - 新旧比較:
   - 旧: `phase-task-orchestrator` を含む複数 skill が入口や発火条件を個別に持っていた。
-  - 新: `skill-distributor -> skill-planner -> specialist skills` へ整理し、trigger ownership を中央集約した。
+  - 新: `skill-invoker -> skill-planner -> specialist skills` へ整理し、trigger ownership を中央集約した。
 ### 2026-04-12 AGENTS.md distributor と planner の責務境界を再整理
 
 - 日時: `2026-04-12`
 - 文書名: `AGENTS.md`
-- 標題: `skill-distributor` を最終選定 owner、`skill-planner` を発火と順序管理 owner へ整理
-- 背景: `skill-distributor` が選定し、`skill-planner` が再度選定に近い判断を持つと、選定が二重化して責務境界が曖昧になる懸念が出た。
-- 目的: skill 選定は 1 回にとどめ、`skill-distributor` が最終 skill 集合を確定し、`skill-planner` はその確定済み集合の発火、実行順、phase、handoff、close 条件だけを扱う構造へ統一する。
-- 対処方法: `AGENTS.md`、skill registry、`skill-distributor`、`skill-planner`、pilot spec、trigger system map の記述を同時に修正し、planner が skill の追加削除を行わないことを明記した。
-- 対応内容: `skill-distributor` を最終選定 owner、`skill-planner` を発火と execution order owner として定義し直した。
+- 標題: `skill-invoker` を最終選定 owner、`skill-planner` を発火と順序管理 owner へ整理
+- 背景: `skill-invoker` が選定し、`skill-planner` が再度選定に近い判断を持つと、選定が二重化して責務境界が曖昧になる懸念が出た。
+- 目的: skill 選定は 1 回にとどめ、`skill-invoker` が最終 skill 集合を確定し、`skill-planner` はその確定済み集合の発火、実行順、phase、handoff、close 条件だけを扱う構造へ統一する。
+- 対処方法: `AGENTS.md`、skill registry、`skill-invoker`、`skill-planner`、pilot spec、trigger system map の記述を同時に修正し、planner が skill の追加削除を行わないことを明記した。
+- 対応内容: `skill-invoker` を最終選定 owner、`skill-planner` を発火と execution order owner として定義し直した。
 - 更新結果: 今後は選定が 1 回で確定し、planner は選定済み skill 集合をどう動かすかだけを担当する。
 - 新旧比較:
   - 旧: `skill-planner` が選定済み候補から実質的な再選定をしうる読め方があった。
-  - 新: 最終選定は `skill-distributor`、発火と順序管理は `skill-planner` と明確化した。
+  - 新: 最終選定は `skill-invoker`、発火と順序管理は `skill-planner` と明確化した。
 ### 2026-04-12 AGENTS.md skill trigger 方針を集中型へ変更
 
 - 日時: `2026-04-12`
 - 文書名: `AGENTS.md`
-- 標題: `skill-distributor` を集中型 trigger owner として固定
+- 標題: `skill-invoker` を集中型 trigger owner として固定
 - 背景: `rule / authority 系` や `task structuring 系` を補助 trigger controller として持つ半集中型は再利用性がある一方、実運用では trigger rule の所在が増えて distributor の責務説明が逆に重くなる懸念が出た。
-- 目的: trigger ownership を `skill-distributor` に集中させ、`skill-planner` は選定済み skill 集合の発火と実行順管理だけを担う形へ簡潔化する。
-- 対処方法: `AGENTS.md`、skill registry、`skill-distributor`、pilot spec、trigger system map を更新し、補助 trigger controller 前提を外した。
-- 対応内容: `skill-distributor` の責務を「集中型 trigger owner」として明記し、`skill-planner` は trigger 補助判断を持たないと整理した。
+- 目的: trigger ownership を `skill-invoker` に集中させ、`skill-planner` は選定済み skill 集合の発火と実行順管理だけを担う形へ簡潔化する。
+- 対処方法: `AGENTS.md`、skill registry、`skill-invoker`、pilot spec、trigger system map を更新し、補助 trigger controller 前提を外した。
+- 対応内容: `skill-invoker` の責務を「集中型 trigger owner」として明記し、`skill-planner` は trigger 補助判断を持たないと整理した。
 - 更新結果: 今後は trigger 系統が 1 本化され、発火判断は distributor、発火後の順序管理は planner という役割で運用する。
 - 新旧比較:
   - 旧: 半集中型を推奨し、補助 trigger controller の分担を前提にしていた。
   - 新: 集中型を採り、trigger ownership を distributor へ集約した。
-
-
-
 

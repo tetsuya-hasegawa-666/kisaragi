@@ -10,7 +10,7 @@ delivery planning を、`BDD -> TDD -> release gate -> handover` の連続した
 ## Trigger Ownership
 
 - この skill 自身は発火判断を持たない。
-- `skill-distributor` と `skill-planner` が、BDD / TDD / gate / handover を扱う task だと判断した時だけ呼ばれる。
+- `skill-invoker` と `skill-planner` が、BDD / TDD / gate / handover を扱う task だと判断した時だけ呼ばれる。
 
 ## 吸収した観点
 

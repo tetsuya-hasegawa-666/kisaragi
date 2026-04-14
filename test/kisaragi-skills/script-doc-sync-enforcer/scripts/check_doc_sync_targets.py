@@ -9,7 +9,7 @@ def suggest_doc_targets(changed_paths: list[str]) -> dict:
     if "colab" in text or "runbook" in text or ".ipynb" in text:
         suggestions.extend(["design contract", "source inventory"])
     if "agents.md" in text or "ag" in text:
-        suggestions.extend(["AGENTS.md", "AGENTSmd-RH.md"])
+        suggestions.extend(["AGENTS.md", "kisaragi-db/--devs/AGENTSmd-RH.md"])
     return {"changed_paths": changed_paths, "suggestions": suggestions}
 
 

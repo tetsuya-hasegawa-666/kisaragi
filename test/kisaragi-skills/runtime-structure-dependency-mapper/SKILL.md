@@ -1,6 +1,6 @@
 ---
 name: runtime-structure-dependency-mapper
-description: `import/呼び出し関係`、`path read/write`、`artifact producer/consumer`、`directory structure` を棚卸しし、計算環境依存の崩れを検知する specialist skill。発火判断は持たず、`skill-distributor` と `skill-planner` から依存整理担当として割り当てられた時だけ動く。
+description: `import/呼び出し関係`、`path read/write`、`artifact producer/consumer`、`directory structure` を棚卸しし、計算環境依存の崩れを検知する specialist skill。発火判断は持たず、`skill-invoker` と `skill-planner` から依存整理担当として割り当てられた時だけ動く。
 ---
 
 # Runtime Structure Dependency Mapper
@@ -10,7 +10,7 @@ description: `import/呼び出し関係`、`path read/write`、`artifact produce
 ## Trigger Ownership
 
 - この skill 自身は発火判断を持たない。
-- `skill-distributor` が依存棚卸し対象を検知し、`skill-planner` が runtime / structure 依存整理担当として割り当てた時だけ動く。
+- `skill-invoker` が依存棚卸し対象を検知し、`skill-planner` が runtime / structure 依存整理担当として割り当てた時だけ動く。
 
 ## 受入前提
 

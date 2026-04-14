@@ -265,11 +265,11 @@ kisaragi-tree/
 - 投機的拡張より、現在制約下で実行可能な前進を優先する。
 - 人間への依頼は、小さく、拒否されても全体計画が崩れない単位で行う。
 - 複数指示を含む prompt を処理する時は、未完了指示を task 内の残件として保持し、理由説明なしに取りこぼしたまま入力待ちへ移ってはならない。
-- 開発 prompt を受けた時は、まず `skill-distributor` を既定で使い、その prompt 全体を必ず review したうえで、skill を使うか、使わないか、使うなら何を使うかを先に決める。局所 task で skill 不要と判断する場合も、この段で明示する。
-- `skill-distributor` は、skill 不要判断、admin mark 解釈、必要な文書読込の下限、および今回使う最終 skill 集合の確定を行い、その確定済み skill 集合を `skill-planner` へ handoff する。
-- `skill-planner` は、`skill-distributor` から渡された確定済み skill 集合と前提情報を受け取り、skill の追加削除は行わず、どの順番で何を実行するか、どの phase で何を完了条件にするか、どこで検証と closeout を行うかだけを管理する既定 orchestration skill とする。
+- 開発 prompt を受けた時は、まず `skill-invoker` を既定で使い、その prompt 全体を必ず review したうえで、skill を使うか、使わないか、使うなら何を使うかを先に決める。局所 task で skill 不要と判断する場合も、この段で明示する。
+- `skill-invoker` は、skill 不要判断、admin mark 解釈、必要な文書読込の下限、および今回使う最終 skill 集合の確定を行い、その確定済み skill 集合を `skill-planner` へ handoff する。
+- `skill-planner` は、`skill-invoker` から渡された確定済み skill 集合と前提情報を受け取り、skill の追加削除は行わず、どの順番で何を実行するか、どの phase で何を完了条件にするか、どこで検証と closeout を行うかだけを管理する既定 orchestration skill とする。
 - admin は prompt 上で補助 mark として `//s`、`//d`、`//c`、`//m` などの短い token を付けてよい。これらは常用必須の記法ではなく、mark が無くても通常 rule で動くことを前提とする。
-- 上記 mark の解釈責務は `skill-distributor` が持つ。mark は、定義された時だけ強く効く補助トリガーとして扱い、mark が書かれた時は `skill-distributor` が最終 skill 集合と handoff 条件へ反映し、`skill-planner` はその確定結果を実行順へ展開する。
+- 上記 mark の解釈責務は `skill-invoker` が持つ。mark は、定義された時だけ強く効く補助トリガーとして扱い、mark が書かれた時は `skill-invoker` が最終 skill 集合と handoff 条件へ反映し、`skill-planner` はその確定結果を実行順へ展開する。
 - 複数 task を含む開発依頼では、editing や command 実行へ入る前に `skill-planner` が実行順を固定し、必要時に `phase-task-orchestrator` を呼び出して少なくとも `Phase 1: authoritative context 確定`、`Phase 2: 設計確定と参照面棚卸し`、`Phase 3: code / docs 編集`、`Phase 4: probe / test / link check`、`Phase 5: evidence / closeout` を明示する。局所 task では phase を併合してよいが、`Phase 1` と `Phase 4` を無言で省略してはならない。
 - script、notebook、runbook source を編集する task では、対象に合う skill を必ず起動し、設計系変更は `design-first-script-builder`、参照切替や output / path / contract 変更は `reference-rewire-operator` を既定で使う。
 - 上記 task では、phase header に少なくとも `Goal`、`Authoritative`、`Working files`、`Do not treat as truth`、`Close condition` を置き、各 phase の完了条件を先に固定する。長い task では phase 完了ごとに、確定事項、未解決、次 phase を commentary で再宣言する。
@@ -435,4 +435,5 @@ kisaragi-tree/
 
 # 更新情報
 - `AGENTS.md` の更新履歴は `C:\Users\tetsuya\kisaragi\AGENTSmd-RH.md` を参照する。
+
 

@@ -2,7 +2,7 @@
 
 ## 目的
 
-- admin の短い mark を `skill-distributor` が一貫して解釈するための定義表とする。
+- admin の短い mark を `skill-invoker` が一貫して解釈するための定義表とする。
 
 ## mark 一覧
 

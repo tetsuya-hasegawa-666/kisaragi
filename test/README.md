@@ -1,53 +1,32 @@
-# kisaragi
+# test
 
-`kisaragi` は、project ごとの正本文書、実装、証跡、運用 rule を 1 つの workspace で管理する repository です。最上位の運用正本は [AGENTS.md](./AGENTS.md) です。
+`test/` は refresh 用の軽量 workspace です。root には `AGENTS.md` と `README.md` だけを置き、その他の文書は `kisaragi-db/`、`kisaragi-skills/`、`kisaragi-tree/` 配下で管理します。
 
 ## top 構造
 
 | path | 役割 | 入口文書 |
 | --- | --- | --- |
-| [`AGENTS.md`](./AGENTS.md) | repository 全体の shared control file | [`AGENTS.md`](./AGENTS.md) |
-| [`kisaragi-db/`](./kisaragi-db/) | project ごとの計画、状態、証跡、実装物の正本 | [`kisaragi-db/agents.md`](./kisaragi-db/agents.md) |
-| [`kisaragi-skills/`](./kisaragi-skills/) | 統合 skill 正本 | [`kisaragi-skills/agents.md`](./kisaragi-skills/agents.md) |
+| [`AGENTS.md`](./AGENTS.md) | `test/` 全体の shared control file | [`AGENTS.md`](./AGENTS.md) |
+| [`kisaragi-db/`](./kisaragi-db/) | 履歴、計画、状態、証跡、snapshot の保持先 | [`kisaragi-db/agents.md`](./kisaragi-db/agents.md) |
+| [`kisaragi-skills/`](./kisaragi-skills/) | skill 正本、refresh 設計、trigger / pilot / proposal 文書 | [`kisaragi-skills/agents.md`](./kisaragi-skills/agents.md) |
 | [`kisaragi-tree/`](./kisaragi-tree/) | junction による閲覧 tree | [`kisaragi-tree/agents.md`](./kisaragi-tree/agents.md) |
 
-## 現在の project 対応
+## refresh 文書の配置
 
-| project code | project 名 | 概要 | 主な入口 |
-| --- | --- | --- | --- |
-| `prj-kisaragi_0001` | `prj-direview` | read-only dual-pane viewer project | [`project-truth.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0001/project-truth.md) |
-| `prj-kisaragi_0002` | `prj-trajectreview` | `correcting`、`modeling`、`reviewing` の 4 app 構成で `3DGS` と trajectory review を進める project | [`project-truth.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/project-truth.md) |
-| `prj-kisaragi_0003` | `remote-pwsh` | remote recovery と smartphone fallback の project | [`project-truth.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0003/project-truth.md) |
-
-## `prj-kisaragi_0002` の入口
-
-- project truth: [`project-truth.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/project-truth.md)
-- 統合計画書: [`hi-ai-unified-blueprint.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/hi-ai-unified-blueprint.md)
-- Codex gate 記録: [`codex-mrl-test-evidence.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/codex-mrl-test-evidence.md)
-- admin 手順: [`admin-mrl-test-method.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-method.md)
-- admin 証跡: [`admin-mrl-test-evidence.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0002/admin-mrl-test-evidence.md)
-
-## `prj-kisaragi_0001` の入口
-
-- project truth: [`project-truth.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0001/project-truth.md)
-- 統合計画書: [`hi-ai-unified-blueprint.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0001/hi-ai-unified-blueprint.md)
-- Codex gate 記録: [`codex-mrl-test-evidence.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0001/codex-mrl-test-evidence.md)
-- admin 手順: [`admin-mrl-test-method.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0001/admin-mrl-test-method.md)
-- admin 証跡: [`admin-mrl-test-evidence.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0001/admin-mrl-test-evidence.md)
-- 参考 release line: [`market_release_lines.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0001/market_release_lines.md)
-
-## `prj-kisaragi_0003` の入口
-
-- project truth: [`project-truth.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0003/project-truth.md)
-- 統合計画書: [`hi-ai-unified-blueprint.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0003/hi-ai-unified-blueprint.md)
-- Codex gate 記録: [`codex-mrl-test-evidence.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0003/codex-mrl-test-evidence.md)
-- admin 手順: [`admin-mrl-test-method.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0003/admin-mrl-test-method.md)
-- admin 証跡: [`admin-mrl-test-evidence.md`](./kisaragi-db/--devs/--tgpce-map/prj-kisaragi_0003/admin-mrl-test-evidence.md)
+| 主題 | 配置先 |
+| --- | --- |
+| shared history | [`kisaragi-db/--devs/AGENTSmd-RH.md`](./kisaragi-db/--devs/AGENTSmd-RH.md) |
+| refresh file map | [`kisaragi-db/--devs/refresh-file-map.md`](./kisaragi-db/--devs/refresh-file-map.md) |
+| skill governance proposal | [`kisaragi-skills/kisaragi_context_skill_governance_proposal.md`](./kisaragi-skills/kisaragi_context_skill_governance_proposal.md) |
+| pilot skill spec | [`kisaragi-skills/kisaragi_pilot_skill_spec.md`](./kisaragi-skills/kisaragi_pilot_skill_spec.md) |
+| trigger system map | [`kisaragi-skills/kisaragi_skill_trigger_system_map.md`](./kisaragi-skills/kisaragi_skill_trigger_system_map.md) |
+| lightweighting proposal | [`kisaragi-skills/kisaragi_upper_document_lightweighting_proposal.md`](./kisaragi-skills/kisaragi_upper_document_lightweighting_proposal.md) |
+| skillification review | [`kisaragi-skills/agents_skillification_review.md`](./kisaragi-skills/agents_skillification_review.md) |
+| gap list | [`kisaragi-skills/skill-direct-gap-list.md`](./kisaragi-skills/skill-direct-gap-list.md) |
 
 ## 読み始め方
 
-1. repository 全体の rule は [AGENTS.md](./AGENTS.md) を読む。
-2. project の狙いは `project-truth` を読む。
-3. 現在の実装計画と gate は `hi-ai-unified-blueprint.md` と `codex-mrl-test-evidence.md` を読む。
-4. 人が試す手順は `admin-mrl-test-method.md` を読む。
+1. shared rule は [AGENTS.md](./AGENTS.md) を読む。
+2. skill 構造は [`kisaragi-skills/agents.md`](./kisaragi-skills/agents.md) を読む。
+3. refresh の履歴と snapshot は [`kisaragi-db/--devs/`](./kisaragi-db/--devs/) を見る。
 
